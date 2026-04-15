@@ -6,9 +6,7 @@
 
 ## 0. lorekit 是什么
 
-lorekit 是给 Claude Code（以及任意 LLM harness）的 **LLM Wiki toolkit**：一组 skill + 一个 corpus 目录骨架 + 一支薄 CLI（`wiki`），让 LLM 能在本地知识库里 ingest、查询、回写、lint。
-
-**它不是 harness**：跑 LLM loop 的活交给 Claude Code，lorekit 只负责数据层和 skill。详见 [`ethos/NOT_A_HARNESS.md`](ethos/NOT_A_HARNESS.md)。
+lorekit 是给 Claude Code（以及任意支持 skill / markdown 指令的 agent harness）的 **LLM Wiki toolkit**：一组 skill + 一个 corpus 目录骨架 + 一支薄 CLI（`wiki`），让 agent 能在本地知识库里 ingest、查询、回写、lint。
 
 ---
 
@@ -156,4 +154,4 @@ Phase 1 只用 ripgrep 就够了，几千张卡内无感。卡片数破 5000 或
 
 ---
 
-准备好了。下一步：[`ethos/NOT_A_HARNESS.md`](ethos/NOT_A_HARNESS.md) 了解 lorekit 的设计哲学。
+准备好了。遇到问题参考 [`../README.md`](../README.md) 或在 GitHub 提 issue。
