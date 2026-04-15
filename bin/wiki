@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# lorekit wiki CLI — main dispatcher
+set -euo pipefail
+
+_resolve() {
+  local t="$1" d
+  if command -v greadlink >/dev/null 2>&1; then greadlink -f "$t"; return; fi
+  if readlink -f / >/dev/null 2>&1; then readlink -f "$t"; return; fi
+  while [ -L "$t" ]; do
+    d=$(cd -P "$(dirname "$t")" && pwd); t=$(readlink "$t")
+    [[ "$t" != /* ]] && t="$d/$t"
+  done
+  echo "$(cd -P "$(dirname "$t")" && pwd)/$(basename "$t")"
+}
+
+LOREKIT_ROOT="$(cd "$(dirname "$(_resolve "${BASH_SOURCE[0]}")")/.." && pwd)"
+export LOREKIT_ROOT
+LIB="$LOREKIT_ROOT/bin/lib"
+# shellcheck source=lib/common.sh
+source "$LIB/common.sh"
+
+cmd="${1:-}"; [ $# -gt 0 ] && shift || true
+case "$cmd" in
+  init|doctor|search|stats|lint) source "$LIB/$cmd.sh"; "cmd_$cmd" "$@" ;;
+  install-skills) source "$LIB/install-skills.sh"; cmd_install_skills "$@" ;;
+  version|--version) source "$LIB/version.sh"; cmd_version ;;
+  ""|-h|--help|help) cat <<EOF
+lorekit wiki $(lk_version) — thin CLI for markdown-native knowledge corpora
+
+Usage: wiki <command> [args]
+
+Commands:
+  init [path] [--in-place] [--minimal]   Create corpus skeleton
+  doctor                                  Health check current corpus
+  lint [--quick] [--docs]                 Deep scan (orphans/broken/frontmatter)
+  stats [--since Nd] [--type T]           Corpus statistics as JSON
+  search <query> [--type T] [--dir D]     ripgrep wrapper, JSON lines
+  install-skills --target claude-code     Install skills into a harness
+  version                                 Print lorekit version
+  --help                                  Show this help
+EOF
+    ;;
+  *) lk_err "unknown command: $cmd (try: wiki --help)"; exit 2 ;;
+esac

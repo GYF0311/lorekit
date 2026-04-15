@@ -1,0 +1,12 @@
+.DS_Store
+*.log
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+
+# corpus 衍生物（不进 git）
+.wiki/vector.sqlite
+.wiki/vector.sqlite-wal
+.wiki/vector.sqlite-shm
+.wiki/provider_cache/
