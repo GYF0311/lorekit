@@ -1,75 +1,117 @@
 ---
 name: wiki-ingest
-description: 把新内容摄入 corpus，按 filing-rules 落盘并建反向链接。触发词：ingest、存一下、整理进知识库、收藏、归档，或用户直接发 URL / 文件路径。
+description: 把新内容摄入 corpus，按 filing-rules 落盘并建反向链接。触发词：ingest、存一下、整理进知识库、收藏、归档、mp.weixin、公众号、带图文章，或用户直接发 URL / 文件路径。
 ---
 
 # wiki-ingest
 
-把外部内容（URL / 文件 / 粘贴文本）摄入到当前 corpus，按主语落盘、建反向链接、通过 lint 自检。
+把外部内容（URL / 文件 / 粘贴文本）摄入当前 corpus：先 fetch，再按主语落盘，建反向链接，通过 lint 自检。
 
 ## When to trigger
 
 - 用户发来 URL / 文件路径 / 粘贴一段外部内容
-- 用户说"ingest 这个"、"存一下"、"整理进知识库"、"收藏"、"归档一下"、"记录下来（配外部资料）"
-- 录音整理、剪藏、公众号文章等外部资料进入 corpus 的场景
+- 用户说"ingest 这个"、"存一下"、"整理进知识库"、"收藏"、"归档一下"
+- 用户发公众号链接（`mp.weixin.qq.com`）且希望整理
 
 **不要触发**：
-- 对话中的洞察/决定/事实要存回 —— 那是 `wiki-fileback`（输入是对话，不是外部资料）
-- 只是查询已有内容 —— 那是 `wiki-query`
-- 从日记里定期提炼 —— 那是 `wiki-enrich`
+- 对话中的洞察要存回 → `wiki-fileback`
+- 只是查询已有内容 → `wiki-query`
+- 从日记里定期提炼 → `wiki-enrich`
+
+## Step 0: Fetch
+
+对任何 URL，统一调 `wiki fetch <url>`，它会按站点类型自动路由并把产物落在 `_工作台/00_收件/fetch/<slug>/`（corpus 内）或 `/tmp/lorekit-fetch/<slug>/`（corpus 外）。
+
+stdout 是**单行 JSON**，解析它决定下一步：
+
+| status | 含义 | 下一步 |
+|---|---|---|
+| `ok` | 抓取成功 | 读 `markdown` 字段指向的 article.md；按需 `Read` `images_dir/` 下关键图片 |
+| `error` | 抓取失败（如 `ANTIBOT_BLOCKED`） | 按 `fallback` 字段提示回退工具，或让用户粘贴 |
+| `unsupported` | 站点 wiki fetch 不直接处理 | 按 `suggest` 字段使用对应工具（如 lark-cli / pdf skill / WebFetch） |
+
+**成功 JSON 示例**：
+```json
+{"status":"ok","route":"rich","url":"...","title":"...","author":"...","source_layer":"L1","slug":"abc","dir":"<workbench>/abc","markdown":"<workbench>/abc/article.md","images_dir":"<workbench>/abc/images","images_ok":12,"images_failed":1}
+```
+
+**本地文件 / 粘贴文本** 不走 `wiki fetch`，直接 `Read`。
+
+完成 Step 0 后进入下面的 decision tree，输入是：正文 markdown、标题、作者、日期、图片清单、工作台 slug 目录。
 
 ## Decision tree
 
-1. **抓取内容**
-   - URL 公众号/带图 → `fetch-rich`
-   - URL 需要登录/反爬 → `web-access`
-   - 一般 URL → `WebFetch`
-   - 本地文件 → 直接 Read
-2. **解析**：抽取标题、作者、日期、关键实体
-3. **查重**：`wiki search "<title>"` + `wiki search "<关键实体>"`
-   - 命中既有页 → update 分支（走到第 6 步，追加 timeline）
+1. **Step 0: Fetch**（见上）—— 拿到正文 + 图片，产物在工作台 slug 目录
+2. **解析**：抽取标题、作者、关键实体
+3. **核实日期**（见下方"日期填写规则"）
+4. **查重**：`wiki search "<title>"` + `wiki search "<关键实体>"`
+   - 命中既有页 → update 分支（跳到第 7 步，追加 timeline）
    - 没命中 → create 分支
-4. **原文落地**：原文件永远保留在 `60_来源/`（文章 / 会议纪要 / 公众号原文 / 书籍笔记 ...），**只读**
-5. **判断主语**（见 `99_系统/filing-rules.md`）：
+5. **原文落地（铁律）**：用 `mv` 把工作台 slug 目录**搬到**永久位置，**不要用 cp**
+   - 公众号 → `60_来源/公众号原文/<slug>/`
+   - 一般文章 → `60_来源/文章/<slug>/`
+   - 书籍笔记 → `60_来源/书籍笔记/<slug>/`
+   - 会议纪要 → `60_来源/会议纪要/<slug>/`
+   - **搬完工作台那份就不存在了**——产物永远只存一份，未被 ingest 的孤儿才留在工作台等 7 天过期
+   - 如果原文本身不值得入档（如 low-quality 片段），可以 `rm -rf` 工作台 slug 目录
+6. **判断主语**（见 `99_系统/filing-rules.md`）：
    - 主题是人 → `10_人物/<人名>.md`
    - 主题是项目 → `20_项目/<项目名>.md`
    - 主题是概念/方法 → `30_概念/<概念名>.md`
-   - 主题是事件 → `40_事件/<事件名>.md`
+   - 主题是事件/活跃领域 → `40_主题/<事件名>.md` 或 `90_*/`
    - 一条内容可能有多个主语，**每个主语都要处理**
-6. **Notability gate**（决定建新页还是追加 timeline）
+7. **Notability gate**（决定建新页还是追加 timeline）
    - 问："下次我会不会主动引用这个实体？"
    - 是 → 新建页面：frontmatter + `## Compiled Truth` + `---` + `## Timeline`（首条）
    - 否 → 找最近相关页，往 `## Timeline` 追加一条，**禁止新建**
-7. **建反向链接**（铁律：**至少一条**，防孤岛）
+8. **建反向链接**（铁律：**至少一条**，防孤岛）
    - 页面里提到的所有 `[[人物]]` / `[[项目]]` / `[[概念]]` 都要确认目标页存在
    - 目标页也要在 timeline 留下一条反向引用
-8. **自检**：`wiki lint --quick`，有问题就修到没问题再汇报
-9. **汇报**
+9. **自检**：`wiki lint --quick`，有问题就修到没问题再汇报
+10. **汇报**（见 Output format）
+
+## 日期填写规则（重要）
+
+来源页的日期字段（frontmatter 的 `source_date` 或 timeline 条目的日期）必须按以下优先级核实：
+
+| 优先级 | 方法 | 说明 |
+|---|---|---|
+| 1 | **原文明确日期** | "Posted on 2026-04-04"、"2026年4月4日" 等 |
+| 2 | **URL / 页面元数据** | GitHub 看 commit 时间，博客看发布时间，`metadata.json` 里的 publish_time |
+| 3 | **用户确认** | 不确定时问用户"这篇文章日期是？" |
+| 4 | **留空或标注** | 实在找不到写 `"(待核实)"` 或留空 |
+
+**禁止行为**：
+- ❌ **猜测年份**（如默认填 2025）
+- ❌ **用"今年/去年"** 等相对时间
+- ❌ **用 ingest 时间冒充发布日期**
 
 ## Tools to use
 
-- `wiki search "<q>"` — 精确查重（ripgrep 实现）
-- `wiki vector query "<summary>"` — 模糊找相似页（可选，v0.5+）
-- `wiki lint --quick` — 快速自检 frontmatter / 断链 / 孤岛
-- `fetch-rich` / `web-access` / `WebFetch` — 按站点类型选抓取工具
-- 底层文件操作：Read / Write / Edit
+- `wiki fetch <url>` — 统一 URL 抓取入口（lorekit 自带，内部路由 fetch_rich / lark / WebFetch / 其它）
+- `wiki search "<q>"` — 精确查重（ripgrep）
+- `wiki vector query "<summary>"` — 模糊找相似页（v0.5+）
+- `wiki lint --quick` — 写完自检
+- 底层：Read / Write / Edit / `mv` / `rm -rf`
 
 ## Output format
 
-向用户汇报时必须包含：
-
 ```
-原文：<60_来源/.../xxx.md>
+抓取：wiki fetch → rich (L1, 12 images, 1 failed)
+原文：mv 工作台/abc → 60_来源/公众号原文/abc/
 新建页面：
-  - [[人物/张三]]
-  - [[概念/RAG 评估]]
+  - [[10_人物/张三]]
+  - [[30_概念/RAG 评估]]
 更新页面（追加 timeline）：
-  - [[项目/lorekit]]
+  - [[20_项目/lorekit]]
 反向链接：已建 N 条
+日期来源：原文标注 2026-04-04
 lint：PASS / 发现 X 个问题（已列出）
 ```
 
-**铁律复述**：
-1. 原文保留在 `60_来源/`，有主语的分析必须移走
-2. 至少一条反向链接
-3. Notability gate 未过的实体不建独立页，只追加 timeline
+**铁律**：
+1. 原文 **mv**（不是 cp）到 `60_来源/`，工作台那份搬完就不存在
+2. 有主语的分析必须移走，`60_来源/` 只放原文
+3. 至少一条反向链接，防孤岛
+4. Notability gate 未过的实体不建独立页，只追加 timeline
+5. 日期必须核实，禁止猜测年份

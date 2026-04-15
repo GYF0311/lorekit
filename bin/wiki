@@ -21,7 +21,7 @@ source "$LIB/common.sh"
 
 cmd="${1:-}"; [ $# -gt 0 ] && shift || true
 case "$cmd" in
-  init|doctor|search|stats|lint) source "$LIB/$cmd.sh"; "cmd_$cmd" "$@" ;;
+  init|doctor|search|stats|lint|fetch) source "$LIB/$cmd.sh"; "cmd_$cmd" "$@" ;;
   install-skills) source "$LIB/install-skills.sh"; cmd_install_skills "$@" ;;
   version|--version) source "$LIB/version.sh"; cmd_version ;;
   ""|-h|--help|help) cat <<EOF
@@ -35,6 +35,7 @@ Commands:
   lint [--quick] [--docs]                 Deep scan (orphans/broken/frontmatter)
   stats [--since Nd] [--type T]           Corpus statistics as JSON
   search <query> [--type T] [--dir D]     ripgrep wrapper, JSON lines
+  fetch <url> [--out DIR] [--force-rich]  Fetch URL to local md+images, JSON out
   install-skills --target claude-code     Install skills into a harness
   version                                 Print lorekit version
   --help                                  Show this help
