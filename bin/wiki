@@ -35,22 +35,31 @@ _banner() {
     pages="—"; indexed="—"; model="—"
   fi
   local ver; ver="$(lk_version)"
-  local C_C=$'\033[36m' C_B=$'\033[1m' C_D=$'\033[2m'
-  printf '%s┌─────────────────────────────────────────┐%s\n' "$C_D" "$C_0"
-  printf '%s│%s  %s📚 lorekit%s %-29s%s│%s\n' "$C_D" "$C_0" "$C_B" "$C_0" "v$ver" "$C_D" "$C_0"
-  printf '%s│%s  Personal LLM Wiki Toolkit             %s│%s\n' "$C_D" "$C_0" "$C_D" "$C_0"
-  printf '%s│%s                                         %s│%s\n' "$C_D" "$C_0" "$C_D" "$C_0"
+  local B=$'\033[34m' BB=$'\033[1;34m' C=$'\033[36m' D=$'\033[2m' W=$'\033[1;37m' O=$'\033[0m'
+
+  printf '\n'
+  printf '  %s██╗      ██████╗ ██████╗ ███████╗██╗  ██╗██╗████████╗%s\n' "$BB" "$O"
+  printf '  %s██║     ██╔═══██╗██╔══██╗██╔════╝██║ ██╔╝██║╚══██╔══╝%s\n' "$BB" "$O"
+  printf '  %s██║     ██║   ██║██████╔╝█████╗  █████╔╝ ██║   ██║   %s\n' "$BB" "$O"
+  printf '  %s██║     ██║   ██║██╔══██╗██╔══╝  ██╔═██╗ ██║   ██║   %s\n' "$B" "$O"
+  printf '  %s███████╗╚██████╔╝██║  ██║███████╗██║  ██╗██║   ██║   %s\n' "$B" "$O"
+  printf '  %s╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝   ╚═╝   %s\n' "$D" "$O"
+  printf '  %sPersonal LLM Wiki Toolkit%s  %sv%s%s\n' "$D" "$O" "$C" "$ver" "$O"
+  printf '\n'
+
   local short_corpus="$corpus"
-  [ ${#short_corpus} -gt 30 ] && short_corpus="...${short_corpus: -27}"
-  printf '%s│%s  %scorpus:%s  %-31s%s│%s\n' "$C_D" "$C_0" "$C_C" "$C_0" "$short_corpus" "$C_D" "$C_0"
-  printf '%s│%s  %spages:%s   %-10s %sindexed:%s %-17s%s│%s\n' "$C_D" "$C_0" "$C_C" "$C_0" "$pages" "$C_C" "$C_0" "$indexed" "$C_D" "$C_0"
-  printf '%s│%s  %smodel:%s   %-31s%s│%s\n' "$C_D" "$C_0" "$C_C" "$C_0" "$model" "$C_D" "$C_0"
-  printf '%s│%s                                         %s│%s\n' "$C_D" "$C_0" "$C_D" "$C_0"
-  printf '%s│%s  lorekit doctor   %s健康检查%s              %s│%s\n' "$C_D" "$C_0" "$C_D" "$C_0" "$C_D" "$C_0"
-  printf '%s│%s  lorekit fetch    %s抓取网页%s              %s│%s\n' "$C_D" "$C_0" "$C_D" "$C_0" "$C_D" "$C_0"
-  printf '%s│%s  lorekit search   %s搜索%s                  %s│%s\n' "$C_D" "$C_0" "$C_D" "$C_0" "$C_D" "$C_0"
-  printf '%s│%s  lorekit --help   %s所有命令%s              %s│%s\n' "$C_D" "$C_0" "$C_D" "$C_0" "$C_D" "$C_0"
-  printf '%s└─────────────────────────────────────────┘%s\n' "$C_D" "$C_0"
+  [ ${#short_corpus} -gt 45 ] && short_corpus="...${short_corpus: -42}"
+  printf '  %s corpus %s  %s\n' "$C" "$O" "$short_corpus"
+  printf '  %s pages  %s  %-8s  %s indexed %s %s\n' "$C" "$O" "$pages" "$C" "$O" "$indexed"
+  if [ "$model" != "—" ]; then
+    printf '  %s model  %s  %s\n' "$C" "$O" "$model"
+  fi
+  printf '\n'
+  printf '  %s$ lorekit doctor%s    健康检查\n' "$W" "$O"
+  printf '  %s$ lorekit fetch%s     抓取网页\n' "$W" "$O"
+  printf '  %s$ lorekit search%s    搜索\n' "$W" "$O"
+  printf '  %s$ lorekit --help%s    所有命令\n' "$W" "$O"
+  printf '\n'
 }
 
 cmd="${1:-}"; [ $# -gt 0 ] && shift || true
