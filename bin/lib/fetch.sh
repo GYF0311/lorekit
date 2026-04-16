@@ -12,7 +12,7 @@ Usage: wiki fetch <url> [--out DIR] [--force-rich] [--no-images]
 Fetch a URL and write its content (and images, if any) to local disk.
 Routes by URL host to the right fetcher. Emits a single JSON line on stdout.
 
-  --out DIR      Override output parent dir. Default: <corpus>/_工作台/00_收件/fetch/
+  --out DIR      Override output parent dir. Default: <corpus>/_工作台/收件/fetch/
                  (or /tmp/lorekit-fetch/ if not inside a corpus).
   --force-rich   Skip host routing, always use fetch_rich.py.
   --no-images    Skip image download.
@@ -32,7 +32,7 @@ EOF
   if [ -n "$out_override" ]; then
     out_root="$out_override"
   elif corpus="$(lk_find_corpus)"; then
-    out_root="$corpus/_工作台/00_收件/fetch"
+    out_root="$corpus/_工作台/收件/fetch"
   else
     out_root="/tmp/lorekit-fetch"
   fi

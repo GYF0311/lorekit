@@ -13,6 +13,19 @@ cmd_search() {
   done
   [ -z "$q" ] && { lk_err "search: query required"; return 2; }
   [ -z "$dir" ] && dir="$(lk_find_corpus 2>/dev/null || echo "$PWD")"
+
+  # --- Vector search augmentation ---
+  local vec_db="$dir/.wiki/vector.sqlite"
+  if [ -f "$vec_db" ]; then
+    local script="$LOREKIT_ROOT/bin/vectors/vector_engine.py"
+    local vec_out
+    vec_out=$(uv run --script "$script" query --corpus "$dir" --text "$q" --top-k 3 --threshold 0.65 2>/dev/null || true)
+    if [ -n "$vec_out" ] && [ "$vec_out" != "[]" ]; then
+      printf '{"_vector_hits": %s}\n' "$vec_out"
+    fi
+  fi
+
+  # --- ripgrep text search ---
   local rg_args=(--no-heading --line-number --color never)
   [ -n "$ftype" ] && rg_args+=(-t "$ftype")
   rg_args+=(-- "$q" "$dir")

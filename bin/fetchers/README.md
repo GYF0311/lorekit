@@ -12,7 +12,7 @@ wiki fetch https://mp.weixin.qq.com/s/xxx
 ```
 
 产物自动落在：
-- corpus 内 → `<corpus>/_工作台/00_收件/fetch/<slug>/`
+- corpus 内 → `<corpus>/_工作台/收件/fetch/<slug>/`
 - corpus 外 → `/tmp/lorekit-fetch/<slug>/`（兜底）
 
 `wiki fetch --help` 看完整选项。

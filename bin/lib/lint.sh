@@ -15,7 +15,7 @@ cmd_lint() {
   local scan="$root"; [ "$docs" = "1" ] && scan="$root/docs"
   [ -d "$scan" ] || { lk_err "scan dir missing: $scan"; return 1; }
   local names="/tmp/.lkn.$$"
-  find "$scan" -type f -name '*.md' -not -path '*/_archive/*' -not -path '*/.wiki/*' \
+  find "$scan" -type f -name '*.md' -not -path '*/_归档/*' -not -path '*/.wiki/*' \
     -exec basename {} .md \; 2>/dev/null | sort -u > "$names"
   while IFS= read -r f; do
     [ -z "$f" ] && continue
@@ -35,7 +35,7 @@ cmd_lint() {
       grep -qE '\[\[[^]]+\]\]' "$f" 2>/dev/null && continue
       _emit "$f" "orphan" "no inbound or outbound wikilinks"
     fi
-  done < <(find "$scan" -type f -name '*.md' -not -path '*/_archive/*' -not -path '*/.wiki/*' 2>/dev/null)
+  done < <(find "$scan" -type f -name '*.md' -not -path '*/_归档/*' -not -path '*/.wiki/*' 2>/dev/null)
   # TODO: _工作台 expiry scan (7/14/30/3 days) deferred
   rm -f "$names"
 }

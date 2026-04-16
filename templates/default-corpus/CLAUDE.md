@@ -1,84 +1,98 @@
-# CLAUDE.md — Corpus Agent 宪法
+# CLAUDE.md — Corpus Schema
 
-> 本文件是 lorekit corpus 的 Agent 宪法，由 Claude Code 自动读取。
-> 任何写入、归档、查询操作都必须遵守这里的规则。
+> 本文件是这份 corpus 的 schema，由 LLM Agent 每次对话自动读取。
+> 它告诉 Agent：这份知识库的范围、约定、当前状态和待填空缺。
+> 人和 LLM 共同维护这份文件（co-evolve）。
 
 ## 这是什么
 
 这是一个由 **lorekit** 管理的个人知识 corpus。
-- lorekit 是一个给 Claude Code / Codex / Cursor 等 LLM harness 使用的 Wiki toolkit（插件，不是 harness 本体）。
-- corpus 是"资料库"的意思：人、项目、概念、主题、方法、来源、录音、写作，都在这里。
-- 元数据目录在 `.wiki/`（版本、向量库、provider 缓存等），**不要手工改**。
 
-## 目录结构（11 主目录 + 2 特殊目录）
+核心理念来自 [Karpathy 的 LLM Wiki 模式](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)：
+- 不走 RAG（每次查询从原始文档重新发现知识），而是让 LLM **增量编译并维护一个持久 wiki**
+- 知识只编译一次，然后持续更新——交叉引用已就位、矛盾已标注、综合已反映全部来源
+- **你**负责：策展原料、提出好问题、审阅反馈
+- **LLM**负责：所有写入、交叉引用、归档、簿记
+
+## 三层架构
 
 ```
-./
-├── CLAUDE.md        # 本文件，Agent 宪法
-├── AGENTS.md        # 其它 harness 的入口（See CLAUDE.md）
-├── README.md        # 人类入门页
-├── MEMORY.md        # L0 全局索引（自动注入）
+corpus/
+├── CLAUDE.md           ← 你在读的这份 schema
+├── index.md            ← wiki 内容目录（LLM 维护）
+├── log.md              ← 操作时间线（append-only）
 │
-├── _工作台/         # 过程文件的家（不进向量）
-│   ├── 00_收件/     # 7  天过期，inbox
-│   ├── 10_草稿/     # 30 天过期，draft
-│   ├── 20_临时/     # 14 天过期，temp
-│   └── 30_待整理/   # 3  天过期，triage
+├── 原料/               ← Raw sources（只读，不可变）
+│   ├── 文章/           ← 网页文章
+│   ├── 论文/           ← 学术论文
+│   ├── 书籍/           ← 读书笔记
+│   ├── 会议/           ← 会议纪要
+│   ├── 录音/           ← 录音转写（原始文本）
+│   ├── 剪藏/           ← 公众号/网页剪藏
+│   └── 引用/           ← 大文件指针
 │
-├── _archive/        # 冷数据陵园（不进向量）
+├── 知识库/             ← Wiki（LLM 编译产物）
+│   ├── 概念/           ← 心智模型、方法论
+│   ├── 实体/           ← 人物、工具、组织、项目
+│   ├── 摘要/           ← 逐源摘要页
+│   └── 专题/           ← 跨源主题综述（可选）
 │
-├── 00_每日/         # 日记 + 月度复盘
-├── 10_人物/         # people，单页 MECE
-├── 20_项目/         # projects，单 md 卡片
-├── 30_概念/         # concepts，可复用心智模型
-├── 40_主题/         # topics，实战方法论
-├── 50_方法/         # methods，工具 SOP
-├── 60_来源/         # sources（严格只读原始数据）
-│   ├── 文章/
-│   ├── 书籍笔记/
-│   ├── 会议纪要/
-│   └── 公众号原文/
-├── 70_录音/         # 录音原始 + 流程产物（不进向量）
-├── 80_写作/         # 创作输出
-└── 99_系统/         # schema + filing-rules + changelog
+├── 每日/               ← 日记（YYYY-MM-DD.md）
+├── 写作/               ← 对外创作输出
+│
+├── 反馈/               ← 人类审阅闭环
+│   ├── 待处理/         ← open feedback
+│   └── 已处理/         ← resolved（含 resolution 说明）
+│
+├── _工作台/            ← 过程文件（有过期策略）
+│   ├── 收件/           ← 7 天
+│   ├── 草稿/           ← 30 天
+│   ├── 临时/           ← 14 天
+│   └── 待整理/         ← 3 天
+│
+├── _归档/              ← 冷数据陵园
+└── .wiki/              ← lorekit 元数据（不要手工改）
 ```
 
-## 三条归档铁律
+## Scope
 
-1. **主语决定归属**：
-   > The PRIMARY SUBJECT of the content determines where it goes.
-   > Not the format, not the source, not the skill that's running.
-   判断"这条内容到底在讲谁/什么"，再落盘。详见 `99_系统/filing-rules.md`。
+> 在这里定义这份 corpus 的覆盖范围。新建 corpus 后请填写。
 
-2. **sources 只放原文**：
-   `60_来源/` 严格只读。任何有明确主语的分析、结论、观点都必须搬到对应的 10/20/30/40 目录。sources 里只保留原始数据快照。
+覆盖：
+- （填写：这份 corpus 关注什么领域）
 
-3. **任何 ingest 至少一条反向链接**：
-   新建或 append 一条知识时，必须在目标页面的 timeline 或 related_* 字段写回来源。没有反向链接的信息等于没有。
+不覆盖：
+- （填写：哪些东西不该出现在这里）
 
-## 系统提示不膨胀原则（指针风格）
+## 三个操作
 
-Agent 的 system prompt 是稀缺资源。**永远不要把全量内容塞进 context**，而是用三层指针：
+### Ingest（摄入）
+新原料进 `原料/`，LLM 阅读后编译进 `知识库/`——更新实体页、修订概念摘要、标注矛盾、在 `index.md` 登记、在 `log.md` 追加记录。一篇原料可能触碰 10+ 页 wiki。
 
-- **L0（总是在线）**：`MEMORY.md`——统计概览 + 指向各目录 `_INDEX.md` 的指针。
-- **L1（按需加载）**：`{目录}/_INDEX.md`——该目录的条目列表（标题 + slug + 一句话摘要）。
-- **L2（定向加载）**：具体的 `{目录}/{slug}.md` 文件本身。
+### Query（查询）
+先读 `index.md` 定位相关页，再钻入具体文件综合回答。好的回答应该 **file back** 成 `知识库/` 的新页面——探索的成果不该消失在聊天记录里。
 
-Agent 决策路径：
-1. 先读 `MEMORY.md` 判断问题属于哪个目录。
-2. 再读对应目录的 `_INDEX.md` 判断具体哪个条目。
-3. 最后 read 那个条目文件。
+### Lint（健康检查）
+定期检查：死链、孤岛页、提到但没建页的概念、矛盾、过期工作台文件。`wiki doctor` 执行。
 
-**不要一上来就 `ls -R` 或全量 grep**——那是 context 黑洞。
+## 三层读取策略
 
-## 页面结构：compiled truth + timeline
+Agent system prompt 是稀缺资源，永远用指针风格而不是全量注入。
+
+| 层 | 位置 | 加载方式 | 预算 |
+|---|---|---|---|
+| **L0** | `CLAUDE.md` + `index.md` | 对话启动自动注入 | ≤ 3k tokens |
+| **L1** | `{目录}/_INDEX.md` | Agent 按需 Read | ≤ 2k tokens/次 |
+| **L2** | 具体文件 | Agent 按需 Read | 按页大小 |
+
+## 页面结构
 
 ```markdown
 ---
-(frontmatter)
+(frontmatter — 见 系统/frontmatter-spec.md)
 ---
 
-# 标题
+# 页面标题
 
 ## Compiled Truth
 
@@ -89,22 +103,37 @@ Agent 决策路径：
 ## Timeline
 
 - YYYY-MM-DD | 事件摘要 [[双链到来源页]]
-- …（只追加，不编辑）
+- ...（只追加，不编辑）
 ```
 
-两段用 `---` 分隔。Compiled Truth 可被重写；Timeline 只能 append。
+## 归档铁律
 
-## 写入前检查清单
+1. **主语决定归属**：内容在讲谁/什么 → 去对应目录。详见 `系统/filing-rules.md`
+2. **原料只读**：`原料/` 严格只读，任何分析结论搬到 `知识库/`
+3. **至少一条反向链接**：没有链接的信息等于没有
+4. **好答案写回 wiki**：query 产出有复用价值的，file back 成 `知识库/` 新页
 
-- [ ] 我判断的"主语"对吗？
-- [ ] 目标目录是不是 sources？如果是、而且不是原文，请停下来重选目录。
-- [ ] 有没有至少一条反向链接？
-- [ ] frontmatter 有没有 type/title/slug/created/updated？
-- [ ] 如果是更新已有页面，我是不是只动了 compiled truth 或只 append timeline？
+## 当前 wiki 内容
+
+> 下面的清单由 LLM 在每次 ingest 后更新。也可查看 `index.md`。
+
+### 概念
+（暂无）
+
+### 实体
+（暂无）
+
+### 摘要
+（暂无）
+
+## 待研究问题
+（暂无）
+
+## 空缺
+（暂无）
 
 ## 相关规则文件
 
-- `99_系统/filing-rules.md`       — 完整归档路由表
-- `99_系统/frontmatter-spec.md`   — frontmatter 字段规范
-- `99_系统/schema.md`             — 目录结构详解
-- `99_系统/_CHANGELOG.md`         — corpus 变更日志（追加式）
+- `系统/filing-rules.md` — 完整归档路由表
+- `系统/frontmatter-spec.md` — frontmatter 字段规范
+- `系统/schema.md` — 目录结构详解 + 向量索引规则

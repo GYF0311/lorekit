@@ -27,7 +27,7 @@ cmd_stats() {
     local rel="${f#$root/}"
     rg -q "\[\[$(basename "$f" .md)" "$root" 2>/dev/null || orphans=$((orphans+1))
     printf '%s\n' "$t" >> "$tf"; printf '%s\n' "${rel%%/*}" >> "$df"
-  done < <(find "$root" -type f -name '*.md' -not -path '*/_archive/*' -not -path '*/.wiki/*' 2>/dev/null)
+  done < <(find "$root" -type f -name '*.md' -not -path '*/_归档/*' -not -path '*/.wiki/*' 2>/dev/null)
   local bt bd; bt=$(sort "$tf"|uniq -c|awk '{printf "{\"%s\":%s}\n",$2,$1}'|jq -s 'add // {}')
   bd=$(sort "$df"|uniq -c|awk '{printf "{\"%s\":%s}\n",$2,$1}'|jq -s 'add // {}')
   rm -f "$tf" "$df"

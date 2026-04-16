@@ -56,28 +56,28 @@ corpus: <path>
 扫描页数: 342
 
 [ERROR] frontmatter 缺失（2 条）
-  - 30_概念/RAG.md：缺 updated_at
+  - 知识库/概念/RAG.md：缺 updated_at
     修复：在 frontmatter 补 updated_at: 2026-04-15 22:30
   - ...
 
 [WARN] 断链（5 条）
-  - 20_项目/lorekit.md 引用 [[gbrain]]，目标不存在
-    修复：(a) 新建 30_概念/gbrain.md；(b) 改为 [[gbrain 页]]；(c) 删除此链接
+  - 知识库/实体/lorekit.md 引用 [[gbrain]]，目标不存在
+    修复：(a) 新建 知识库/概念/gbrain.md；(b) 改为 [[gbrain 页]]；(c) 删除此链接
 
 [WARN] 孤岛（3 条）
-  - 10_人物/李四.md 没有任何反向链接
+  - 知识库/实体/李四.md 没有任何反向链接
     修复：ingest 一条提到[[李四]]的内容，或评估是否合并
 
 [INFO] 可合并的相似页（2 组）
-  - 30_概念/RAG.md  vs  30_概念/检索增强生成.md
+  - 知识库/概念/RAG.md  vs  知识库/概念/检索增强生成.md
     修复：人工 review 后合并到 RAG.md，把另一篇 redirect
 
 [INFO] 过期（valid_until 已到）（1 条）
-  - 20_项目/求职.md：valid_until 2026-03-31
+  - 知识库/实体/求职.md：valid_until 2026-03-31
     修复：review 并更新 compiled truth，或延长 valid_until
 ```
 
 **铁律**：
 1. 只报告，不自动改
 2. 每条都有具体的修复命令 / 建议
-3. 报告写进 `99_系统/_CHANGELOG.md`（追加一行本次 lint 摘要）
+3. 报告写进 `系统/_CHANGELOG.md`（追加一行本次 lint 摘要）

@@ -1,157 +1,231 @@
 # lorekit QUICKSTART
 
-30 分钟从零开始，让 Claude Code 拥有一个属于你的 Wiki。
+30 分钟从零开始，让 Claude Code 拥有一个属于你的 LLM Wiki。
 
 ---
 
 ## 0. lorekit 是什么
 
-lorekit 是给 Claude Code（以及任意支持 skill / markdown 指令的 agent harness）的 **LLM Wiki toolkit**：一组 skill + 一个 corpus 目录骨架 + 一支薄 CLI（`wiki`），让 agent 能在本地知识库里 ingest、查询、回写、lint。
+lorekit 是基于 [Karpathy LLM Wiki 模式](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) 的个人知识库工具包。核心思路：不走 RAG，让 LLM 增量编译并维护一个持久 wiki——原料进来，LLM 编译成结构化的交叉引用页面，知识编译一次、持续更新。
 
 ---
 
-## 1. 前置要求
+## 1. 前置依赖
 
-| 工具 | 用途 | 检查 |
-|---|---|---|
-| macOS / Linux | 目前只测过这俩 | `uname` |
-| bash ≥ 4 | CLI 脚本 | `bash --version` |
-| git | 克隆仓库 | `git --version` |
-| ripgrep (`rg`) | 全文检索 | `rg --version` |
-| Claude Code（可选但强烈推荐） | 最佳使用体验 | `claude --version` |
+### 必需
 
-macOS 装 ripgrep：`brew install ripgrep`
+| 工具 | 用途 | 安装 | 验证 |
+|---|---|---|---|
+| macOS / Linux | 操作系统 | — | `uname` |
+| bash ≥ 4 | CLI 脚本 | 自带 | `bash --version` |
+| git | 版本控制 | 自带 | `git --version` |
+| ripgrep | 文本搜索 | `brew install ripgrep` | `rg --version` |
+| jq | JSON 处理 | `brew install jq` | `jq --version` |
+| uv | Python 脚本运行 | `brew install uv` | `uv --version` |
+
+### 向量检索（推荐）
+
+| 工具 | 用途 | 安装 | 验证 |
+|---|---|---|---|
+| ollama | 本地嵌入推理 | `brew install ollama` | `ollama --version` |
+| bge-m3 | 嵌入模型（中英双语） | `ollama pull bge-m3` | `ollama list` |
+
+ollama 是本地 LLM 运行框架，bge-m3 是 BAAI 智源开源的嵌入模型（1024 维，100+ 语言）。不需要 API key，不需要装 pip/torch/sentence-transformers。
+
+### 可选
+
+| 工具 | 用途 |
+|---|---|
+| Claude Code | 最佳使用体验（自然语言 → skill 自动触发） |
+| Obsidian | 浏览 wiki + 使用内置的 lorekit-audit 审阅插件 |
 
 ---
 
 ## 2. 安装 lorekit
 
 ```bash
-git clone https://github.com/gyf0311/lorekit.git ~/code/lorekit
+git clone https://github.com/GYF0311/lorekit.git ~/code/lorekit
 cd ~/code/lorekit
 ./bin/install.sh
 ```
 
-`install.sh` 会把 `~/code/lorekit/bin` 加到你的 shell rcfile（zsh/bash/fish 自动识别）。重开一个终端或 `source ~/.zshrc`，然后验证：
+`install.sh` 把 `~/code/lorekit/bin` 加到 PATH。重开终端或 `source ~/.zshrc`，验证：
 
 ```bash
-$ wiki --version
-lorekit wiki 0.1.0
+wiki --version
+# → lorekit wiki 0.1.0
 ```
 
 ---
 
-## 3. 初始化你的第一个 corpus
-
-corpus 就是一个装知识的目录。`wiki init` 会帮你建好骨架：
+## 3. 初始化 corpus
 
 ```bash
-$ wiki init ~/Desktop/my-corpus
-[lorekit] creating corpus at /Users/you/Desktop/my-corpus
-  ├── 00_每日/     # 日记
-  ├── 10_人物/     # people
-  ├── 20_项目/     # projects
-  ├── 30_概念/     # concepts
-  ├── 40_主题/     # topics
-  ├── 50_方法/     # methods / SOPs
-  ├── 60_来源/     # sources (只读)
-  ├── 70_录音/     # recordings
-  ├── 80_写作/     # creations
-  ├── 99_系统/     # schema + rules
-  ├── _工作台/     # inbox / drafts / triage
-  ├── _archive/    # cold storage
-  ├── .wiki/       # lorekit metadata
-  └── CLAUDE.md    # agent constitution
-[lorekit] done. cd into it and open Claude Code.
+wiki init ~/Desktop/my-corpus
+cd ~/Desktop/my-corpus
 ```
 
-目录是 lorekit 的默认约定（11 主 + 2 特殊），具体语义见 `99_系统/schema.md`。你可以改——lorekit 只认 `.wiki/` 这个元数据目录。
+如果目录已有内容，会弹出选择：
+
+```
+⚠️  检测到 ~/Desktop/my-corpus 已有内容（352 个文件）
+
+请选择：
+  [1] 备份后初始化（推荐）→ 先 wiki snapshot，再初始化
+  [2] 就地初始化 → 保留已有文件
+  [3] 取消
+```
+
+初始化完成后你会得到：
+
+```
+corpus/
+├── CLAUDE.md           ← 填写你的 corpus scope
+├── index.md            ← wiki 内容目录（LLM 维护）
+├── log.md              ← 操作时间线
+├── 原料/               ← 只读原始素材
+├── 知识库/             ← LLM 编译的 wiki
+├── 每日/               ← 日记
+├── 写作/               ← 创作输出
+├── 反馈/               ← 审阅闭环
+├── _工作台/            ← 过程文件
+├── _归档/              ← 冷数据
+└── .wiki/              ← 元数据
+```
 
 ---
 
-## 4. 装 Claude Code skills
-
-让 Claude Code 能识别 `wiki-ingest` / `wiki-query` / `wiki-fileback` / `wiki-lint` 这几个 skill：
+## 4. 安装 Claude Code skills
 
 ```bash
-$ wiki install-skills --target claude-code
-[lorekit] linking skills to ~/.claude/skills/
-  ✓ wiki-ingest
-  ✓ wiki-query
-  ✓ wiki-fileback
-  ✓ wiki-lint
-[lorekit] restart Claude Code to pick up new skills.
+wiki install-skills --target claude-code
+# → 软链 6 个 skill 到 ~/.claude/skills/
 ```
 
-skill 是软链，更新 lorekit 时自动跟进。
+重启 Claude Code 生效。
 
 ---
 
-## 5. 第一次对话
+## 5. 启动向量检索
+
+确保 ollama 在运行，bge-m3 已下载：
+
+```bash
+# 启动 ollama（如果没有自动启动）
+ollama serve
+
+# 下载 bge-m3（1.2GB，只需一次）
+ollama pull bge-m3
+
+# 对 corpus 做第一次向量索引
+wiki vector sync
+# → synced N files (M chunks), skipped 0 unchanged
+```
+
+之后每次有新内容，跑一次 `wiki vector sync` 即可（增量，只处理变化的文件）。
+
+---
+
+## 6. 第一次对话
 
 ```bash
 cd ~/Desktop/my-corpus
 claude
 ```
 
-用自然语言直接说，skill 会自动触发：
+**ingest 一篇文章：**
+> 帮我把这篇文章整理进知识库：https://mp.weixin.qq.com/s/xxx
 
-**ingest 一个 URL：**
-> 帮我把这篇文章整理进知识库：https://lilianweng.github.io/posts/2023-06-23-agent/
+Agent 触发 `wiki-ingest`：抓页面 → 原文存 `原料/文章/` → 编译进 `知识库/` → 更新 `index.md` + `log.md`
 
-Claude Code 会触发 `wiki-ingest`，抓页面 → 清洗 → 落到 `40_知识与卡片/` 带 frontmatter。
+**语义查询：**
+> RAG 和 LLM Wiki 有什么区别？
 
-**查一下：**
-> 我之前整理过关于 ReAct 的东西吗？
+Agent 触发 `wiki-query`：先读 `index.md` → 再向量搜索 → 综合回答
 
-触发 `wiki-query`，用 ripgrep + 可选向量层检索。
+**回写洞察：**
+> 把刚才的分析存进知识库
 
-**lint 一下：**
+Agent 触发 `wiki-fileback`：按主语归到对应 wiki 页面
+
+**健康检查：**
 > 检查知识库的健康度
 
-触发 `wiki-lint`，扫孤岛、断链、重复、过时。
+Agent 触发 `wiki-lint`：扫断链、孤岛、过期工作台文件
+
+**备份：**
+> 帮我备份一下知识库
+
+Agent 执行 `wiki snapshot`
 
 ---
 
-## 6. 手写 3 张锚点卡
+## 7. 手写 3 张锚点卡
 
-为了给 Claude Code 一些初始 context，建议你第一天手写这三张 markdown 卡片：
+给 Agent 一些初始 context：
 
-### `10_人物/me.md`
-你是谁、在做什么、沟通偏好、禁忌。Claude Code 通过 CLAUDE.md 指针找到它。
+### `知识库/实体/me.md`
+你是谁、在做什么、沟通偏好。
 
-### `20_项目/<当前主要项目>.md`
-现在占你最多时间的那个项目，一句话目标 + 当前状态 + 下一步。
+### `知识库/实体/<当前项目>.md`
+占你最多时间的项目，一句话目标 + 当前状态。
 
-### `30_概念/<第一个概念卡>.md`
-随便挑一个最近在琢磨的概念，用你自己的话写下来。这是示范，Claude Code 之后生成的卡片会参考这个风格。
+### `知识库/概念/<第一个概念>.md`
+一个你最近在琢磨的概念。Agent 生成的新卡片会参考这个风格。
 
-三张卡都需要 frontmatter：
+三张卡都带 frontmatter：
 
 ```yaml
 ---
+type: entity
 title: xxx
-created: 2026-04-15 10:00
-tags: [自建]
+slug: 知识库/实体/xxx
+created: 2026-04-16
+updated: 2026-04-16
 ---
 ```
 
 ---
 
-## 7. 常见问题
+## 8. 常见问题
 
-**skill 没触发怎么办？**
-检查 `~/.claude/skills/wiki-*` 是否存在。如果在，重开 Claude Code 会话。再不行在 prompt 里显式说「用 wiki-ingest 整理这篇」。
+**skill 没触发？**
+检查 `~/.claude/skills/wiki-*` 是否存在。如果在，重开 Claude Code 会话。
 
-**corpus 应该放哪里？**
-推荐 `~/Desktop/` 或 `~/Documents/`，不要放 iCloud 同步目录（向量 sqlite 会被拖累）。个人 wiki 一个就够，项目专用 wiki 可以单独开。
+**corpus 放哪里？**
+推荐 `~/Desktop/` 或 `~/Documents/`，不要放 iCloud（sqlite 会被拖累）。
 
 **多 corpus 怎么办？**
-CLI 认 cwd——`cd` 到哪个 corpus 就操作哪个。Claude Code 同理，在对应目录启动即可。
+CLI 认 cwd，`cd` 到哪个 corpus 就操作哪个。
 
-**向量层什么时候装？**
-Phase 1 只用 ripgrep 就够了，几千张卡内无感。卡片数破 5000 或者开始需要「模糊意图查询」再 `wiki vector init` 启用向量层（Phase 2 特性）。
+**ollama 没启动？**
+`wiki vector sync` 会报错提示。跑 `ollama serve` 启动。
+
+**想换嵌入模型？**
+```bash
+ollama pull nomic-embed-text
+wiki vector sync --model nomic-embed-text --force
+```
+`--force` 全量重建索引（因为模型变了）。
+
+**已有知识库怎么迁移？**
+```bash
+wiki init ~/existing-notes
+# → 自动检测已有内容，提供备份选项
+```
 
 ---
 
-准备好了。遇到问题参考 [`../README.md`](../README.md) 或在 GitHub 提 issue。
+## 9. 可选嵌入模型
+
+默认 bge-m3，以下是 ollama 支持的其他嵌入模型：
+
+| 模型 | 命令 | 大小 | 维度 | 适合 |
+|---|---|---|---|---|
+| **bge-m3**（默认） | `ollama pull bge-m3` | 1.2GB | 1024 | 中英双语，最均衡 |
+| nomic-embed-text | `ollama pull nomic-embed-text` | 274MB | 768 | 英文为主，轻量 |
+| mxbai-embed-large | `ollama pull mxbai-embed-large` | 670MB | 1024 | 英文强，中等大小 |
+| snowflake-arctic-embed | `ollama pull snowflake-arctic-embed` | 670MB | 1024 | 英文检索优化 |
+| all-minilm | `ollama pull all-minilm` | 45MB | 384 | 极致轻量 |
+
+选模型的原则：内容以中文为主选 bge-m3；纯英文选 nomic-embed-text；磁盘紧张选 all-minilm。

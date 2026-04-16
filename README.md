@@ -1,120 +1,255 @@
 # lorekit
 
-A toolkit for Claude Code to grow a personal corpus from scratch.
+A personal LLM Wiki toolkit — let AI build and maintain your knowledge base.
 
-`lorekit` 给 Claude Code（以及任何支持 skill / markdown 指令的 agent harness）提供一套本地 LLM Wiki 工作流：**skill + corpus 目录骨架 + 薄 CLI + 可插拔本地向量层**。用户从空目录起步，逐步沉淀出自己的个人知识库。
+基于 [Karpathy 的 LLM Wiki 模式](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)，lorekit 给 Claude Code（及任何支持 skill/markdown 指令的 agent）提供一套本地知识库工作流：**原料 → LLM 编译 → 持久 wiki**，知识编译一次、持续更新，不走 RAG。
 
-## 这是什么
+## 核心理念
 
-- **lorekit** — 本仓库，包含 skill / CLI / corpus 模板 / 集成脚本
-- **corpus** — 用户的知识库目录，由 `wiki init` 创建，纯 markdown + git
-- **wiki CLI** — 一支 bash 脚本，提供 `init / doctor / search / stats / lint / install-skills` 等确定性操作
-- **wiki-\* skills** — 5 个纯 markdown skill，指导 agent 如何做 ingest / query / fileback / lint / enrich
+> "Instead of just retrieving from raw documents at query time, the LLM incrementally builds and maintains a persistent wiki." — Karpathy
 
-## 核心原则
+- **原料层**（`原料/`）：只读原始素材，LLM 不改
+- **产物层**（`知识库/`）：LLM 编译的 wiki，交叉引用、综合、持续更新
+- **Schema**（`CLAUDE.md`）：每个 corpus 的配置，人和 LLM 共同维护
 
-1. **Filesystem is all you need** — 数据层是纯 markdown + git，向量层用 sqlite-vec
-2. **Thin CLI, fat skills** — 需要判断的事放 skill（markdown 指令），确定性操作放 CLI（bash）
-3. **向量模型可插拔** — 通过 `providers/` 适配器抽象，默认 BGE-M3（via Ollama），可换任意开源 embedding
-4. **零起点设计** — 所有功能围绕"空目录开始"为默认场景
-5. **破坏性操作可回滚** — 改动 corpus 前必须 git commit；lint 只报告不自动修
+## 功能清单
+
+| 功能 | 命令 | 说明 |
+|---|---|---|
+| 初始化 | `wiki init` | 创建 corpus 骨架 + 部署 Obsidian 插件 + 已有内容自动备份 |
+| 健康检查 | `wiki doctor` | 目录完整性 + frontmatter 覆盖率 + 过期工作台提醒 |
+| 统计 | `wiki stats` | 页数/类型分布 |
+| 搜索 | `wiki search` | 文本搜索 + 向量语义搜索（混合） |
+| 网页抓取 | `wiki fetch <url>` | 公众号/通用网页内容抓取到工作台 |
+| 代码检查 | `wiki lint` | 断链/孤岛/重复检测 |
+| 备份快照 | `wiki snapshot` | corpus 全量打包 + manifest |
+| 快照恢复 | `wiki restore` | 从快照恢复缺失/变化的文件 |
+| 反馈管理 | `wiki audit` | 创建/列出/处理人类对 wiki 的反馈 |
+| 向量索引 | `wiki vector sync` | 增量嵌入 corpus 到 sqlite-vec |
+| 语义查询 | `wiki vector query` | 基于向量的语义检索 |
+| 索引状态 | `wiki vector status` | 查看向量索引状态 |
+
+6 个 Agent Skills：`wiki-ingest` / `wiki-query` / `wiki-fileback` / `wiki-lint` / `wiki-enrich` / `wiki-audit`
 
 ## 快速开始
 
+### 1. 安装 lorekit
+
 ```bash
-# 1. 克隆并安装
-git clone https://github.com/GYF0311/lorekit ~/code/lorekit
+git clone https://github.com/GYF0311/lorekit.git ~/code/lorekit
 cd ~/code/lorekit && ./bin/install.sh
-
-# 2. 初始化 corpus
-wiki init ~/Desktop/my-corpus
-cd ~/Desktop/my-corpus
-
-# 3. 装 Claude Code skills
-wiki install-skills --target claude-code
-
-# 4. 重启 Claude Code，用自然语言对话即可
 ```
 
-详见 [`docs/QUICKSTART.md`](docs/QUICKSTART.md)。
+重开终端，验证：
+
+```bash
+wiki --version
+# → lorekit wiki 0.1.0
+```
+
+### 2. 安装依赖
+
+| 工具 | 用途 | 安装 |
+|---|---|---|
+| bash ≥ 4 | CLI 脚本 | macOS/Linux 自带 |
+| git | 版本控制 | macOS/Linux 自带 |
+| ripgrep | 文本搜索 | `brew install ripgrep` |
+| jq | JSON 处理 | `brew install jq` |
+| uv | Python 脚本运行 | `brew install uv` |
+| **ollama** | **向量嵌入（本地）** | `brew install ollama` |
+| **bge-m3** | **嵌入模型** | `ollama pull bge-m3` |
+
+向量嵌入通过 ollama 本地 API 完成，**不需要装 torch/pip/sentence-transformers**，不需要 API key。
+
+### 3. 初始化 corpus
+
+```bash
+wiki init ~/Desktop/my-corpus
+cd ~/Desktop/my-corpus
+```
+
+如果目标目录已有内容，会弹出选择菜单：备份后初始化 / 就地初始化 / 取消。
+
+### 4. 安装 Claude Code skills
+
+```bash
+wiki install-skills --target claude-code
+# → 软链 6 个 skill 到 ~/.claude/skills/
+```
+
+### 5. 开始使用
+
+```bash
+cd ~/Desktop/my-corpus
+claude
+```
+
+用自然语言对话：
+
+```
+> 帮我把这篇文章整理进知识库：https://mp.weixin.qq.com/s/xxx
+# → 触发 wiki-ingest：抓页面 → 存原料/ → 编译进知识库/
+
+> 我之前整理过关于 RAG 的东西吗？
+# → 触发 wiki-query：读 index.md → 向量搜索 → 综合回答
+
+> 检查知识库的健康度
+# → 触发 wiki-lint：扫断链、孤岛、过期文件
+
+> 帮我备份一下
+# → wiki snapshot → .wiki/snapshots/xxx.tar.gz
+```
+
+## 向量检索
+
+### 嵌入模型
+
+默认使用 **ollama + bge-m3**（BAAI 智源，1024 维，100+ 语言，中英双语效果优秀）。
+
+```bash
+# 确保 ollama 在运行
+ollama serve
+
+# 拉取 bge-m3（1.2GB，只需一次）
+ollama pull bge-m3
+```
+
+也可以换其他 ollama 支持的嵌入模型：
+
+```bash
+# 用 nomic-embed-text
+ollama pull nomic-embed-text
+wiki vector sync --model nomic-embed-text
+
+# 用 mxbai-embed-large
+ollama pull mxbai-embed-large
+wiki vector sync --model mxbai-embed-large
+```
+
+### 使用
+
+```bash
+# 同步索引（增量，只处理新增/变化的文件）
+wiki vector sync
+
+# 语义检索
+wiki vector query --text "检索增强生成和知识库的关系"
+
+# 查看索引状态
+wiki vector status
+
+# 全量重建
+wiki vector sync --force
+```
+
+### 索引范围
+
+| 进索引 | 不进索引 |
+|---|---|
+| `知识库/**` | `_工作台/**` |
+| `每日/` | `_归档/**` |
+| `写作/` | `原料/录音/**` |
+| `原料/文章/` | `原料/剪藏/**` |
+| `原料/书籍/` | `反馈/**` |
+| `原料/会议/` | `系统/**` |
+
+向量存储在 `.wiki/vector.sqlite`（sqlite-vec，单文件，零运维）。
+
+## Corpus 目录结构
+
+```
+corpus/
+├── CLAUDE.md           ← per-corpus schema（人 + LLM 共同维护）
+├── index.md            ← wiki 内容目录（LLM 每次 ingest 更新）
+├── log.md              ← 操作时间线（append-only）
+│
+├── 原料/               ← Raw sources（只读，不可变）
+│   ├── 文章/           ← 网页文章
+│   ├── 论文/           ← 学术论文
+│   ├── 书籍/           ← 读书笔记
+│   ├── 会议/           ← 会议纪要
+│   ├── 录音/           ← 录音整理稿
+│   ├── 剪藏/           ← 公众号/网页剪藏
+│   └── 引用/           ← 大文件指针
+│
+├── 知识库/             ← Wiki（LLM 编译产物）
+│   ├── 概念/           ← 心智模型、方法论
+│   ├── 实体/           ← 人物、工具、组织、项目
+│   ├── 摘要/           ← 逐源摘要页
+│   └── 专题/           ← 跨源主题综述（可选）
+│
+├── 每日/               ← 日记（YYYY-MM-DD.md）
+├── 写作/               ← 对外创作输出
+│
+├── 反馈/               ← 人类审阅闭环
+│   ├── 待处理/
+│   └── 已处理/
+│
+├── _工作台/            ← 过程文件（有过期策略）
+│   ├── 收件/           ← 7 天
+│   ├── 草稿/           ← 30 天
+│   ├── 临时/           ← 14 天
+│   └── 待整理/         ← 3 天
+│
+├── _归档/              ← 冷数据
+└── .wiki/              ← lorekit 元数据
+```
+
+`知识库/` 子目录不是固定的——由每个 corpus 的 `CLAUDE.md` 声明，可以根据场景自定义（比如研究型 corpus 用 `wiki/papers/findings/`，读书 corpus 用 `wiki/characters/themes/`）。
+
+## 自定义
+
+lorekit 是骨架，不是固定结构。自定义方式：
+
+1. **修改 CLAUDE.md 的 Scope**：声明你的 corpus 覆盖什么、不覆盖什么
+2. **调整知识库子目录**：在 CLAUDE.md 中声明，然后创建对应目录
+3. **修改 filing-rules**：在 `系统/filing-rules.md` 中追加归档路由规则
+4. **换向量模型**：`wiki vector sync --model <ollama-model-name>`
+
+## 备份与恢复
+
+```bash
+# 创建快照
+wiki snapshot --tag before-migration
+# → .wiki/snapshots/20260416-120000-before-migration.tar.gz
+
+# 查看快照中的差异（不恢复）
+wiki restore --from .wiki/snapshots/xxx.tar.gz --dry-run
+
+# 恢复全部缺失/变化的文件
+wiki restore --from .wiki/snapshots/xxx.tar.gz
+
+# 只恢复单个文件
+wiki restore --from .wiki/snapshots/xxx.tar.gz --file 知识库/概念/RAG.md
+```
+
+## Obsidian 集成
+
+`wiki init` 时自动部署 `lorekit-audit` Obsidian 插件到 `.obsidian/plugins/`。在 Obsidian 中选中 wiki 文本 → 留反馈 → 写入 `反馈/待处理/`，LLM 通过 `wiki-audit` skill 批量处理。
 
 ## 项目结构
 
 ```
 lorekit/
-├── bin/                  thin CLI (bash ≤ 300 行)
-│   ├── wiki              主命令分发器
-│   ├── lib/              子命令实现
-│   └── install.sh        把 wiki 加入 PATH
-├── skills/               fat skills (pure markdown)
+├── bin/
+│   ├── wiki                 主命令分发器
+│   ├── lib/                 子命令（init/doctor/stats/search/lint/fetch/
+│   │                        snapshot/restore/audit/vector）
+│   ├── vectors/             向量引擎（Python, ollama + sqlite-vec）
+│   └── fetchers/            网页抓取后端（fetch_rich.py）
+├── skills/                  6 个 Agent Skills（纯 markdown）
 │   ├── wiki-ingest/
 │   ├── wiki-query/
 │   ├── wiki-fileback/
 │   ├── wiki-lint/
-│   └── wiki-enrich/
+│   ├── wiki-enrich/
+│   └── wiki-audit/
+├── plugins/
+│   └── obsidian-audit/      Obsidian 审阅插件（编译产物）
 ├── templates/
-│   └── default-corpus/   corpus 目录骨架（11 主 + 2 特殊）
-├── integrations/
-│   └── claude-code/      Claude Code 集成脚本
-└── docs/                 用户 / 开发者文档
+│   └── default-corpus/      corpus 目录骨架
+└── docs/
 ```
-
-## Corpus 骨架
-
-`wiki init` 创建的 corpus 默认包含 11 个主目录和 2 个特殊目录：
-
-| 目录 | 用途 |
-|---|---|
-| `00_每日/` | 日记、月度复盘 |
-| `10_人物/` | people，单页 MECE |
-| `20_项目/` | projects |
-| `30_概念/` | concepts，可复用心智模型 |
-| `40_主题/` | topics，实战方法论 |
-| `50_方法/` | methods、工具 SOP |
-| `60_来源/` | sources（严格只读原始数据） |
-| `70_录音/` | 录音原始 + 流程产物 |
-| `80_写作/` | 创作输出 |
-| `90_*/` | 自选活跃领域（默认留空） |
-| `99_系统/` | schema、filing-rules、changelog |
-| `_工作台/` | 过程文件缓冲区（7/14/30 天过期策略） |
-| `_archive/` | 冷数据陵园 |
-
-元数据目录 `.wiki/` 保存 corpus 版本、向量库配置、向量数据库（v0.5+）。
-
-## 五个 skill
-
-| skill | 职责 |
-|---|---|
-| `wiki-ingest` | 把外部资料（URL / 文件 / 粘贴文本）按主语落盘到 corpus |
-| `wiki-query` | 三层检索（精确 / 模糊 / 图遍历）并综合答案，带来源引用 |
-| `wiki-fileback` | 把对话中产生的洞察追加到对应页面的 Timeline |
-| `wiki-lint` | 健康检查：frontmatter、断链、孤岛、重复、过期、工作台清理 |
-| `wiki-enrich` | 从日记按主语提炼高信号内容，生成月度复盘 |
-
-所有 skill 是纯 markdown，不含任何 harness 专有语法，可被 Claude Code 通过 `install-skills` 软链到 `~/.claude/skills/`。
-
-## 路线图
-
-| 阶段 | 内容 |
-|---|---|
-| **v0.1 MVP**（当前） | 模块 1-4：骨架 + skill + CLI + Claude Code 集成 |
-| **v0.5** | 模块 5：可插拔向量层（sqlite-vec + L0/L1/L2 层次检索） |
-| **v1.0** | 增加 provider（FlagEmbedding / ST / llama.cpp）、交互式 init、文档完善 |
-| **v2.0+** | 时效标记、reranker、循环工作、其他 harness 支持 |
-
-完整规划见 [`docs/03-SPEC-AND-PLAN.md`](https://github.com/GYF0311/lorekit/blob/main/docs/)（技术规范，尚在整理入仓）。
-
-## 依赖
-
-| 工具 | 用途 |
-|---|---|
-| bash ≥ 4 | CLI 脚本 |
-| git | 版本控制、commit gate |
-| ripgrep (`rg`) | 精确搜索 |
-| jq | JSON 处理 |
-| Ollama + BGE-M3（v0.5+） | 默认向量层 |
-
-macOS / Linux 测试通过。Windows 未测试。
 
 ## License
 
