@@ -19,15 +19,50 @@ LIB="$LOREKIT_ROOT/bin/lib"
 # shellcheck source=lib/common.sh
 source "$LIB/common.sh"
 
+_banner() {
+  local corpus pages indexed model
+  corpus="$(lk_find_corpus 2>/dev/null || echo "—")"
+  if [ "$corpus" != "—" ]; then
+    pages=$(find "$corpus" -name "*.md" -not -path "*/.wiki/*" -not -name ".gitkeep" 2>/dev/null | wc -l | tr -d ' ')
+    local db="$corpus/.wiki/vector.sqlite"
+    if [ -f "$db" ]; then
+      indexed=$(sqlite3 "$db" "SELECT COUNT(*) FROM documents;" 2>/dev/null || echo "0")
+      model=$(sqlite3 "$db" "SELECT value FROM meta WHERE key='model';" 2>/dev/null || echo "—")
+    else
+      indexed="0"; model="—"
+    fi
+  else
+    pages="—"; indexed="—"; model="—"
+  fi
+  local ver; ver="$(lk_version)"
+  local C_C=$'\033[36m' C_B=$'\033[1m' C_D=$'\033[2m'
+  printf '%s┌─────────────────────────────────────────┐%s\n' "$C_D" "$C_0"
+  printf '%s│%s  %s📚 lorekit%s %-29s%s│%s\n' "$C_D" "$C_0" "$C_B" "$C_0" "v$ver" "$C_D" "$C_0"
+  printf '%s│%s  Personal LLM Wiki Toolkit             %s│%s\n' "$C_D" "$C_0" "$C_D" "$C_0"
+  printf '%s│%s                                         %s│%s\n' "$C_D" "$C_0" "$C_D" "$C_0"
+  local short_corpus="$corpus"
+  [ ${#short_corpus} -gt 30 ] && short_corpus="...${short_corpus: -27}"
+  printf '%s│%s  %scorpus:%s  %-31s%s│%s\n' "$C_D" "$C_0" "$C_C" "$C_0" "$short_corpus" "$C_D" "$C_0"
+  printf '%s│%s  %spages:%s   %-10s %sindexed:%s %-17s%s│%s\n' "$C_D" "$C_0" "$C_C" "$C_0" "$pages" "$C_C" "$C_0" "$indexed" "$C_D" "$C_0"
+  printf '%s│%s  %smodel:%s   %-31s%s│%s\n' "$C_D" "$C_0" "$C_C" "$C_0" "$model" "$C_D" "$C_0"
+  printf '%s│%s                                         %s│%s\n' "$C_D" "$C_0" "$C_D" "$C_0"
+  printf '%s│%s  lorekit doctor   %s健康检查%s              %s│%s\n' "$C_D" "$C_0" "$C_D" "$C_0" "$C_D" "$C_0"
+  printf '%s│%s  lorekit fetch    %s抓取网页%s              %s│%s\n' "$C_D" "$C_0" "$C_D" "$C_0" "$C_D" "$C_0"
+  printf '%s│%s  lorekit search   %s搜索%s                  %s│%s\n' "$C_D" "$C_0" "$C_D" "$C_0" "$C_D" "$C_0"
+  printf '%s│%s  lorekit --help   %s所有命令%s              %s│%s\n' "$C_D" "$C_0" "$C_D" "$C_0" "$C_D" "$C_0"
+  printf '%s└─────────────────────────────────────────┘%s\n' "$C_D" "$C_0"
+}
+
 cmd="${1:-}"; [ $# -gt 0 ] && shift || true
 case "$cmd" in
   init|doctor|search|stats|lint|fetch|snapshot|restore|audit|vector|index) source "$LIB/$cmd.sh"; "cmd_$cmd" "$@" ;;
   install-skills) source "$LIB/install-skills.sh"; cmd_install_skills "$@" ;;
   version|--version) source "$LIB/version.sh"; cmd_version ;;
-  ""|-h|--help|help) cat <<EOF
-lorekit wiki $(lk_version) — thin CLI for markdown-native knowledge corpora
+  "") _banner ;;
+  -h|--help|help) cat <<EOF
+lorekit $(lk_version) — Personal LLM Wiki Toolkit
 
-Usage: wiki <command> [args]
+Usage: lorekit <command> [args]
 
 Commands:
   init [path] [--in-place] [--minimal]   Create corpus skeleton
@@ -39,7 +74,7 @@ Commands:
   snapshot [--tag NAME]                   Create corpus snapshot (.tar.gz)
   restore --from <snap> [--dry-run]       Restore files from a snapshot
   audit [--list] [--open] [--resolved]    List/create feedback audit entries
-  vector sync|query|status                Semantic vector search (fastembed+sqlite-vec)
+  vector sync|query|status                Semantic vector search (ollama+sqlite-vec)
   index [--dir <subdir>]                  Generate/refresh _INDEX.md for corpus dirs
   install-skills --target claude-code     Install skills into a harness
   version                                 Print lorekit version
