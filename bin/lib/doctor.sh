@@ -18,5 +18,40 @@ cmd_doctor() {
     local pct=$(( ok * 100 / total ))
     [ $pct -ge 60 ] && lk_ok "frontmatter coverage: $ok/$total ($pct%)" || lk_bad "frontmatter coverage low: $ok/$total ($pct%)"
   else lk_warn "no markdown files to sample"; fi
+
+  # _INDEX.md freshness check
+  source "$LIB/index.sh"
+  for d in "${_INDEX_DIRS[@]}"; do
+    local full="$root/$d"
+    [ -d "$full" ] || continue
+    local has_md=0
+    while IFS= read -r mf; do
+      [ -z "$mf" ] && continue
+      local bn; bn=$(basename "$mf")
+      [ "$bn" = "_INDEX.md" ] && continue
+      [ "$bn" = ".gitkeep" ] && continue
+      [[ "$bn" == .* ]] && continue
+      has_md=1; break
+    done < <(find "$full" -maxdepth 1 -type f -name '*.md' 2>/dev/null)
+    [ "$has_md" -eq 0 ] && continue
+    if [ ! -f "$full/_INDEX.md" ]; then
+      lk_bad "${d}/_INDEX.md missing — run: wiki index"
+      rc=1
+    else
+      local stale=0
+      while IFS= read -r mf; do
+        [ -z "$mf" ] && continue
+        local bn; bn=$(basename "$mf")
+        [ "$bn" = "_INDEX.md" ] && continue
+        [ "$bn" = ".gitkeep" ] && continue
+        [[ "$bn" == .* ]] && continue
+        if [ "$mf" -nt "$full/_INDEX.md" ]; then stale=1; break; fi
+      done < <(find "$full" -maxdepth 1 -type f -name '*.md' 2>/dev/null)
+      if [ "$stale" -eq 1 ]; then
+        lk_warn "${d}/_INDEX.md outdated — run: wiki index --dir $d"
+      fi
+    fi
+  done
+
   return $rc
 }

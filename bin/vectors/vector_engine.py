@@ -230,10 +230,34 @@ CREATE TABLE IF NOT EXISTS meta (
     key TEXT PRIMARY KEY,
     value TEXT
 );
+
+CREATE TABLE IF NOT EXISTS dir_summaries (
+    id INTEGER PRIMARY KEY,
+    dir_path TEXT UNIQUE NOT NULL,
+    summary TEXT NOT NULL,
+    embedding BLOB NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS page_summaries (
+    id INTEGER PRIMARY KEY,
+    doc_id INTEGER NOT NULL REFERENCES documents(id),
+    summary TEXT NOT NULL,
+    embedding BLOB NOT NULL
+);
 """
 
 VEC_DDL_TEMPLATE = """
 CREATE VIRTUAL TABLE IF NOT EXISTS vec_chunks USING vec0(
+    id INTEGER PRIMARY KEY,
+    embedding float[{dim}] distance_metric=cosine
+);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS vec_dirs USING vec0(
+    id INTEGER PRIMARY KEY,
+    embedding float[{dim}] distance_metric=cosine
+);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS vec_pages USING vec0(
     id INTEGER PRIMARY KEY,
     embedding float[{dim}] distance_metric=cosine
 );
@@ -261,9 +285,111 @@ def _open_db(corpus: Path, dim: int = EMBEDDING_DIM) -> sqlite3.Connection:
 # Sub-commands
 # ---------------------------------------------------------------------------
 
+def _extract_page_summary(path: Path) -> str:
+    """Extract title + first 200 chars of Compiled Truth section for L1 summary."""
+    text = path.read_text(encoding="utf-8", errors="replace")
+    title, _ = _extract_frontmatter(text)
+    if not title:
+        m = re.search(r"^#\s+(.+)", text, re.MULTILINE)
+        title = m.group(1).strip() if m else path.stem
+
+    body = _strip_frontmatter(text)
+    # Try to find "## Compiled Truth" section
+    m = re.search(r"(?m)^## Compiled Truth\s*\n(.*?)(?=\n## |\Z)", body, re.DOTALL)
+    if m:
+        intro = m.group(1).strip()[:200]
+    else:
+        # Fallback: first 200 chars of body
+        intro = body.strip()[:200]
+
+    return f"{title}: {intro}"
+
+
+def _build_layered_index(db: sqlite3.Connection, corpus: Path, model: str) -> None:
+    """Build L0 (dir) and L1 (page) layered indices."""
+    # --- L0: directory-level summaries ---
+    # Clear old data
+    db.execute("DELETE FROM dir_summaries")
+    db.execute("DELETE FROM vec_dirs")
+
+    # Collect directories that have indexed documents
+    dir_docs: dict[str, list[str]] = {}  # dir_path -> [title, ...]
+    rows = db.execute("SELECT id, path FROM documents").fetchall()
+    for doc_id, doc_path in rows:
+        p = Path(corpus / doc_path)
+        rel_dir = str(Path(doc_path).parent)
+        if rel_dir == ".":
+            continue
+        title, _ = _extract_frontmatter(
+            p.read_text(encoding="utf-8", errors="replace")
+        ) if p.exists() else ("", "")
+        if not title:
+            title = p.stem if p.exists() else Path(doc_path).stem
+        dir_docs.setdefault(rel_dir, []).append(title)
+
+    if dir_docs:
+        dir_paths = sorted(dir_docs.keys())
+        dir_texts = []
+        for dp in dir_paths:
+            label = dp.split("/")[-1] if "/" in dp else dp
+            titles_str = ", ".join(dir_docs[dp][:50])  # cap at 50 titles
+            dir_texts.append(f"{label}目录：{titles_str}")
+
+        dir_embeddings = _ollama_embed(dir_texts, model)
+        for dp, text, emb_arr in zip(dir_paths, dir_texts, dir_embeddings):
+            emb_blob = emb_arr.tobytes()
+            db.execute(
+                "INSERT INTO dir_summaries (dir_path, summary, embedding) VALUES (?, ?, ?)",
+                (dp, text, emb_blob),
+            )
+            dir_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+            db.execute(
+                "INSERT INTO vec_dirs (id, embedding) VALUES (?, ?)",
+                (dir_id, emb_blob),
+            )
+
+        print(f"  L0: indexed {len(dir_paths)} directories")
+
+    # --- L1: page-level summaries ---
+    db.execute("DELETE FROM page_summaries")
+    db.execute("DELETE FROM vec_pages")
+
+    page_data: list[tuple[int, str]] = []  # (doc_id, summary_text)
+    for doc_id, doc_path in rows:
+        p = Path(corpus / doc_path)
+        if not p.exists():
+            continue
+        summary = _extract_page_summary(p)
+        page_data.append((doc_id, summary))
+
+    if page_data:
+        # Batch embed in groups to avoid huge payloads
+        BATCH = 64
+        total_pages = 0
+        for i in range(0, len(page_data), BATCH):
+            batch = page_data[i : i + BATCH]
+            texts = [s for _, s in batch]
+            embeddings = _ollama_embed(texts, model)
+            for (doc_id, summary), emb_arr in zip(batch, embeddings):
+                emb_blob = emb_arr.tobytes()
+                db.execute(
+                    "INSERT INTO page_summaries (doc_id, summary, embedding) VALUES (?, ?, ?)",
+                    (doc_id, summary, emb_blob),
+                )
+                page_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+                db.execute(
+                    "INSERT INTO vec_pages (id, embedding) VALUES (?, ?)",
+                    (page_id, emb_blob),
+                )
+                total_pages += 1
+
+        print(f"  L1: indexed {total_pages} pages")
+
+
 def cmd_sync(args: argparse.Namespace) -> None:
     corpus = Path(args.corpus).resolve()
     force = args.force
+    layered = args.layered
     model = args.model or MODEL_NAME
 
     # Probe model dimension
@@ -347,6 +473,11 @@ def cmd_sync(args: argparse.Namespace) -> None:
     db.execute(
         "INSERT OR REPLACE INTO meta (key, value) VALUES ('dim', ?)", (str(dim),),
     )
+    # Build layered index if requested
+    if layered or force:
+        print("Building layered index (L0/L1)...")
+        _build_layered_index(db, corpus, model)
+
     db.commit()
     db.close()
 
@@ -359,6 +490,7 @@ def cmd_query(args: argparse.Namespace) -> None:
     top_k = args.top_k
     threshold = args.threshold
     model = args.model or MODEL_NAME
+    layered = args.layered
 
     # Probe dim from meta or model
     db_path = corpus / ".wiki" / "vector.sqlite"
@@ -376,19 +508,158 @@ def cmd_query(args: argparse.Namespace) -> None:
     emb_arr = _ollama_embed_single(text, model)
     emb_blob = emb_arr.tobytes()
 
-    rows = db.execute(
+    if layered:
+        results = cmd_query_layered(db, emb_blob, top_k, threshold)
+    else:
+        rows = db.execute(
+            """
+            SELECT v.id, v.distance
+            FROM vec_chunks v
+            WHERE v.embedding MATCH ? AND k = ?
+            ORDER BY v.distance
+            """,
+            (emb_blob, top_k),
+        ).fetchall()
+
+        results: list[dict] = []
+        for row in rows:
+            chunk_id, distance = row
+            score = 1.0 - (distance * distance) / 2.0
+            if score < threshold:
+                continue
+            chunk_row = db.execute(
+                """
+                SELECT c.content, c.section, d.path
+                FROM chunks c JOIN documents d ON c.doc_id = d.id
+                WHERE c.id = ?
+                """,
+                (chunk_id,),
+            ).fetchone()
+            if chunk_row:
+                results.append({
+                    "file": chunk_row[2],
+                    "chunk": chunk_row[0],
+                    "score": round(score, 4),
+                    "section": chunk_row[1],
+                })
+
+    db.close()
+    print(json.dumps(results, ensure_ascii=False, indent=2))
+
+
+def cmd_query_layered(db: sqlite3.Connection, emb_blob: bytes, top_k: int, threshold: float) -> list[dict]:
+    """L0 → L1 → L2 hierarchical retrieval."""
+    # L0: find top-3 directories
+    l0_rows = db.execute(
+        """
+        SELECT v.id, v.distance
+        FROM vec_dirs v
+        WHERE v.embedding MATCH ? AND k = 3
+        ORDER BY v.distance
+        """,
+        (emb_blob,),
+    ).fetchall()
+
+    if not l0_rows:
+        return []
+
+    dir_ids = [r[0] for r in l0_rows]
+    placeholders = ",".join("?" * len(dir_ids))
+    dir_paths = [
+        r[0]
+        for r in db.execute(
+            f"SELECT dir_path FROM dir_summaries WHERE id IN ({placeholders})",
+            dir_ids,
+        ).fetchall()
+    ]
+
+    if not dir_paths:
+        return []
+
+    # L1: find top-5 pages within those directories
+    # Build path prefix filter: doc path must start with one of the dir_paths
+    like_clauses = " OR ".join(["d.path LIKE ?" for _ in dir_paths])
+    like_params = [dp + "/%" for dp in dir_paths]
+
+    # Get candidate page summary IDs within matched dirs
+    candidate_page_ids = [
+        r[0]
+        for r in db.execute(
+            f"""
+            SELECT ps.id FROM page_summaries ps
+            JOIN documents d ON ps.doc_id = d.id
+            WHERE {like_clauses}
+            """,
+            like_params,
+        ).fetchall()
+    ]
+
+    if not candidate_page_ids:
+        return []
+
+    # Search vec_pages with a larger k, then filter to candidates
+    # Use k = min(len(candidate_page_ids), 50) to get enough candidates
+    search_k = min(len(candidate_page_ids), 50)
+    l1_rows = db.execute(
+        """
+        SELECT v.id, v.distance
+        FROM vec_pages v
+        WHERE v.embedding MATCH ? AND k = ?
+        ORDER BY v.distance
+        """,
+        (emb_blob, search_k),
+    ).fetchall()
+
+    candidate_set = set(candidate_page_ids)
+    l1_filtered = [(r[0], r[1]) for r in l1_rows if r[0] in candidate_set][:5]
+
+    if not l1_filtered:
+        return []
+
+    # Get doc_ids from the matched page summaries
+    page_ids = [r[0] for r in l1_filtered]
+    ph = ",".join("?" * len(page_ids))
+    doc_ids = [
+        r[0]
+        for r in db.execute(
+            f"SELECT DISTINCT doc_id FROM page_summaries WHERE id IN ({ph})",
+            page_ids,
+        ).fetchall()
+    ]
+
+    if not doc_ids:
+        return []
+
+    # L2: search vec_chunks, filter to chunks belonging to matched docs
+    # Get candidate chunk IDs
+    doc_ph = ",".join("?" * len(doc_ids))
+    candidate_chunk_ids = [
+        r[0]
+        for r in db.execute(
+            f"SELECT id FROM chunks WHERE doc_id IN ({doc_ph})",
+            doc_ids,
+        ).fetchall()
+    ]
+
+    if not candidate_chunk_ids:
+        return []
+
+    search_k2 = min(len(candidate_chunk_ids), top_k * 5)
+    l2_rows = db.execute(
         """
         SELECT v.id, v.distance
         FROM vec_chunks v
         WHERE v.embedding MATCH ? AND k = ?
         ORDER BY v.distance
         """,
-        (emb_blob, top_k),
+        (emb_blob, search_k2),
     ).fetchall()
 
+    chunk_set = set(candidate_chunk_ids)
+    l2_filtered = [(r[0], r[1]) for r in l2_rows if r[0] in chunk_set][:top_k]
+
     results: list[dict] = []
-    for row in rows:
-        chunk_id, distance = row
+    for chunk_id, distance in l2_filtered:
         score = 1.0 - (distance * distance) / 2.0
         if score < threshold:
             continue
@@ -408,8 +679,7 @@ def cmd_query(args: argparse.Namespace) -> None:
                 "section": chunk_row[1],
             })
 
-    db.close()
-    print(json.dumps(results, ensure_ascii=False, indent=2))
+    return results
 
 
 def cmd_status(args: argparse.Namespace) -> None:
@@ -439,11 +709,23 @@ def cmd_status(args: argparse.Namespace) -> None:
 
     total_files = len(_collect_files(corpus))
 
+    # Layered index stats (tables may not exist in older DBs)
+    try:
+        dir_count = db.execute("SELECT COUNT(*) FROM dir_summaries").fetchone()[0]
+        page_count = db.execute("SELECT COUNT(*) FROM page_summaries").fetchone()[0]
+    except sqlite3.OperationalError:
+        dir_count = 0
+        page_count = 0
+
     info = {
         "indexed": True,
         "total_indexable_files": total_files,
         "indexed_files": doc_count,
         "chunks": chunk_count,
+        "layered": {
+            "dirs": dir_count,
+            "pages": page_count,
+        },
         "embedding_dim": int(dim[0]) if dim else EMBEDDING_DIM,
         "last_sync": last_sync[0] if last_sync else None,
         "model": model[0] if model else None,
@@ -467,6 +749,7 @@ def main() -> None:
     p_sync = sub.add_parser("sync", help="Index corpus into vector DB")
     p_sync.add_argument("--corpus", required=True)
     p_sync.add_argument("--force", action="store_true", help="Full rebuild")
+    p_sync.add_argument("--layered", action="store_true", help="Build L0/L1 layered index")
     p_sync.add_argument("--model", default=None, help=f"Ollama model (default: {MODEL_NAME})")
 
     p_query = sub.add_parser("query", help="Semantic search")
@@ -474,6 +757,7 @@ def main() -> None:
     p_query.add_argument("--text", required=True)
     p_query.add_argument("--top-k", type=int, default=5)
     p_query.add_argument("--threshold", type=float, default=0.5)
+    p_query.add_argument("--layered", action="store_true", help="Use L0→L1→L2 layered retrieval")
     p_query.add_argument("--model", default=None, help=f"Ollama model (default: {MODEL_NAME})")
 
     p_status = sub.add_parser("status", help="Show index status")

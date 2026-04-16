@@ -21,7 +21,7 @@ source "$LIB/common.sh"
 
 cmd="${1:-}"; [ $# -gt 0 ] && shift || true
 case "$cmd" in
-  init|doctor|search|stats|lint|fetch|snapshot|restore|audit|vector) source "$LIB/$cmd.sh"; "cmd_$cmd" "$@" ;;
+  init|doctor|search|stats|lint|fetch|snapshot|restore|audit|vector|index) source "$LIB/$cmd.sh"; "cmd_$cmd" "$@" ;;
   install-skills) source "$LIB/install-skills.sh"; cmd_install_skills "$@" ;;
   version|--version) source "$LIB/version.sh"; cmd_version ;;
   ""|-h|--help|help) cat <<EOF
@@ -40,6 +40,7 @@ Commands:
   restore --from <snap> [--dry-run]       Restore files from a snapshot
   audit [--list] [--open] [--resolved]    List/create feedback audit entries
   vector sync|query|status                Semantic vector search (fastembed+sqlite-vec)
+  index [--dir <subdir>]                  Generate/refresh _INDEX.md for corpus dirs
   install-skills --target claude-code     Install skills into a harness
   version                                 Print lorekit version
   --help                                  Show this help
