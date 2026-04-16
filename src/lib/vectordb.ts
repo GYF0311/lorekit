@@ -112,17 +112,14 @@ CREATE TABLE IF NOT EXISTS page_summaries (
 function vecDdl(dim: number): string {
   return `
 CREATE VIRTUAL TABLE IF NOT EXISTS vec_chunks USING vec0(
-    id INTEGER PRIMARY KEY,
     embedding float[${dim}] distance_metric=cosine
 );
 
 CREATE VIRTUAL TABLE IF NOT EXISTS vec_dirs USING vec0(
-    id INTEGER PRIMARY KEY,
     embedding float[${dim}] distance_metric=cosine
 );
 
 CREATE VIRTUAL TABLE IF NOT EXISTS vec_pages USING vec0(
-    id INTEGER PRIMARY KEY,
     embedding float[${dim}] distance_metric=cosine
 );
 `;
@@ -225,7 +222,8 @@ async function loadSqlite(): Promise<{
 
   let sqliteVec: { load: (db: Db) => void };
   try {
-    sqliteVec = (await import('sqlite-vec')).default as unknown as { load: (db: Db) => void };
+    const vecMod = await import('sqlite-vec');
+    sqliteVec = vecMod as unknown as { load: (db: Db) => void };
   } catch {
     throw new Error(
       'sqlite-vec is required for the vector engine.\n' +
@@ -277,7 +275,7 @@ export async function syncFile(
     const chunkIds = db
       .prepare('SELECT id FROM chunks WHERE doc_id = ?')
       .all(old.id) as { id: number }[];
-    const delVec = db.prepare('DELETE FROM vec_chunks WHERE id = ?');
+    const delVec = db.prepare('DELETE FROM vec_chunks WHERE rowid = ?');
     for (const { id } of chunkIds) delVec.run(id);
     db.prepare('DELETE FROM chunks WHERE doc_id = ?').run(old.id);
     db.prepare('DELETE FROM documents WHERE id = ?').run(old.id);
@@ -303,17 +301,14 @@ export async function syncFile(
   const insertChunk = db.prepare(
     'INSERT INTO chunks (doc_id, section, content, embedding) VALUES (?, ?, ?, ?)',
   );
-  const insertVec = db.prepare(
-    'INSERT INTO vec_chunks (id, embedding) VALUES (?, ?)',
-  );
-
   for (let i = 0; i < chunks.length; i++) {
     const blob = float32ToBuffer(embeddings[i]);
     insertChunk.run(docId, chunks[i].section, chunks[i].content, blob);
-    const chunkId = (
-      db.prepare('SELECT last_insert_rowid() as id').get() as { id: number }
-    ).id;
-    insertVec.run(chunkId, blob);
+    const chunkId = Number(
+      (db.prepare('SELECT last_insert_rowid() as id').get() as { id: bigint }).id
+    );
+    // vec0 doesn't support bound params for rowid — must inline
+    db.prepare(`INSERT INTO vec_chunks (rowid, embedding) VALUES (${chunkId}, ?)`).run(blob);
   }
 
   return { chunks: chunks.length };
@@ -329,7 +324,7 @@ export function queryFlat(
 
   const rows = db
     .prepare(
-      `SELECT v.id, v.distance
+      `SELECT v.rowid as id, v.distance
        FROM vec_chunks v
        WHERE v.embedding MATCH ? AND k = ?
        ORDER BY v.distance`,
@@ -373,7 +368,7 @@ export function queryLayered(
   // L0: top-3 directories
   const l0Rows = db
     .prepare(
-      `SELECT v.id, v.distance
+      `SELECT v.rowid as id, v.distance
        FROM vec_dirs v
        WHERE v.embedding MATCH ? AND k = 3
        ORDER BY v.distance`,
@@ -408,7 +403,7 @@ export function queryLayered(
   const searchK = Math.min(candidatePageIds.length, 50);
   const l1Rows = db
     .prepare(
-      `SELECT v.id, v.distance
+      `SELECT v.rowid as id, v.distance
        FROM vec_pages v
        WHERE v.embedding MATCH ? AND k = ?
        ORDER BY v.distance`,
@@ -443,7 +438,7 @@ export function queryLayered(
   const searchK2 = Math.min(candidateChunkIds.length, topK * 5);
   const l2Rows = db
     .prepare(
-      `SELECT v.id, v.distance
+      `SELECT v.rowid as id, v.distance
        FROM vec_chunks v
        WHERE v.embedding MATCH ? AND k = ?
        ORDER BY v.distance`,
@@ -528,17 +523,13 @@ export async function buildLayeredIndex(
     const insertDir = db.prepare(
       'INSERT INTO dir_summaries (dir_path, summary, embedding) VALUES (?, ?, ?)',
     );
-    const insertVecDir = db.prepare(
-      'INSERT INTO vec_dirs (id, embedding) VALUES (?, ?)',
-    );
-
     for (let i = 0; i < dirPaths.length; i++) {
       const blob = float32ToBuffer(dirEmbeddings[i]);
       insertDir.run(dirPaths[i], dirTexts[i], blob);
-      const dirId = (
-        db.prepare('SELECT last_insert_rowid() as id').get() as { id: number }
-      ).id;
-      insertVecDir.run(dirId, blob);
+      const dirId = Number(
+        (db.prepare('SELECT last_insert_rowid() as id').get() as { id: bigint }).id
+      );
+      db.prepare(`INSERT INTO vec_dirs (rowid, embedding) VALUES (${dirId}, ?)`).run(blob);
     }
 
     console.log(`  L0: indexed ${dirPaths.length} directories`);
@@ -562,10 +553,6 @@ export async function buildLayeredIndex(
     const insertPage = db.prepare(
       'INSERT INTO page_summaries (doc_id, summary, embedding) VALUES (?, ?, ?)',
     );
-    const insertVecPage = db.prepare(
-      'INSERT INTO vec_pages (id, embedding) VALUES (?, ?)',
-    );
-
     for (let i = 0; i < pageData.length; i += BATCH) {
       const batch = pageData.slice(i, i + BATCH);
       const texts = batch.map((p) => p.summary);
@@ -574,10 +561,10 @@ export async function buildLayeredIndex(
       for (let j = 0; j < batch.length; j++) {
         const blob = float32ToBuffer(embeddings[j]);
         insertPage.run(batch[j].docId, batch[j].summary, blob);
-        const pageId = (
-          db.prepare('SELECT last_insert_rowid() as id').get() as { id: number }
-        ).id;
-        insertVecPage.run(pageId, blob);
+        const pageId = Number(
+          (db.prepare('SELECT last_insert_rowid() as id').get() as { id: bigint }).id
+        );
+        db.prepare(`INSERT INTO vec_pages (rowid, embedding) VALUES (${pageId}, ?)`).run(blob);
         totalPages++;
       }
     }
