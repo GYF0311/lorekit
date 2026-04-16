@@ -103,6 +103,552 @@ var init_corpus = __esm({
   }
 });
 
+// src/lib/ollama.ts
+var ollama_exports = {};
+__export(ollama_exports, {
+  embed: () => embed,
+  embedSingle: () => embedSingle
+});
+async function embed(texts, model = DEFAULT_MODEL) {
+  const payload = JSON.stringify({ model, input: texts });
+  let resp;
+  try {
+    resp = await fetch(OLLAMA_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: payload,
+      signal: AbortSignal.timeout(12e4)
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new Error(
+      `Cannot connect to ollama at ${OLLAMA_URL}: ${msg}
+  Make sure ollama is running: ollama serve
+  And the model is pulled: ollama pull ${model}`
+    );
+  }
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => "");
+    throw new Error(`ollama returned ${resp.status}: ${body}`);
+  }
+  const data = await resp.json();
+  const embeddings = data.embeddings ?? [];
+  return embeddings.map((e) => new Float32Array(e));
+}
+async function embedSingle(text, model = DEFAULT_MODEL) {
+  const results = await embed([text], model);
+  return results[0];
+}
+var OLLAMA_URL, DEFAULT_MODEL;
+var init_ollama = __esm({
+  "src/lib/ollama.ts"() {
+    "use strict";
+    OLLAMA_URL = "http://localhost:11434/api/embed";
+    DEFAULT_MODEL = "bge-m3";
+  }
+});
+
+// src/lib/chunker.ts
+var chunker_exports = {};
+__export(chunker_exports, {
+  chunkFile: () => chunkFile
+});
+import { readFileSync as readFileSync12 } from "fs";
+import { basename as basename4 } from "path";
+import matter2 from "gray-matter";
+function chunkFile(filePath, corpusRoot) {
+  const raw = readFileSync12(filePath, "utf-8");
+  const { data: fm, content: body } = matter2(raw);
+  let title = fm.title || "";
+  const type = fm.type || "";
+  if (!title) {
+    const m = body.match(/^#\s+(.+)/m);
+    title = m ? m[1].trim() : basename4(filePath, ".md");
+  }
+  const parts = body.split(/^(## .+)$/m);
+  const sections = [];
+  if (parts[0].trim()) {
+    sections.push(["_intro", parts[0]]);
+  }
+  for (let i = 1; i < parts.length - 1; i += 2) {
+    const heading = parts[i].replace(/^#+\s*/, "").trim();
+    const secBody = i + 1 < parts.length ? parts[i + 1] : "";
+    sections.push([heading, secBody]);
+  }
+  let prefix = "";
+  if (title) prefix += `[${title}] `;
+  if (type) prefix += `[${type}] `;
+  const chunks = [];
+  for (const [heading, secBody] of sections) {
+    const trimmed = secBody.trim();
+    if (!trimmed || trimmed.length < MIN_CHUNK_CHARS) continue;
+    if (trimmed.length > MAX_CHUNK_CHARS) {
+      const paragraphs = trimmed.split("\n\n");
+      let current = "";
+      for (const p of paragraphs) {
+        if (current.length + p.length > MAX_CHUNK_CHARS && current) {
+          chunks.push({ section: heading, content: prefix + current.trim() });
+          current = p;
+        } else {
+          current = current ? current + "\n\n" + p : p;
+        }
+      }
+      if (current.trim()) {
+        chunks.push({ section: heading, content: prefix + current.trim() });
+      }
+    } else {
+      chunks.push({ section: heading, content: prefix + trimmed });
+    }
+  }
+  return chunks;
+}
+var MAX_CHUNK_CHARS, MIN_CHUNK_CHARS;
+var init_chunker = __esm({
+  "src/lib/chunker.ts"() {
+    "use strict";
+    MAX_CHUNK_CHARS = 800;
+    MIN_CHUNK_CHARS = 20;
+  }
+});
+
+// src/lib/vectordb.ts
+var vectordb_exports = {};
+__export(vectordb_exports, {
+  buildLayeredIndex: () => buildLayeredIndex,
+  collectFiles: () => collectFiles,
+  getStatus: () => getStatus,
+  openDb: () => openDb,
+  queryFlat: () => queryFlat,
+  queryLayered: () => queryLayered,
+  syncFile: () => syncFile
+});
+import { createHash as createHash2 } from "crypto";
+import { existsSync as existsSync9, mkdirSync as mkdirSync6, readFileSync as readFileSync13, readdirSync as readdirSync7 } from "fs";
+import { basename as basename5, join as join12, relative as relative9 } from "path";
+import matter3 from "gray-matter";
+function vecDdl(dim) {
+  return `
+CREATE VIRTUAL TABLE IF NOT EXISTS vec_chunks USING vec0(
+    id INTEGER PRIMARY KEY,
+    embedding float[${dim}] distance_metric=cosine
+);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS vec_dirs USING vec0(
+    id INTEGER PRIMARY KEY,
+    embedding float[${dim}] distance_metric=cosine
+);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS vec_pages USING vec0(
+    id INTEGER PRIMARY KEY,
+    embedding float[${dim}] distance_metric=cosine
+);
+`;
+}
+function sha2562(filePath) {
+  const data = readFileSync13(filePath);
+  return createHash2("sha256").update(data).digest("hex");
+}
+function float32ToBuffer(arr) {
+  return Buffer.from(arr.buffer, arr.byteOffset, arr.byteLength);
+}
+function distanceToScore(distance) {
+  return 1 - distance * distance / 2;
+}
+function shouldIndex(rel) {
+  const parts = rel.split("/");
+  if (EXCLUDE_NAMES2.has(parts[parts.length - 1])) return false;
+  if (!rel.endsWith(".md")) return false;
+  for (const prefix of EXCLUDE_PREFIXES) {
+    if (rel === prefix || rel.startsWith(prefix + "/")) return false;
+  }
+  for (const inc of INCLUDE_DIRS) {
+    if (rel === inc || rel.startsWith(inc + "/")) return true;
+  }
+  return false;
+}
+function collectFiles(corpus) {
+  const results = [];
+  function walk(dir) {
+    let entries;
+    try {
+      entries = readdirSync7(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const full = join12(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+      } else if (entry.name.endsWith(".md")) {
+        const rel = relative9(corpus, full);
+        if (shouldIndex(rel)) {
+          results.push(full);
+        }
+      }
+    }
+  }
+  walk(corpus);
+  return results.sort();
+}
+function extractPageSummary(filePath) {
+  const raw = readFileSync13(filePath, "utf-8");
+  const { data: fm, content: body } = matter3(raw);
+  let title = fm.title || "";
+  if (!title) {
+    const m = body.match(/^#\s+(.+)/m);
+    title = m ? m[1].trim() : basename5(filePath, ".md");
+  }
+  const ctMatch = body.match(/(?:^|\n)## Compiled Truth\s*\n([\s\S]*?)(?=\n## |\n*$)/);
+  const intro = ctMatch ? ctMatch[1].trim().slice(0, 200) : body.trim().slice(0, 200);
+  return `${title}: ${intro}`;
+}
+async function loadSqlite() {
+  let Database;
+  try {
+    Database = (await import("better-sqlite3")).default;
+  } catch {
+    throw new Error(
+      "better-sqlite3 is required for the vector engine.\n  Install it: npm install better-sqlite3"
+    );
+  }
+  let sqliteVec;
+  try {
+    sqliteVec = (await import("sqlite-vec")).default;
+  } catch {
+    throw new Error(
+      "sqlite-vec is required for the vector engine.\n  Install it: npm install sqlite-vec"
+    );
+  }
+  return { Database, sqliteVec };
+}
+async function openDb(corpus, dim = EMBEDDING_DIM) {
+  const { Database, sqliteVec } = await loadSqlite();
+  const wikiDir = join12(corpus, ".wiki");
+  if (!existsSync9(wikiDir)) mkdirSync6(wikiDir, { recursive: true });
+  const dbPath = join12(wikiDir, "vector.sqlite");
+  const db = new Database(dbPath);
+  sqliteVec.load(db);
+  db.pragma("journal_mode = WAL");
+  db.pragma("foreign_keys = ON");
+  db.exec(DDL);
+  db.exec(vecDdl(dim));
+  return db;
+}
+async function syncFile(db, filePath, corpus, embedFn) {
+  const { chunkFile: chunkFile2 } = await Promise.resolve().then(() => (init_chunker(), chunker_exports));
+  const rel = relative9(corpus, filePath);
+  const sha = sha2562(filePath);
+  const old = db.prepare("SELECT id FROM documents WHERE path = ?").get(rel);
+  if (old) {
+    const chunkIds = db.prepare("SELECT id FROM chunks WHERE doc_id = ?").all(old.id);
+    const delVec = db.prepare("DELETE FROM vec_chunks WHERE id = ?");
+    for (const { id } of chunkIds) delVec.run(id);
+    db.prepare("DELETE FROM chunks WHERE doc_id = ?").run(old.id);
+    db.prepare("DELETE FROM documents WHERE id = ?").run(old.id);
+  }
+  const now = (/* @__PURE__ */ new Date()).toISOString();
+  db.prepare("INSERT INTO documents (path, sha256, updated_at) VALUES (?, ?, ?)").run(
+    rel,
+    sha,
+    now
+  );
+  const docRow = db.prepare("SELECT id FROM documents WHERE path = ?").get(rel);
+  const docId = docRow.id;
+  const chunks = chunkFile2(filePath, corpus);
+  if (chunks.length === 0) return { chunks: 0 };
+  const texts = chunks.map((c) => c.content);
+  const embeddings = await embedFn(texts);
+  const insertChunk = db.prepare(
+    "INSERT INTO chunks (doc_id, section, content, embedding) VALUES (?, ?, ?, ?)"
+  );
+  const insertVec = db.prepare(
+    "INSERT INTO vec_chunks (id, embedding) VALUES (?, ?)"
+  );
+  for (let i = 0; i < chunks.length; i++) {
+    const blob = float32ToBuffer(embeddings[i]);
+    insertChunk.run(docId, chunks[i].section, chunks[i].content, blob);
+    const chunkId = db.prepare("SELECT last_insert_rowid() as id").get().id;
+    insertVec.run(chunkId, blob);
+  }
+  return { chunks: chunks.length };
+}
+function queryFlat(db, embedding, topK, threshold) {
+  const blob = float32ToBuffer(embedding);
+  const rows = db.prepare(
+    `SELECT v.id, v.distance
+       FROM vec_chunks v
+       WHERE v.embedding MATCH ? AND k = ?
+       ORDER BY v.distance`
+  ).all(blob, topK);
+  const results = [];
+  const getChunk = db.prepare(
+    `SELECT c.content, c.section, d.path
+     FROM chunks c JOIN documents d ON c.doc_id = d.id
+     WHERE c.id = ?`
+  );
+  for (const row of rows) {
+    const score = distanceToScore(row.distance);
+    if (score < threshold) continue;
+    const cr = getChunk.get(row.id);
+    if (cr) {
+      results.push({
+        file: cr.path,
+        chunk: cr.content,
+        score: Math.round(score * 1e4) / 1e4,
+        section: cr.section
+      });
+    }
+  }
+  return results;
+}
+function queryLayered(db, embedding, topK, threshold) {
+  const blob = float32ToBuffer(embedding);
+  const l0Rows = db.prepare(
+    `SELECT v.id, v.distance
+       FROM vec_dirs v
+       WHERE v.embedding MATCH ? AND k = 3
+       ORDER BY v.distance`
+  ).all(blob);
+  if (l0Rows.length === 0) return [];
+  const dirIds = l0Rows.map((r) => r.id);
+  const dirPaths = db.prepare(
+    `SELECT dir_path FROM dir_summaries WHERE id IN (${dirIds.map(() => "?").join(",")})`
+  ).all(...dirIds);
+  if (dirPaths.length === 0) return [];
+  const likeClauses = dirPaths.map(() => "d.path LIKE ?").join(" OR ");
+  const likeParams = dirPaths.map((d) => d.dir_path + "/%");
+  const candidatePageIds = db.prepare(
+    `SELECT ps.id FROM page_summaries ps
+       JOIN documents d ON ps.doc_id = d.id
+       WHERE ${likeClauses}`
+  ).all(...likeParams);
+  if (candidatePageIds.length === 0) return [];
+  const searchK = Math.min(candidatePageIds.length, 50);
+  const l1Rows = db.prepare(
+    `SELECT v.id, v.distance
+       FROM vec_pages v
+       WHERE v.embedding MATCH ? AND k = ?
+       ORDER BY v.distance`
+  ).all(blob, searchK);
+  const candidateSet = new Set(candidatePageIds.map((r) => r.id));
+  const l1Filtered = l1Rows.filter((r) => candidateSet.has(r.id)).slice(0, 5);
+  if (l1Filtered.length === 0) return [];
+  const pageIds = l1Filtered.map((r) => r.id);
+  const docIds = db.prepare(
+    `SELECT DISTINCT doc_id FROM page_summaries WHERE id IN (${pageIds.map(() => "?").join(",")})`
+  ).all(...pageIds);
+  if (docIds.length === 0) return [];
+  const docIdList = docIds.map((r) => r.doc_id);
+  const candidateChunkIds = db.prepare(
+    `SELECT id FROM chunks WHERE doc_id IN (${docIdList.map(() => "?").join(",")})`
+  ).all(...docIdList);
+  if (candidateChunkIds.length === 0) return [];
+  const searchK2 = Math.min(candidateChunkIds.length, topK * 5);
+  const l2Rows = db.prepare(
+    `SELECT v.id, v.distance
+       FROM vec_chunks v
+       WHERE v.embedding MATCH ? AND k = ?
+       ORDER BY v.distance`
+  ).all(blob, searchK2);
+  const chunkSet = new Set(candidateChunkIds.map((r) => r.id));
+  const l2Filtered = l2Rows.filter((r) => chunkSet.has(r.id)).slice(0, topK);
+  const results = [];
+  const getChunk = db.prepare(
+    `SELECT c.content, c.section, d.path
+     FROM chunks c JOIN documents d ON c.doc_id = d.id
+     WHERE c.id = ?`
+  );
+  for (const row of l2Filtered) {
+    const score = distanceToScore(row.distance);
+    if (score < threshold) continue;
+    const cr = getChunk.get(row.id);
+    if (cr) {
+      results.push({
+        file: cr.path,
+        chunk: cr.content,
+        score: Math.round(score * 1e4) / 1e4,
+        section: cr.section
+      });
+    }
+  }
+  return results;
+}
+async function buildLayeredIndex(db, corpus, embedFn) {
+  db.prepare("DELETE FROM dir_summaries").run();
+  db.prepare("DELETE FROM vec_dirs").run();
+  const rows = db.prepare("SELECT id, path FROM documents").all();
+  const dirDocs = /* @__PURE__ */ new Map();
+  for (const { path: docPath } of rows) {
+    const full = join12(corpus, docPath);
+    const parts = docPath.split("/");
+    if (parts.length < 2) continue;
+    const dirPath = parts.slice(0, -1).join("/");
+    let title = "";
+    if (existsSync9(full)) {
+      try {
+        const raw = readFileSync13(full, "utf-8");
+        const { data: fm } = matter3(raw);
+        title = fm.title || "";
+      } catch {
+      }
+    }
+    if (!title) title = basename5(docPath, ".md");
+    if (!dirDocs.has(dirPath)) dirDocs.set(dirPath, []);
+    dirDocs.get(dirPath).push(title);
+  }
+  if (dirDocs.size > 0) {
+    const dirPaths = [...dirDocs.keys()].sort();
+    const dirTexts = dirPaths.map((dp) => {
+      const label = dp.includes("/") ? dp.split("/").pop() : dp;
+      const titles = dirDocs.get(dp).slice(0, 50).join(", ");
+      return `${label}\u76EE\u5F55\uFF1A${titles}`;
+    });
+    const dirEmbeddings = await embedFn(dirTexts);
+    const insertDir = db.prepare(
+      "INSERT INTO dir_summaries (dir_path, summary, embedding) VALUES (?, ?, ?)"
+    );
+    const insertVecDir = db.prepare(
+      "INSERT INTO vec_dirs (id, embedding) VALUES (?, ?)"
+    );
+    for (let i = 0; i < dirPaths.length; i++) {
+      const blob = float32ToBuffer(dirEmbeddings[i]);
+      insertDir.run(dirPaths[i], dirTexts[i], blob);
+      const dirId = db.prepare("SELECT last_insert_rowid() as id").get().id;
+      insertVecDir.run(dirId, blob);
+    }
+    console.log(`  L0: indexed ${dirPaths.length} directories`);
+  }
+  db.prepare("DELETE FROM page_summaries").run();
+  db.prepare("DELETE FROM vec_pages").run();
+  const pageData = [];
+  for (const { id: docId, path: docPath } of rows) {
+    const full = join12(corpus, docPath);
+    if (!existsSync9(full)) continue;
+    const summary = extractPageSummary(full);
+    pageData.push({ docId, summary });
+  }
+  if (pageData.length > 0) {
+    const BATCH = 64;
+    let totalPages = 0;
+    const insertPage = db.prepare(
+      "INSERT INTO page_summaries (doc_id, summary, embedding) VALUES (?, ?, ?)"
+    );
+    const insertVecPage = db.prepare(
+      "INSERT INTO vec_pages (id, embedding) VALUES (?, ?)"
+    );
+    for (let i = 0; i < pageData.length; i += BATCH) {
+      const batch = pageData.slice(i, i + BATCH);
+      const texts = batch.map((p) => p.summary);
+      const embeddings = await embedFn(texts);
+      for (let j = 0; j < batch.length; j++) {
+        const blob = float32ToBuffer(embeddings[j]);
+        insertPage.run(batch[j].docId, batch[j].summary, blob);
+        const pageId = db.prepare("SELECT last_insert_rowid() as id").get().id;
+        insertVecPage.run(pageId, blob);
+        totalPages++;
+      }
+    }
+    console.log(`  L1: indexed ${totalPages} pages`);
+  }
+}
+async function getStatus(corpus) {
+  const dbPath = join12(corpus, ".wiki", "vector.sqlite");
+  if (!existsSync9(dbPath)) {
+    return {
+      indexed: false,
+      message: "No vector index found. Run 'lorekit vector sync' first."
+    };
+  }
+  const db = await openDb(corpus);
+  const docCount = db.prepare("SELECT COUNT(*) as n FROM documents").get().n;
+  const chunkCount = db.prepare("SELECT COUNT(*) as n FROM chunks").get().n;
+  const lastSync = db.prepare("SELECT value FROM meta WHERE key = 'last_sync'").get();
+  const model = db.prepare("SELECT value FROM meta WHERE key = 'model'").get();
+  const dim = db.prepare("SELECT value FROM meta WHERE key = 'dim'").get();
+  const totalFiles = collectFiles(corpus).length;
+  let dirCount = 0;
+  let pageCount = 0;
+  try {
+    dirCount = db.prepare("SELECT COUNT(*) as n FROM dir_summaries").get().n;
+    pageCount = db.prepare("SELECT COUNT(*) as n FROM page_summaries").get().n;
+  } catch {
+  }
+  db.close();
+  return {
+    indexed: true,
+    total_indexable_files: totalFiles,
+    indexed_files: docCount,
+    chunks: chunkCount,
+    layered: { dirs: dirCount, pages: pageCount },
+    embedding_dim: dim ? parseInt(dim.value, 10) : EMBEDDING_DIM,
+    last_sync: lastSync?.value ?? null,
+    model: model?.value ?? null,
+    backend: "ollama"
+  };
+}
+var EMBEDDING_DIM, INCLUDE_DIRS, EXCLUDE_PREFIXES, EXCLUDE_NAMES2, DDL;
+var init_vectordb = __esm({
+  "src/lib/vectordb.ts"() {
+    "use strict";
+    EMBEDDING_DIM = 1024;
+    INCLUDE_DIRS = [
+      "\u77E5\u8BC6\u5E93",
+      "\u6BCF\u65E5",
+      "\u5199\u4F5C",
+      "\u539F\u6599/\u6587\u7AE0",
+      "\u539F\u6599/\u4E66\u7C4D",
+      "\u539F\u6599/\u4F1A\u8BAE"
+    ];
+    EXCLUDE_PREFIXES = [
+      "_\u5DE5\u4F5C\u53F0",
+      "_archive",
+      "_\u5F52\u6863",
+      "\u539F\u6599/\u5F55\u97F3",
+      "\u539F\u6599/\u526A\u85CF",
+      "\u53CD\u9988",
+      "\u7CFB\u7EDF",
+      ".wiki"
+    ];
+    EXCLUDE_NAMES2 = /* @__PURE__ */ new Set([".gitkeep", ".DS_Store"]);
+    DDL = `
+CREATE TABLE IF NOT EXISTS documents (
+    id INTEGER PRIMARY KEY,
+    path TEXT UNIQUE NOT NULL,
+    sha256 TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS chunks (
+    id INTEGER PRIMARY KEY,
+    doc_id INTEGER NOT NULL,
+    section TEXT,
+    content TEXT NOT NULL,
+    embedding BLOB NOT NULL,
+    FOREIGN KEY (doc_id) REFERENCES documents(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS meta (
+    key TEXT PRIMARY KEY,
+    value TEXT
+);
+
+CREATE TABLE IF NOT EXISTS dir_summaries (
+    id INTEGER PRIMARY KEY,
+    dir_path TEXT UNIQUE NOT NULL,
+    summary TEXT NOT NULL,
+    embedding BLOB NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS page_summaries (
+    id INTEGER PRIMARY KEY,
+    doc_id INTEGER NOT NULL REFERENCES documents(id),
+    summary TEXT NOT NULL,
+    embedding BLOB NOT NULL
+);
+`;
+  }
+});
+
 // src/cli.ts
 init_corpus();
 import { Command } from "commander";
@@ -1139,20 +1685,473 @@ function searchCommand(program2) {
 }
 
 // src/commands/vector.ts
+init_corpus();
 function vectorCommand(program2) {
-  program2.command("vector").argument("<action>", "sync | query | status").description("vector search engine (Phase 3 stub)").action((action) => {
-    warn(
-      `vector engine not yet migrated to TypeScript, use: wiki vector ${action}`
+  const vec = program2.command("vector").description("vector search engine \u2014 embed & search via ollama + sqlite-vec");
+  vec.command("sync").option("--force", "full rebuild (re-embed all files)", false).option("--layered", "build L0/L1 layered index", false).option("--model <name>", "ollama model name", "bge-m3").description("index corpus into vector DB").action(async (opts) => {
+    const corpus = requireCorpus();
+    const { embed: embed2, embedSingle: embedSingle2 } = await Promise.resolve().then(() => (init_ollama(), ollama_exports));
+    const { openDb: openDb2, syncFile: syncFile2, buildLayeredIndex: buildLayeredIndex2, collectFiles: collectFiles2 } = await Promise.resolve().then(() => (init_vectordb(), vectordb_exports));
+    const testEmb = await embedSingle2("test", opts.model);
+    const dim = testEmb.length;
+    const db = await openDb2(corpus, dim);
+    const files = collectFiles2(corpus);
+    let synced = 0;
+    let skipped = 0;
+    let totalChunks = 0;
+    for (const filePath of files) {
+      const rel = filePath.replace(corpus + "/", "");
+      if (!opts.force) {
+        const row = db.prepare("SELECT sha256 FROM documents WHERE path = ?").get(rel);
+        if (row) {
+          const { createHash: createHash3 } = await import("crypto");
+          const { readFileSync: readFileSync14 } = await import("fs");
+          const sha = createHash3("sha256").update(readFileSync14(filePath)).digest("hex");
+          if (row.sha256 === sha) {
+            skipped++;
+            continue;
+          }
+        }
+      }
+      const embedFn = (texts) => embed2(texts, opts.model);
+      const result = await syncFile2(db, filePath, corpus, embedFn);
+      totalChunks += result.chunks;
+      synced++;
+    }
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('last_sync', ?)").run(
+      now
     );
+    db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('model', ?)").run(
+      opts.model
+    );
+    db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('dim', ?)").run(
+      String(dim)
+    );
+    if (opts.layered || opts.force) {
+      console.log("Building layered index (L0/L1)...");
+      const embedBatch = (texts) => embed2(texts, opts.model);
+      await buildLayeredIndex2(db, corpus, embedBatch);
+    }
+    db.close();
+    ok(`synced ${synced} files (${totalChunks} chunks), skipped ${skipped} unchanged`);
+  });
+  vec.command("query").requiredOption("--text <text>", "search query text").option("--top-k <n>", "number of results", "5").option("--threshold <n>", "minimum similarity score", "0.5").option("--layered", "use L0\u2192L1\u2192L2 layered retrieval", false).option("--model <name>", "ollama model name", "bge-m3").description("semantic search in the vector index").action(
+    async (opts) => {
+      const corpus = requireCorpus();
+      const topK = parseInt(opts.topK, 10);
+      const threshold = parseFloat(opts.threshold);
+      const { embedSingle: embedSingle2 } = await Promise.resolve().then(() => (init_ollama(), ollama_exports));
+      const { openDb: openDb2, queryFlat: queryFlat2, queryLayered: queryLayered2 } = await Promise.resolve().then(() => (init_vectordb(), vectordb_exports));
+      const { existsSync: existsSync11 } = await import("fs");
+      const { join: join15 } = await import("path");
+      let dim = 1024;
+      const dbPath = join15(corpus, ".wiki", "vector.sqlite");
+      if (existsSync11(dbPath)) {
+        const tmpDb = await openDb2(corpus);
+        const row = tmpDb.prepare("SELECT value FROM meta WHERE key = 'dim'").get();
+        if (row) dim = parseInt(row.value, 10);
+        tmpDb.close();
+      }
+      const db = await openDb2(corpus, dim);
+      const embedding = await embedSingle2(opts.text, opts.model);
+      const results = opts.layered ? queryLayered2(db, embedding, topK, threshold) : queryFlat2(db, embedding, topK, threshold);
+      db.close();
+      console.log(JSON.stringify(results, null, 2));
+    }
+  );
+  vec.command("status").description("show vector index status").action(async () => {
+    const corpus = requireCorpus();
+    const { getStatus: getStatus2 } = await Promise.resolve().then(() => (init_vectordb(), vectordb_exports));
+    const info = await getStatus2(corpus);
+    console.log(JSON.stringify(info, null, 2));
   });
 }
 
 // src/commands/fetch.ts
-function fetchCommand(program2) {
-  program2.command("fetch").argument("<url>", "URL to fetch").option("--out <dir>", "output directory").option("--force-rich", "force rich mode (images + full content)").option("--no-images", "skip image downloads").description("fetch a URL into the corpus (Phase 4 stub)").action((url, opts) => {
-    warn(
-      `fetch engine not yet migrated to TypeScript, use: wiki fetch ${url}`
+init_corpus();
+import { existsSync as existsSync10, mkdirSync as mkdirSync7 } from "fs";
+import { join as join14 } from "path";
+
+// src/lib/fetcher.ts
+import { mkdir, writeFile } from "fs/promises";
+import { join as join13 } from "path";
+import * as cheerio from "cheerio";
+import TurndownService from "turndown";
+var UA_IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
+var UA_DESKTOP = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+var MAX_IMG_BYTES = 5 * 1024 * 1024;
+var IMG_CONCURRENCY = 5;
+var HTTP_TIMEOUT_MS = 2e4;
+var ANTIBOT_TRIGGERS = [
+  "\u73AF\u5883\u5F02\u5E38",
+  "\u8BF7\u5728\u5FAE\u4FE1\u5BA2\u6237\u7AEF\u6253\u5F00",
+  "\u5B8C\u6210\u9A8C\u8BC1\u540E\u5373\u53EF\u7EE7\u7EED",
+  "Just a moment",
+  "cf-browser-verification"
+];
+function detectSite(url) {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    if (host.includes("mp.weixin.qq.com")) return "weixin";
+  } catch {
+  }
+  return "generic";
+}
+function buildHeaders(site) {
+  if (site === "weixin") {
+    return {
+      "User-Agent": UA_IPHONE,
+      "Referer": "https://mp.weixin.qq.com/",
+      "Accept-Language": "zh-CN,zh;q=0.9",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+    };
+  }
+  return {
+    "User-Agent": UA_DESKTOP,
+    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+  };
+}
+function detectAntibot(html, site) {
+  if (ANTIBOT_TRIGGERS.some((t) => html.includes(t))) return true;
+  if (site === "weixin" && !html.includes("js_content")) return true;
+  return false;
+}
+function slugify(s) {
+  let slug = s.replace(/[^\w\u4e00-\u9fff-]+/g, "-").replace(/^-+|-+$/g, "");
+  return slug.slice(0, 50) || "untitled";
+}
+function resolveUrl(src, base) {
+  try {
+    return new URL(src, base).href;
+  } catch {
+    return src;
+  }
+}
+async function fetchHtmlL1(url, headers) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      headers,
+      redirect: "follow",
+      signal: controller.signal
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.text();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+async function fetchHtmlL2(url) {
+  try {
+    const pw = await import("playwright-core");
+    const browser = await pw.chromium.launch({ headless: true });
+    try {
+      const page = await browser.newPage();
+      await page.goto(url, { waitUntil: "networkidle", timeout: 6e4 });
+      return await page.content();
+    } finally {
+      await browser.close();
+    }
+  } catch {
+    return null;
+  }
+}
+function parseWeixin(html, baseUrl) {
+  const $ = cheerio.load(html);
+  let title = $("h1#activity-name").text().trim() || $("h1.rich_media_title").text().trim() || $('meta[property="og:title"]').attr("content")?.trim() || "";
+  const author = $("a#js_name").text().trim() || $("#js_author_name").text().trim() || "";
+  const body = $("#js_content");
+  if (!body.length) {
+    return { title, author, bodyHtml: "", imgSrcs: [] };
+  }
+  body.find("script, style").remove();
+  const imgSrcs = [];
+  body.find("img").each((_i, el) => {
+    const $el = $(el);
+    const real = ($el.attr("data-src") || $el.attr("data-original") || $el.attr("data-url") || $el.attr("src") || "").trim();
+    if (!real || real.startsWith("data:")) {
+      $el.remove();
+      return;
+    }
+    const abs = resolveUrl(real, baseUrl);
+    $el.attr("src", abs);
+    for (const a of [
+      "data-src",
+      "data-original",
+      "data-url",
+      "data-w",
+      "data-ratio",
+      "data-type",
+      "data-s",
+      "srcset"
+    ]) {
+      $el.removeAttr(a);
+    }
+    imgSrcs.push(abs);
+  });
+  return { title, author, bodyHtml: body.html() || "", imgSrcs };
+}
+function parseGeneric(html, baseUrl) {
+  const $ = cheerio.load(html);
+  const ogTitle = $('meta[property="og:title"]').attr("content")?.trim();
+  const titleTag = $("title").text().trim();
+  const title = ogTitle || titleTag || "";
+  const author = $('meta[name="author"]').attr("content")?.trim() || "";
+  let body = $("article");
+  if (!body.length) body = $("main");
+  if (!body.length) body = $("body");
+  if (!body.length) {
+    return { title, author, bodyHtml: "", imgSrcs: [] };
+  }
+  body.find("script, style, nav, footer, header, aside").remove();
+  const imgSrcs = [];
+  body.find("img").each((_i, el) => {
+    const $el = $(el);
+    const real = ($el.attr("data-src") || $el.attr("data-original") || $el.attr("src") || "").trim();
+    if (!real || real.startsWith("data:")) {
+      $el.remove();
+      return;
+    }
+    const abs = resolveUrl(real, baseUrl);
+    $el.attr("src", abs);
+    imgSrcs.push(abs);
+  });
+  return { title, author, bodyHtml: body.html() || "", imgSrcs };
+}
+function htmlToMarkdown(html) {
+  const td = new TurndownService({
+    headingStyle: "atx",
+    codeBlockStyle: "fenced"
+  });
+  return td.turndown(html).trim();
+}
+var MAGIC = [
+  [[255, 216, 255], ".jpg"],
+  [[137, 80, 78, 71, 13, 10, 26, 10], ".png"],
+  // \x89PNG\r\n\x1a\n
+  [[71, 73, 70, 56, 55, 97], ".gif"],
+  // GIF87a
+  [[71, 73, 70, 56, 57, 97], ".gif"]
+  // GIF89a
+];
+function sniffExt(head, contentType) {
+  for (const [sig, ext] of MAGIC) {
+    if (sig.every((b, i) => head[i] === b)) return ext;
+  }
+  if (head[0] === 82 && head[1] === 73 && head[2] === 70 && head[3] === 70 && head[8] === 87 && head[9] === 69 && head[10] === 66 && head[11] === 80) {
+    return ".webp";
+  }
+  const ct = contentType.toLowerCase();
+  if (ct.includes("image/jpeg") || ct.includes("image/jpg")) return ".jpg";
+  if (ct.includes("image/png")) return ".png";
+  if (ct.includes("image/gif")) return ".gif";
+  if (ct.includes("image/webp")) return ".webp";
+  if (ct.includes("image/svg")) return ".svg";
+  return null;
+}
+async function downloadOneImage(url, idx, imagesDir, headers) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS);
+      const res = await fetch(url, {
+        headers,
+        redirect: "follow",
+        signal: controller.signal
+      });
+      clearTimeout(timer);
+      if (!res.ok) continue;
+      const cl = Number(res.headers.get("content-length") || 0);
+      if (cl && cl > MAX_IMG_BYTES) {
+        return { originalUrl: url, localRel: null, status: "too_large" };
+      }
+      const buf = await res.arrayBuffer();
+      if (buf.byteLength > MAX_IMG_BYTES) {
+        return { originalUrl: url, localRel: null, status: "too_large" };
+      }
+      const data = new Uint8Array(buf);
+      const ext = sniffExt(data.slice(0, 16), res.headers.get("content-type") || "");
+      if (!ext) continue;
+      const fname = `img_${String(idx).padStart(2, "0")}${ext}`;
+      await writeFile(join13(imagesDir, fname), data);
+      return { originalUrl: url, localRel: `./images/${fname}`, status: "ok" };
+    } catch {
+    }
+  }
+  return { originalUrl: url, localRel: null, status: "failed" };
+}
+async function downloadImages(imgSrcs, imagesDir, headers) {
+  if (imgSrcs.length === 0) return [];
+  await mkdir(imagesDir, { recursive: true });
+  const results = [];
+  for (let i = 0; i < imgSrcs.length; i += IMG_CONCURRENCY) {
+    const batch = imgSrcs.slice(i, i + IMG_CONCURRENCY);
+    const batchResults = await Promise.all(
+      batch.map((src, j) => downloadOneImage(src, i + j + 1, imagesDir, headers))
     );
+    results.push(...batchResults);
+  }
+  return results;
+}
+function rewriteMarkdownImages(md, imgResults) {
+  const urlToLocal = /* @__PURE__ */ new Map();
+  for (const r of imgResults) {
+    if (r.status === "ok" && r.localRel) {
+      urlToLocal.set(r.originalUrl, r.localRel);
+    }
+  }
+  return md.replace(
+    /!\[([^\]]*)\]\(([^)]+)\)/g,
+    (match, alt, url) => {
+      const local = urlToLocal.get(url);
+      return local ? `![${alt}](${local})` : match;
+    }
+  );
+}
+async function fetchUrl(url, opts) {
+  const site = detectSite(url);
+  const headers = buildHeaders(site);
+  let sourceLayer = "L1";
+  let html = "";
+  try {
+    html = await fetchHtmlL1(url, headers);
+    if (detectAntibot(html, site)) {
+      html = "";
+    }
+  } catch {
+    html = "";
+  }
+  if (!html) {
+    sourceLayer = "L2";
+    const l2html = await fetchHtmlL2(url);
+    if (!l2html) {
+      return {
+        status: "error",
+        route: "rich",
+        url,
+        reason: "ANTIBOT_BLOCKED",
+        suggest: "Install playwright-core + chromium, or paste content manually"
+      };
+    }
+    html = l2html;
+    if (detectAntibot(html, site)) {
+      return {
+        status: "error",
+        route: "rich",
+        url,
+        reason: "ANTIBOT_BLOCKED",
+        suggest: "Site requires login or manual intervention"
+      };
+    }
+  }
+  const doc = site === "weixin" ? parseWeixin(html, url) : parseGeneric(html, url);
+  if (!doc.bodyHtml || doc.bodyHtml.replace(/<[^>]*>/g, "").trim().length < 50) {
+    return {
+      status: "error",
+      route: "rich",
+      url,
+      reason: "empty_body"
+    };
+  }
+  let md = htmlToMarkdown(doc.bodyHtml);
+  const slug = slugify(doc.title || "untitled");
+  const dir = join13(opts.outRoot, slug);
+  const imagesDir = join13(dir, "images");
+  await mkdir(dir, { recursive: true });
+  let imagesOk = 0;
+  let imagesFailed = 0;
+  if (!opts.noImages && doc.imgSrcs.length > 0) {
+    const imgResults = await downloadImages(doc.imgSrcs, imagesDir, headers);
+    md = rewriteMarkdownImages(md, imgResults);
+    for (const r of imgResults) {
+      if (r.status === "ok") imagesOk++;
+      else imagesFailed++;
+    }
+  }
+  const fmLines = ["---"];
+  if (doc.title) fmLines.push(`title: "${doc.title.replace(/"/g, '\\"')}"`);
+  if (doc.author) fmLines.push(`author: "${doc.author.replace(/"/g, '\\"')}"`);
+  fmLines.push(`url: "${url}"`);
+  fmLines.push("---");
+  fmLines.push("");
+  if (doc.title) fmLines.push(`# ${doc.title}`, "");
+  fmLines.push(md, "");
+  const articlePath = join13(dir, "article.md");
+  await writeFile(articlePath, fmLines.join("\n"), "utf-8");
+  return {
+    status: "ok",
+    route: "rich",
+    url,
+    title: doc.title || void 0,
+    author: doc.author || void 0,
+    sourceLayer,
+    slug,
+    dir,
+    markdown: articlePath,
+    imagesDir,
+    imagesOk,
+    imagesFailed
+  };
+}
+
+// src/commands/fetch.ts
+function suggestResult(route, url, suggest) {
+  return { status: "unsupported", route, url, suggest };
+}
+function getHost(url) {
+  try {
+    return new URL(url).hostname.toLowerCase();
+  } catch {
+    return "";
+  }
+}
+function isPdfUrl(url) {
+  try {
+    const path = new URL(url).pathname.toLowerCase();
+    return path.endsWith(".pdf");
+  } catch {
+    return false;
+  }
+}
+function fetchCommand(program2) {
+  program2.command("fetch").argument("<url>", "URL to fetch").option("--out <dir>", "output directory").option("--force-rich", "skip host routing, always use rich fetcher").option("--no-images", "skip image downloads").description("Fetch a URL into local markdown + images").action(async (url, opts) => {
+    let outRoot;
+    if (opts.out) {
+      outRoot = opts.out;
+    } else {
+      const corpus = findCorpus();
+      outRoot = corpus ? join14(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch") : "/tmp/lorekit-fetch";
+    }
+    if (!existsSync10(outRoot)) {
+      mkdirSync7(outRoot, { recursive: true });
+    }
+    const noImages = opts.images === false;
+    let result;
+    if (opts.forceRich) {
+      result = await fetchUrl(url, { outRoot, noImages });
+    } else {
+      const host = getHost(url);
+      if (host.includes("mp.weixin.qq.com")) {
+        result = await fetchUrl(url, { outRoot, noImages });
+      } else if (host.includes("feishu.cn") || host.includes("larkoffice.com")) {
+        result = suggestResult("lark", url, "lark-cli docs +read --as user --doc <url>");
+      } else if (host === "x.com" || host === "twitter.com" || host.endsWith(".x.com") || host.endsWith(".twitter.com")) {
+        result = suggestResult("x", url, "paste screenshot or text (antibot too strong)");
+      } else if (host === "github.com" || host === "gist.github.com") {
+        result = suggestResult("github", url, "WebFetch or github-content-fetch skill");
+      } else if (isPdfUrl(url)) {
+        result = suggestResult("pdf", url, "pdf skill");
+      } else {
+        result = await fetchUrl(url, { outRoot, noImages });
+      }
+    }
+    console.log(JSON.stringify(result));
+    if (result.status === "error") {
+      process.exitCode = 1;
+    }
   });
 }
 
@@ -1171,8 +2170,8 @@ function showBanner() {
     }
     try {
       const dbPath = `${corpus}/.wiki/vector.sqlite`;
-      const { existsSync: existsSync9 } = __require("fs");
-      if (existsSync9(dbPath)) {
+      const { existsSync: existsSync11 } = __require("fs");
+      if (existsSync11(dbPath)) {
         const Database = __require("better-sqlite3");
         const db = new Database(dbPath, { readonly: true });
         indexed = String(db.prepare("SELECT COUNT(*) as c FROM documents").get()?.c ?? 0);
