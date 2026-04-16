@@ -29,7 +29,7 @@ var import_obsidian4 = require("obsidian");
 var import_obsidian = require("obsidian");
 var DEFAULT_SETTINGS = {
   wikiRoot: ".",
-  auditDir: "audit",
+  auditDir: "\u53CD\u9988/\u5F85\u5904\u7406",
   author: "me"
 };
 var LLMWikiAuditSettingTab = class extends import_obsidian.PluginSettingTab {
