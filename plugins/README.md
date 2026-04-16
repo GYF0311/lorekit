@@ -9,4 +9,4 @@ for the lorekit agent's `audit` operation.
 - **Origin**: Built from `llm-wiki-skill/plugins/obsidian-audit/` (TypeScript source)
 - **Bundled files**: `main.js`, `manifest.json`, `styles.css` (compiled artifacts only)
 - **Deployment**: Automatically installed to `<corpus>/.obsidian/plugins/lorekit-audit/`
-  during `wiki init`
+  during `lorekit init`

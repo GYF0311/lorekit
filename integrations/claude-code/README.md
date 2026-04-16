@@ -6,7 +6,7 @@ Softlinks lorekit's fat skills into `~/.claude/skills/` so Claude Code auto-disc
 
 ```bash
 # Preferred (via wiki CLI):
-wiki install-skills --target claude-code
+lorekit install-skills --target claude-code
 
 # Or directly:
 ./integrations/claude-code/install.sh

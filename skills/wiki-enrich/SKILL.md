@@ -41,19 +41,19 @@ description: 扫最近日记按主语抽高信号内容，建议 fileback 到沉
    - 分组：按主语列出高信号条目
    - 末尾：pending fileback 列表（供用户 Y/N 批准）
 7. **等用户确认**后才执行 fileback（交给 `wiki-fileback`）
-8. 运行 `wiki lint --quick` 自检
+8. 运行 `lorekit lint --quick` 自检
 
 ## Tools to use
 
-- `wiki enrich --since <date>` — 主命令（v0.5+）
-- `wiki search` — 辅助确认目标页是否存在
+- `lorekit enrich --since <date>` — 主命令（v0.5+）
+- `lorekit search` — 辅助确认目标页是否存在
 - `wiki-fileback` — 用户批准后用它实际写入（本 skill 不直接写沉淀层）
 - 底层：Glob / Read / Grep
 
 ## Output format
 
 ```
-=== wiki enrich 报告 ===
+=== lorekit enrich 报告 ===
 范围：2026-04-01 ~ 2026-04-30
 扫描日记：24 篇
 高信号条目：18 条

@@ -52,7 +52,7 @@ lorekit --version
 # → 0.2.0
 
 lorekit
-# → 显示蓝色 ASCII 启动界面
+# → 显示蓝色 ASCII 启动界面（无参数启动看 banner）
 ```
 
 ---

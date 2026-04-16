@@ -24,10 +24,10 @@ description: 从 corpus 检索已有内容并综合答案，按精确/模糊/图
 先判断 query 类型，再选检索层：
 
 1. **有具体实体名 / 文件名 / 明确关键词** → **精确层**
-   - `wiki search "<实体名>"` (ripgrep)
+   - `lorekit search "<实体名>"` (ripgrep)
    - 命中就直接读对应 L2 页面
 2. **概念性 / 模糊意图 / 时间模糊** → **模糊层**
-   - `wiki vector query "<fuzzy intent>"`（两阶段层次检索）
+   - `lorekit vector query "<fuzzy intent>"`（两阶段层次检索）
    - 读 top 5 候选对应的 L2 文件
 3. **多跳推理**（"跟 A 相关的 B 的 C"）→ **图遍历层**
    - 先模糊层拿候选
@@ -38,10 +38,10 @@ description: 从 corpus 检索已有内容并综合答案，按精确/模糊/图
 
 ## Tools to use
 
-- `wiki search "<q>"` — 精确 ripgrep
-- `wiki vector query "<q>"` — 模糊语义检索（v0.5+）
-- `wiki show <page>` — 读某页完整内容
-- `wiki links <page>` — 列出某页的所有 wikilinks（正反向）
+- `lorekit search "<q>"` — 精确 ripgrep
+- `lorekit vector query "<q>"` — 模糊语义检索（v0.5+）
+- `lorekit show <page>` — 读某页完整内容
+- `lorekit links <page>` — 列出某页的所有 wikilinks（正反向）
 - 底层：Read、Grep
 
 ## Output format

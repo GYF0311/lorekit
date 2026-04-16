@@ -130,7 +130,7 @@ RAG 每次查询都在从原始文档重新发现知识，没有累积。LLM Wik
 - `系统/**`（schema 元信息）
 - `.wiki/**`
 
-逃生舱：`wiki search "xxx" --include 原料/录音` 可临时查被排除的目录。
+逃生舱：`lorekit search "xxx" --include 原料/录音` 可临时查被排除的目录。
 
 ## 三个操作
 
@@ -138,4 +138,4 @@ RAG 每次查询都在从原始文档重新发现知识，没有累积。LLM Wik
 |---|---|---|
 | **Ingest** | 新原料进 `原料/` | LLM 编译进 `知识库/`，更新 index.md + log.md |
 | **Query** | 用户提问 | 读 index.md → 钻入页面 → 综合回答。好答案 file back |
-| **Lint** | `wiki doctor` | 检查死链、孤岛、矛盾、过期工作台文件 |
+| **Lint** | `lorekit doctor` | 检查死链、孤岛、矛盾、过期工作台文件 |

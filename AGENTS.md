@@ -47,8 +47,8 @@ Node.js 要求 >= 18。**不再需要 bash / Python / uv**。
 cd ~/code/lorekit
 npm install
 npm run build
-npm link
-lorekit --version   # 验证输出 0.2.0
+npm link           # 让 `lorekit` 命令全局可用
+lorekit --version  # 验证输出 0.2.0
 ```
 
 ### Step 4: 问用户知识库要放哪

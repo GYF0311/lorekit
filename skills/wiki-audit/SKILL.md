@@ -10,27 +10,27 @@ description: 【知识库审阅】处理人类反馈，修正 wiki 内容 | Proc
 ## When to trigger
 
 - 用户说"处理反馈"、"review audit"、"check feedback"
-- `wiki audit --list --open` 显示有待处理条目
+- `lorekit audit --list --open` 显示有待处理条目
 - 用户说"看看有什么需要改的"、"审阅知识库"
 
 **不要触发**：
-- 用户只是提一个新反馈 → 直接 `wiki audit --create ...`
+- 用户只是提一个新反馈 → 直接 `lorekit audit --create ...`
 - 查询已有内容 → `wiki-query`
 
 ## Tools to use
 
-- `wiki audit --list --open` — 列出待处理反馈
-- `wiki audit --list --resolved` — 列出已处理反馈
-- `wiki audit --create --target <file> --severity <low|medium|high> --text "..."` — 新建反馈
-- `wiki lint --quick` — 修改后自检
+- `lorekit audit --list --open` — 列出待处理反馈
+- `lorekit audit --list --resolved` — 列出已处理反馈
+- `lorekit audit --create --target <file> --severity <info|suggest|warn|error> --text "..."` — 新建反馈
+- `lorekit lint --quick` — 修改后自检
 - 底层：Read / Edit / `mv`
 
 ## Workflow
 
 ### 列出待处理
 
-1. 运行 `wiki audit --list --open`
-2. 展示给用户，按 severity 排序（high → medium → low）
+1. 运行 `lorekit audit --list --open`
+2. 展示给用户，按 severity 排序（error → warn → suggest → info）
 3. 问用户要处理哪条，或逐条处理
 
 ### 处理单条反馈
@@ -52,12 +52,12 @@ description: 【知识库审阅】处理人类反馈，修正 wiki 内容 | Proc
    - 操作：修改了 xxx
    - 结果：已修正/已驳回/部分采纳
    ```
-8. **自检**：`wiki lint --quick`
+8. **自检**：`lorekit lint --quick`
 9. **汇报**（见 Output format）
 
 ### 批量处理
 
-1. `wiki audit --list --open` 获取全部待处理
+1. `lorekit audit --list --open` 获取全部待处理
 2. 逐条按上述流程处理
 3. **每条处理完展示差异让用户确认**，再进行下一条
 4. 全部完成后汇总报告
@@ -73,7 +73,7 @@ description: 【知识库审阅】处理人类反馈，修正 wiki 内容 | Proc
 
 ```
 审阅反馈：反馈/待处理/20260416-100000-xxx.md
-  severity: high
+  severity: error
   target:   知识库/实体/xxx.md
   反馈内容：xxx
   处理方式：修正了 Compiled Truth 中的 xxx

@@ -28,7 +28,7 @@
 - 有一篇想保存的文章 → 原文进 `原料/文章/`，Agent 编译进 `知识库/`
 - 想搜之前整理过什么 → 让 Agent 用 `wiki query` 查 `index.md`
 - 对话中产生的洞察 → 让 Agent file back 存进 `知识库/`
-- 定期体检 → `wiki doctor` 扫断链、孤岛、过期文件
+- 定期体检 → `lorekit doctor` 扫断链、孤岛、过期文件
 - 对 wiki 内容有意见 → 往 `反馈/待处理/` 提 feedback
 
 ### 三条铁律
