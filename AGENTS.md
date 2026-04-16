@@ -5,13 +5,13 @@
 
 ## 这是什么
 
-lorekit 是一个基于 Karpathy LLM Wiki 模式的个人知识库工具包。
+lorekit 是一个基于 Karpathy LLM Wiki 模式的个人知识库工具包。纯 TypeScript 实现，只依赖 Node.js。
 安装后，AI 帮用户维护一个持久的、结构化的 markdown 知识库——原料进来，AI 编译成 wiki，知识积累而不是每次重新发现。
 
 ## ⚠️ 数据安全红线（必须遵守）
 
 1. **绝对不能删除用户已有的知识库/笔记内容**。不管是 `rm`、覆盖、还是清空——都不允许。
-2. **安装前如果用户已有知识库/笔记目录，必须先备份**。用 `wiki snapshot` 或 `tar` 打包到桌面，确认备份成功后再继续。
+2. **安装前如果用户已有知识库/笔记目录，必须先备份**。用 `lorekit snapshot` 或 `tar` 打包到桌面，确认备份成功后再继续。
 3. **不要用 `rm` 删除任何用户文件**。如果需要删除，用 `trash`（macOS 回收站，可恢复）。
 4. **迁移/整理/归档操作中不允许出现 `rm`**。嵌套难看就让它嵌套，重复就让它重复——便利永远不能排在数据安全前面。
 5. **链式破坏性命令必须拆开单步执行**，每步确认后再执行下一步。
@@ -26,11 +26,14 @@ lorekit 是一个基于 Karpathy LLM Wiki 模式的个人知识库工具包。
 ### Step 1: 检查并安装依赖
 
 ```bash
-which git      || echo "需要安装 git"
-which rg       || { echo "安装 ripgrep..."; brew install ripgrep; }
-which jq       || { echo "安装 jq..."; brew install jq; }
-which uv       || { echo "安装 uv..."; brew install uv; }
+which git   || echo "需要安装 git"
+which node  || { echo "安装 Node.js..."; brew install node; }
+# 可选依赖
+which rg    || { echo "（可选）brew install ripgrep 加速文本搜索"; }
+which ollama || { echo "（可选）brew install ollama 启用语义搜索"; }
 ```
+
+Node.js 要求 >= 18。**不再需要 bash / Python / uv**。
 
 ### Step 2: 克隆到本地
 
@@ -38,12 +41,14 @@ which uv       || { echo "安装 uv..."; brew install uv; }
 [ -d ~/code/lorekit ] || git clone https://github.com/GYF0311/lorekit.git ~/code/lorekit
 ```
 
-### Step 3: 把 CLI 加入 PATH
+### Step 3: 安装依赖并链接 CLI
 
 ```bash
-cd ~/code/lorekit && ./bin/install.sh
-export PATH="$HOME/code/lorekit/bin:$PATH"
-wiki --version
+cd ~/code/lorekit
+npm install
+npm run build
+npm link
+lorekit --version   # 验证输出 0.2.0
 ```
 
 ### Step 4: 问用户知识库要放哪
@@ -51,10 +56,10 @@ wiki --version
 默认建议 `~/Desktop/my-corpus`，但用户可能有自己的偏好。确认后执行：
 
 ```bash
-wiki init <用户选择的路径>
+lorekit init <用户选择的路径>
 ```
 
-如果用户已有笔记/知识库目录，`wiki init` 会自动检测并提供备份选项。
+如果用户已有笔记/知识库目录，`lorekit init` 会自动检测并提供备份选项。
 
 ### Step 5: 安装 Agent Skills
 
@@ -62,7 +67,7 @@ wiki init <用户选择的路径>
 
 ```bash
 # Claude Code
-wiki install-skills --target claude-code
+lorekit install-skills --target claude-code
 
 # 其他 Agent（Codex/Cursor/Aider）
 # skills 在 ~/code/lorekit/skills/ 下，按各 agent 的 skill 注册方式配置
@@ -88,7 +93,7 @@ ollama serve   # 如果没自动启动
 ollama pull bge-m3
 
 cd <corpus-path>
-wiki vector sync
+lorekit vector sync
 ```
 
 不装也能用——AI 通过 index.md 文本定位内容，小规模完全够用。
@@ -105,16 +110,16 @@ wiki vector sync
 
 可用的 CLI 命令：
 ```bash
-wiki doctor          # 健康检查
-wiki stats           # 统计
-wiki search <text>   # 文本搜索
-wiki fetch <url>     # 网页抓取
-wiki snapshot        # 备份快照
-wiki restore         # 从快照恢复
-wiki audit --list    # 查看反馈
-wiki vector sync     # 向量索引
-wiki vector query    # 语义检索
-wiki index           # 生成子目录索引
+lorekit doctor          # 健康检查
+lorekit stats           # 统计
+lorekit search <text>   # 文本搜索
+lorekit fetch <url>     # 网页抓取
+lorekit snapshot        # 备份快照
+lorekit restore         # 从快照恢复
+lorekit audit --list    # 查看反馈
+lorekit vector sync     # 向量索引（需要 ollama）
+lorekit vector query    # 语义检索
+lorekit index           # 生成子目录索引
 ```
 
 详见 `docs/QUICKSTART.md` 和 `README.md`。
