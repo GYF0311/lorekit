@@ -1,0 +1,51 @@
+{
+  "name": "lorekit",
+  "version": "0.2.0",
+  "description": "Personal LLM Wiki toolkit — let AI build and maintain your knowledge base",
+  "type": "module",
+  "bin": {
+    "lorekit": "bin/lorekit.js"
+  },
+  "files": [
+    "dist/",
+    "bin/lorekit.js",
+    "skills/",
+    "plugins/",
+    "templates/",
+    "VERSION"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": ["llm", "wiki", "knowledge-base", "karpathy", "obsidian", "rag", "embedding"],
+  "author": "GYF0311",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GYF0311/lorekit.git"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "chalk": "^5.3.0",
+    "cheerio": "^1.0.0",
+    "commander": "^12.0.0",
+    "gray-matter": "^4.0.3",
+    "tar": "^7.0.0",
+    "turndown": "^7.2.0"
+  },
+  "optionalDependencies": {
+    "sqlite-vec": "^0.1.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/node": "^20.0.0",
+    "@types/turndown": "^5.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.5.0"
+  }
+}
