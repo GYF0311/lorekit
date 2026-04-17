@@ -1854,13 +1854,47 @@ async function fetchHtmlL2(url) {
     return null;
   }
 }
+var SHANGHAI_TZ_OFFSET_MS = 8 * 60 * 60 * 1e3;
+function tsToYMD(seconds) {
+  const d = new Date(seconds * 1e3 + SHANGHAI_TZ_OFFSET_MS);
+  return d.toISOString().slice(0, 10);
+}
+function todayYMD() {
+  const d = new Date(Date.now() + SHANGHAI_TZ_OFFSET_MS);
+  return d.toISOString().slice(0, 10);
+}
+function normalizeDateText(raw) {
+  const s = raw.trim();
+  if (!s) return void 0;
+  const iso = s.match(/(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if (iso) {
+    const [, y, m, d] = iso;
+    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+  const zh = s.match(/(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
+  if (zh) {
+    const [, y, m, d] = zh;
+    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+  return void 0;
+}
 function parseWeixin(html, baseUrl) {
   const $ = cheerio.load(html);
   let title = $("h1#activity-name").text().trim() || $("h1.rich_media_title").text().trim() || $('meta[property="og:title"]').attr("content")?.trim() || "";
   const author = $("a#js_name").text().trim() || $("#js_author_name").text().trim() || "";
+  let publishDate;
+  const ctMatch = html.match(/var\s+ct\s*=\s*"(\d+)"/);
+  if (ctMatch) {
+    const ts = Number(ctMatch[1]);
+    if (Number.isFinite(ts) && ts > 0) publishDate = tsToYMD(ts);
+  }
+  if (!publishDate) {
+    const ptText = $("em#publish_time").text().trim();
+    if (ptText) publishDate = normalizeDateText(ptText);
+  }
   const body = $("#js_content");
   if (!body.length) {
-    return { title, author, bodyHtml: "", imgSrcs: [] };
+    return { title, author, publishDate, bodyHtml: "", imgSrcs: [] };
   }
   body.find("script, style").remove();
   const imgSrcs = [];
@@ -1887,7 +1921,7 @@ function parseWeixin(html, baseUrl) {
     }
     imgSrcs.push(abs);
   });
-  return { title, author, bodyHtml: body.html() || "", imgSrcs };
+  return { title, author, publishDate, bodyHtml: body.html() || "", imgSrcs };
 }
 function parseGeneric(html, baseUrl) {
   const $ = cheerio.load(html);
@@ -1895,11 +1929,31 @@ function parseGeneric(html, baseUrl) {
   const titleTag = $("title").text().trim();
   const title = ogTitle || titleTag || "";
   const author = $('meta[name="author"]').attr("content")?.trim() || "";
+  let publishDate;
+  const dateCandidates = [
+    $('meta[property="article:published_time"]').attr("content"),
+    $('meta[property="og:article:published_time"]').attr("content"),
+    $('meta[name="article:published_time"]').attr("content"),
+    $('meta[itemprop="datePublished"]').attr("content"),
+    $('meta[name="date"]').attr("content"),
+    $('meta[name="pubdate"]').attr("content"),
+    $('meta[name="publishdate"]').attr("content"),
+    $("time[datetime]").first().attr("datetime"),
+    $("time").first().text()
+  ];
+  for (const cand of dateCandidates) {
+    if (!cand) continue;
+    const norm = normalizeDateText(cand);
+    if (norm) {
+      publishDate = norm;
+      break;
+    }
+  }
   let body = $("article");
   if (!body.length) body = $("main");
   if (!body.length) body = $("body");
   if (!body.length) {
-    return { title, author, bodyHtml: "", imgSrcs: [] };
+    return { title, author, publishDate, bodyHtml: "", imgSrcs: [] };
   }
   body.find("script, style, nav, footer, header, aside").remove();
   const imgSrcs = [];
@@ -1914,7 +1968,7 @@ function parseGeneric(html, baseUrl) {
     $el.attr("src", abs);
     imgSrcs.push(abs);
   });
-  return { title, author, bodyHtml: body.html() || "", imgSrcs };
+  return { title, author, publishDate, bodyHtml: body.html() || "", imgSrcs };
 }
 function htmlToMarkdown(html) {
   const td = new TurndownService({
@@ -2066,10 +2120,17 @@ async function fetchUrl(url, opts) {
       else imagesFailed++;
     }
   }
+  const sourceKind = site === "weixin" ? "clipping" : "article";
+  const today = todayYMD();
   const fmLines = ["---"];
+  fmLines.push("type: source");
   if (doc.title) fmLines.push(`title: "${doc.title.replace(/"/g, '\\"')}"`);
-  if (doc.author) fmLines.push(`author: "${doc.author.replace(/"/g, '\\"')}"`);
-  fmLines.push(`url: "${url}"`);
+  fmLines.push(`created: ${today}`);
+  fmLines.push(`updated: ${today}`);
+  fmLines.push(`source_url: ${url}`);
+  if (doc.author) fmLines.push(`source_author: "${doc.author.replace(/"/g, '\\"')}"`);
+  if (doc.publishDate) fmLines.push(`source_date: ${doc.publishDate}`);
+  fmLines.push(`source_kind: ${sourceKind}`);
   fmLines.push("---");
   fmLines.push("");
   if (doc.title) fmLines.push(`# ${doc.title}`, "");
@@ -2082,6 +2143,8 @@ async function fetchUrl(url, opts) {
     url,
     title: doc.title || void 0,
     author: doc.author || void 0,
+    publishDate: doc.publishDate,
+    sourceKind,
     sourceLayer,
     slug,
     dir,

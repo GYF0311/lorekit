@@ -32,8 +32,10 @@ stdout 是**单行 JSON**，解析它决定下一步：
 
 **成功 JSON 示例**：
 ```json
-{"status":"ok","route":"rich","url":"...","title":"...","author":"...","source_layer":"L1","slug":"abc","dir":"<workbench>/abc","markdown":"<workbench>/abc/article.md","images_dir":"<workbench>/abc/images","images_ok":12,"images_failed":1}
+{"status":"ok","route":"rich","url":"...","title":"...","author":"...","publishDate":"2026-04-15","sourceKind":"clipping","sourceLayer":"L1","slug":"abc","dir":"<workbench>/abc","markdown":"<workbench>/abc/article.md","imagesDir":"<workbench>/abc/images","imagesOk":12,"imagesFailed":1}
 ```
+
+抓取产物的 `article.md` frontmatter 已按 `系统/frontmatter-spec.md` 合规生成（`type: source` + `source_url` / `source_author` / `source_date` / `source_kind` 等）。`source_date` 会从 HTML 的 `var ct="xxx"` Unix 时间戳、`<em id="publish_time">`、`<meta property="article:published_time">`、`<time datetime>` 等字段里抽——你通常不需要再手动核实日期。
 
 **本地文件 / 粘贴文本** 不走 `lorekit fetch`，直接 `Read`。
 
@@ -71,19 +73,36 @@ stdout 是**单行 JSON**，解析它决定下一步：
 
 ## 日期填写规则（重要）
 
-来源页的日期字段（frontmatter 的 `source_date` 或 timeline 条目的日期）必须按以下优先级核实：
+**优先级**：
 
 | 优先级 | 方法 | 说明 |
 |---|---|---|
-| 1 | **原文明确日期** | "Posted on 2026-04-04"、"2026年4月4日" 等 |
-| 2 | **URL / 页面元数据** | GitHub 看 commit 时间，博客看发布时间，`metadata.json` 里的 publish_time |
-| 3 | **用户确认** | 不确定时问用户"这篇文章日期是？" |
-| 4 | **留空或标注** | 实在找不到写 `"(待核实)"` 或留空 |
+| 1 | **fetcher 返回的 `publishDate`** | 成功抓取时 `lorekit fetch` 输出 JSON 里的 `publishDate` 字段已从 HTML 元数据抽好，article.md frontmatter 也已写入 `source_date`。**直接用**。|
+| 2 | **原文正文明确日期** | "Posted on 2026-04-04"、"2026年4月4日" 等作者自己写在正文里的日期 |
+| 3 | **用户确认** | 不确定时问用户 |
+| 4 | **留空或标注** | 实在找不到，frontmatter 的 `source_date` 留空，timeline 条目写 `"(未标注)"` |
 
 **禁止行为**：
 - ❌ **猜测年份**（如默认填 2025）
 - ❌ **用"今年/去年"** 等相对时间
 - ❌ **用 ingest 时间冒充发布日期**
+- ❌ **反爬一次就放弃**：`WebFetch` 被拦不代表没办法；`curl -A '<UA>'` 抓原始 HTML、或直接看 `lorekit fetch` 产物 frontmatter 里的 `source_date` 都是路子
+- ❌ **从图片/截图里扒日期写进 corpus**：那是二手考证，不是作者原话
+
+## 禁止跨源污染（实体页铁律）
+
+**实体页 / 概念页的 `## Compiled Truth` 和 `## Timeline` 的每一条都必须能 trace 回 corpus 内的某个 `[[原料页]]` 或已有 `[[知识库页]]`**。
+
+本次 ingest 只能消化**本次的原料**。以下材料**不能**被当作"顺手的背景色"混进产物：
+
+- `MEMORY.md` / `memory/*.md` 里的老日记条目
+- 项目根 `CLAUDE.md` / 全局 `~/.claude/CLAUDE.md` 里的偏好
+- 其他已 ingest 但本次不直接相关的原料页（除非做跨源综合判断且标明来源）
+- 纯脑补推测（年份、月份、具体事件）
+
+这些信息想进 corpus，走独立的 `wiki-fileback` 流程，带独立来源标记。
+
+**自查**：实体页写完，逐条问"这句话的证据在哪个 `[[页面]]`？"——答不上来就删掉或改成"（未提及）"。
 
 ## Tools to use
 

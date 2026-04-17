@@ -19,6 +19,8 @@ export interface FetchResult {
   url: string;
   title?: string;
   author?: string;
+  publishDate?: string;  // YYYY-MM-DD, Asia/Shanghai
+  sourceKind?: string;   // clipping | article | ...
   sourceLayer?: string;
   slug?: string;
   dir?: string;
@@ -160,8 +162,43 @@ async function fetchHtmlL2(url: string): Promise<string | null> {
 interface ParsedDoc {
   title: string;
   author: string;
+  publishDate?: string; // YYYY-MM-DD Asia/Shanghai, optional
   bodyHtml: string;
   imgSrcs: string[]; // absolute URLs in document order
+}
+
+// ---------------------------------------------------------------------------
+// Date helpers
+// ---------------------------------------------------------------------------
+
+const SHANGHAI_TZ_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+function tsToYMD(seconds: number): string {
+  const d = new Date(seconds * 1000 + SHANGHAI_TZ_OFFSET_MS);
+  return d.toISOString().slice(0, 10);
+}
+
+function todayYMD(): string {
+  const d = new Date(Date.now() + SHANGHAI_TZ_OFFSET_MS);
+  return d.toISOString().slice(0, 10);
+}
+
+function normalizeDateText(raw: string): string | undefined {
+  const s = raw.trim();
+  if (!s) return undefined;
+  // ISO-ish: 2026-04-15, 2026/04/15, 2026-04-15T10:00:00+08:00
+  const iso = s.match(/(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if (iso) {
+    const [, y, m, d] = iso;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+  // Chinese: 2026年4月15日
+  const zh = s.match(/(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
+  if (zh) {
+    const [, y, m, d] = zh;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+  return undefined;
 }
 
 function parseWeixin(html: string, baseUrl: string): ParsedDoc {
@@ -178,10 +215,23 @@ function parseWeixin(html: string, baseUrl: string): ParsedDoc {
     || $('#js_author_name').text().trim()
     || '';
 
+  // Publish date — prefer `var ct = "<unix seconds>"` (most reliable),
+  // fallback to <em id="publish_time"> text node.
+  let publishDate: string | undefined;
+  const ctMatch = html.match(/var\s+ct\s*=\s*"(\d+)"/);
+  if (ctMatch) {
+    const ts = Number(ctMatch[1]);
+    if (Number.isFinite(ts) && ts > 0) publishDate = tsToYMD(ts);
+  }
+  if (!publishDate) {
+    const ptText = $('em#publish_time').text().trim();
+    if (ptText) publishDate = normalizeDateText(ptText);
+  }
+
   // Body
   const body = $('#js_content');
   if (!body.length) {
-    return { title, author, bodyHtml: '', imgSrcs: [] };
+    return { title, author, publishDate, bodyHtml: '', imgSrcs: [] };
   }
 
   // Clean
@@ -209,7 +259,7 @@ function parseWeixin(html: string, baseUrl: string): ParsedDoc {
     imgSrcs.push(abs);
   });
 
-  return { title, author, bodyHtml: body.html() || '', imgSrcs };
+  return { title, author, publishDate, bodyHtml: body.html() || '', imgSrcs };
 }
 
 function parseGeneric(html: string, baseUrl: string): ParsedDoc {
@@ -223,12 +273,31 @@ function parseGeneric(html: string, baseUrl: string): ParsedDoc {
   // Author
   const author = $('meta[name="author"]').attr('content')?.trim() || '';
 
+  // Publish date — common places: OpenGraph article, meta, <time datetime>, JSON-LD
+  let publishDate: string | undefined;
+  const dateCandidates: Array<string | undefined> = [
+    $('meta[property="article:published_time"]').attr('content'),
+    $('meta[property="og:article:published_time"]').attr('content'),
+    $('meta[name="article:published_time"]').attr('content'),
+    $('meta[itemprop="datePublished"]').attr('content'),
+    $('meta[name="date"]').attr('content'),
+    $('meta[name="pubdate"]').attr('content'),
+    $('meta[name="publishdate"]').attr('content'),
+    $('time[datetime]').first().attr('datetime'),
+    $('time').first().text(),
+  ];
+  for (const cand of dateCandidates) {
+    if (!cand) continue;
+    const norm = normalizeDateText(cand);
+    if (norm) { publishDate = norm; break; }
+  }
+
   // Body: article > main > body
   let body = $('article');
   if (!body.length) body = $('main');
   if (!body.length) body = $('body');
   if (!body.length) {
-    return { title, author, bodyHtml: '', imgSrcs: [] };
+    return { title, author, publishDate, bodyHtml: '', imgSrcs: [] };
   }
 
   // Clean junk
@@ -251,7 +320,7 @@ function parseGeneric(html: string, baseUrl: string): ParsedDoc {
     imgSrcs.push(abs);
   });
 
-  return { title, author, bodyHtml: body.html() || '', imgSrcs };
+  return { title, author, publishDate, bodyHtml: body.html() || '', imgSrcs };
 }
 
 // ---------------------------------------------------------------------------
@@ -465,10 +534,20 @@ export async function fetchUrl(url: string, opts: FetchOptions): Promise<FetchRe
   }
 
   // --- Build frontmatter + write article.md ---
+  // Follows templates/default-corpus/系统/frontmatter-spec.md
+  const sourceKind = site === 'weixin' ? 'clipping' : 'article';
+  const today = todayYMD();
   const fmLines = ['---'];
+  fmLines.push('type: source');
   if (doc.title) fmLines.push(`title: "${doc.title.replace(/"/g, '\\"')}"`);
-  if (doc.author) fmLines.push(`author: "${doc.author.replace(/"/g, '\\"')}"`);
-  fmLines.push(`url: "${url}"`);
+  // slug omitted here: fetcher doesn't know the final archive location
+  // (工作台 vs 原料/剪藏 vs 原料/文章). wiki-ingest will set it on mv.
+  fmLines.push(`created: ${today}`);
+  fmLines.push(`updated: ${today}`);
+  fmLines.push(`source_url: ${url}`);
+  if (doc.author) fmLines.push(`source_author: "${doc.author.replace(/"/g, '\\"')}"`);
+  if (doc.publishDate) fmLines.push(`source_date: ${doc.publishDate}`);
+  fmLines.push(`source_kind: ${sourceKind}`);
   fmLines.push('---');
   fmLines.push('');
   if (doc.title) fmLines.push(`# ${doc.title}`, '');
@@ -483,6 +562,8 @@ export async function fetchUrl(url: string, opts: FetchOptions): Promise<FetchRe
     url,
     title: doc.title || undefined,
     author: doc.author || undefined,
+    publishDate: doc.publishDate,
+    sourceKind,
     sourceLayer,
     slug,
     dir,
