@@ -14,7 +14,7 @@ import TurndownService from 'turndown';
 // ---------------------------------------------------------------------------
 
 export interface FetchResult {
-  status: 'ok' | 'error' | 'unsupported';
+  status: 'ok' | 'error' | 'unsupported' | 'duplicate';
   route: string;
   url: string;
   title?: string;
@@ -30,6 +30,11 @@ export interface FetchResult {
   imagesFailed?: number;
   suggest?: string;
   reason?: string;
+  duplicate?: {
+    path: string;          // existing article.md path
+    sourceDate?: string;   // from existing frontmatter
+    title?: string;
+  };
 }
 
 export interface FetchOptions {

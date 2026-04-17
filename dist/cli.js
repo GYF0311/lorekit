@@ -33,6 +33,7 @@ __export(corpus_exports, {
   extractFrontmatter: () => extractFrontmatter,
   extractFrontmatterField: () => extractFrontmatterField,
   findCorpus: () => findCorpus,
+  findSourceByUrl: () => findSourceByUrl,
   hasFrontmatter: () => hasFrontmatter,
   requireCorpus: () => requireCorpus
 });
@@ -77,6 +78,15 @@ function extractFrontmatterField(filePath, key) {
   const fm = extractFrontmatter(filePath);
   const val = fm[key];
   return typeof val === "string" ? val : void 0;
+}
+function findSourceByUrl(corpus, url) {
+  const sourcesRoot = join(corpus, "\u539F\u6599");
+  if (!existsSync(sourcesRoot)) return null;
+  for (const mdPath of collectMdFiles(sourcesRoot)) {
+    const fm = extractFrontmatter(mdPath);
+    if (fm.source_url === url || fm.url === url) return mdPath;
+  }
+  return null;
 }
 function collectMdFiles(dir, opts) {
   const results = [];
@@ -1700,8 +1710,8 @@ function vectorCommand(program2) {
         const row = db.prepare("SELECT sha256 FROM documents WHERE path = ?").get(rel);
         if (row) {
           const { createHash: createHash3 } = await import("crypto");
-          const { readFileSync: readFileSync14 } = await import("fs");
-          const sha = createHash3("sha256").update(readFileSync14(filePath)).digest("hex");
+          const { readFileSync: readFileSync15 } = await import("fs");
+          const sha = createHash3("sha256").update(readFileSync15(filePath)).digest("hex");
           if (row.sha256 === sha) {
             skipped++;
             continue;
@@ -1738,11 +1748,11 @@ function vectorCommand(program2) {
       const threshold = parseFloat(opts.threshold);
       const { embedSingle: embedSingle2 } = await Promise.resolve().then(() => (init_ollama(), ollama_exports));
       const { openDb: openDb2, queryFlat: queryFlat2, queryLayered: queryLayered2 } = await Promise.resolve().then(() => (init_vectordb(), vectordb_exports));
-      const { existsSync: existsSync11 } = await import("fs");
-      const { join: join15 } = await import("path");
+      const { existsSync: existsSync12 } = await import("fs");
+      const { join: join16 } = await import("path");
       let dim = 1024;
-      const dbPath = join15(corpus, ".wiki", "vector.sqlite");
-      if (existsSync11(dbPath)) {
+      const dbPath = join16(corpus, ".wiki", "vector.sqlite");
+      if (existsSync12(dbPath)) {
         const tmpDb = await openDb2(corpus);
         const row = tmpDb.prepare("SELECT value FROM meta WHERE key = 'dim'").get();
         if (row) dim = parseInt(row.value, 10);
@@ -1766,7 +1776,7 @@ function vectorCommand(program2) {
 // src/commands/fetch.ts
 init_corpus();
 import { existsSync as existsSync10, mkdirSync as mkdirSync7 } from "fs";
-import { join as join14 } from "path";
+import { join as join14, relative as relative10 } from "path";
 
 // src/lib/fetcher.ts
 import { mkdir, writeFile } from "fs/promises";
@@ -2175,16 +2185,35 @@ function isPdfUrl(url) {
   }
 }
 function fetchCommand(program2) {
-  program2.command("fetch").argument("<url>", "URL to fetch").option("--out <dir>", "output directory").option("--force-rich", "skip host routing, always use rich fetcher").option("--no-images", "skip image downloads").description("Fetch a URL into local markdown + images").action(async (url, opts) => {
+  program2.command("fetch").argument("<url>", "URL to fetch").option("--out <dir>", "output directory").option("--force-rich", "skip host routing, always use rich fetcher").option("--no-images", "skip image downloads").option("--force", "ignore duplicate-URL check and re-fetch anyway").description("Fetch a URL into local markdown + images").action(async (url, opts) => {
+    const corpus = findCorpus();
     let outRoot;
     if (opts.out) {
       outRoot = opts.out;
     } else {
-      const corpus = findCorpus();
       outRoot = corpus ? join14(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch") : "/tmp/lorekit-fetch";
     }
     if (!existsSync10(outRoot)) {
       mkdirSync7(outRoot, { recursive: true });
+    }
+    let duplicate;
+    if (corpus && !opts.force) {
+      const existing = findSourceByUrl(corpus, url);
+      if (existing) {
+        const fm = extractFrontmatter(existing);
+        const sdRaw = fm.source_date;
+        const sourceDate = typeof sdRaw === "string" ? sdRaw : sdRaw instanceof Date ? sdRaw.toISOString().slice(0, 10) : void 0;
+        duplicate = {
+          path: relative10(corpus, existing),
+          sourceDate,
+          title: typeof fm.title === "string" ? fm.title : void 0
+        };
+        console.error(
+          `[lorekit fetch] duplicate url: ${url} already ingested at ${duplicate.path}` + (duplicate.sourceDate ? ` (source_date: ${duplicate.sourceDate})` : "") + `. Use --force to re-fetch anyway.`
+        );
+        console.log(JSON.stringify({ status: "duplicate", route: "rich", url, duplicate }));
+        return;
+      }
     }
     const noImages = opts.images === false;
     let result;
@@ -2213,6 +2242,110 @@ function fetchCommand(program2) {
   });
 }
 
+// src/commands/ingest-check.ts
+init_corpus();
+import { existsSync as existsSync11, readFileSync as readFileSync14, readdirSync as readdirSync8, statSync as statSync8 } from "fs";
+import { join as join15, relative as relative11 } from "path";
+var ONE_DAY = 24 * 60 * 60 * 1e3;
+function collectWikilinkTargets(mdPath) {
+  const txt = readFileSync14(mdPath, "utf-8");
+  const targets = [];
+  const re = /\[\[([^\]|#]+)(?:[#|][^\]]*)?\]\]/g;
+  let m;
+  while ((m = re.exec(txt)) !== null) {
+    targets.push(m[1].trim());
+  }
+  return targets;
+}
+function slugOfSourcePath(rel) {
+  return rel.replace(/\/article\.md$/, "").replace(/\.md$/, "");
+}
+function ingestCheckCommand(program2) {
+  program2.command("ingest-check").description("Audit ingest pipeline health: orphan workbench, unreferenced sources, dangling wikilinks").option("--workbench-ttl <days>", "workbench orphan threshold in days", "7").action(async (opts) => {
+    const corpus = requireCorpus();
+    const ttl = Number(opts.workbenchTtl ?? 7);
+    const now = Date.now();
+    const orphans = [];
+    const workbench = join15(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch");
+    if (existsSync11(workbench)) {
+      for (const entry of readdirSync8(workbench, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        if (entry.name.startsWith(".")) continue;
+        const full = join15(workbench, entry.name);
+        const st = statSync8(full);
+        const ageDays = Math.floor((now - st.mtimeMs) / ONE_DAY);
+        if (ageDays >= ttl) {
+          orphans.push({ dir: relative11(corpus, full), ageDays });
+        }
+      }
+    }
+    const sourcesRoot = join15(corpus, "\u539F\u6599");
+    const wikiRoot = join15(corpus, "\u77E5\u8BC6\u5E93");
+    const sourceSlugsReferenced = /* @__PURE__ */ new Set();
+    const allWikiTargets = [];
+    if (existsSync11(wikiRoot)) {
+      for (const wikiMd of collectMdFiles(wikiRoot)) {
+        for (const t of collectWikilinkTargets(wikiMd)) {
+          allWikiTargets.push({ from: relative11(corpus, wikiMd), target: t });
+          if (t.startsWith("\u539F\u6599/")) sourceSlugsReferenced.add(t);
+        }
+      }
+    }
+    const unreferenced = [];
+    const sourceDirSlugs = /* @__PURE__ */ new Set();
+    if (existsSync11(sourcesRoot)) {
+      for (const mdPath of collectMdFiles(sourcesRoot)) {
+        const rel = relative11(corpus, mdPath);
+        const slug = slugOfSourcePath(rel);
+        sourceDirSlugs.add(slug);
+        const dirSlug = slug;
+        const fileSlug = rel.replace(/\.md$/, "");
+        const referenced = sourceSlugsReferenced.has(dirSlug) || sourceSlugsReferenced.has(fileSlug);
+        if (!referenced) {
+          const fm = extractFrontmatter(mdPath);
+          unreferenced.push({
+            path: rel,
+            title: typeof fm.title === "string" ? fm.title : void 0,
+            sourceDate: typeof fm.source_date === "string" ? fm.source_date : void 0
+          });
+        }
+      }
+    }
+    const dangling = [];
+    for (const { from, target } of allWikiTargets) {
+      if (!target.startsWith("\u539F\u6599/")) continue;
+      const asDirSlug = target;
+      const asFileSlug = target;
+      const dirExists = sourceDirSlugs.has(asDirSlug);
+      const fileExists = existsSync11(join15(corpus, asFileSlug + ".md"));
+      if (!dirExists && !fileExists) {
+        dangling.push({ from, target });
+      }
+    }
+    const report = {
+      corpus: relative11(process.cwd(), corpus) || ".",
+      workbenchTtlDays: ttl,
+      orphanWorkbench: orphans,
+      unreferencedSources: unreferenced,
+      danglingSourceWikilinks: dangling
+    };
+    const issueCount = orphans.length + unreferenced.length + dangling.length;
+    const summary = [
+      `[lorekit ingest-check] corpus: ${report.corpus}`,
+      `  orphan workbench (>${ttl}d): ${orphans.length}`,
+      ...orphans.slice(0, 5).map((o) => `    - ${o.dir} (${o.ageDays}d)`),
+      `  unreferenced \u539F\u6599/ pages: ${unreferenced.length}`,
+      ...unreferenced.slice(0, 5).map((u) => `    - ${u.path}${u.title ? "  \u2014 " + u.title : ""}`),
+      `  dangling [[\u539F\u6599/...]] wikilinks: ${dangling.length}`,
+      ...dangling.slice(0, 5).map((d) => `    - ${d.from} \u2192 [[${d.target}]]`),
+      `  total issues: ${issueCount}`
+    ];
+    console.error(summary.join("\n"));
+    console.log(JSON.stringify(report));
+    if (issueCount > 0) process.exitCode = 1;
+  });
+}
+
 // src/cli.ts
 var version = readVersion();
 function showBanner() {
@@ -2228,8 +2361,8 @@ function showBanner() {
     }
     try {
       const dbPath = `${corpus}/.wiki/vector.sqlite`;
-      const { existsSync: existsSync11 } = __require("fs");
-      if (existsSync11(dbPath)) {
+      const { existsSync: existsSync12 } = __require("fs");
+      if (existsSync12(dbPath)) {
         const Database = __require("better-sqlite3");
         const db = new Database(dbPath, { readonly: true });
         indexed = String(db.prepare("SELECT COUNT(*) as c FROM documents").get()?.c ?? 0);
@@ -2279,6 +2412,7 @@ restoreCommand(program);
 searchCommand(program);
 vectorCommand(program);
 fetchCommand(program);
+ingestCheckCommand(program);
 if (process.argv.length <= 2) {
   showBanner();
 } else {

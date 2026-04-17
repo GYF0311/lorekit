@@ -1,7 +1,7 @@
 import type { Command } from 'commander';
 import { existsSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
-import { findCorpus } from '../lib/corpus.js';
+import { join, relative } from 'node:path';
+import { findCorpus, findSourceByUrl, extractFrontmatter } from '../lib/corpus.js';
 import { fetchUrl } from '../lib/fetcher.js';
 import type { FetchResult } from '../lib/fetcher.js';
 
@@ -41,20 +41,50 @@ export function fetchCommand(program: Command) {
     .option('--out <dir>', 'output directory')
     .option('--force-rich', 'skip host routing, always use rich fetcher')
     .option('--no-images', 'skip image downloads')
+    .option('--force', 'ignore duplicate-URL check and re-fetch anyway')
     .description('Fetch a URL into local markdown + images')
-    .action(async (url: string, opts: { out?: string; forceRich?: boolean; images?: boolean }) => {
+    .action(async (url: string, opts: { out?: string; forceRich?: boolean; images?: boolean; force?: boolean }) => {
       // Resolve output root
+      const corpus = findCorpus();
       let outRoot: string;
       if (opts.out) {
         outRoot = opts.out;
       } else {
-        const corpus = findCorpus();
         outRoot = corpus
           ? join(corpus, '_工作台', '收件', 'fetch')
           : '/tmp/lorekit-fetch';
       }
       if (!existsSync(outRoot)) {
         mkdirSync(outRoot, { recursive: true });
+      }
+
+      // Duplicate-URL detection: scan 原料/ for existing article.md with same source_url
+      let duplicate: FetchResult['duplicate'] | undefined;
+      if (corpus && !opts.force) {
+        const existing = findSourceByUrl(corpus, url);
+        if (existing) {
+          const fm = extractFrontmatter(existing);
+          // gray-matter parses bare YAML dates as Date objects; normalize to ISO yyyy-mm-dd
+          const sdRaw = fm.source_date;
+          const sourceDate =
+            typeof sdRaw === 'string'
+              ? sdRaw
+              : sdRaw instanceof Date
+                ? sdRaw.toISOString().slice(0, 10)
+                : undefined;
+          duplicate = {
+            path: relative(corpus, existing),
+            sourceDate,
+            title: typeof fm.title === 'string' ? fm.title : undefined,
+          };
+          console.error(
+            `[lorekit fetch] duplicate url: ${url} already ingested at ${duplicate.path}` +
+            (duplicate.sourceDate ? ` (source_date: ${duplicate.sourceDate})` : '') +
+            `. Use --force to re-fetch anyway.`,
+          );
+          console.log(JSON.stringify({ status: 'duplicate', route: 'rich', url, duplicate }));
+          return;
+        }
       }
 
       // Route by host (unless --force-rich)

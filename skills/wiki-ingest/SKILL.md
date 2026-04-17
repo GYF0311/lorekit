@@ -27,8 +27,11 @@ stdout 是**单行 JSON**，解析它决定下一步：
 | status | 含义 | 下一步 |
 |---|---|---|
 | `ok` | 抓取成功 | 读 `markdown` 字段指向的 article.md；按需 `Read` `images_dir/` 下关键图片 |
+| `duplicate` | **这个 URL 之前已经 ingest 过** | 读 `duplicate.path` 看已有页面，和用户确认是覆盖/追加/取消。若确定要重抓，加 `--force` 重跑 fetch |
 | `error` | 抓取失败（如 `ANTIBOT_BLOCKED`） | 按 `fallback` 字段提示回退工具，或让用户粘贴 |
 | `unsupported` | 站点 lorekit fetch 不直接处理 | 按 `suggest` 字段使用对应工具（如 lark-cli / pdf skill / WebFetch） |
+
+**注意**：duplicate 检测基于 `原料/*/*/article.md` 的 frontmatter `source_url` 字段扫描。如果用户在别处已经 ingest 过同一 URL 但 frontmatter 字段名用了老格式（`url` 而不是 `source_url`），也会命中。
 
 **成功 JSON 示例**：
 ```json
@@ -68,8 +71,24 @@ stdout 是**单行 JSON**，解析它决定下一步：
 8. **建反向链接**（铁律：**至少一条**，防孤岛）
    - 页面里提到的所有 `[[人物]]` / `[[项目]]` / `[[概念]]` 都要确认目标页存在
    - 目标页也要在 timeline 留下一条反向引用
-9. **自检**：`lorekit lint --quick`，有问题就修到没问题再汇报
+9. **自检**：
+   - `lorekit lint` — 扫 frontmatter 合规、死链、孤岛
+   - `lorekit ingest-check` — 专门审 ingest 管道的健康度：
+     - **orphan workbench**：`_工作台/收件/fetch/` 下超过 7 天没被归档的目录（上次 ingest 中断的残留）
+     - **unreferenced 原料/ 页**：原文 article.md 没有任何 `知识库/**/*.md` 里的 `[[原料/xxx]]` 反向链接指向它（说明 wiki 编译步骤漏了）
+     - **dangling [[原料/...]] wikilinks**：知识库页引用了不存在的原料路径（错别字或原文还没 ingest）
+   有问题就修到没问题再汇报。
 10. **汇报**（见 Output format）
+
+## 意外中断怎么办
+
+如果上次 ingest 跑到一半（比如已经 mv 到 `原料/` 但还没建 wiki 页，或建了 wiki 页但缺反向链接），`lorekit ingest-check` 会把遗留问题列出来。按列表逐条补齐即可：
+
+- 看到 `unreferenced 原料/xxx/article.md` → 说明原文在位但知识库没编译，走 Decision tree 第 6–8 步
+- 看到 `orphan workbench` → 说明 fetch 产物还在工作台没归档，走第 5 步（mv 到 `原料/`）
+- 看到 `dangling [[原料/...]] wikilinks` → 说明知识库里指向一个不存在的原文，要么补 ingest 要么改 wikilink
+
+每次修完再跑 `lorekit ingest-check`，直到 `total issues: 0`。
 
 ## 日期填写规则（重要）
 
@@ -106,11 +125,13 @@ stdout 是**单行 JSON**，解析它决定下一步：
 
 ## Tools to use
 
-- `lorekit fetch <url>` — 统一 URL 抓取入口（lorekit 项目自带，内部路由 fetch_rich / lark / WebFetch / 其它）
+- `lorekit fetch <url>` — 统一 URL 抓取入口（内部路由 fetch_rich / lark / WebFetch / 其它），自动检测 duplicate + 抽 publishDate
+- `lorekit fetch <url> --force` — 强制重抓（覆盖 duplicate 检测）
 - `lorekit search "<q>"` — 精确查重（ripgrep）
 - `lorekit vector query "<summary>"` — 模糊找相似页（v0.5+）
-- `lorekit lint --quick` — 写完自检
-- 底层：Read / Write / Edit / `mv` / `rm -rf`
+- `lorekit lint` — frontmatter/双链/孤岛自检
+- `lorekit ingest-check` — ingest 管道健康度（orphan workbench / unreferenced 原料/ / dangling wikilinks）
+- 底层：Read / Write / Edit / `mv` / `trash`（删东西绝不用 `rm`）
 
 ## Output format
 

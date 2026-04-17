@@ -60,6 +60,20 @@ export function extractFrontmatterField(filePath: string, key: string): string |
 
 const EXCLUDE_NAMES = new Set(['.gitkeep', '.DS_Store', '_INDEX.md']);
 
+/**
+ * Find an existing source page in 原料/ that has the given source_url.
+ * Returns the absolute path or null.
+ */
+export function findSourceByUrl(corpus: string, url: string): string | null {
+  const sourcesRoot = join(corpus, '原料');
+  if (!existsSync(sourcesRoot)) return null;
+  for (const mdPath of collectMdFiles(sourcesRoot)) {
+    const fm = extractFrontmatter(mdPath);
+    if (fm.source_url === url || fm.url === url) return mdPath;
+  }
+  return null;
+}
+
 export function collectMdFiles(dir: string, opts?: { excludeIndex?: boolean }): string[] {
   const results: string[] = [];
   if (!existsSync(dir)) return results;
