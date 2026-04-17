@@ -2,331 +2,385 @@
 
 A personal LLM Wiki toolkit — let AI build and maintain your knowledge base.
 
-基于 [Karpathy 的 LLM Wiki 模式](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)，lorekit 给任意 AI Coding Agent（Claude Code / Codex / Cursor / Kimi CLI / Aider 等）提供一套本地知识库工作流：**原料 → LLM 编译 → 持久 wiki**，知识编译一次、持续更新，不走 RAG。
+Based on [Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f), lorekit gives any AI coding agent (Claude Code / Codex / Cursor / Kimi CLI / Aider / Windsurf) a local knowledge-base workflow: **raw sources → LLM compilation → persistent wiki**. Compile once, keep updating — no RAG.
 
-> **把 GitHub 链接丢给你的 AI，说"帮我装这个"——AI 读到 CLAUDE.md / AGENTS.md 后会自动完成安装。**
+> **Hand the GitHub link to your AI, say "install this for me" — it reads CLAUDE.md / AGENTS.md and does the rest.**
 
-## 核心理念
+## Core Idea
 
 > "Instead of just retrieving from raw documents at query time, the LLM incrementally builds and maintains a persistent wiki." — [Andrej Karpathy](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)
 
-传统 RAG：每次查询从原始文档重新检索，没有积累。
+Traditional RAG: every query re-retrieves from raw documents. Nothing accumulates.
 
-lorekit（LLM Wiki）：LLM 增量编译原料成结构化 wiki，知识一次编译、持续更新。交叉引用已就位、矛盾已标注、综合已反映全部来源。
+lorekit (LLM Wiki): the LLM incrementally compiles raw material into a structured wiki. Knowledge is compiled once and continuously updated — cross-references in place, contradictions flagged, every source reflected.
 
-三层架构：
-- **原料层**（`原料/`）：只读原始素材，LLM 不改
-- **产物层**（`知识库/`）：LLM 编译的 wiki，交叉引用、综合、持续更新
-- **Schema**（`CLAUDE.md` / `AGENTS.md`）：每个 corpus 的配置，人和 LLM 共同维护
+Three layers:
 
-> **数据安全**：lorekit 对用户数据零容忍删除。已有知识库安装前自动备份；`原料/` 只读不可变；不使用 `rm`，删除走 `trash`（可恢复）。详见 CLAUDE.md 数据安全红线。
+- **Raw layer** (`原料/`): read-only source material, the LLM never mutates it
+- **Artifact layer** (`知识库/`): the compiled wiki — cross-linked, synthesized, continuously updated
+- **Schema** (`CLAUDE.md` / `AGENTS.md`): per-corpus configuration, co-maintained by human + LLM
 
-## 功能清单
+> **Data safety**: lorekit has zero tolerance for data loss. Existing notes are backed up before init; `原料/` is immutable; no `rm` is ever used — deletions go through `trash` (recoverable from macOS Trash). See the data-safety rules in CLAUDE.md.
 
-| 功能 | 命令 | 说明 |
+## Feature Map
+
+| Feature | Command | Notes |
 |---|---|---|
-| 启动界面 | `lorekit` | 无参数启动，显示蓝色 logo + corpus 状态概览 |
-| 初始化 | `lorekit init` | 创建 corpus 骨架 + 部署 Obsidian 插件 + 已有内容自动备份 |
-| 健康检查 | `lorekit doctor` | 目录完整性 + frontmatter 覆盖率 + 过期工作台提醒 |
-| 统计 | `lorekit stats` | 页数/类型分布 |
-| 搜索 | `lorekit search` | 文本搜索 + 向量语义搜索（混合） |
-| 网页抓取 | `lorekit fetch <url>` | 公众号/通用网页内容抓取到工作台 |
-| 代码检查 | `lorekit lint` | 断链/孤岛/重复检测 |
-| 备份快照 | `lorekit snapshot` | corpus 全量打包 + manifest |
-| 快照恢复 | `lorekit restore` | 从快照恢复缺失/变化的文件 |
-| 反馈管理 | `lorekit audit` | 创建/列出/处理人类对 wiki 的反馈 |
-| 向量索引 | `lorekit vector sync` | 增量嵌入 corpus 到 sqlite-vec |
-| 语义查询 | `lorekit vector query` | 基于向量的语义检索（支持分层 L0/L1/L2） |
-| 索引状态 | `lorekit vector status` | 查看向量索引状态 |
-| 目录索引 | `lorekit index` | 生成/刷新子目录 _INDEX.md |
+| Launch screen | `lorekit` | No-arg invocation prints the blue logo + corpus status |
+| Init | `lorekit init` | Scaffolds the corpus, deploys the Obsidian plugin, auto-backs up pre-existing content |
+| Doctor | `lorekit doctor` | Directory integrity, frontmatter coverage, stale workbench reminders |
+| Stats | `lorekit stats` | Page count, type breakdown |
+| Search | `lorekit search` | Text search + vector semantic search (hybrid) |
+| Web fetch | `lorekit fetch <url>` | Pulls WeChat / generic pages into the workbench; auto-extracts `publishDate`, writes spec-compliant frontmatter, detects duplicate / in-progress URLs from state.json |
+| Ingest state | `lorekit ingest <sub>` | `list` / `pending` / `record` / `forget` / `reconcile` — the single source of truth for ingest pipeline progress |
+| Lint | `lorekit lint` | Broken wikilinks, orphan pages, duplicate detection |
+| Snapshot | `lorekit snapshot` | Full-corpus tarball + manifest |
+| Restore | `lorekit restore` | Recover missing / changed files from a snapshot |
+| Audit | `lorekit audit` | Create / list / resolve human feedback on wiki pages |
+| Vector sync | `lorekit vector sync` | Incrementally embed the corpus into sqlite-vec |
+| Vector query | `lorekit vector query` | Vector search with optional L0 / L1 / L2 layering |
+| Vector status | `lorekit vector status` | Inspect the vector index |
+| Directory index | `lorekit index` | Generate / refresh `_INDEX.md` files per subdirectory |
 
-> CLI 命令叫 `lorekit`。6 个 Agent Skills 保留 `wiki-` 前缀（致敬 Karpathy LLM Wiki）：`wiki-ingest` / `wiki-query` / `wiki-fileback` / `wiki-lint` / `wiki-enrich` / `wiki-audit`
+> The CLI is named `lorekit`. The 6 Agent Skills keep the `wiki-` prefix (a nod to Karpathy's LLM Wiki): `wiki-ingest` / `wiki-query` / `wiki-fileback` / `wiki-lint` / `wiki-enrich` / `wiki-audit`.
 
-## 快速开始
+## Ingest Pipeline (single-source-of-truth state machine)
 
-### 方式一：让 AI 自动安装（推荐）
+Every ingest is tracked in `<corpus>/.wiki/ingest-state.json`. This file is the **only** authority on pipeline progress — no filesystem scans, no duplicate heuristics.
 
-把本仓库链接丢给你的 AI Coding Agent，说"帮我安装这个项目"。AI 读到 `CLAUDE.md` / `AGENTS.md` 后会自动执行：检查依赖 → 克隆 → 安装 CLI → 初始化 corpus → 装 skills。
+**Three top-level states**: `started` / `completed` / `failed`.
 
-### 方式二：手动安装
+Fine-grained progress is tracked in a `stepsDone[]` array so an interrupted ingest can resume exactly where it left off. The top-level status only changes when the pipeline as a whole ends.
+
+```json
+{
+  "version": 1,
+  "ingests": {
+    "https://example.com/post": {
+      "url": "https://example.com/post",
+      "title": "…",
+      "sourceDate": "2026-04-15",
+      "status": "started",
+      "stepsDone": ["fetch", "archive", "wiki"],
+      "archivedTo": "原料/文章/post",
+      "wikiPages": ["知识库/概念/foo.md"],
+      "startedAt": "2026-04-17T10:00:00.000Z",
+      "updatedAt": "2026-04-17T10:05:00.000Z"
+    }
+  }
+}
+```
+
+**Status transitions** driven by `lorekit ingest record --step <X>`:
+
+| Action | `status` | `stepsDone` |
+|---|---|---|
+| `lorekit fetch <url>` (success) | `started` | `[fetch]` |
+| `lorekit ingest record <url> --step archive` | `started` | `[fetch, archive]` |
+| `lorekit ingest record <url> --step wiki` | `started` | `[fetch, archive, wiki]` |
+| `lorekit ingest record <url> --step lint` | **`completed`** | `[fetch, archive, wiki, lint]` |
+
+Only `--step lint` auto-promotes to `completed`. Every other `--step` keeps the top status at `started` — all progress detail lives in `stepsDone`. Explicit `--complete` and `--fail <reason>` are also available.
+
+**What `lorekit fetch` does before hitting the network**, consulting state.json:
+
+- Record with `status: completed` → returns `{"status":"duplicate", duplicate}`, does not re-fetch
+- Record with `status: started` → returns `{"status":"in_progress", ingestState, nextStep}`, does not re-fetch
+- No record, but a matching `source_url` exists in `原料/` → same `duplicate` path (legacy fallback)
+- Otherwise → fetches normally, writes `status: started, stepsDone: [fetch]`
+
+`--force` bypasses every check.
+
+**Extensibility** — adding a new step (e.g. `embed`) is just appending `"embed"` to `stepsDone`. The status enum stays at three. No switch-case in the caller needs to change.
+
+## Quick Start
+
+### Option 1: let AI install it (recommended)
+
+Send the repo link to your AI coding agent and say "install this project." It reads `CLAUDE.md` / `AGENTS.md` and runs: dependency check → clone → build → link → init corpus → install skills.
+
+### Option 2: manual install
 
 ```bash
-# 1. 克隆
+# 1. Clone
 git clone https://github.com/GYF0311/lorekit.git ~/code/lorekit
 
-# 2. 安装依赖并构建
+# 2. Install deps + build
 cd ~/code/lorekit && npm install && npm run build
 
-# 3. 链接到全局（让 `lorekit` 命令全局可用）
+# 3. Link to global PATH
 npm link
 
-# 4. 验证
+# 4. Verify
 lorekit --version   # → 0.2.0
-lorekit             # 无参数启动，显示 lorekit 品牌 banner
+lorekit             # no-arg invocation shows the brand banner
 
-# 5. 初始化知识库
+# 5. Initialize a corpus
 lorekit init ~/Desktop/my-corpus
 
-# 6. 安装 Agent Skills
+# 6. Install Agent Skills
 lorekit install-skills --target claude-code
 
-# 7. 在知识库目录下开始对话
+# 7. Start a conversation from the corpus directory
 cd ~/Desktop/my-corpus
-claude  # 或 codex / cursor / kimi 等
+claude  # or codex / cursor / kimi …
 ```
 
-未来（npm 发布后）：`npm install -g lorekit` 一条命令搞定，会自动注册 `lorekit` 命令。
+(Future: once published to npm, `npm install -g lorekit` will be enough.)
 
-### 依赖
+### Dependencies
 
-| 工具 | 用途 | 安装 | 必需 |
+| Tool | Purpose | Install | Required |
 |---|---|---|---|
-| Node.js ≥ 18 | JS 运行时 | `brew install node` | ✅ |
-| git | 版本控制 | macOS/Linux 自带 | ✅ |
-| ripgrep | 文本搜索加速（可选） | `brew install ripgrep` | 可选 |
-| ollama | 本地向量嵌入 | `brew install ollama` | 可选 |
-| bge-m3 | 嵌入模型 | `ollama pull bge-m3` | 可选 |
+| Node.js ≥ 18 | JS runtime | `brew install node` | ✅ |
+| git | Version control | ships with macOS/Linux | ✅ |
+| ripgrep | Text-search acceleration | `brew install ripgrep` | Optional |
+| ollama | Local embedding runtime | `brew install ollama` | Optional |
+| bge-m3 | Embedding model | `ollama pull bge-m3` | Optional |
 
-**只需要 Node.js**——不再需要 bash / Python / uv。lorekit 是纯 TypeScript 项目，全平台支持（macOS / Linux / Windows）。
+**Only Node.js is required.** No bash / Python / uv / pip. lorekit is pure TypeScript, cross-platform (macOS / Linux / Windows).
 
-向量检索是可选功能——不装 ollama 也能用，AI 通过 index.md 文本定位内容。
+Vector retrieval is optional — without ollama, the AI still navigates via `index.md`.
 
-## 开始使用
+## Using It
 
 ```bash
 cd ~/Desktop/my-corpus
-claude  # 或 codex / cursor / kimi 等任意 AI Agent
+claude  # or codex / cursor / kimi …
 ```
 
-用自然语言对话，AI 自动触发对应 skill：
+Talk in natural language; the AI routes to the right skill:
 
 ```
-> 帮我把这篇文章整理进知识库：https://mp.weixin.qq.com/s/xxx
-# → wiki-ingest：抓页面 → 原文存原料/ → 编译进知识库/ → 更新 index.md
+> Ingest this article: https://mp.weixin.qq.com/s/xxx
+# → wiki-ingest: fetch → store in 原料/ → compile into 知识库/ → update index.md
 
-> 我之前整理过关于 RAG 的东西吗？
-# → wiki-query：读 index.md → 定位页面 → 综合回答
+> Have I filed anything about RAG before?
+# → wiki-query: read index.md → locate pages → synthesize answer
 
-> 把刚才的分析存进知识库
-# → wiki-fileback：按主语写回对应 wiki 页面
+> Save that analysis into the knowledge base
+# → wiki-fileback: route to the right wiki page by subject
 
-> 检查知识库的健康度
-# → wiki-lint：扫断链、孤岛、过期文件
+> Check the health of the knowledge base
+# → wiki-lint: scan broken links, orphans, stale workbench
 
-> 帮我备份一下
-# → lorekit snapshot → .wiki/snapshots/xxx.tar.gz（CLI 命令）
+> Back up the corpus
+# → lorekit snapshot → .wiki/snapshots/xxx.tar.gz
 ```
 
-## 向量检索
+## Vector Retrieval
 
-默认使用 **[ollama](https://ollama.com/) + [bge-m3](https://huggingface.co/BAAI/bge-m3)**（BAAI 智源，1024 维，100+ 语言，中英双语）。
+Default stack: **[ollama](https://ollama.com/) + [bge-m3](https://huggingface.co/BAAI/bge-m3)** (BAAI, 1024-d, 100+ languages, strong on Chinese+English).
 
-通过 ollama 本地 API 完成嵌入，**不需要装 torch/pip/sentence-transformers，不需要 API key，数据不出本机**。
+Embeddings are produced through ollama's local API. **No torch, no pip, no API key, nothing leaves your machine.**
 
 ```bash
-# 安装 ollama 和模型（一次性）
+# One-time setup
 brew install ollama
 ollama pull bge-m3
 
-# 索引 corpus（增量）
+# Incremental index
 lorekit vector sync
 
-# 语义检索
-lorekit vector query --text "检索增强生成和知识库的关系"
+# Semantic query
+lorekit vector query --text "relationship between RAG and LLM wikis"
 
-# 分层检索（L0 目录级 → L1 页面级 → L2 chunk 级，更精准）
+# Layered retrieval (L0 dir → L1 page → L2 chunk)
 lorekit vector sync --layered
 lorekit vector query --text "xxx" --layered
 ```
 
-可选嵌入模型（ollama 生态内随意切换）：
+Swappable embedding models (any ollama-hosted model works):
 
-| 模型 | 安装 | 大小 | 维度 | 适合 |
+| Model | Install | Size | Dim | Best for |
 |---|---|---|---|---|
-| **bge-m3**（默认） | `ollama pull bge-m3` | 1.2GB | 1024 | 中英双语，最均衡 |
-| nomic-embed-text | `ollama pull nomic-embed-text` | 274MB | 768 | 英文为主，轻量 |
-| mxbai-embed-large | `ollama pull mxbai-embed-large` | 670MB | 1024 | 英文强 |
-| all-minilm | `ollama pull all-minilm` | 45MB | 384 | 极致轻量 |
+| **bge-m3** (default) | `ollama pull bge-m3` | 1.2 GB | 1024 | Chinese+English, balanced |
+| nomic-embed-text | `ollama pull nomic-embed-text` | 274 MB | 768 | English-heavy, lightweight |
+| mxbai-embed-large | `ollama pull mxbai-embed-large` | 670 MB | 1024 | Strong English |
+| all-minilm | `ollama pull all-minilm` | 45 MB | 384 | Ultra-lightweight |
 
-## 渐进式披露（Progressive Disclosure）
+## Progressive Disclosure
 
-Agent 的 context window 是稀缺资源，lorekit 在**文档检索**和**向量检索**两个维度都用三层渐进式披露，每一步只读必要信息。
+The agent's context window is scarce. lorekit uses three-layer progressive disclosure on both the document side and the vector side, reading only what's needed.
 
-### 文档检索（L0 → L1 → L2）
+### Document retrieval (L0 → L1 → L2)
 
 ```
-L0（自动注入，~2k tokens）
+L0 (auto-injected, ~2k tokens)
   CLAUDE.md + index.md
-  → Agent 上来就知道"这个库有什么、每页大概讲什么"
+  → Agent immediately knows "what this corpus is and what each page roughly covers"
 
-      ↓ 判断属于哪个子目录
+      ↓ pick the right subdirectory
 
-L1（按需加载，~1k tokens/次）
+L1 (on-demand, ~1k tokens/pull)
   知识库/概念/_INDEX.md
-  → 某个"书架"的完整条目列表
+  → the full entry list for one shelf
 
-      ↓ 定位到具体页面
+      ↓ narrow to a specific page
 
-L2（定向加载）
+L2 (targeted)
   知识库/概念/RAG.md
-  → 读具体文件的完整内容
+  → full page content
 
-      ↓ 还不够？
+      ↓ still not enough?
 
-L3（语义兜底）
+L3 (semantic fallback)
   lorekit vector query
-  → 向量检索补刀
+  → vector search as last resort
 ```
 
-像人类找书：先看楼层指引牌（L0）→ 再看书架分区（L1）→ 最后拿起那本书（L2）→ 找不到就问图书管理员（L3）。总消耗一般 < 5k token。
+Like a human looking for a book: floor directory (L0) → shelf (L1) → take the book off the shelf (L2) → ask the librarian (L3). Total budget typically < 5k tokens.
 
-### 向量检索（分层，`--layered` 可选）
+### Vector retrieval (layered, `--layered` opt-in)
 
-向量索引本身也是三层结构，存在 `.wiki/vector.sqlite`：
+The vector index itself is three tables in `.wiki/vector.sqlite`:
 
 ```
-L0: 目录级（vec_dirs）
-  对每个知识库子目录编码一个"目录摘要向量"
-  粗筛："这个问题最可能在哪个书架？"
+L0: directory-level (vec_dirs)
+  One "directory summary vector" per subdirectory
+  Coarse filter: "which shelf is this question on?"
 
-      ↓ 只深入 top-3 书架
+      ↓ drill into the top-3 shelves only
 
-L1: 页面级（vec_pages）
-  对每个 wiki 页的标题 + Compiled Truth 首段编码
-  定位："哪本书？"
+L1: page-level (vec_pages)
+  Encodes title + Compiled Truth lead paragraph of each wiki page
+  "Which book?"
 
-      ↓ 只扫 top-5 页面
+      ↓ scan the top-5 pages only
 
-L2: Chunk 级（vec_chunks）
-  对每页按 ## heading 分段后的 chunk 编码
-  精读："哪一段？"
+L2: chunk-level (vec_chunks)
+  Each page split at `## headings`, each chunk encoded
+  "Which paragraph?"
 ```
 
-默认不启用（小规模 index.md 够用）。大规模（500+ 页）启用：
+Off by default (for small corpora `index.md` is enough). Enable for 500+ pages:
 
 ```bash
-lorekit vector sync --layered     # 构建分层索引
-lorekit vector query --text "xxx" --layered   # 分层检索
+lorekit vector sync --layered
+lorekit vector query --text "xxx" --layered
 ```
 
-**为什么更准**：同一道理——每层过滤噪声，搜索范围逐步缩小。字节跳动 RAG 实践手册里的"混合检索"是同样思路（关键词粗筛 → 向量精排 → rerank 重排），lorekit 用分层向量达到类似效果，但保持简单（不引入 rerank）。
+Same philosophy as hybrid retrieval (keyword coarse filter → vector rerank). lorekit keeps it simple — no rerank model, just layered embeddings.
 
-## Corpus 目录结构
+## Corpus Layout
 
 ```
 corpus/
-├── CLAUDE.md           ← per-corpus schema（AI Agent 自动读取）
-├── AGENTS.md           ← 同 CLAUDE.md（给 Codex/Kimi/GPT 等读）
-├── index.md            ← wiki 内容目录（LLM 每次 ingest 更新）
-├── log.md              ← 操作时间线（append-only）
+├── CLAUDE.md           ← per-corpus schema (auto-loaded by AI agents)
+├── AGENTS.md           ← mirror of CLAUDE.md for Codex / Kimi / GPT
+├── index.md            ← wiki table of contents (LLM updates on each ingest)
+├── log.md              ← operation timeline (append-only)
 │
-├── 原料/               ← Raw sources（只读，不可变）
-│   ├── 文章/           ← 网页文章
-│   ├── 论文/           ← 学术论文
-│   ├── 书籍/           ← 读书笔记
-│   ├── 会议/           ← 会议纪要
-│   ├── 录音/           ← 录音整理稿
-│   ├── 剪藏/           ← 公众号/网页剪藏
-│   └── 引用/           ← 大文件指针
+├── 原料/               ← Raw sources (read-only, immutable)
+│   ├── 文章/           ← web articles
+│   ├── 论文/           ← academic papers
+│   ├── 书籍/           ← book notes
+│   ├── 会议/           ← meeting notes
+│   ├── 录音/           ← transcribed audio
+│   ├── 剪藏/           ← WeChat / web clippings
+│   └── 引用/           ← pointers to large external files
 │
-├── 知识库/             ← Wiki（LLM 编译产物）
-│   ├── 概念/           ← 心智模型、方法论
-│   ├── 实体/           ← 人物、工具、组织、项目
-│   ├── 摘要/           ← 逐源摘要页
-│   └── 专题/           ← 跨源主题综述（可选）
+├── 知识库/             ← Wiki (LLM-compiled artifact layer)
+│   ├── 概念/           ← mental models, methodologies
+│   ├── 实体/           ← people, tools, orgs, projects
+│   ├── 摘要/           ← per-source summaries
+│   └── 专题/           ← cross-source thematic syntheses (optional)
 │
-├── 每日/               ← 日记（YYYY-MM-DD.md）
-├── 写作/               ← 对外创作输出
+├── 每日/               ← daily notes (YYYY-MM-DD.md)
+├── 写作/               ← outgoing drafts
 │
-├── 反馈/               ← 人类审阅闭环（Obsidian 插件 + CLI）
+├── 反馈/               ← human-feedback loop (Obsidian plugin + CLI)
 │   ├── 待处理/
 │   └── 已处理/
 │
-├── _工作台/            ← 过程文件（有过期策略）
-│   ├── 收件/           ← 7 天
-│   ├── 草稿/           ← 30 天
-│   ├── 临时/           ← 14 天
-│   └── 待整理/         ← 3 天
+├── _工作台/            ← workbench (TTL-driven)
+│   ├── 收件/           ← 7 days
+│   ├── 草稿/           ← 30 days
+│   ├── 临时/           ← 14 days
+│   └── 待整理/         ← 3 days
 │
-├── _归档/              ← 冷数据
-└── .wiki/              ← lorekit 元数据（向量库、快照等）
+├── _归档/              ← cold storage
+└── .wiki/              ← lorekit metadata
+    ├── ingest-state.json   ← ingest pipeline single source of truth
+    ├── vector.sqlite       ← vector index (optional)
+    └── snapshots/          ← snapshot archives
 ```
 
-`知识库/` 子目录不是固定的——由 `CLAUDE.md` 声明，可以根据场景自定义。
+Subdirectory layout under `知识库/` is not fixed — it's declared by `CLAUDE.md` and can be customized per use case.
 
-## 自定义
+## Customization
 
-lorekit 是骨架，不是固定结构：
+lorekit is a skeleton, not a fixed structure:
 
-1. **修改 CLAUDE.md 的 Scope** — 声明 corpus 覆盖什么、不覆盖什么
-2. **调整知识库子目录** — 面试场景加 `知识库/面经/`，读书场景改成 `知识库/角色/章节/`
-3. **修改 filing-rules** — 在 `系统/filing-rules.md` 追加归档路由规则
-4. **换向量模型** — `lorekit vector sync --model <ollama-model-name>`
+1. **Edit `CLAUDE.md` scope** — declare what the corpus covers and doesn't
+2. **Adjust `知识库/` subdirectories** — interview use case adds `知识库/面经/`, reading use case swaps for `知识库/角色/章节/`, etc.
+3. **Edit filing rules** — append routing rules in `系统/filing-rules.md`
+4. **Swap the embedding model** — `lorekit vector sync --model <ollama-model-name>`
 
-## 备份与恢复
+## Backup & Restore
 
 ```bash
-# 创建快照
+# Create a snapshot
 lorekit snapshot --tag before-migration
 
-# 查看差异（不恢复）
+# See what would change (no mutation)
 lorekit restore --from .wiki/snapshots/xxx.tar.gz --dry-run
 
-# 恢复
+# Restore
 lorekit restore --from .wiki/snapshots/xxx.tar.gz
 ```
 
-`lorekit init` 检测到已有内容时也会自动提供备份选项。
+`lorekit init` also offers backup automatically when it detects pre-existing content.
 
-## Obsidian 集成
+## Obsidian Integration
 
-`lorekit init` 自动部署 `lorekit-audit` Obsidian 插件到 `corpus/.obsidian/plugins/`。在 Obsidian Settings → Community plugins 启用它。
+`lorekit init` deploys the `lorekit-audit` Obsidian plugin to `corpus/.obsidian/plugins/`. Enable it in Settings → Community plugins.
 
-### 留反馈（快捷键 `Cmd + '`）
+### Leaving feedback (shortcut `Cmd + '`)
 
-打开任意 wiki 页面，选中文字，按 `Cmd + '`（或命令面板搜 "Add feedback on selection"）：
+Open any wiki page, select some text, press `Cmd + '` (or run "Add feedback on selection" from the command palette):
 
 ![Audit feedback modal](docs/images/audit-modal.png)
 
-四档 severity：
+Four severity levels:
 
-| 等级 | 含义 |
+| Level | Meaning |
 |---|---|
-| `info` | 补充信息，不是错 |
-| `suggest` | 建议改进 |
-| `warn` | 有问题需要注意 |
-| `error` | 明确错误，必须修 |
+| `info` | Additional context, not an error |
+| `suggest` | Improvement suggestion |
+| `warn` | Needs attention |
+| `error` | Must fix |
 
-点击 **Save feedback** → 写入 `反馈/待处理/<时间戳>-<slug>.md`，带 anchor 上下文（即使原文被改了也能精准定位）。
+Click **Save feedback** → written to `反馈/待处理/<timestamp>-<slug>.md` with anchor context (resilient to page edits).
 
-### 处理反馈
+### Resolving feedback
 
 ```bash
-lorekit audit --list              # 看所有反馈
-lorekit audit --list --open       # 只看待处理
+lorekit audit --list              # list all feedback
+lorekit audit --list --open       # open items only
 ```
 
-或者在 Claude Code 里说 "处理一下反馈" → AI 触发 `wiki-audit` skill：读 `反馈/待处理/` 所有条目 → 按 severity 从高到低修 → 移到 `反馈/已处理/` 并写 resolution。
+Or in Claude Code say "process the feedback" → the agent triggers `wiki-audit`: read `反馈/待处理/` entries → fix by severity → move to `反馈/已处理/` with a resolution note.
 
-### 其它
+### Other niceties
 
-- `[[双链]]` 在 Obsidian 中可直接点击跳转
-- Graph view 可视化知识网络
-- 插件默认写 `反馈/待处理/`，无需手动配置
+- `[[wikilinks]]` are clickable in Obsidian
+- Graph view visualizes the knowledge network
+- Plugin writes to `反馈/待处理/` by default — no config needed
 
-## 项目结构
+## Project Layout
 
 ```
 lorekit/
 ├── bin/
-│   └── lorekit.js           Node.js CLI 入口
-├── src/                     TypeScript 源码
-│   ├── cli.ts               命令分发 + 启动界面
-│   ├── commands/            12 个子命令实现
-│   ├── lib/                 核心库（corpus/ollama/vectordb/chunker/fetcher）
-│   └── utils/               工具函数（logger/fs）
-├── dist/                    tsup 编译产物（提交到仓库，省去用户构建）
-├── skills/                  6 个 Agent Skills（纯 markdown，任何 agent 可用）
+│   └── lorekit.js           Node.js CLI entry
+├── src/                     TypeScript sources
+│   ├── cli.ts               command dispatch + banner
+│   ├── commands/            subcommand implementations
+│   ├── lib/                 core library (corpus / ollama / vectordb / chunker / fetcher / ingest-state)
+│   └── utils/               logger, fs helpers
+├── dist/                    tsup build output (committed so users don't need to build)
+├── skills/                  Agent Skills (plain markdown, agent-agnostic)
 │   ├── wiki-ingest/
 │   ├── wiki-query/
 │   ├── wiki-fileback/
@@ -334,62 +388,61 @@ lorekit/
 │   ├── wiki-enrich/
 │   └── wiki-audit/
 ├── plugins/
-│   └── obsidian-audit/      Obsidian 审阅插件
+│   └── obsidian-audit/      Obsidian audit plugin
 ├── templates/
-│   └── default-corpus/      corpus 目录骨架
+│   └── default-corpus/      corpus scaffold template
 ├── docs/
-│   └── QUICKSTART.md        30 分钟上手指南
-├── package.json             npm 包配置
-├── tsconfig.json            TypeScript 配置
-├── tsup.config.ts           构建配置
-├── CLAUDE.md                AI Agent 自动安装指令（Claude Code）
-└── AGENTS.md                AI Agent 自动安装指令（Codex/Kimi/GPT 等）
+│   └── QUICKSTART.md        30-minute onboarding guide
+├── package.json
+├── tsconfig.json
+├── tsup.config.ts
+├── CLAUDE.md                auto-install instructions for Claude Code
+└── AGENTS.md                auto-install instructions for Codex / Kimi / GPT
 ```
 
-## 致谢
+## Acknowledgements
 
-lorekit 的诞生离不开以下项目和作者：
+lorekit would not exist without the following projects and people.
 
-### 核心灵感
+### Core inspiration
 
-| 来源 | 作者 | 贡献 |
+| Source | Author | Contribution |
 |---|---|---|
-| [LLM Wiki Gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) | **Andrej Karpathy** | 核心理念——三层架构（raw/wiki/schema）、ingest/query/lint 三操作、"wiki 是编译缓存不是内容本身"的哲学。lorekit 的灵魂来自这篇 gist |
-| [llm-wiki-skill](https://github.com/lewislulu/llm-wiki-skill) | **Lewis Liu** | audit 反馈系统设计、Obsidian 审阅插件、references 指导文档体系。lorekit 的 `反馈/` 目录和 `lorekit-audit` 插件直接参考了这个项目 |
+| [LLM Wiki Gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) | **Andrej Karpathy** | The core idea — three-layer architecture (raw / wiki / schema), the ingest / query / lint triad, the philosophy that "the wiki is a compilation cache, not the content itself." lorekit's soul comes from this gist. |
+| [llm-wiki-skill](https://github.com/lewislulu/llm-wiki-skill) | **Lewis Liu** | Audit feedback system design, Obsidian audit plugin, references-doc structure. lorekit's `反馈/` directory and audit plugin directly reference this project. |
 
-### 参考项目
+### Referenced projects
 
-| 项目 | 作者 | 贡献 |
+| Project | Author | Contribution |
 |---|---|---|
-| [llm-wiki-skill](https://github.com/lewislulu/llm-wiki-skill) | **Lewis Liu** | audit 反馈系统、Obsidian 插件、references 指导文档。lorekit 的 `反馈/` 目录和审阅插件直接参考 |
-| [OpenViking](https://github.com/nicepkg/OpenViking) | **nicepkg** | Context Database 设计理念，启发了 lorekit 的分层向量检索架构 |
+| [OpenViking](https://github.com/nicepkg/OpenViking) | **nicepkg** | Context Database design, inspired lorekit's layered vector retrieval |
 
-### 关键依赖
+### Key dependencies
 
-| 项目 | 作者 | 用途 |
+| Project | Author | Purpose |
 |---|---|---|
-| [bge-m3](https://huggingface.co/BAAI/bge-m3) | **BAAI 智源** | 默认嵌入模型（1024 维，100+ 语言，中英双语） |
-| [sqlite-vec](https://github.com/asg017/sqlite-vec) | **Alex Garcia** | 向量存储引擎（单文件 sqlite 扩展） |
-| [ollama](https://github.com/ollama/ollama) | **Ollama Inc.** | 本地模型推理框架，零配置嵌入 API |
-| [qmd](https://github.com/tobi/qmd) | **Tobi Lütke**（Shopify CEO） | Karpathy 推荐的本地 markdown 搜索引擎，搜索设计参考 |
+| [bge-m3](https://huggingface.co/BAAI/bge-m3) | **BAAI** | Default embedding model (1024-d, 100+ languages) |
+| [sqlite-vec](https://github.com/asg017/sqlite-vec) | **Alex Garcia** | Vector storage (single-file sqlite extension) |
+| [ollama](https://github.com/ollama/ollama) | **Ollama Inc.** | Local model inference, zero-config embedding API |
+| [qmd](https://github.com/tobi/qmd) | **Tobi Lütke** (Shopify CEO) | Karpathy-endorsed local markdown search — our search design references it |
 
-### 间接参考
+### Indirect influences
 
-| 来源 | 影响 |
+| Source | Influence |
 |---|---|
-| Vannevar Bush "As We May Think"（1945） | Karpathy 在原文中引用的 Memex 概念——个人策展的知识库，连接比文档本身更有价值 |
-| [字节跳动 RAG 实践手册](https://blog.csdn.net/2401_84204207/article/details/155104775) | 分片策略、混合检索的工程实践参考 |
-| [Coze Studio 源码](https://blog.csdn.net/AT_GCS/article/details/149905112) | 知识库四步流水线的设计参考 |
-| [MTEB Leaderboard](https://huggingface.co/spaces/mteb/leaderboard) | 嵌入模型选型依据 |
+| Vannevar Bush, "As We May Think" (1945) | The Memex concept Karpathy cites — curated personal knowledge where the links matter more than the documents |
+| ByteDance RAG field guide | Chunking strategies, hybrid-retrieval engineering |
+| Coze Studio source | Four-step knowledge-base pipeline design |
+| [MTEB Leaderboard](https://huggingface.co/spaces/mteb/leaderboard) | Embedding-model selection |
 
-### 设计原则
+### Design principles
 
-| 原则 | 来源 |
+| Principle | Origin |
 |---|---|
-| "Thin CLI, Fat Skills" | Garry Tan（YC CEO）的 latent judgment in markdown 思路 |
-| "Filesystem is all you need" | Unix 哲学 + Obsidian 纯文件设计 |
-| "Compiled Truth + Timeline" | 类似 Wikipedia 的"正文可重写 + 历史只追加" |
-| Per-corpus CLAUDE.md / AGENTS.md | Karpathy 的 Schema 概念 + Claude Code / Codex 的约定 |
+| "Thin CLI, fat skills" | Garry Tan (YC CEO) — latent judgment in markdown |
+| "Filesystem is all you need" | Unix philosophy + Obsidian's plain-file design |
+| "Compiled Truth + Timeline" | Wikipedia — editable body + append-only history |
+| Per-corpus CLAUDE.md / AGENTS.md | Karpathy's schema concept + Claude Code / Codex conventions |
 
 ## License
 

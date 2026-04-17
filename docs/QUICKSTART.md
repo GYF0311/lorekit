@@ -1,41 +1,41 @@
 # lorekit QUICKSTART
 
-30 分钟从零开始，让你的 AI Coding Agent 拥有一个属于你的 LLM Wiki。
+30 minutes from zero to an AI coding agent backed by your own LLM Wiki.
 
 ---
 
-## 0. lorekit 是什么
+## 0. What lorekit is
 
-lorekit 是基于 [Karpathy LLM Wiki 模式](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) 的个人知识库工具包。核心思路：不走 RAG，让 LLM 增量编译并维护一个持久 wiki——原料进来，LLM 编译成结构化的交叉引用页面，知识编译一次、持续更新。
+lorekit is a personal knowledge-base toolkit based on [Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f). The core idea: skip RAG, let the LLM incrementally compile and maintain a persistent wiki — raw sources come in, the LLM compiles them into structured, cross-linked pages, and the knowledge is compiled once and continuously updated.
 
-纯 TypeScript 实现，只依赖 Node.js，支持任意 AI Coding Agent（Claude Code / Codex / Cursor / Kimi CLI / Aider / Windsurf）。
+Pure TypeScript, Node.js-only, usable from any AI coding agent (Claude Code / Codex / Cursor / Kimi CLI / Aider / Windsurf).
 
 ---
 
-## 1. 前置依赖
+## 1. Prerequisites
 
-### 必需
+### Required
 
-| 工具 | 用途 | 安装 | 验证 |
+| Tool | Purpose | Install | Verify |
 |---|---|---|---|
-| Node.js ≥ 18 | JS 运行时 | `brew install node` | `node --version` |
-| git | 克隆仓库 | 自带 | `git --version` |
+| Node.js ≥ 18 | JS runtime | `brew install node` | `node --version` |
+| git | Clone the repo | ships with the OS | `git --version` |
 
-### 可选（推荐）
+### Optional (recommended)
 
-| 工具 | 用途 | 安装 | 验证 |
+| Tool | Purpose | Install | Verify |
 |---|---|---|---|
-| ripgrep | 文本搜索加速 | `brew install ripgrep` | `rg --version` |
-| ollama | 本地向量嵌入 | `brew install ollama` | `ollama --version` |
-| bge-m3 | 嵌入模型（中英双语） | `ollama pull bge-m3` | `ollama list` |
-| Claude Code | 最佳使用体验 | [下载](https://claude.com/claude-code) | `claude --version` |
-| Obsidian | 可视化浏览 wiki | [下载](https://obsidian.md) | — |
+| ripgrep | Faster text search | `brew install ripgrep` | `rg --version` |
+| ollama | Local vector embeddings | `brew install ollama` | `ollama --version` |
+| bge-m3 | Embedding model (EN+ZH) | `ollama pull bge-m3` | `ollama list` |
+| Claude Code | Best end-to-end experience | [download](https://claude.com/claude-code) | `claude --version` |
+| Obsidian | Visual wiki browsing | [download](https://obsidian.md) | — |
 
-**不再需要 bash / Python / uv / pip**。lorekit 是纯 Node.js 项目，全平台（macOS / Linux / Windows）。
+**No bash / Python / uv / pip needed.** lorekit is a pure Node.js project and runs on macOS / Linux / Windows.
 
 ---
 
-## 2. 安装 lorekit
+## 2. Install lorekit
 
 ```bash
 git clone https://github.com/GYF0311/lorekit.git ~/code/lorekit
@@ -45,107 +45,143 @@ npm run build
 npm link
 ```
 
-`npm link` 把 `lorekit` 命令链接到全局 PATH。验证：
+`npm link` puts the `lorekit` command on your global PATH. Verify:
 
 ```bash
 lorekit --version
 # → 0.2.0
 
 lorekit
-# → 显示蓝色 ASCII 启动界面（无参数启动看 banner）
+# → prints the blue ASCII banner (no-arg invocation shows status)
 ```
 
 ---
 
-## 3. 初始化 corpus
+## 3. Initialize a corpus
 
 ```bash
 lorekit init ~/Desktop/my-corpus
 cd ~/Desktop/my-corpus
 ```
 
-如果目录已有内容，会弹出选择：
+If the target directory already has content, lorekit prompts:
 
 ```
-⚠️  检测到 ~/Desktop/my-corpus 已有内容（352 个文件）
+⚠️  Detected 352 existing files in ~/Desktop/my-corpus
 
-请选择：
-  [1] 备份后初始化（推荐）→ 先 lorekit snapshot，再初始化
-  [2] 就地初始化 → 保留已有文件
-  [3] 取消
+Choose:
+  [1] Snapshot then init (recommended) — runs lorekit snapshot first
+  [2] Init in place                   — keep existing files
+  [3] Cancel
 ```
 
-初始化完成后你会得到完整的 corpus 目录结构（详见 README.md）。
+After init you have the full corpus skeleton (see README for layout).
 
 ---
 
-## 4. 安装 AI Agent skills
+## 4. Install the AI agent skills
 
 ```bash
 lorekit install-skills --target claude-code
-# → 软链 6 个 skill 到 ~/.claude/skills/
+# → symlinks the 6 skills into ~/.claude/skills/
 ```
 
-重启 Claude Code 生效。其他 AI Agent 按各自的 skill 注册方式配置 `~/code/lorekit/skills/` 下的 markdown 文件。
+Restart Claude Code to pick them up. Other agents: point them at the markdown files under `~/code/lorekit/skills/` via their own skill-registration mechanism.
 
 ---
 
-## 5. 启动向量检索（可选）
+## 5. Enable vector retrieval (optional)
 
 ```bash
-ollama serve          # 如果没自动启动
-ollama pull bge-m3    # 1.2GB，只需一次
+ollama serve          # if not already running
+ollama pull bge-m3    # 1.2 GB, one time
 
 cd ~/Desktop/my-corpus
 lorekit vector sync
 ```
 
-之后每次有新内容，跑 `lorekit vector sync` 即可（增量，只处理变化的文件）。
+From then on, `lorekit vector sync` incrementally re-embeds only what changed.
 
 ---
 
-## 6. 第一次对话
+## 6. First conversation
 
 ```bash
 cd ~/Desktop/my-corpus
-claude  # 或 codex / cursor / kimi 等
+claude  # or codex / cursor / kimi …
 ```
 
-**ingest 一篇文章：**
-> 帮我把这篇文章整理进知识库：https://mp.weixin.qq.com/s/xxx
+**Ingest an article:**
+> Ingest this article: https://mp.weixin.qq.com/s/xxx
 
-Agent 触发 `wiki-ingest`：抓页面 → 原文存 `原料/文章/` → 编译进 `知识库/` → 更新 `index.md` + `log.md`
+The agent triggers `wiki-ingest`: fetch → archive under `原料/文章/` → compile into `知识库/` → update `index.md` + `log.md`.
 
-**语义查询：**
-> RAG 和 LLM Wiki 有什么区别？
+**Query:**
+> What's the difference between RAG and an LLM wiki?
 
-Agent 触发 `wiki-query`：先读 `index.md` → 再向量搜索 → 综合回答
+Triggers `wiki-query`: read `index.md` → vector search → synthesize answer.
 
-**回写洞察：**
-> 把刚才的分析存进知识库
+**File back an insight:**
+> Save that analysis into the knowledge base.
 
-**健康检查：**
-> 检查知识库的健康度
+**Lint:**
+> Check the corpus health.
 
-**备份：**
-> 帮我备份一下知识库
+**Backup:**
+> Back up the corpus.
 
 ---
 
-## 7. 手写 3 张锚点卡
+## 7. Ingest pipeline cheat sheet
 
-给 Agent 一些初始 context：
+Every `lorekit fetch` writes a record to `<corpus>/.wiki/ingest-state.json` with `status: started, stepsDone: ['fetch']`. As the skill advances through the pipeline, it records each step:
+
+```bash
+lorekit ingest record <url> --step archive --archived-to 原料/文章/<slug>
+lorekit ingest record <url> --step wiki --wiki-page 知识库/概念/<slug>.md
+lorekit ingest record <url> --step lint     # auto-promotes to status=completed
+```
+
+Check what's in flight:
+
+```bash
+lorekit ingest pending      # non-completed records
+lorekit ingest list         # everything
+```
+
+Re-fetching the same URL is a no-op by default:
+
+```bash
+lorekit fetch <url>
+# → status: duplicate       (already completed)
+# → status: in_progress     (was interrupted, shows next step to resume)
+
+lorekit fetch <url> --force # ignore the check and re-fetch anyway
+```
+
+For corpora that predate this state store, back-fill once:
+
+```bash
+lorekit ingest reconcile --dry-run   # preview
+lorekit ingest reconcile             # commit
+```
+
+---
+
+## 8. Write three anchor cards
+
+Give the agent some initial context:
 
 ### `知识库/实体/me.md`
-你是谁、在做什么、沟通偏好。
+Who you are, what you're working on, how you like to communicate.
 
-### `知识库/实体/<当前项目>.md`
-占你最多时间的项目。
+### `知识库/实体/<current project>.md`
+The project taking most of your time.
 
-### `知识库/概念/<第一个概念>.md`
-一个你最近在琢磨的概念。Agent 生成的新卡片会参考这个风格。
+### `知识库/概念/<a concept>.md`
+Something you've been thinking about. The agent mirrors this style when it generates new cards.
 
-三张卡都带 frontmatter：
+All three need frontmatter:
 
 ```yaml
 ---
@@ -159,52 +195,52 @@ updated: 2026-04-17
 
 ---
 
-## 8. 常见问题
+## 9. FAQ
 
-**skill 没触发？**
-检查 `~/.claude/skills/wiki-*` 是否存在。如果在，重开 Claude Code 会话。
+**Skill didn't trigger?**
+Check that `~/.claude/skills/wiki-*` exist. If they do, restart the Claude Code session.
 
-**corpus 放哪里？**
-推荐 `~/Desktop/` 或 `~/Documents/`，不要放 iCloud（sqlite 会被拖累）。
+**Where should I put the corpus?**
+Prefer `~/Desktop/` or `~/Documents/`. Avoid iCloud (sqlite gets stalled by the syncer).
 
-**多 corpus 怎么办？**
-CLI 认 cwd，`cd` 到哪个 corpus 就操作哪个。
+**Multiple corpora?**
+The CLI follows `cwd`. `cd` into whichever corpus you want to operate on.
 
-**ollama 没启动？**
-`lorekit vector sync` 会报错提示。跑 `ollama serve` 启动。
+**ollama isn't running?**
+`lorekit vector sync` will tell you. Run `ollama serve`.
 
-**想换嵌入模型？**
+**Swap embedding models?**
 ```bash
 ollama pull nomic-embed-text
 lorekit vector sync --model nomic-embed-text --force
 ```
 
-**已有知识库怎么迁移？**
+**Migrate existing notes?**
 ```bash
 lorekit init ~/existing-notes
-# → 自动检测已有内容，提供备份选项
+# → detects existing content and offers backup
 ```
 
-**想更新 lorekit？**
+**Update lorekit?**
 ```bash
 cd ~/code/lorekit
 git pull
 npm install
 npm run build
-# 无需重新 npm link，软链会自动指向新构建
+# npm link is still valid — the symlink picks up the new build
 ```
 
 ---
 
-## 9. 可选嵌入模型
+## 10. Embedding model options
 
-默认 bge-m3，ollama 生态内可随意切换：
+Default is bge-m3; anything in ollama's catalog works:
 
-| 模型 | 命令 | 大小 | 维度 | 适合 |
+| Model | Install | Size | Dim | Best for |
 |---|---|---|---|---|
-| **bge-m3**（默认） | `ollama pull bge-m3` | 1.2GB | 1024 | 中英双语，最均衡 |
-| nomic-embed-text | `ollama pull nomic-embed-text` | 274MB | 768 | 英文为主，轻量 |
-| mxbai-embed-large | `ollama pull mxbai-embed-large` | 670MB | 1024 | 英文强，中等大小 |
-| all-minilm | `ollama pull all-minilm` | 45MB | 384 | 极致轻量 |
+| **bge-m3** (default) | `ollama pull bge-m3` | 1.2 GB | 1024 | Chinese+English, balanced |
+| nomic-embed-text | `ollama pull nomic-embed-text` | 274 MB | 768 | English-heavy, lightweight |
+| mxbai-embed-large | `ollama pull mxbai-embed-large` | 670 MB | 1024 | Strong English |
+| all-minilm | `ollama pull all-minilm` | 45 MB | 384 | Ultra-lightweight |
 
-选模型的原则：内容以中文为主选 bge-m3；纯英文选 nomic-embed-text；磁盘紧张选 all-minilm。
+Rule of thumb: primary language is Chinese → bge-m3; English-only → nomic-embed-text; tight on disk → all-minilm.
