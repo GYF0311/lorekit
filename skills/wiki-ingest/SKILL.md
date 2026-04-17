@@ -75,37 +75,30 @@ stdout 是**单行 JSON**，解析它决定下一步：
    - 目标页也要在 timeline 留下一条反向引用
    - 写完 wiki 后：`lorekit ingest record <url> --step wiki --wiki-page <每个新建/更新的 wiki 路径>`
 9. **自检**：
-   - `lorekit lint` — 扫 frontmatter 合规、死链、孤岛
-   - `lorekit ingest-check` — 专门审 ingest 管道的健康度：
-     - **pending ingests**：state.json 里非 completed 的记录（真正的中断证据，权威）
-     - **orphan workbench**：`_工作台/收件/fetch/` 下超过 7 天没被归档的目录（冗余检测）
-     - **unreferenced 原料/ 页**：原文 article.md 没有任何 `知识库/**/*.md` 里的 `[[原料/xxx]]` 反向链接指向它
-     - **dangling [[原料/...]] wikilinks**：知识库页引用了不存在的原料路径
-   自检过了以后：`lorekit ingest record <url> --step lint` → 状态自动进 `completed`
+   - `lorekit lint` — 扫 frontmatter 合规、死链、孤岛（知识库层面的健康度）
+   - `lorekit ingest pending` — 看 state.json 里有没有非 completed 的记录（ingest 管道层面的状态，权威）
+   自检过了以后：`lorekit ingest record <url> --step lint` → status 自动进 `completed`
 10. **汇报**（见 Output format）
 
 ## 意外中断怎么办
 
-中断会在两层被检测出来：
+**唯一数据源：`.wiki/ingest-state.json`**。ingest 管道的状态完全由这个文件说了算，不做物理扫描反推（那是另一条数据源，会跟 state.json 打架）。
 
-**第一层（权威）：state.json**
+**三档 status**：`started` / `completed` / `failed`。中间推进的细节在 `stepsDone[]` 数组里（fetch / archive / wiki / backlink / lint），一眼扫 state.json 就知道 URL 卡在哪一步。
 
-顶层 status 只有三档：`started` / `completed` / `failed`。中间推进的细节用 `stepsDone[]` 数组追踪（fetch / archive / wiki / backlink / lint），一眼扫 state.json 就知道每个 URL 现在的状态。
+**正常推进流**：
+- `lorekit fetch <url>` 成功后，fetcher 自动写入 `status: started, stepsDone: ['fetch']`
+- skill 每推进一步调 `lorekit ingest record <url> --step <archive|wiki|backlink>` 追加 stepsDone
+- 最后 `--step lint` 自动把 status 推到 `completed`
 
-每次 `lorekit fetch` 成功后会写入 `status: started` + `stepsDone: ['fetch']`；skill 每推进一步都要调 `lorekit ingest record <url> --step <archive|wiki|backlink>` 更新 stepsDone；最后 `--step lint` 会自动把 status 推到 `completed`。下次对同一 URL 跑 `lorekit fetch`，CLI 会返回 `status: in_progress` + `nextStep` 提示——直接从提示的步骤继续，不要重抓。
+**中断恢复**：
+- 下次对同一 URL 跑 `lorekit fetch`，CLI 返回 `status: in_progress` + `nextStep`，不会重抓
+- 直接按 `nextStep` 提示从下一步继续
+- 也可以随时用 `lorekit ingest pending` 查所有中断记录
 
-查看所有中断记录：`lorekit ingest pending`
+**旧 ingest 没 state 记录**：跑 `lorekit ingest reconcile`（建议先 `--dry-run`）扫 `原料/` 把已有但没 state 记录的 ingest 补成 `completed`。
 
-**第二层（物理状态）：ingest-check**
-即使 state.json 丢了或没记录（比如老 ingest），物理状态也能反推出来：
-
-- `unreferenced 原料/xxx/article.md` → 原文在位但知识库没编译，走 Decision tree 第 6–8 步
-- `orphan workbench` → fetch 产物还在工作台没归档，走第 5 步（mv 到 `原料/`）
-- `dangling [[原料/...]] wikilinks` → 知识库指向一个不存在的原文，要么补 ingest 要么改 wikilink
-
-每次修完再跑 `lorekit ingest-check`，直到 `total issues: 0`，然后用 `lorekit ingest record <url> --complete` 收尾。
-
-**旧 ingest 没 state 记录怎么办**：跑一次 `lorekit ingest reconcile` 扫 `原料/` 所有 article.md，给没有 state 记录的补一条 `completed` 状态。`--dry-run` 可以先看要改什么。
+**确定要放弃一条中断记录**：`lorekit ingest forget <url>` 或 `lorekit ingest record <url> --fail <reason>`。
 
 ## 日期填写规则（重要）
 
@@ -152,8 +145,7 @@ stdout 是**单行 JSON**，解析它决定下一步：
 - `lorekit ingest forget <url>` — 删除一条记录
 - `lorekit search "<q>"` — 精确查重（ripgrep）
 - `lorekit vector query "<summary>"` — 模糊找相似页（v0.5+）
-- `lorekit lint` — frontmatter/双链/孤岛自检
-- `lorekit ingest-check` — ingest 管道健康度（state pending + orphan workbench + unreferenced + dangling）
+- `lorekit lint` — 知识库健康度（frontmatter 合规 / 死链 / 孤岛）
 - 底层：Read / Write / Edit / `mv` / `trash`（删东西绝不用 `rm`）
 
 ## Output format

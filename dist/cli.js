@@ -1710,8 +1710,8 @@ function vectorCommand(program2) {
         const row = db.prepare("SELECT sha256 FROM documents WHERE path = ?").get(rel);
         if (row) {
           const { createHash: createHash3 } = await import("crypto");
-          const { readFileSync: readFileSync16 } = await import("fs");
-          const sha = createHash3("sha256").update(readFileSync16(filePath)).digest("hex");
+          const { readFileSync: readFileSync15 } = await import("fs");
+          const sha = createHash3("sha256").update(readFileSync15(filePath)).digest("hex");
           if (row.sha256 === sha) {
             skipped++;
             continue;
@@ -1748,11 +1748,11 @@ function vectorCommand(program2) {
       const threshold = parseFloat(opts.threshold);
       const { embedSingle: embedSingle2 } = await Promise.resolve().then(() => (init_ollama(), ollama_exports));
       const { openDb: openDb2, queryFlat: queryFlat2, queryLayered: queryLayered2 } = await Promise.resolve().then(() => (init_vectordb(), vectordb_exports));
-      const { existsSync: existsSync14 } = await import("fs");
-      const { join: join18 } = await import("path");
+      const { existsSync: existsSync13 } = await import("fs");
+      const { join: join17 } = await import("path");
       let dim = 1024;
-      const dbPath = join18(corpus, ".wiki", "vector.sqlite");
-      if (existsSync14(dbPath)) {
+      const dbPath = join17(corpus, ".wiki", "vector.sqlite");
+      if (existsSync13(dbPath)) {
         const tmpDb = await openDb2(corpus);
         const row = tmpDb.prepare("SELECT value FROM meta WHERE key = 'dim'").get();
         if (row) dim = parseInt(row.value, 10);
@@ -2368,125 +2368,10 @@ function fetchCommand(program2) {
   });
 }
 
-// src/commands/ingest-check.ts
-init_corpus();
-import { existsSync as existsSync12, readFileSync as readFileSync15, readdirSync as readdirSync8, statSync as statSync8 } from "fs";
-import { join as join16, relative as relative11 } from "path";
-var ONE_DAY = 24 * 60 * 60 * 1e3;
-function collectWikilinkTargets(mdPath) {
-  const txt = readFileSync15(mdPath, "utf-8");
-  const targets = [];
-  const re = /\[\[([^\]|#]+)(?:[#|][^\]]*)?\]\]/g;
-  let m;
-  while ((m = re.exec(txt)) !== null) {
-    targets.push(m[1].trim());
-  }
-  return targets;
-}
-function slugOfSourcePath(rel) {
-  return rel.replace(/\/article\.md$/, "").replace(/\.md$/, "");
-}
-function ingestCheckCommand(program2) {
-  program2.command("ingest-check").description("Audit ingest pipeline health: orphan workbench, unreferenced sources, dangling wikilinks").option("--workbench-ttl <days>", "workbench orphan threshold in days", "7").action(async (opts) => {
-    const corpus = requireCorpus();
-    const ttl = Number(opts.workbenchTtl ?? 7);
-    const now = Date.now();
-    const orphans = [];
-    const workbench = join16(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch");
-    if (existsSync12(workbench)) {
-      for (const entry of readdirSync8(workbench, { withFileTypes: true })) {
-        if (!entry.isDirectory()) continue;
-        if (entry.name.startsWith(".")) continue;
-        const full = join16(workbench, entry.name);
-        const st = statSync8(full);
-        const ageDays = Math.floor((now - st.mtimeMs) / ONE_DAY);
-        if (ageDays >= ttl) {
-          orphans.push({ dir: relative11(corpus, full), ageDays });
-        }
-      }
-    }
-    const sourcesRoot = join16(corpus, "\u539F\u6599");
-    const wikiRoot = join16(corpus, "\u77E5\u8BC6\u5E93");
-    const sourceSlugsReferenced = /* @__PURE__ */ new Set();
-    const allWikiTargets = [];
-    if (existsSync12(wikiRoot)) {
-      for (const wikiMd of collectMdFiles(wikiRoot)) {
-        for (const t of collectWikilinkTargets(wikiMd)) {
-          allWikiTargets.push({ from: relative11(corpus, wikiMd), target: t });
-          if (t.startsWith("\u539F\u6599/")) sourceSlugsReferenced.add(t);
-        }
-      }
-    }
-    const unreferenced = [];
-    const sourceDirSlugs = /* @__PURE__ */ new Set();
-    if (existsSync12(sourcesRoot)) {
-      for (const mdPath of collectMdFiles(sourcesRoot)) {
-        const rel = relative11(corpus, mdPath);
-        const slug = slugOfSourcePath(rel);
-        sourceDirSlugs.add(slug);
-        const dirSlug = slug;
-        const fileSlug = rel.replace(/\.md$/, "");
-        const referenced = sourceSlugsReferenced.has(dirSlug) || sourceSlugsReferenced.has(fileSlug);
-        if (!referenced) {
-          const fm = extractFrontmatter(mdPath);
-          unreferenced.push({
-            path: rel,
-            title: typeof fm.title === "string" ? fm.title : void 0,
-            sourceDate: typeof fm.source_date === "string" ? fm.source_date : void 0
-          });
-        }
-      }
-    }
-    const dangling = [];
-    for (const { from, target } of allWikiTargets) {
-      if (!target.startsWith("\u539F\u6599/")) continue;
-      const asDirSlug = target;
-      const asFileSlug = target;
-      const dirExists = sourceDirSlugs.has(asDirSlug);
-      const fileExists = existsSync12(join16(corpus, asFileSlug + ".md"));
-      if (!dirExists && !fileExists) {
-        dangling.push({ from, target });
-      }
-    }
-    const pending = listPendingIngests(corpus).map((r) => ({
-      url: r.url,
-      status: r.status,
-      stepsDone: r.stepsDone,
-      nextStep: nextStepHint(r),
-      startedAt: r.startedAt
-    }));
-    const report = {
-      corpus: relative11(process.cwd(), corpus) || ".",
-      workbenchTtlDays: ttl,
-      pendingIngests: pending,
-      orphanWorkbench: orphans,
-      unreferencedSources: unreferenced,
-      danglingSourceWikilinks: dangling
-    };
-    const issueCount = pending.length + orphans.length + unreferenced.length + dangling.length;
-    const summary = [
-      `[lorekit ingest-check] corpus: ${report.corpus}`,
-      `  pending ingests (state.json): ${pending.length}`,
-      ...pending.slice(0, 5).map((p) => `    - [${p.status}] ${p.url}
-      next \u2192 ${p.nextStep}`),
-      `  orphan workbench (>${ttl}d): ${orphans.length}`,
-      ...orphans.slice(0, 5).map((o) => `    - ${o.dir} (${o.ageDays}d)`),
-      `  unreferenced \u539F\u6599/ pages: ${unreferenced.length}`,
-      ...unreferenced.slice(0, 5).map((u) => `    - ${u.path}${u.title ? "  \u2014 " + u.title : ""}`),
-      `  dangling [[\u539F\u6599/...]] wikilinks: ${dangling.length}`,
-      ...dangling.slice(0, 5).map((d) => `    - ${d.from} \u2192 [[${d.target}]]`),
-      `  total issues: ${issueCount}`
-    ];
-    console.error(summary.join("\n"));
-    console.log(JSON.stringify(report));
-    if (issueCount > 0) process.exitCode = 1;
-  });
-}
-
 // src/commands/ingest.ts
 init_corpus();
-import { existsSync as existsSync13 } from "fs";
-import { join as join17, relative as relative12 } from "path";
+import { existsSync as existsSync12 } from "fs";
+import { join as join16, relative as relative11 } from "path";
 var VALID_STEPS = ["fetch", "archive", "wiki", "backlink", "lint"];
 function ingestCommand(program2) {
   const group = program2.command("ingest").description("Track ingest pipeline state (record step progress, list pending, reconcile)");
@@ -2572,8 +2457,8 @@ ${summary.join("\n")}`);
   });
   group.command("reconcile").description("Back-fill state for pre-existing \u539F\u6599/ pages missing a state record").option("--dry-run", "list what would be added without writing").action((opts) => {
     const corpus = requireCorpus();
-    const sourcesRoot = join17(corpus, "\u539F\u6599");
-    if (!existsSync13(sourcesRoot)) {
+    const sourcesRoot = join16(corpus, "\u539F\u6599");
+    if (!existsSync12(sourcesRoot)) {
       console.error("[lorekit ingest reconcile] no \u539F\u6599/ directory");
       return;
     }
@@ -2584,7 +2469,7 @@ ${summary.join("\n")}`);
       const url = typeof fm.source_url === "string" && fm.source_url || typeof fm.url === "string" && fm.url || "";
       if (!url) continue;
       if (state.ingests[url]) continue;
-      const rel = relative12(corpus, mdPath);
+      const rel = relative11(corpus, mdPath);
       const archivedTo = rel.replace(/\/article\.md$/, "");
       const sdRaw = fm.source_date;
       const sourceDate = typeof sdRaw === "string" ? sdRaw : sdRaw instanceof Date ? sdRaw.toISOString().slice(0, 10) : void 0;
@@ -2625,8 +2510,8 @@ function showBanner() {
     }
     try {
       const dbPath = `${corpus}/.wiki/vector.sqlite`;
-      const { existsSync: existsSync14 } = __require("fs");
-      if (existsSync14(dbPath)) {
+      const { existsSync: existsSync13 } = __require("fs");
+      if (existsSync13(dbPath)) {
         const Database = __require("better-sqlite3");
         const db = new Database(dbPath, { readonly: true });
         indexed = String(db.prepare("SELECT COUNT(*) as c FROM documents").get()?.c ?? 0);
@@ -2676,7 +2561,6 @@ restoreCommand(program);
 searchCommand(program);
 vectorCommand(program);
 fetchCommand(program);
-ingestCheckCommand(program);
 ingestCommand(program);
 if (process.argv.length <= 2) {
   showBanner();
