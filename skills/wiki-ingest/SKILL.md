@@ -27,8 +27,8 @@ stdout 是**单行 JSON**，解析它决定下一步：
 | status | 含义 | 下一步 |
 |---|---|---|
 | `ok` | 抓取成功 | 读 `markdown` 字段指向的 article.md；按需 `Read` `images_dir/` 下关键图片。fetcher 会在 `.wiki/ingest-state.json` 写入 `status: fetched` 的记录——你接下来每推进一步，都要调用 `lorekit ingest record <url> --step <archive|wiki|backlink|lint>` 更新它。 |
-| `duplicate` | **这个 URL 之前已经完整 ingest 过**（state.json 里有 completed 记录或 原料/ 里有同 source_url 的原文） | 读 `duplicate.path` 看已有页面，和用户确认是覆盖/追加/取消。若确定要重抓，`lorekit fetch <url> --force` |
-| `in_progress` | **这个 URL 之前 ingest 到一半中断了**（state.json 里有非 completed 记录） | 读 `ingestState` / `nextStep` 字段，**直接从下一步继续**，不要重抓。一定要重抓的话加 `--force` |
+| `duplicate` | **这个 URL 之前已经完整 ingest 过**（state.json 里 status=completed，或 原料/ 里有同 source_url 的原文） | 读 `duplicate.path` 看已有页面，和用户确认是覆盖/追加/取消。若确定要重抓，`lorekit fetch <url> --force` |
+| `in_progress` | **这个 URL 之前 ingest 到一半中断了**（state.json 里 status=started） | 读 `ingestState.stepsDone` 和 `nextStep` 字段，**直接从下一步继续**，不要重抓。一定要重抓的话加 `--force` |
 | `error` | 抓取失败（如 `ANTIBOT_BLOCKED`） | 按 `fallback` 字段提示回退工具，或让用户粘贴 |
 | `unsupported` | 站点 lorekit fetch 不直接处理 | 按 `suggest` 字段使用对应工具（如 lark-cli / pdf skill / WebFetch） |
 
@@ -89,7 +89,10 @@ stdout 是**单行 JSON**，解析它决定下一步：
 中断会在两层被检测出来：
 
 **第一层（权威）：state.json**
-每次 `lorekit fetch` 成功后会在 `.wiki/ingest-state.json` 写入 `status: fetched` 的记录；skill 每推进一步都要调用 `lorekit ingest record` 更新。下次对同一 URL 跑 `lorekit fetch`，CLI 会返回 `status: in_progress` + `nextStep` 提示——直接从提示的步骤继续，不要重抓。
+
+顶层 status 只有三档：`started` / `completed` / `failed`。中间推进的细节用 `stepsDone[]` 数组追踪（fetch / archive / wiki / backlink / lint），一眼扫 state.json 就知道每个 URL 现在的状态。
+
+每次 `lorekit fetch` 成功后会写入 `status: started` + `stepsDone: ['fetch']`；skill 每推进一步都要调 `lorekit ingest record <url> --step <archive|wiki|backlink>` 更新 stepsDone；最后 `--step lint` 会自动把 status 推到 `completed`。下次对同一 URL 跑 `lorekit fetch`，CLI 会返回 `status: in_progress` + `nextStep` 提示——直接从提示的步骤继续，不要重抓。
 
 查看所有中断记录：`lorekit ingest pending`
 
@@ -141,7 +144,7 @@ stdout 是**单行 JSON**，解析它决定下一步：
 
 - `lorekit fetch <url>` — 统一 URL 抓取入口（内部路由 fetch_rich / lark / WebFetch / 其它），自动 dedupe + 抽 publishDate + 写入 state.json
 - `lorekit fetch <url> --force` — 忽略 duplicate / in_progress 检测强制重抓
-- `lorekit ingest record <url> --step <archive|wiki|backlink|lint>` — 推进 state.json 里的步骤
+- `lorekit ingest record <url> --step <archive|wiki|backlink|lint>` — 推进 state.json 里的 stepsDone（只有 `--step lint` 会把顶层 status 自动转成 completed，其它步骤都保持 started）
 - `lorekit ingest record <url> --complete` / `--fail <reason>` — 显式收尾
 - `lorekit ingest pending` — 列出所有非 completed 的中断 ingest
 - `lorekit ingest list` — 列全部记录

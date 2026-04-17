@@ -10,12 +10,17 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 
-export type IngestStatus =
-  | 'fetched'       // fetcher finished, workbench dir exists, nothing archived yet
-  | 'archived'      // workbench mv'd into 原料/
-  | 'wiki_created'  // 知识库/ pages written
-  | 'completed'     // everything done, lint passed
-  | 'failed';       // explicit abort
+/**
+ * Three coarse states the user actually cares about:
+ *   started    — URL has entered the pipeline, not finished yet.
+ *                (which sub-step it's at is recorded in `stepsDone` below.)
+ *   completed  — archived + wiki + lint all done.
+ *   failed     — explicit abort with a reason.
+ *
+ * Finer sub-steps live in `stepsDone[]` so resuming an interrupted ingest
+ * can skip already-done work, but the top-level symbol stays one of three.
+ */
+export type IngestStatus = 'started' | 'completed' | 'failed';
 
 export type IngestStep = 'fetch' | 'archive' | 'wiki' | 'backlink' | 'lint';
 
@@ -91,7 +96,7 @@ export function upsertIngestRecord(
       url,
       startedAt: now,
       updatedAt: now,
-      status: (patch.status as IngestStatus) ?? 'fetched',
+      status: (patch.status as IngestStatus) ?? 'started',
       stepsDone: patch.stepsDone ?? [],
       ...patch,
     };
@@ -120,20 +125,26 @@ export function listPendingIngests(corpus: string): IngestRecord[] {
 }
 
 /**
- * Suggest the next step for a resumed ingest based on its recorded status.
- * Used to tell the agent where to pick up.
+ * Suggest the next step for a resumed ingest.
+ * Derived from stepsDone so the caller doesn't have to know the step order.
  */
 export function nextStepHint(record: IngestRecord): string {
-  switch (record.status) {
-    case 'fetched':
-      return 'archive: mv the workbench dir into 原料/（剪藏|文章|书籍|...）';
-    case 'archived':
-      return 'wiki: compile wiki pages in 知识库/（概念|实体|摘要|专题）';
-    case 'wiki_created':
-      return 'backlink + lint: make sure every [[page]] resolves, then run `lorekit ingest-check`';
-    case 'completed':
-      return 'nothing to do';
-    case 'failed':
-      return `failed: ${record.error ?? 'unknown error'} — inspect and re-run with --force if you want to retry`;
+  if (record.status === 'completed') return 'nothing to do';
+  if (record.status === 'failed') {
+    return `failed: ${record.error ?? 'unknown error'} — inspect and re-run with --force if you want to retry`;
   }
+  const done = new Set(record.stepsDone);
+  if (!done.has('fetch')) {
+    return 'fetch: nothing recorded yet — run `lorekit fetch <url>`';
+  }
+  if (!done.has('archive')) {
+    return 'archive: mv the workbench dir into 原料/（剪藏|文章|书籍|...）';
+  }
+  if (!done.has('wiki')) {
+    return 'wiki: compile wiki pages in 知识库/（概念|实体|摘要|专题）';
+  }
+  if (!done.has('lint')) {
+    return 'lint: run `lorekit ingest-check`, fix any issues, then `lorekit ingest record <url> --complete`';
+  }
+  return 'all steps done but status not yet completed — run `lorekit ingest record <url> --complete`';
 }

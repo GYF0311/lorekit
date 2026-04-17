@@ -2208,7 +2208,7 @@ function upsertIngestRecord(corpus, url, patch) {
     url,
     startedAt: now,
     updatedAt: now,
-    status: patch.status ?? "fetched",
+    status: patch.status ?? "started",
     stepsDone: patch.stepsDone ?? [],
     ...patch
   };
@@ -2233,18 +2233,24 @@ function listPendingIngests(corpus) {
   );
 }
 function nextStepHint(record) {
-  switch (record.status) {
-    case "fetched":
-      return "archive: mv the workbench dir into \u539F\u6599/\uFF08\u526A\u85CF|\u6587\u7AE0|\u4E66\u7C4D|...\uFF09";
-    case "archived":
-      return "wiki: compile wiki pages in \u77E5\u8BC6\u5E93/\uFF08\u6982\u5FF5|\u5B9E\u4F53|\u6458\u8981|\u4E13\u9898\uFF09";
-    case "wiki_created":
-      return "backlink + lint: make sure every [[page]] resolves, then run `lorekit ingest-check`";
-    case "completed":
-      return "nothing to do";
-    case "failed":
-      return `failed: ${record.error ?? "unknown error"} \u2014 inspect and re-run with --force if you want to retry`;
+  if (record.status === "completed") return "nothing to do";
+  if (record.status === "failed") {
+    return `failed: ${record.error ?? "unknown error"} \u2014 inspect and re-run with --force if you want to retry`;
   }
+  const done = new Set(record.stepsDone);
+  if (!done.has("fetch")) {
+    return "fetch: nothing recorded yet \u2014 run `lorekit fetch <url>`";
+  }
+  if (!done.has("archive")) {
+    return "archive: mv the workbench dir into \u539F\u6599/\uFF08\u526A\u85CF|\u6587\u7AE0|\u4E66\u7C4D|...\uFF09";
+  }
+  if (!done.has("wiki")) {
+    return "wiki: compile wiki pages in \u77E5\u8BC6\u5E93/\uFF08\u6982\u5FF5|\u5B9E\u4F53|\u6458\u8981|\u4E13\u9898\uFF09";
+  }
+  if (!done.has("lint")) {
+    return "lint: run `lorekit ingest-check`, fix any issues, then `lorekit ingest record <url> --complete`";
+  }
+  return "all steps done but status not yet completed \u2014 run `lorekit ingest record <url> --complete`";
 }
 
 // src/commands/fetch.ts
@@ -2350,7 +2356,7 @@ function fetchCommand(program2) {
       upsertIngestRecord(corpus, url, {
         title: result.title,
         sourceDate: result.publishDate,
-        status: "fetched",
+        status: "started",
         stepsDone: ["fetch"],
         workbenchDir: result.dir
       });
@@ -2533,9 +2539,8 @@ ${summary.join("\n")}`);
       const prev = existing?.stepsDone ?? [];
       patch.stepsDone = [...prev, opts.step];
       if (!opts.status && !opts.complete && !opts.fail) {
-        if (opts.step === "archive") patch.status = "archived";
-        else if (opts.step === "wiki") patch.status = "wiki_created";
-        else if (opts.step === "lint") patch.status = "completed";
+        if (opts.step === "lint") patch.status = "completed";
+        else patch.status = "started";
       }
     }
     if (opts.archivedTo) patch.archivedTo = opts.archivedTo;

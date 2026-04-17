@@ -100,11 +100,12 @@ export function ingestCommand(program: Command): void {
         const prev = existing?.stepsDone ?? [];
         patch.stepsDone = [...prev, opts.step as IngestStep];
 
-        // Infer status from step if not explicitly provided
+        // Top-level status is only three: started / completed / failed.
+        // Only the lint step auto-promotes to completed; all other steps
+        // stay as started (stepsDone tracks the sub-progress).
         if (!opts.status && !opts.complete && !opts.fail) {
-          if (opts.step === 'archive') patch.status = 'archived';
-          else if (opts.step === 'wiki') patch.status = 'wiki_created';
-          else if (opts.step === 'lint') patch.status = 'completed';
+          if (opts.step === 'lint') patch.status = 'completed';
+          else patch.status = 'started';
         }
       }
       if (opts.archivedTo) patch.archivedTo = opts.archivedTo;

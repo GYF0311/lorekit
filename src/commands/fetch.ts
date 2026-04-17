@@ -154,7 +154,7 @@ export function fetchCommand(program: Command) {
         upsertIngestRecord(corpus, url, {
           title: result.title,
           sourceDate: result.publishDate,
-          status: 'fetched',
+          status: 'started',
           stepsDone: ['fetch'],
           workbenchDir: result.dir,
         });
