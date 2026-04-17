@@ -26,8 +26,9 @@ stdout 是**单行 JSON**，解析它决定下一步：
 
 | status | 含义 | 下一步 |
 |---|---|---|
-| `ok` | 抓取成功 | 读 `markdown` 字段指向的 article.md；按需 `Read` `images_dir/` 下关键图片 |
-| `duplicate` | **这个 URL 之前已经 ingest 过** | 读 `duplicate.path` 看已有页面，和用户确认是覆盖/追加/取消。若确定要重抓，加 `--force` 重跑 fetch |
+| `ok` | 抓取成功 | 读 `markdown` 字段指向的 article.md；按需 `Read` `images_dir/` 下关键图片。fetcher 会在 `.wiki/ingest-state.json` 写入 `status: fetched` 的记录——你接下来每推进一步，都要调用 `lorekit ingest record <url> --step <archive|wiki|backlink|lint>` 更新它。 |
+| `duplicate` | **这个 URL 之前已经完整 ingest 过**（state.json 里有 completed 记录或 原料/ 里有同 source_url 的原文） | 读 `duplicate.path` 看已有页面，和用户确认是覆盖/追加/取消。若确定要重抓，`lorekit fetch <url> --force` |
+| `in_progress` | **这个 URL 之前 ingest 到一半中断了**（state.json 里有非 completed 记录） | 读 `ingestState` / `nextStep` 字段，**直接从下一步继续**，不要重抓。一定要重抓的话加 `--force` |
 | `error` | 抓取失败（如 `ANTIBOT_BLOCKED`） | 按 `fallback` 字段提示回退工具，或让用户粘贴 |
 | `unsupported` | 站点 lorekit fetch 不直接处理 | 按 `suggest` 字段使用对应工具（如 lark-cli / pdf skill / WebFetch） |
 
@@ -46,10 +47,10 @@ stdout 是**单行 JSON**，解析它决定下一步：
 
 ## Decision tree
 
-1. **Step 0: Fetch**（见上）—— 拿到正文 + 图片，产物在工作台 slug 目录
+1. **Step 0: Fetch**（见上）—— 拿到正文 + 图片，产物在工作台 slug 目录。fetcher 自动在 `.wiki/ingest-state.json` 写入 `status: fetched` 记录。
 2. **解析**：抽取标题、作者、关键实体
-3. **核实日期**（见下方"日期填写规则"）
-4. **查重**：`lorekit search "<title>"` + `lorekit search "<关键实体>"`
+3. **核实日期**：fetcher 已经抽到 `publishDate` 并写进 article.md 的 `source_date`，默认直接用（详见下方"日期填写规则"）
+4. **查重**：`lorekit fetch` 已先扫 state.json 和 `原料/` 做 duplicate 检测；对于进到这一步的 URL，再用 `lorekit search "<title>"` + `lorekit search "<关键实体>"` 查是否有**内容相似**但 URL 不同的旧条目
    - 命中既有页 → update 分支（跳到第 7 步，追加 timeline）
    - 没命中 → create 分支
 5. **原文落地（铁律）**：用 `mv` 把工作台 slug 目录**搬到**永久位置，**不要用 cp**
@@ -57,8 +58,9 @@ stdout 是**单行 JSON**，解析它决定下一步：
    - 一般文章 → `原料/文章/<slug>/`
    - 书籍笔记 → `原料/书籍/<slug>/`
    - 会议纪要 → `原料/会议/<slug>/`
-   - **搬完工作台那份就不存在了**——产物永远只存一份，未被 ingest 的孤儿才留在工作台等 7 天过期
-   - 如果原文本身不值得入档（如 low-quality 片段），可以 `rm -rf` 工作台 slug 目录
+   - **搬完工作台那份就不存在了**——产物永远只存一份
+   - 如果原文本身不值得入档（如 low-quality 片段），用 `trash` 把工作台 slug 目录扔回收站（**绝不用 `rm`**）
+   - **搬完立刻**：`lorekit ingest record <url> --step archive --archived-to 原料/剪藏/<slug>`
 6. **判断主语**（见 `系统/filing-rules.md`）：
    - 主题是人/组织/项目 → `知识库/实体/<名称>.md`
    - 主题是概念/方法 → `知识库/概念/<概念名>.md`
@@ -71,24 +73,36 @@ stdout 是**单行 JSON**，解析它决定下一步：
 8. **建反向链接**（铁律：**至少一条**，防孤岛）
    - 页面里提到的所有 `[[人物]]` / `[[项目]]` / `[[概念]]` 都要确认目标页存在
    - 目标页也要在 timeline 留下一条反向引用
+   - 写完 wiki 后：`lorekit ingest record <url> --step wiki --wiki-page <每个新建/更新的 wiki 路径>`
 9. **自检**：
    - `lorekit lint` — 扫 frontmatter 合规、死链、孤岛
    - `lorekit ingest-check` — 专门审 ingest 管道的健康度：
-     - **orphan workbench**：`_工作台/收件/fetch/` 下超过 7 天没被归档的目录（上次 ingest 中断的残留）
-     - **unreferenced 原料/ 页**：原文 article.md 没有任何 `知识库/**/*.md` 里的 `[[原料/xxx]]` 反向链接指向它（说明 wiki 编译步骤漏了）
-     - **dangling [[原料/...]] wikilinks**：知识库页引用了不存在的原料路径（错别字或原文还没 ingest）
-   有问题就修到没问题再汇报。
+     - **pending ingests**：state.json 里非 completed 的记录（真正的中断证据，权威）
+     - **orphan workbench**：`_工作台/收件/fetch/` 下超过 7 天没被归档的目录（冗余检测）
+     - **unreferenced 原料/ 页**：原文 article.md 没有任何 `知识库/**/*.md` 里的 `[[原料/xxx]]` 反向链接指向它
+     - **dangling [[原料/...]] wikilinks**：知识库页引用了不存在的原料路径
+   自检过了以后：`lorekit ingest record <url> --step lint` → 状态自动进 `completed`
 10. **汇报**（见 Output format）
 
 ## 意外中断怎么办
 
-如果上次 ingest 跑到一半（比如已经 mv 到 `原料/` 但还没建 wiki 页，或建了 wiki 页但缺反向链接），`lorekit ingest-check` 会把遗留问题列出来。按列表逐条补齐即可：
+中断会在两层被检测出来：
 
-- 看到 `unreferenced 原料/xxx/article.md` → 说明原文在位但知识库没编译，走 Decision tree 第 6–8 步
-- 看到 `orphan workbench` → 说明 fetch 产物还在工作台没归档，走第 5 步（mv 到 `原料/`）
-- 看到 `dangling [[原料/...]] wikilinks` → 说明知识库里指向一个不存在的原文，要么补 ingest 要么改 wikilink
+**第一层（权威）：state.json**
+每次 `lorekit fetch` 成功后会在 `.wiki/ingest-state.json` 写入 `status: fetched` 的记录；skill 每推进一步都要调用 `lorekit ingest record` 更新。下次对同一 URL 跑 `lorekit fetch`，CLI 会返回 `status: in_progress` + `nextStep` 提示——直接从提示的步骤继续，不要重抓。
 
-每次修完再跑 `lorekit ingest-check`，直到 `total issues: 0`。
+查看所有中断记录：`lorekit ingest pending`
+
+**第二层（物理状态）：ingest-check**
+即使 state.json 丢了或没记录（比如老 ingest），物理状态也能反推出来：
+
+- `unreferenced 原料/xxx/article.md` → 原文在位但知识库没编译，走 Decision tree 第 6–8 步
+- `orphan workbench` → fetch 产物还在工作台没归档，走第 5 步（mv 到 `原料/`）
+- `dangling [[原料/...]] wikilinks` → 知识库指向一个不存在的原文，要么补 ingest 要么改 wikilink
+
+每次修完再跑 `lorekit ingest-check`，直到 `total issues: 0`，然后用 `lorekit ingest record <url> --complete` 收尾。
+
+**旧 ingest 没 state 记录怎么办**：跑一次 `lorekit ingest reconcile` 扫 `原料/` 所有 article.md，给没有 state 记录的补一条 `completed` 状态。`--dry-run` 可以先看要改什么。
 
 ## 日期填写规则（重要）
 
@@ -125,12 +139,18 @@ stdout 是**单行 JSON**，解析它决定下一步：
 
 ## Tools to use
 
-- `lorekit fetch <url>` — 统一 URL 抓取入口（内部路由 fetch_rich / lark / WebFetch / 其它），自动检测 duplicate + 抽 publishDate
-- `lorekit fetch <url> --force` — 强制重抓（覆盖 duplicate 检测）
+- `lorekit fetch <url>` — 统一 URL 抓取入口（内部路由 fetch_rich / lark / WebFetch / 其它），自动 dedupe + 抽 publishDate + 写入 state.json
+- `lorekit fetch <url> --force` — 忽略 duplicate / in_progress 检测强制重抓
+- `lorekit ingest record <url> --step <archive|wiki|backlink|lint>` — 推进 state.json 里的步骤
+- `lorekit ingest record <url> --complete` / `--fail <reason>` — 显式收尾
+- `lorekit ingest pending` — 列出所有非 completed 的中断 ingest
+- `lorekit ingest list` — 列全部记录
+- `lorekit ingest reconcile` — 为没有 state 记录的老 ingest 补 completed 状态
+- `lorekit ingest forget <url>` — 删除一条记录
 - `lorekit search "<q>"` — 精确查重（ripgrep）
 - `lorekit vector query "<summary>"` — 模糊找相似页（v0.5+）
 - `lorekit lint` — frontmatter/双链/孤岛自检
-- `lorekit ingest-check` — ingest 管道健康度（orphan workbench / unreferenced 原料/ / dangling wikilinks）
+- `lorekit ingest-check` — ingest 管道健康度（state pending + orphan workbench + unreferenced + dangling）
 - 底层：Read / Write / Edit / `mv` / `trash`（删东西绝不用 `rm`）
 
 ## Output format

@@ -6,6 +6,7 @@ import {
   collectMdFiles,
   extractFrontmatter,
 } from '../lib/corpus.js';
+import { listPendingIngests, nextStepHint } from '../lib/ingest-state.js';
 
 interface OrphanWorkbench {
   dir: string;
@@ -123,19 +124,32 @@ export function ingestCheckCommand(program: Command) {
         }
       }
 
+      // ---------- 5. Pending ingests from state store ----------
+      const pending = listPendingIngests(corpus).map((r) => ({
+        url: r.url,
+        status: r.status,
+        stepsDone: r.stepsDone,
+        nextStep: nextStepHint(r),
+        startedAt: r.startedAt,
+      }));
+
       // ---------- Output ----------
       const report = {
         corpus: relative(process.cwd(), corpus) || '.',
         workbenchTtlDays: ttl,
+        pendingIngests: pending,
         orphanWorkbench: orphans,
         unreferencedSources: unreferenced,
         danglingSourceWikilinks: dangling,
       };
 
       // Pretty summary to stderr, JSON to stdout
-      const issueCount = orphans.length + unreferenced.length + dangling.length;
+      const issueCount =
+        pending.length + orphans.length + unreferenced.length + dangling.length;
       const summary = [
         `[lorekit ingest-check] corpus: ${report.corpus}`,
+        `  pending ingests (state.json): ${pending.length}`,
+        ...pending.slice(0, 5).map((p) => `    - [${p.status}] ${p.url}\n      next → ${p.nextStep}`),
         `  orphan workbench (>${ttl}d): ${orphans.length}`,
         ...orphans.slice(0, 5).map((o) => `    - ${o.dir} (${o.ageDays}d)`),
         `  unreferenced 原料/ pages: ${unreferenced.length}`,

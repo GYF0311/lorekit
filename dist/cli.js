@@ -1710,8 +1710,8 @@ function vectorCommand(program2) {
         const row = db.prepare("SELECT sha256 FROM documents WHERE path = ?").get(rel);
         if (row) {
           const { createHash: createHash3 } = await import("crypto");
-          const { readFileSync: readFileSync15 } = await import("fs");
-          const sha = createHash3("sha256").update(readFileSync15(filePath)).digest("hex");
+          const { readFileSync: readFileSync16 } = await import("fs");
+          const sha = createHash3("sha256").update(readFileSync16(filePath)).digest("hex");
           if (row.sha256 === sha) {
             skipped++;
             continue;
@@ -1748,11 +1748,11 @@ function vectorCommand(program2) {
       const threshold = parseFloat(opts.threshold);
       const { embedSingle: embedSingle2 } = await Promise.resolve().then(() => (init_ollama(), ollama_exports));
       const { openDb: openDb2, queryFlat: queryFlat2, queryLayered: queryLayered2 } = await Promise.resolve().then(() => (init_vectordb(), vectordb_exports));
-      const { existsSync: existsSync12 } = await import("fs");
-      const { join: join16 } = await import("path");
+      const { existsSync: existsSync14 } = await import("fs");
+      const { join: join18 } = await import("path");
       let dim = 1024;
-      const dbPath = join16(corpus, ".wiki", "vector.sqlite");
-      if (existsSync12(dbPath)) {
+      const dbPath = join18(corpus, ".wiki", "vector.sqlite");
+      if (existsSync14(dbPath)) {
         const tmpDb = await openDb2(corpus);
         const row = tmpDb.prepare("SELECT value FROM meta WHERE key = 'dim'").get();
         if (row) dim = parseInt(row.value, 10);
@@ -1775,8 +1775,8 @@ function vectorCommand(program2) {
 
 // src/commands/fetch.ts
 init_corpus();
-import { existsSync as existsSync10, mkdirSync as mkdirSync7 } from "fs";
-import { join as join14, relative as relative10 } from "path";
+import { existsSync as existsSync11, mkdirSync as mkdirSync8 } from "fs";
+import { join as join15, relative as relative10 } from "path";
 
 // src/lib/fetcher.ts
 import { mkdir, writeFile } from "fs/promises";
@@ -2165,6 +2165,88 @@ async function fetchUrl(url, opts) {
   };
 }
 
+// src/lib/ingest-state.ts
+import { existsSync as existsSync10, mkdirSync as mkdirSync7, readFileSync as readFileSync14, writeFileSync as writeFileSync5 } from "fs";
+import { join as join14, dirname as dirname4 } from "path";
+function stateFilePath(corpus) {
+  return join14(corpus, ".wiki", "ingest-state.json");
+}
+function loadIngestState(corpus) {
+  const p = stateFilePath(corpus);
+  if (!existsSync10(p)) {
+    return { version: 1, ingests: {} };
+  }
+  try {
+    const raw = readFileSync14(p, "utf-8");
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") {
+      return { version: 1, ingests: {} };
+    }
+    if (!parsed.ingests || typeof parsed.ingests !== "object") {
+      parsed.ingests = {};
+    }
+    parsed.version = 1;
+    return parsed;
+  } catch {
+    return { version: 1, ingests: {} };
+  }
+}
+function saveIngestState(corpus, state) {
+  const p = stateFilePath(corpus);
+  mkdirSync7(dirname4(p), { recursive: true });
+  const serialized = JSON.stringify(state, null, 2);
+  writeFileSync5(p, serialized + "\n", "utf-8");
+}
+function getIngestRecord(corpus, url) {
+  return loadIngestState(corpus).ingests[url];
+}
+function upsertIngestRecord(corpus, url, patch) {
+  const state = loadIngestState(corpus);
+  const now = (/* @__PURE__ */ new Date()).toISOString();
+  const existing = state.ingests[url];
+  const merged = existing ? { ...existing, ...patch, url, updatedAt: now } : {
+    url,
+    startedAt: now,
+    updatedAt: now,
+    status: patch.status ?? "fetched",
+    stepsDone: patch.stepsDone ?? [],
+    ...patch
+  };
+  if (merged.stepsDone) {
+    merged.stepsDone = Array.from(new Set(merged.stepsDone));
+  }
+  state.ingests[url] = merged;
+  saveIngestState(corpus, state);
+  return merged;
+}
+function deleteIngestRecord(corpus, url) {
+  const state = loadIngestState(corpus);
+  if (!(url in state.ingests)) return false;
+  delete state.ingests[url];
+  saveIngestState(corpus, state);
+  return true;
+}
+function listPendingIngests(corpus) {
+  const state = loadIngestState(corpus);
+  return Object.values(state.ingests).filter(
+    (r) => r.status !== "completed"
+  );
+}
+function nextStepHint(record) {
+  switch (record.status) {
+    case "fetched":
+      return "archive: mv the workbench dir into \u539F\u6599/\uFF08\u526A\u85CF|\u6587\u7AE0|\u4E66\u7C4D|...\uFF09";
+    case "archived":
+      return "wiki: compile wiki pages in \u77E5\u8BC6\u5E93/\uFF08\u6982\u5FF5|\u5B9E\u4F53|\u6458\u8981|\u4E13\u9898\uFF09";
+    case "wiki_created":
+      return "backlink + lint: make sure every [[page]] resolves, then run `lorekit ingest-check`";
+    case "completed":
+      return "nothing to do";
+    case "failed":
+      return `failed: ${record.error ?? "unknown error"} \u2014 inspect and re-run with --force if you want to retry`;
+  }
+}
+
 // src/commands/fetch.ts
 function suggestResult(route, url, suggest) {
   return { status: "unsupported", route, url, suggest };
@@ -2191,23 +2273,52 @@ function fetchCommand(program2) {
     if (opts.out) {
       outRoot = opts.out;
     } else {
-      outRoot = corpus ? join14(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch") : "/tmp/lorekit-fetch";
+      outRoot = corpus ? join15(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch") : "/tmp/lorekit-fetch";
     }
-    if (!existsSync10(outRoot)) {
-      mkdirSync7(outRoot, { recursive: true });
+    if (!existsSync11(outRoot)) {
+      mkdirSync8(outRoot, { recursive: true });
     }
     let duplicate;
     if (corpus && !opts.force) {
-      const existing = findSourceByUrl(corpus, url);
-      if (existing) {
-        const fm = extractFrontmatter(existing);
-        const sdRaw = fm.source_date;
-        const sourceDate = typeof sdRaw === "string" ? sdRaw : sdRaw instanceof Date ? sdRaw.toISOString().slice(0, 10) : void 0;
+      const state = getIngestRecord(corpus, url);
+      if (state && state.status !== "completed") {
+        const hint = nextStepHint(state);
+        console.error(
+          `[lorekit fetch] in-progress ingest detected for ${url}
+  status: ${state.status}  steps done: ${state.stepsDone.join(", ") || "(none)"}
+  started: ${state.startedAt}
+  next step \u2192 ${hint}
+  use --force to restart from scratch`
+        );
+        console.log(JSON.stringify({
+          status: "in_progress",
+          route: "rich",
+          url,
+          ingestState: state,
+          nextStep: hint
+        }));
+        return;
+      }
+      if (state && state.status === "completed") {
         duplicate = {
-          path: relative10(corpus, existing),
-          sourceDate,
-          title: typeof fm.title === "string" ? fm.title : void 0
+          path: state.archivedTo ?? "(unknown)",
+          sourceDate: state.sourceDate,
+          title: state.title
         };
+      } else {
+        const existing = findSourceByUrl(corpus, url);
+        if (existing) {
+          const fm = extractFrontmatter(existing);
+          const sdRaw = fm.source_date;
+          const sourceDate = typeof sdRaw === "string" ? sdRaw : sdRaw instanceof Date ? sdRaw.toISOString().slice(0, 10) : void 0;
+          duplicate = {
+            path: relative10(corpus, existing),
+            sourceDate,
+            title: typeof fm.title === "string" ? fm.title : void 0
+          };
+        }
+      }
+      if (duplicate) {
         console.error(
           `[lorekit fetch] duplicate url: ${url} already ingested at ${duplicate.path}` + (duplicate.sourceDate ? ` (source_date: ${duplicate.sourceDate})` : "") + `. Use --force to re-fetch anyway.`
         );
@@ -2235,6 +2346,15 @@ function fetchCommand(program2) {
         result = await fetchUrl(url, { outRoot, noImages });
       }
     }
+    if (corpus && result.status === "ok" && result.markdown) {
+      upsertIngestRecord(corpus, url, {
+        title: result.title,
+        sourceDate: result.publishDate,
+        status: "fetched",
+        stepsDone: ["fetch"],
+        workbenchDir: result.dir
+      });
+    }
     console.log(JSON.stringify(result));
     if (result.status === "error") {
       process.exitCode = 1;
@@ -2244,11 +2364,11 @@ function fetchCommand(program2) {
 
 // src/commands/ingest-check.ts
 init_corpus();
-import { existsSync as existsSync11, readFileSync as readFileSync14, readdirSync as readdirSync8, statSync as statSync8 } from "fs";
-import { join as join15, relative as relative11 } from "path";
+import { existsSync as existsSync12, readFileSync as readFileSync15, readdirSync as readdirSync8, statSync as statSync8 } from "fs";
+import { join as join16, relative as relative11 } from "path";
 var ONE_DAY = 24 * 60 * 60 * 1e3;
 function collectWikilinkTargets(mdPath) {
-  const txt = readFileSync14(mdPath, "utf-8");
+  const txt = readFileSync15(mdPath, "utf-8");
   const targets = [];
   const re = /\[\[([^\]|#]+)(?:[#|][^\]]*)?\]\]/g;
   let m;
@@ -2266,12 +2386,12 @@ function ingestCheckCommand(program2) {
     const ttl = Number(opts.workbenchTtl ?? 7);
     const now = Date.now();
     const orphans = [];
-    const workbench = join15(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch");
-    if (existsSync11(workbench)) {
+    const workbench = join16(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch");
+    if (existsSync12(workbench)) {
       for (const entry of readdirSync8(workbench, { withFileTypes: true })) {
         if (!entry.isDirectory()) continue;
         if (entry.name.startsWith(".")) continue;
-        const full = join15(workbench, entry.name);
+        const full = join16(workbench, entry.name);
         const st = statSync8(full);
         const ageDays = Math.floor((now - st.mtimeMs) / ONE_DAY);
         if (ageDays >= ttl) {
@@ -2279,11 +2399,11 @@ function ingestCheckCommand(program2) {
         }
       }
     }
-    const sourcesRoot = join15(corpus, "\u539F\u6599");
-    const wikiRoot = join15(corpus, "\u77E5\u8BC6\u5E93");
+    const sourcesRoot = join16(corpus, "\u539F\u6599");
+    const wikiRoot = join16(corpus, "\u77E5\u8BC6\u5E93");
     const sourceSlugsReferenced = /* @__PURE__ */ new Set();
     const allWikiTargets = [];
-    if (existsSync11(wikiRoot)) {
+    if (existsSync12(wikiRoot)) {
       for (const wikiMd of collectMdFiles(wikiRoot)) {
         for (const t of collectWikilinkTargets(wikiMd)) {
           allWikiTargets.push({ from: relative11(corpus, wikiMd), target: t });
@@ -2293,7 +2413,7 @@ function ingestCheckCommand(program2) {
     }
     const unreferenced = [];
     const sourceDirSlugs = /* @__PURE__ */ new Set();
-    if (existsSync11(sourcesRoot)) {
+    if (existsSync12(sourcesRoot)) {
       for (const mdPath of collectMdFiles(sourcesRoot)) {
         const rel = relative11(corpus, mdPath);
         const slug = slugOfSourcePath(rel);
@@ -2317,21 +2437,32 @@ function ingestCheckCommand(program2) {
       const asDirSlug = target;
       const asFileSlug = target;
       const dirExists = sourceDirSlugs.has(asDirSlug);
-      const fileExists = existsSync11(join15(corpus, asFileSlug + ".md"));
+      const fileExists = existsSync12(join16(corpus, asFileSlug + ".md"));
       if (!dirExists && !fileExists) {
         dangling.push({ from, target });
       }
     }
+    const pending = listPendingIngests(corpus).map((r) => ({
+      url: r.url,
+      status: r.status,
+      stepsDone: r.stepsDone,
+      nextStep: nextStepHint(r),
+      startedAt: r.startedAt
+    }));
     const report = {
       corpus: relative11(process.cwd(), corpus) || ".",
       workbenchTtlDays: ttl,
+      pendingIngests: pending,
       orphanWorkbench: orphans,
       unreferencedSources: unreferenced,
       danglingSourceWikilinks: dangling
     };
-    const issueCount = orphans.length + unreferenced.length + dangling.length;
+    const issueCount = pending.length + orphans.length + unreferenced.length + dangling.length;
     const summary = [
       `[lorekit ingest-check] corpus: ${report.corpus}`,
+      `  pending ingests (state.json): ${pending.length}`,
+      ...pending.slice(0, 5).map((p) => `    - [${p.status}] ${p.url}
+      next \u2192 ${p.nextStep}`),
       `  orphan workbench (>${ttl}d): ${orphans.length}`,
       ...orphans.slice(0, 5).map((o) => `    - ${o.dir} (${o.ageDays}d)`),
       `  unreferenced \u539F\u6599/ pages: ${unreferenced.length}`,
@@ -2343,6 +2474,134 @@ function ingestCheckCommand(program2) {
     console.error(summary.join("\n"));
     console.log(JSON.stringify(report));
     if (issueCount > 0) process.exitCode = 1;
+  });
+}
+
+// src/commands/ingest.ts
+init_corpus();
+import { existsSync as existsSync13 } from "fs";
+import { join as join17, relative as relative12 } from "path";
+var VALID_STEPS = ["fetch", "archive", "wiki", "backlink", "lint"];
+function ingestCommand(program2) {
+  const group = program2.command("ingest").description("Track ingest pipeline state (record step progress, list pending, reconcile)");
+  group.command("list").description("List every ingest record (completed + in-progress)").action(() => {
+    const corpus = requireCorpus();
+    const state = loadIngestState(corpus);
+    const rows = Object.values(state.ingests);
+    if (rows.length === 0) {
+      console.error("[lorekit ingest list] no records");
+      console.log(JSON.stringify({ ingests: [] }));
+      return;
+    }
+    const summary = rows.map((r) => {
+      const done = r.stepsDone.join(",") || "(none)";
+      const dest = r.archivedTo ?? r.workbenchDir ?? "-";
+      return `  [${r.status.padEnd(12)}] ${r.url}
+    steps: ${done}  \u2192  ${dest}`;
+    });
+    console.error(`[lorekit ingest list] ${rows.length} record(s)
+${summary.join("\n")}`);
+    console.log(JSON.stringify(state));
+  });
+  group.command("pending").description("List only in-progress (non-completed) ingests \u2014 what you need to resume").action(() => {
+    const corpus = requireCorpus();
+    const pending = listPendingIngests(corpus);
+    if (pending.length === 0) {
+      console.error("[lorekit ingest pending] all ingests are completed \u2014 nothing to resume");
+      console.log(JSON.stringify({ pending: [] }));
+      return;
+    }
+    const summary = pending.map((r) => {
+      return `  [${r.status.padEnd(12)}] ${r.url}
+    next step \u2192 ${nextStepHint(r)}`;
+    });
+    console.error(`[lorekit ingest pending] ${pending.length} ingest(s) need attention
+${summary.join("\n")}`);
+    console.log(JSON.stringify({ pending }));
+    process.exitCode = 1;
+  });
+  group.command("record <url>").description("Record step progress for an ingest (call from wiki-ingest skill)").option("--step <step>", `mark step as done (one of: ${VALID_STEPS.join(", ")})`).option("--archived-to <path>", "relative path where the source was moved (e.g. \u539F\u6599/\u526A\u85CF/xxx)").option("--wiki-page <path...>", "relative path of a wiki page created (can be repeated)").option("--status <status>", "explicit status (fetched|archived|wiki_created|completed|failed)").option("--complete", "shortcut: mark status=completed").option("--fail <reason>", "shortcut: mark status=failed with reason").action((url, opts) => {
+    const corpus = requireCorpus();
+    const patch = {};
+    if (opts.step) {
+      if (!VALID_STEPS.includes(opts.step)) {
+        console.error(`[lorekit ingest record] invalid --step: ${opts.step}. valid: ${VALID_STEPS.join(", ")}`);
+        process.exitCode = 2;
+        return;
+      }
+      const existing = loadIngestState(corpus).ingests[url];
+      const prev = existing?.stepsDone ?? [];
+      patch.stepsDone = [...prev, opts.step];
+      if (!opts.status && !opts.complete && !opts.fail) {
+        if (opts.step === "archive") patch.status = "archived";
+        else if (opts.step === "wiki") patch.status = "wiki_created";
+        else if (opts.step === "lint") patch.status = "completed";
+      }
+    }
+    if (opts.archivedTo) patch.archivedTo = opts.archivedTo;
+    if (opts.wikiPage && opts.wikiPage.length > 0) {
+      const existing = loadIngestState(corpus).ingests[url];
+      const prev = existing?.wikiPages ?? [];
+      patch.wikiPages = [...prev, ...opts.wikiPage];
+    }
+    if (opts.status) patch.status = opts.status;
+    if (opts.complete) patch.status = "completed";
+    if (opts.fail) {
+      patch.status = "failed";
+      patch.error = opts.fail;
+    }
+    const updated = upsertIngestRecord(corpus, url, patch);
+    console.error(
+      `[lorekit ingest record] ${url}
+  status: ${updated.status}  steps: ${updated.stepsDone.join(",") || "(none)"}`
+    );
+    console.log(JSON.stringify(updated));
+  });
+  group.command("forget <url>").description("Remove a record from the state (e.g. after manual cleanup)").action((url) => {
+    const corpus = requireCorpus();
+    const removed = deleteIngestRecord(corpus, url);
+    console.error(
+      removed ? `[lorekit ingest forget] removed ${url}` : `[lorekit ingest forget] no record for ${url}`
+    );
+    console.log(JSON.stringify({ removed, url }));
+  });
+  group.command("reconcile").description("Back-fill state for pre-existing \u539F\u6599/ pages missing a state record").option("--dry-run", "list what would be added without writing").action((opts) => {
+    const corpus = requireCorpus();
+    const sourcesRoot = join17(corpus, "\u539F\u6599");
+    if (!existsSync13(sourcesRoot)) {
+      console.error("[lorekit ingest reconcile] no \u539F\u6599/ directory");
+      return;
+    }
+    const state = loadIngestState(corpus);
+    const added = [];
+    for (const mdPath of collectMdFiles(sourcesRoot)) {
+      const fm = extractFrontmatter(mdPath);
+      const url = typeof fm.source_url === "string" && fm.source_url || typeof fm.url === "string" && fm.url || "";
+      if (!url) continue;
+      if (state.ingests[url]) continue;
+      const rel = relative12(corpus, mdPath);
+      const archivedTo = rel.replace(/\/article\.md$/, "");
+      const sdRaw = fm.source_date;
+      const sourceDate = typeof sdRaw === "string" ? sdRaw : sdRaw instanceof Date ? sdRaw.toISOString().slice(0, 10) : void 0;
+      const now = (/* @__PURE__ */ new Date()).toISOString();
+      state.ingests[url] = {
+        url,
+        title: typeof fm.title === "string" ? fm.title : void 0,
+        sourceDate,
+        startedAt: now,
+        updatedAt: now,
+        status: "completed",
+        stepsDone: ["fetch", "archive", "wiki", "lint"],
+        archivedTo
+      };
+      added.push(url);
+    }
+    if (!opts.dryRun && added.length > 0) saveIngestState(corpus, state);
+    console.error(
+      `[lorekit ingest reconcile] ${opts.dryRun ? "would add" : "added"} ${added.length} record(s)`
+    );
+    for (const u of added) console.error(`  + ${u}`);
+    console.log(JSON.stringify({ dryRun: !!opts.dryRun, added }));
   });
 }
 
@@ -2361,8 +2620,8 @@ function showBanner() {
     }
     try {
       const dbPath = `${corpus}/.wiki/vector.sqlite`;
-      const { existsSync: existsSync12 } = __require("fs");
-      if (existsSync12(dbPath)) {
+      const { existsSync: existsSync14 } = __require("fs");
+      if (existsSync14(dbPath)) {
         const Database = __require("better-sqlite3");
         const db = new Database(dbPath, { readonly: true });
         indexed = String(db.prepare("SELECT COUNT(*) as c FROM documents").get()?.c ?? 0);
@@ -2413,6 +2672,7 @@ searchCommand(program);
 vectorCommand(program);
 fetchCommand(program);
 ingestCheckCommand(program);
+ingestCommand(program);
 if (process.argv.length <= 2) {
   showBanner();
 } else {

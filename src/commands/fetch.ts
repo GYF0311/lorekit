@@ -4,6 +4,7 @@ import { join, relative } from 'node:path';
 import { findCorpus, findSourceByUrl, extractFrontmatter } from '../lib/corpus.js';
 import { fetchUrl } from '../lib/fetcher.js';
 import type { FetchResult } from '../lib/fetcher.js';
+import { getIngestRecord, upsertIngestRecord, nextStepHint } from '../lib/ingest-state.js';
 
 // ---------------------------------------------------------------------------
 // URL routing helpers
@@ -58,25 +59,60 @@ export function fetchCommand(program: Command) {
         mkdirSync(outRoot, { recursive: true });
       }
 
-      // Duplicate-URL detection: scan 原料/ for existing article.md with same source_url
+      // Duplicate / resume detection: consult ingest-state.json first,
+      // fall back to scanning 原料/*/*/article.md frontmatter for legacy ingests
+      // without a state record.
       let duplicate: FetchResult['duplicate'] | undefined;
       if (corpus && !opts.force) {
-        const existing = findSourceByUrl(corpus, url);
-        if (existing) {
-          const fm = extractFrontmatter(existing);
-          // gray-matter parses bare YAML dates as Date objects; normalize to ISO yyyy-mm-dd
-          const sdRaw = fm.source_date;
-          const sourceDate =
-            typeof sdRaw === 'string'
-              ? sdRaw
-              : sdRaw instanceof Date
-                ? sdRaw.toISOString().slice(0, 10)
-                : undefined;
+        const state = getIngestRecord(corpus, url);
+
+        if (state && state.status !== 'completed') {
+          // Interrupted ingest — surface resume hint, do not re-fetch
+          const hint = nextStepHint(state);
+          console.error(
+            `[lorekit fetch] in-progress ingest detected for ${url}\n` +
+            `  status: ${state.status}  steps done: ${state.stepsDone.join(', ') || '(none)'}\n` +
+            `  started: ${state.startedAt}\n` +
+            `  next step → ${hint}\n` +
+            `  use --force to restart from scratch`,
+          );
+          console.log(JSON.stringify({
+            status: 'in_progress',
+            route: 'rich',
+            url,
+            ingestState: state,
+            nextStep: hint,
+          }));
+          return;
+        }
+
+        if (state && state.status === 'completed') {
           duplicate = {
-            path: relative(corpus, existing),
-            sourceDate,
-            title: typeof fm.title === 'string' ? fm.title : undefined,
+            path: state.archivedTo ?? '(unknown)',
+            sourceDate: state.sourceDate,
+            title: state.title,
           };
+        } else {
+          // No state record — fall back to frontmatter scan
+          const existing = findSourceByUrl(corpus, url);
+          if (existing) {
+            const fm = extractFrontmatter(existing);
+            const sdRaw = fm.source_date;
+            const sourceDate =
+              typeof sdRaw === 'string'
+                ? sdRaw
+                : sdRaw instanceof Date
+                  ? sdRaw.toISOString().slice(0, 10)
+                  : undefined;
+            duplicate = {
+              path: relative(corpus, existing),
+              sourceDate,
+              title: typeof fm.title === 'string' ? fm.title : undefined,
+            };
+          }
+        }
+
+        if (duplicate) {
           console.error(
             `[lorekit fetch] duplicate url: ${url} already ingested at ${duplicate.path}` +
             (duplicate.sourceDate ? ` (source_date: ${duplicate.sourceDate})` : '') +
@@ -110,6 +146,18 @@ export function fetchCommand(program: Command) {
           // Generic site
           result = await fetchUrl(url, { outRoot, noImages });
         }
+      }
+
+      // On successful fetch into a corpus, record state so subsequent runs
+      // see this as an in-progress ingest until the agent marks it completed.
+      if (corpus && result.status === 'ok' && result.markdown) {
+        upsertIngestRecord(corpus, url, {
+          title: result.title,
+          sourceDate: result.publishDate,
+          status: 'fetched',
+          stepsDone: ['fetch'],
+          workbenchDir: result.dir,
+        });
       }
 
       // Output single-line JSON

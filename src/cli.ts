@@ -18,6 +18,7 @@ import { searchCommand } from './commands/search.js';
 import { vectorCommand } from './commands/vector.js';
 import { fetchCommand } from './commands/fetch.js';
 import { ingestCheckCommand } from './commands/ingest-check.js';
+import { ingestCommand } from './commands/ingest.js';
 
 const version = readVersion();
 
@@ -95,6 +96,7 @@ searchCommand(program);
 vectorCommand(program);
 fetchCommand(program);
 ingestCheckCommand(program);
+ingestCommand(program);
 
 // no subcommand → show banner
 if (process.argv.length <= 2) {
