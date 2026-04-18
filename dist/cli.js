@@ -3123,7 +3123,17 @@ ${summary.join("\n")}`
         const prev = existing?.wikiPages ?? [];
         patch.wikiPages = [...prev, ...opts.wikiPage];
       }
-      if (opts.status) patch.status = opts.status;
+      if (opts.status) {
+        const validStatuses = ["started", "completed", "failed"];
+        if (!validStatuses.includes(opts.status)) {
+          console.error(
+            `[lorekit ingest record] invalid --status: ${opts.status}. valid: ${validStatuses.join(", ")}`
+          );
+          process.exitCode = 2;
+          return;
+        }
+        patch.status = opts.status;
+      }
       if (opts.complete) patch.status = "completed";
       if (opts.fail) {
         patch.status = "failed";

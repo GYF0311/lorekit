@@ -6,6 +6,26 @@
 
 ---
 
+## 2026-04-19 — 批次 12：P2 sweep `as any`（P2-3）
+
+**做了什么**
+
+- `src/commands/ingest.ts:208` 的 `patch.status = opts.status as any` 改为先在 `IngestStatus` 三值范围内校验，非法 → exit 2 + stderr 提示，合法 → `as IngestStatus`
+- 顺手 import `IngestStatus` 类型（之前只 import 了 `IngestStep`）
+- tag：`refactor-batch-12`
+- `vectordb.ts:276 (Database as any)` 留给批次 22；`fetcher.ts:155 @ts-ignore` 留给批次 21
+
+**为什么**
+
+- LEGACY P2-3 + CONVENTIONS Do Not #4：裸 `as any` 把类型校验绕过，运行时若来个 `--status xyz` 静默写进 state，下游 `nextStepHint` 走 `failed` 分支但没 reason，行为奇怪
+- 现在显式校验 + exit 2 符合 CONVENTIONS #4（参数错→2）
+
+**接下来**
+
+- 进批次 13：P2 sweep — `console → logger`（cli + init + doctor + sync）
+
+---
+
 ## 2026-04-19 — 批次 11：P2 sweep 沉默 catch（P2-2）
 
 **做了什么**

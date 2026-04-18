@@ -19,6 +19,7 @@ import {
   nextStepHint,
   type IngestRecord,
   type IngestStep,
+  type IngestStatus,
 } from '../lib/ingest-state.js';
 import { dateToYMDLocal } from '../lib/date.js';
 
@@ -205,7 +206,17 @@ export function ingestCommand(program: Command): void {
           const prev = existing?.wikiPages ?? [];
           patch.wikiPages = [...prev, ...opts.wikiPage];
         }
-        if (opts.status) patch.status = opts.status as any;
+        if (opts.status) {
+          const validStatuses: readonly IngestStatus[] = ['started', 'completed', 'failed'];
+          if (!validStatuses.includes(opts.status as IngestStatus)) {
+            console.error(
+              `[lorekit ingest record] invalid --status: ${opts.status}. valid: ${validStatuses.join(', ')}`,
+            );
+            process.exitCode = 2;
+            return;
+          }
+          patch.status = opts.status as IngestStatus;
+        }
         if (opts.complete) patch.status = 'completed';
         if (opts.fail) {
           patch.status = 'failed';
