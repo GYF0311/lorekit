@@ -9,6 +9,41 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
+// src/lib/paths.ts
+var alwaysExcludeNames, vectorIncludeDirs, vectorExcludePrefixes, vectorExcludeNames;
+var init_paths = __esm({
+  "src/lib/paths.ts"() {
+    "use strict";
+    alwaysExcludeNames = /* @__PURE__ */ new Set([
+      ".gitkeep",
+      ".DS_Store",
+      "_INDEX.md"
+    ]);
+    vectorIncludeDirs = [
+      "\u77E5\u8BC6\u5E93",
+      "\u6BCF\u65E5",
+      "\u5199\u4F5C",
+      "\u539F\u6599/\u6587\u7AE0",
+      "\u539F\u6599/\u4E66\u7C4D",
+      "\u539F\u6599/\u4F1A\u8BAE"
+    ];
+    vectorExcludePrefixes = [
+      "_\u5DE5\u4F5C\u53F0",
+      "_archive",
+      "_\u5F52\u6863",
+      "\u539F\u6599/\u5F55\u97F3",
+      "\u539F\u6599/\u526A\u85CF",
+      "\u53CD\u9988",
+      "\u7CFB\u7EDF",
+      ".wiki"
+    ];
+    vectorExcludeNames = /* @__PURE__ */ new Set([
+      ".gitkeep",
+      ".DS_Store"
+    ]);
+  }
+});
+
 // src/lib/ollama.ts
 var ollama_exports = {};
 __export(ollama_exports, {
@@ -163,12 +198,12 @@ function distanceToScore(distance) {
 }
 function shouldIndex(rel) {
   const parts = rel.split("/");
-  if (EXCLUDE_NAMES.has(parts[parts.length - 1])) return false;
+  if (vectorExcludeNames.has(parts[parts.length - 1])) return false;
   if (!rel.endsWith(".md")) return false;
-  for (const prefix of EXCLUDE_PREFIXES) {
+  for (const prefix of vectorExcludePrefixes) {
     if (rel === prefix || rel.startsWith(prefix + "/")) return false;
   }
-  for (const inc of INCLUDE_DIRS) {
+  for (const inc of vectorIncludeDirs) {
     if (rel === inc || rel.startsWith(inc + "/")) return true;
   }
   return false;
@@ -567,7 +602,7 @@ function findAllIndexFiles(corpus) {
       if (entry.name.startsWith(".")) continue;
       const full = join11(dir, entry.name);
       const rel = relative10(corpus, full);
-      if (EXCLUDE_PREFIXES.some((p) => rel === p || rel.startsWith(p + "/"))) continue;
+      if (vectorExcludePrefixes.some((p) => rel === p || rel.startsWith(p + "/"))) continue;
       if (entry.isDirectory()) {
         walk(full);
       } else if (entry.name === "_INDEX.md") {
@@ -739,24 +774,13 @@ async function getStatus(corpus) {
     mode_reason: rec.reason
   };
 }
-var EMBEDDING_DIM, MODE_THRESHOLD_FILES, INCLUDE_DIRS, EXCLUDE_PREFIXES, EXCLUDE_NAMES, DDL, FTS_DDL;
+var EMBEDDING_DIM, MODE_THRESHOLD_FILES, DDL, FTS_DDL;
 var init_vectordb = __esm({
   "src/lib/vectordb.ts"() {
     "use strict";
+    init_paths();
     EMBEDDING_DIM = 1024;
     MODE_THRESHOLD_FILES = 100;
-    INCLUDE_DIRS = ["\u77E5\u8BC6\u5E93", "\u6BCF\u65E5", "\u5199\u4F5C", "\u539F\u6599/\u6587\u7AE0", "\u539F\u6599/\u4E66\u7C4D", "\u539F\u6599/\u4F1A\u8BAE"];
-    EXCLUDE_PREFIXES = [
-      "_\u5DE5\u4F5C\u53F0",
-      "_archive",
-      "_\u5F52\u6863",
-      "\u539F\u6599/\u5F55\u97F3",
-      "\u539F\u6599/\u526A\u85CF",
-      "\u53CD\u9988",
-      "\u7CFB\u7EDF",
-      ".wiki"
-    ];
-    EXCLUDE_NAMES = /* @__PURE__ */ new Set([".gitkeep", ".DS_Store"]);
     DDL = `
 CREATE TABLE IF NOT EXISTS documents (
     id INTEGER PRIMARY KEY,
@@ -820,18 +844,10 @@ import chalk7 from "chalk";
 import Database from "better-sqlite3";
 
 // src/lib/corpus.ts
+init_paths();
 import { existsSync, readFileSync, readdirSync } from "fs";
 import { join, dirname } from "path";
 import matter from "gray-matter";
-
-// src/lib/paths.ts
-var alwaysExcludeNames = /* @__PURE__ */ new Set([
-  ".gitkeep",
-  ".DS_Store",
-  "_INDEX.md"
-]);
-
-// src/lib/corpus.ts
 function findCorpus(startDir) {
   let dir = startDir || process.cwd();
   while (dir !== "/" && dir) {

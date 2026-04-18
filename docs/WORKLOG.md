@@ -6,6 +6,25 @@
 
 ---
 
+## 2026-04-19 — 批次 6：paths.ts 迁 vectordb.ts 常量（P1-1 b）
+
+**做了什么**
+
+- `src/lib/paths.ts`：追加 `vectorIncludeDirs` / `vectorExcludePrefixes` / `vectorExcludeNames`
+- `src/lib/vectordb.ts`：删 3 个 local const，import 自 paths.ts；同步更新 1 处 stale 注释
+- tag：`refactor-batch-6`
+
+**为什么**
+
+- LEGACY P1-1 (b)：vectordb.ts 是 P0-1 待拆，但常量迁移行为等价，先把这块单独完成
+- `vectorExcludeNames` 故意不含 `_INDEX.md`（vs `alwaysExcludeNames`），严格保留迁移前行为；语义差别记在 paths.ts 注释里，留给批次 22 拆 vectordb 时再审视
+
+**接下来**
+
+- 进批次 7：迁 commands/{index,lint,snapshot}.ts 到 paths.ts，**完成后 CONVENTIONS Do Not #11 正式生效**
+
+---
+
 ## 2026-04-19 — 批次 5：建 lib/paths.ts + 迁 corpus.ts EXCLUDE_NAMES（P1-1 a）
 
 **做了什么**

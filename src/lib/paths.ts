@@ -28,3 +28,49 @@ export const alwaysExcludeNames: ReadonlySet<string> = new Set([
   '.DS_Store',
   '_INDEX.md',
 ]);
+
+// ---------------------------------------------------------------------------
+// 向量库索引（vectordb.ts）专用规则
+// ---------------------------------------------------------------------------
+
+/**
+ * 向量库纳入索引的目录前缀。任何文件 rel path 必须以下列之一开头才参与 chunk
+ * embedding。注意：原料里只索引"长文"类（文章 / 书籍 / 会议）；剪藏 / 录音
+ * 走另外的路径（embed 摘要而非全文）。
+ */
+export const vectorIncludeDirs: readonly string[] = [
+  '知识库',
+  '每日',
+  '写作',
+  '原料/文章',
+  '原料/书籍',
+  '原料/会议',
+];
+
+/**
+ * 向量库排除目录前缀。先 exclude 检查再 include 检查 — exclude 规则胜出。
+ *   - `_工作台` / `_archive` / `_归档`：过渡区 / 冷数据，不该污染向量空间
+ *   - `原料/录音` / `原料/剪藏`：走摘要 embedding，不索引全文 chunk
+ *   - `反馈` / `系统` / `.wiki`：流程 / 规范 / 元数据，跟知识检索无关
+ */
+export const vectorExcludePrefixes: readonly string[] = [
+  '_工作台',
+  '_archive',
+  '_归档',
+  '原料/录音',
+  '原料/剪藏',
+  '反馈',
+  '系统',
+  '.wiki',
+];
+
+/**
+ * 向量库排除文件名（不含 `_INDEX.md` —— 注意跟 alwaysExcludeNames 不同）。
+ * `_INDEX.md` 由 buildLayeredIndex 通过 L1 路径单独处理（embed 条目摘要），
+ * 不应进 chunk 池；但当前 vectordb.shouldIndex 没有显式排除它，依赖 INCLUDE_DIRS
+ * 圈定边界。本集合**严格保留迁移前行为**，不在本批改语义。
+ */
+export const vectorExcludeNames: ReadonlySet<string> = new Set([
+  '.gitkeep',
+  '.DS_Store',
+]);

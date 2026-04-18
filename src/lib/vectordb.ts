@@ -9,6 +9,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { basename, join, relative } from 'node:path';
 import matter from 'gray-matter';
+import { vectorIncludeDirs, vectorExcludePrefixes, vectorExcludeNames } from './paths.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -70,20 +71,7 @@ const EMBEDDING_DIM = 1024;
  */
 export const MODE_THRESHOLD_FILES = 100;
 
-const INCLUDE_DIRS = ['知识库', '每日', '写作', '原料/文章', '原料/书籍', '原料/会议'];
-
-const EXCLUDE_PREFIXES = [
-  '_工作台',
-  '_archive',
-  '_归档',
-  '原料/录音',
-  '原料/剪藏',
-  '反馈',
-  '系统',
-  '.wiki',
-];
-
-const EXCLUDE_NAMES = new Set(['.gitkeep', '.DS_Store']);
+// 排除 / 包含规则集中在 lib/paths.ts，本文件仅 import 不再硬编码（CONVENTIONS Do Not #11）。
 
 // ---------------------------------------------------------------------------
 // DDL
@@ -187,12 +175,12 @@ function distanceToScore(distance: number): number {
 
 function shouldIndex(rel: string): boolean {
   const parts = rel.split('/');
-  if (EXCLUDE_NAMES.has(parts[parts.length - 1])) return false;
+  if (vectorExcludeNames.has(parts[parts.length - 1])) return false;
   if (!rel.endsWith('.md')) return false;
-  for (const prefix of EXCLUDE_PREFIXES) {
+  for (const prefix of vectorExcludePrefixes) {
     if (rel === prefix || rel.startsWith(prefix + '/')) return false;
   }
-  for (const inc of INCLUDE_DIRS) {
+  for (const inc of vectorIncludeDirs) {
     if (rel === inc || rel.startsWith(inc + '/')) return true;
   }
   return false;
@@ -829,7 +817,7 @@ function parseIndexEntries(content: string): Array<{ slug: string; summary: stri
 }
 
 /**
- * 递归扫 corpus 找所有 `_INDEX.md`，复用 vectordb 的 EXCLUDE_PREFIXES 排除规则。
+ * 递归扫 corpus 找所有 `_INDEX.md`，复用 paths.ts 的 vectorExcludePrefixes 排除规则。
  */
 function findAllIndexFiles(corpus: string): string[] {
   const results: string[] = [];
@@ -845,7 +833,7 @@ function findAllIndexFiles(corpus: string): string[] {
       if (entry.name.startsWith('.')) continue;
       const full = join(dir, entry.name);
       const rel = relative(corpus, full);
-      if (EXCLUDE_PREFIXES.some((p) => rel === p || rel.startsWith(p + '/'))) continue;
+      if (vectorExcludePrefixes.some((p) => rel === p || rel.startsWith(p + '/'))) continue;
 
       if (entry.isDirectory()) {
         walk(full);
