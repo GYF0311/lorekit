@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync, lstatSync } from 'node:fs';
-import { join, basename, relative } from 'node:path';
+import { join, basename, relative, resolve } from 'node:path';
 import { requireCorpus, hasFrontmatter, extractFrontmatter } from '../lib/corpus.js';
 import { ok, warn, err } from '../utils/logger.js';
 
@@ -225,12 +225,28 @@ function findIndexableDirs(root: string): string[] {
 /**
  * 程序内复用入口：扫 corpus 生成所有 _INDEX.md。
  * 返回生成的文件数。specificDir 限定在单个子目录（相对 root 的路径）。
+ *
+ * 铁律：corpus 根不建 _INDEX.md —— L0 `corpus/index.md` 已经承担根级索引职能。
+ * `--dir .` / `--dir ""` / `--dir ./` 这类 bypass 会被拒绝。
  */
 export function runIndex(root: string, specificDir?: string): number {
   if (specificDir) {
     const full = join(root, specificDir);
     if (!existsSync(full)) {
       throw new Error(`directory not found: ${specificDir}`);
+    }
+    // 防止 --dir . / --dir "" / --dir ./ 等写法绕过根排除，在 corpus 根生成 _INDEX.md
+    if (resolve(full) === resolve(root)) {
+      throw new Error(
+        `cannot index the corpus root itself — L0 corpus/index.md already serves this role`,
+      );
+    }
+    // 子目录也要守住排除规则（避免 --dir _工作台 / --dir 系统 等强行生成）
+    const rel = relative(root, full);
+    if (isIndexExcluded(rel)) {
+      throw new Error(
+        `directory "${rel}" is in the exclude list (${INDEX_EXCLUDE_DIR_PREFIXES.join(' / ')})`,
+      );
     }
     return buildIndex(full, root) ? 1 : 0;
   }
