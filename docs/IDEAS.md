@@ -68,12 +68,12 @@ Karpathy 要解决的核心问题是"RAG 向量块过于碎片化导致返回内
 
 ### 离终态的距离
 
-| 要素 | 当前 | 需要补 |
-|---|---|---|
-| 向量召回 | ✅ 三层 layered（含 slug_list 过滤） | — |
-| BM25 打分 | ❌ `lorekit search` 只走 ripgrep 无分数 | SQLite FTS5 虚表（`chunks_fts`/`pages_fts`/`dirs_fts`）|
-| 融合 | ❌ 两路独立跑 | Reciprocal Rank Fusion（RRF）|
-| re-rank | ❌ 无 | Claude Haiku 或本地小模型挑最终 top-k |
+| 要素      | 当前                                    | 需要补                                                  |
+| --------- | --------------------------------------- | ------------------------------------------------------- |
+| 向量召回  | ✅ 三层 layered（含 slug_list 过滤）    | —                                                       |
+| BM25 打分 | ❌ `lorekit search` 只走 ripgrep 无分数 | SQLite FTS5 虚表（`chunks_fts`/`pages_fts`/`dirs_fts`） |
+| 融合      | ❌ 两路独立跑                           | Reciprocal Rank Fusion（RRF）                           |
+| re-rank   | ❌ 无                                   | Claude Haiku 或本地小模型挑最终 top-k                   |
 
 ### 为什么纯向量不够
 

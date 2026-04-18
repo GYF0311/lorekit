@@ -1,5 +1,13 @@
 import type { Command } from 'commander';
-import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync, readdirSync, statSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  unlinkSync,
+  readdirSync,
+  statSync,
+} from 'node:fs';
 import { join, relative } from 'node:path';
 import * as tar from 'tar';
 import { ok, bad, err } from '../utils/logger.js';
@@ -84,10 +92,7 @@ export function snapshotCommand(program: Command) {
 
       // Create tarball
       // Include all corpus files + the manifest
-      const allEntries = [
-        ...files,
-        relative(corpus, manifestPath),
-      ];
+      const allEntries = [...files, relative(corpus, manifestPath)];
 
       await tar.create(
         {

@@ -14,6 +14,7 @@
 > "你这边执行的实在太久了。原因是什么？查重不应该在知识库里查，应该是有一个 json 的文件，那就是让程序直接匹配 url，如果重复不就直接回复重复就好了嘛。为什么要让大模型去检索呢？index 和 log 的功能是什么？"
 
 复盘 5:27 的耗时构成：
+
 - 3 个独立 wiki 页**串行 Write**：~180s（最大头）
 - `lorekit search` 二次查重：~10s（fetch 已做 URL dedupe，纯冗余）
 - 手动 Edit `corpus/index.md` + `corpus/log.md`：~30s
@@ -102,30 +103,30 @@ lorekit ingest check 知识库/实体/A.md 知识库/概念/B.md
 
 ### 验证
 
-| 测试项 | 结果 |
-|---|---|
-| `lorekit --version` | ✅ 0.3.0（修了老 bug） |
-| `ingest check` 3 文件 10 链接 | ✅ 0 broken，全 ok |
-| `sync` index.md unchanged | ✅ 8 entries 全保留 |
-| `sync` index.md merge（手动删一行测自动补回） | ✅ +1 added，slug 显示出来 |
-| `record --step a,b,c,d --log "..."` | ✅ status 一次到 completed，log 自动 prepend |
-| 第一版有空行 bug → 修后再测 | ✅ 条目间 blank 分隔正确 |
-| 向后兼容：单步 `--step lint` | ✅ 走相同代码路径 |
+| 测试项                                        | 结果                                         |
+| --------------------------------------------- | -------------------------------------------- |
+| `lorekit --version`                           | ✅ 0.3.0（修了老 bug）                       |
+| `ingest check` 3 文件 10 链接                 | ✅ 0 broken，全 ok                           |
+| `sync` index.md unchanged                     | ✅ 8 entries 全保留                          |
+| `sync` index.md merge（手动删一行测自动补回） | ✅ +1 added，slug 显示出来                   |
+| `record --step a,b,c,d --log "..."`           | ✅ status 一次到 completed，log 自动 prepend |
+| 第一版有空行 bug → 修后再测                   | ✅ 条目间 blank 分隔正确                     |
+| 向后兼容：单步 `--step lint`                  | ✅ 走相同代码路径                            |
 
 ### 收益预估
 
 同样 3 wiki 页规模的下次 ingest：
 
-| | 改造前 5:27 | 改造后预期 |
-|---|---|---|
-| fetch | 15s | 15s |
-| 查重 | 10s | 0s |
-| 写 3 wiki 页 | 180s **串行** | ~60s **并行** |
-| Edit index + log | 30s | 0s（CLI 包办） |
-| 4 次 record 打卡 | 8s | 2s（一次链式） |
-| 死链清理 | 15s | 5s（check 预警） |
-| sync + lint | 5s | 5s |
-| **总计** | **5:27** | **~1:50** |
+|                  | 改造前 5:27   | 改造后预期       |
+| ---------------- | ------------- | ---------------- |
+| fetch            | 15s           | 15s              |
+| 查重             | 10s           | 0s               |
+| 写 3 wiki 页     | 180s **串行** | ~60s **并行**    |
+| Edit index + log | 30s           | 0s（CLI 包办）   |
+| 4 次 record 打卡 | 8s            | 2s（一次链式）   |
+| 死链清理         | 15s           | 5s（check 预警） |
+| sync + lint      | 5s            | 5s               |
+| **总计**         | **5:27**      | **~1:50**        |
 
 近 3 倍加速。
 
@@ -139,7 +140,7 @@ lorekit ingest check 知识库/实体/A.md 知识库/概念/B.md
 ### Commits
 
 - `8644c71` feat(ingest): 多步链式 record + --log 写日志 + check 死链预检 + sync 合并 root index.md
-- `cf8ddf1` chore: gitignore 排除 _INDEX.md，清理误生成的索引文件
+- `cf8ddf1` chore: gitignore 排除 \_INDEX.md，清理误生成的索引文件
 
 ---
 
@@ -175,6 +176,7 @@ AI 可 Read、向量可嵌入，规模到阈值自动切模式。
 - 同步改 `doctor.ts::checkIndexFiles` 复用 `isIndexExcluded` + `isFolderPackage`，修掉"`_INDEX.md missing in _工作台/...`"假错
 
 **验证**：
+
 ```
 ✓ 写作/_INDEX.md (2 entries)
 ✓ 原料/剪藏/_INDEX.md (1 entries)
@@ -184,21 +186,24 @@ AI 可 Read、向量可嵌入，规模到阈值自动切模式。
 ✓ 知识库/概念/_INDEX.md (2 entries)
 ```
 
-### 改动 2：向量 L0/L1 输入源切到 index.md / _INDEX.md 档案
+### 改动 2：向量 L0/L1 输入源切到 index.md / \_INDEX.md 档案
 
 `src/lib/vectordb.ts::buildLayeredIndex` 重写（**最大头**）：
 
 **之前**（错的）：
+
 - L0 `vec_dirs` 输入 = 运行时合成"目录名：子文件标题列表"一句话
 - L1 `vec_pages` 输入 = 每个文件的 "title + Compiled Truth 前 200 字"
-- **不读 index.md / _INDEX.md**——向量层自己造了一套平行摘要
+- **不读 index.md / \_INDEX.md**——向量层自己造了一套平行摘要
 
 **之后**（对的，跟 Karpathy 原文 "LLM reads the index first" 对齐）：
+
 - L0 = 读 `corpus/index.md`，按 `## 分区` 切分，每区向量化一条，`dir_path` 存分区名（"概念"/"实体"/"摘要"/"写作"）
 - L1 = 读每个 `{dir}/_INDEX.md` 每行条目，向量化 summary 字段；doc_id 映射兼容"目录包装式"（slug `原料/文章/xxx` → `xxx/article.md` 的 doc_id）
 - 新增辅助 `parseIndexSections` / `parseIndexEntries` / `findAllIndexFiles`
 
 **验证（SQLite 直查）**：
+
 ```
 dir_path | summary
 ---------|--------
@@ -223,6 +228,7 @@ dir_path | summary
 配套：`vector.ts` 抽出 `runVectorSync` export；`doctor.ts` 抽出 `runDoctor` export。
 
 **验证**：
+
 - 空 corpus 全量建：`✓ synced 13 files (104 chunks), skipped 0 unchanged`
 - 无变更重跑：**0.86s** 完成（含 L0/L1 4+8 条 embedding 调用）
 - `--skip-vector` 只刷 `_INDEX.md` / `--skip-doctor` 跳过体检
@@ -248,11 +254,13 @@ dir_path | summary
 - `queryLayered` 从 LIKE 过滤改成 `slug_list` → `doc_id` IN 过滤（兼容目录包装式 slug）
 
 **验证（`vector query --layered --text "Harness 五版演化"`）**：
+
 ```
 1. 知识库/概念/Anthropic-Harness.md (Compiled Truth)  score 0.8988
 2. 写作/Harness文章_完整版.md (intro)                  score 0.8944
 3. 知识库/概念/Anthropic-Harness.md (Timeline)         score 0.8922
 ```
+
 三层召回完整工作 ✅
 
 ### 改动 6：mode 字段放代码层，skill 只读不算
@@ -285,7 +293,7 @@ dir_path | summary
 - 新增 `sanitizeFtsQuery`：清洗 FTS5 运算符（`" * : ^ ( ) - +` + `OR/AND/NOT/NEAR`），短于 3 字符的 token 丢弃（trigram 约束）
 - 新增 `queryBM25Layered`（BM25 三层分层，镜像 `queryLayered` 的过滤逻辑）
 - 新增 `rrfMerge`（RRF 公式 `score = Σ 1/(k+rank)`，k=60）
-- 新增 `queryHybrid`：两路各召回 topK*2 → RRF 融合取 topK
+- 新增 `queryHybrid`：两路各召回 topK\*2 → RRF 融合取 topK
 - `lorekit vector query` 加 `--hybrid` / `--bm25` flag
 - skill 侧：`wiki-query` 的"向量模式"升级成"hybrid 模式标配"
 
@@ -297,12 +305,12 @@ dir_path | summary
 
 **验证（三路对比）**：
 
-| query | BM25 | 纯向量 layered | Hybrid |
-|---|---|---|---|
-| `卡兹克`（精确实体名） | ✅ 4.1085 | ✅ | ✅ |
-| `2026-04-15`（精确日期） | ✅ 1.0124 | 弱 | ✅ |
-| `Harness 五版演化`（复合语义） | 空（AND 过严，合理） | ✅ 0.8988 | ✅ 向量主导 |
-| `卡兹克 Harness`（混合） | ✅ | ✅ | ✅ RRF 融合 |
+| query                          | BM25                 | 纯向量 layered | Hybrid      |
+| ------------------------------ | -------------------- | -------------- | ----------- |
+| `卡兹克`（精确实体名）         | ✅ 4.1085            | ✅             | ✅          |
+| `2026-04-15`（精确日期）       | ✅ 1.0124            | 弱             | ✅          |
+| `Harness 五版演化`（复合语义） | 空（AND 过严，合理） | ✅ 0.8988      | ✅ 向量主导 |
+| `卡兹克 Harness`（混合）       | ✅                   | ✅             | ✅ RRF 融合 |
 
 互补证据清晰：BM25 弱项（复合语义）由向量补，向量弱项（精确日期/实体名）由 BM25 补。
 
@@ -369,7 +377,7 @@ corpus/
 
 `src/commands/lint.ts` 三处修改：
 
-1. **剥代码块再扫 wikilink**：新增 `stripCodeBlocks()`，匹配前先去掉 ```` ``` ```` fenced block 和 `` ` `` inline code，避免 `系统/schema.md` 里的 `[[Page]]` `[[slug]]` 占位符被当作真 wikilink。
+1. **剥代码块再扫 wikilink**：新增 `stripCodeBlocks()`，匹配前先去掉 ` ``` ` fenced block 和 `` ` `` inline code，避免 `系统/schema.md` 里的 `[[Page]]` `[[slug]]` 占位符被当作真 wikilink。
 2. **识别目录包装式原料**：`原料/文章/xxx/article.md` 这种"文件夹 = 一个原料"的惯例——规范引用是 `[[原料/文章/xxx]]`（不带 `/article`）。在 `stemSet` 里同时登记 `xxx/article` 和 `xxx` 两种形式；orphan 检查反向也认"父目录名"入链。这一个改动直接消掉 38 条误报（25 条 `anthropic-harness-deep-research` + 13 条 `harness-engineering-kazike`）。
 3. **顶层配置/索引文件豁免**：
    - `SKIP_FRONTMATTER_BASENAMES` = `README.md / AGENTS.md / CLAUDE.md / MEMORY.md`（任何位置）
@@ -378,12 +386,12 @@ corpus/
 
 **验证**：
 
-| 类别 | 修前 | 修后 |
-|---|---|---|
-| frontmatter | 35 | 0 |
-| broken links | 54 | 9 |
-| orphan pages | 15 | 0 |
-| 总计 | **104** | **9** |
+| 类别         | 修前    | 修后  |
+| ------------ | ------- | ----- |
+| frontmatter  | 35      | 0     |
+| broken links | 54      | 9     |
+| orphan pages | 15      | 0     |
+| 总计         | **104** | **9** |
 
 剩下的 9 条是 `[[MCP]]` `[[Claude Code]]` `[[上下文工程]]` `[[Andrej Karpathy]]` 等合法的"未建页"提示，与 corpus `CLAUDE.md` 里"空缺"区已经承认的条目完全一致——**这是有价值的 TODO 信号，不是 bug**。
 
@@ -394,12 +402,14 @@ corpus/
 **根因**：`gray-matter` 把 YAML frontmatter 里的 `updated: 2026-04-18`（符合 YAML spec 的 timestamp 字面量）解析成 **JavaScript Date 对象**，不是字符串。原代码 `(fm.updated as string) ?? ''` 只骗了编译器，运行时 `Date.localeCompare` 不存在直接炸。
 
 **修复**（`src/commands/index.ts:82-95`）：
+
 - title 字段：`typeof fm.title === 'string' ? fm.title : String(fm.title)` 兜底
 - updated 字段：`fm.updated instanceof Date` 判断，走 `getUTCFullYear/Month/Date` 归一成 `YYYY-MM-DD` 字符串
 
 **验证**：`lorekit index` 对先生 corpus 生成了 4 个 `_INDEX.md`（概念 / 实体 / 摘要 / 写作），内容格式正确。
 
 **已知局限（没在本次修掉，列成 TODO）**：
+
 - `INDEX_DIRS` 常量硬编码 11 个目录，不支持递归进子目录——比如未来 `知识库/概念/AI相关/` 这种二级分类拿不到自己的 `_INDEX.md`
 - 不支持"目录包装式原料"（`原料/文章/xxx/article.md` 这种文件夹里只有一个 article.md 的情况），所以 `原料/文章/_INDEX.md` 和 `原料/剪藏/_INDEX.md` 都没生成
 - 需要另一轮改造：`buildIndex` 扫子目录时，如果子目录内含 `article.md` 就把子目录登记为一个 entry
@@ -419,16 +429,17 @@ corpus/
 
 **实测**：
 
-| URL | status | title | 产物 |
-|---|---|---|---|
-| `https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f` | `ok` | `llm-wiki` | `article.md` + 完整 frontmatter（`source_date: 2026-04-04`） |
-| `https://github.com/GYF0311/lorekit` | `ok` | `GYF0311/lorekit` | `article.md` 461 行（README 全文） |
+| URL                                                                 | status | title             | 产物                                                         |
+| ------------------------------------------------------------------- | ------ | ----------------- | ------------------------------------------------------------ |
+| `https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f` | `ok`   | `llm-wiki`        | `article.md` + 完整 frontmatter（`source_date: 2026-04-04`） |
+| `https://github.com/GYF0311/lorekit`                                | `ok`   | `GYF0311/lorekit` | `article.md` 461 行（README 全文）                           |
 
 **调试插曲**：第一次跑 gist 报 `raw_fetch_failed: fetch failed`，一度怀疑是 URL 拼错或 headers 冲突。隔离跑同样的 URL 和 headers 能返回 200——原来是 `npm run build` 之后没走 global symlink 刷新，跑的还是老代码。重 build 后一次通过。顺手把 `cause.message` 加进了错误字符串，下次排查更快。
 
 ### 改动 4：`wiki-ingest` skill 路由表同步更新
 
 `~/.claude/skills/wiki-ingest/SKILL.md` 的 Step 0 改动：
+
 - 新增"支持的路由"表，列全 weixin / gist / github / rich / lark / x / pdf 的 host → route 映射
 - `status=error` 的下一步指示里加了 `raw_fetch_failed` 的回退路径（curl 直抓 raw URL）
 - Step 5 归档规则加一行：gist / github 产物归 `原料/文章/<slug>/`

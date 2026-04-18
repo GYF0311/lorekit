@@ -80,7 +80,11 @@ function checkIndexFiles(corpus: string): number {
         if (name === '_INDEX.md' || name === '.gitkeep') continue;
         const childPath = join(full, name);
         let stat;
-        try { stat = lstatSync(childPath); } catch { continue; }
+        try {
+          stat = lstatSync(childPath);
+        } catch {
+          continue;
+        }
         if (stat.isFile() && name.endsWith('.md')) {
           shouldHaveIndex = true;
           break;

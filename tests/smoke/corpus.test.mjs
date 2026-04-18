@@ -41,7 +41,12 @@ test('stats 退出码 0 且 stdout 是合法 JSON', () => {
   const r = runLorekit(args, { cwd: corpus });
   assert.equal(r.status, 0, fmtRun(r, args, 'exit 0'));
   let parsed;
-  assert.doesNotThrow(() => { parsed = JSON.parse(r.stdout); }, fmtRun(r, args, 'stdout 是合法 JSON'));
+  assert.doesNotThrow(
+    () => {
+      parsed = JSON.parse(r.stdout);
+    },
+    fmtRun(r, args, 'stdout 是合法 JSON'),
+  );
   assert.ok('total_pages' in parsed, fmtRun(r, args, 'JSON 含 total_pages'));
   assert.ok('by_type' in parsed, fmtRun(r, args, 'JSON 含 by_type'));
 });
@@ -65,9 +70,17 @@ test('vector status 退出码 0，stdout JSON 含 mode + indexed', () => {
   const r = runLorekit(args, { cwd: corpus });
   assert.equal(r.status, 0, fmtRun(r, args, 'exit 0'));
   let parsed;
-  assert.doesNotThrow(() => { parsed = JSON.parse(r.stdout); }, fmtRun(r, args, 'stdout 是合法 JSON'));
+  assert.doesNotThrow(
+    () => {
+      parsed = JSON.parse(r.stdout);
+    },
+    fmtRun(r, args, 'stdout 是合法 JSON'),
+  );
   assert.ok('mode' in parsed, fmtRun(r, args, 'JSON 含 mode'));
-  assert.ok(['text', 'vector'].includes(parsed.mode), fmtRun(r, args, `mode ∈ {text,vector}, 实际 ${parsed.mode}`));
+  assert.ok(
+    ['text', 'vector'].includes(parsed.mode),
+    fmtRun(r, args, `mode ∈ {text,vector}, 实际 ${parsed.mode}`),
+  );
   assert.ok('indexed' in parsed, fmtRun(r, args, 'JSON 含 indexed'));
   // indexed_files 仅在 indexed=true 时填，新 init 的 corpus 还没建向量库 → 不强求
   if (parsed.indexed === true) {
@@ -86,7 +99,9 @@ test('snapshot 产出 .tar.gz', () => {
 
 test('restore --from <tarball> 在无变更时退出码 0', () => {
   const snapDir = join(corpus, '.wiki', 'snapshots');
-  const tarballs = readdirSync(snapDir).filter((n) => n.endsWith('.tar.gz')).sort();
+  const tarballs = readdirSync(snapDir)
+    .filter((n) => n.endsWith('.tar.gz'))
+    .sort();
   const tarball = join(snapDir, tarballs[tarballs.length - 1]);
   const args = ['restore', '--from', tarball];
   const r = runLorekit(args, { cwd: corpus });

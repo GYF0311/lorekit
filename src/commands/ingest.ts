@@ -68,7 +68,8 @@ function appendLogEntry(corpus: string, record: IngestRecord, body: string): voi
 
   if (!existing) {
     // Bootstrap a minimal log.md with header + first entry.
-    const header = '# Log\n\n> 操作时间线，append-only。每条格式：`## [YYYY-MM-DD] 操作类型 | 标题`\n> 可用 `grep "^## \\[" log.md | tail -10` 快速查最近操作。\n\n';
+    const header =
+      '# Log\n\n> 操作时间线，append-only。每条格式：`## [YYYY-MM-DD] 操作类型 | 标题`\n> 可用 `grep "^## \\[" log.md | tail -10` 快速查最近操作。\n\n';
     writeFileSync(logPath, header + entry, 'utf-8');
     return;
   }
@@ -128,7 +129,9 @@ export function ingestCommand(program: Command): void {
       const summary = pending.map((r) => {
         return `  [${r.status.padEnd(12)}] ${r.url}\n    next step → ${nextStepHint(r)}`;
       });
-      console.error(`[lorekit ingest pending] ${pending.length} ingest(s) need attention\n${summary.join('\n')}`);
+      console.error(
+        `[lorekit ingest pending] ${pending.length} ingest(s) need attention\n${summary.join('\n')}`,
+      );
       console.log(JSON.stringify({ pending }));
       process.exitCode = 1;
     });
@@ -143,87 +146,95 @@ export function ingestCommand(program: Command): void {
     )
     .option('--archived-to <path>', 'relative path where the source was moved (e.g. 原料/剪藏/xxx)')
     .option('--wiki-page <path...>', 'relative path of a wiki page created (can be repeated)')
-    .option('--log <body>', 'append a one-paragraph summary to corpus/log.md (CLI auto-fills url/archive/pages)')
+    .option(
+      '--log <body>',
+      'append a one-paragraph summary to corpus/log.md (CLI auto-fills url/archive/pages)',
+    )
     .option('--status <status>', 'explicit status (started|completed|failed)')
     .option('--complete', 'shortcut: mark status=completed')
     .option('--fail <reason>', 'shortcut: mark status=failed with reason')
-    .action((url: string, opts: {
-      step?: string;
-      archivedTo?: string;
-      wikiPage?: string[];
-      log?: string;
-      status?: string;
-      complete?: boolean;
-      fail?: string;
-    }) => {
-      const corpus = requireCorpus();
-      const patch: Parameters<typeof upsertIngestRecord>[2] = {};
+    .action(
+      (
+        url: string,
+        opts: {
+          step?: string;
+          archivedTo?: string;
+          wikiPage?: string[];
+          log?: string;
+          status?: string;
+          complete?: boolean;
+          fail?: string;
+        },
+      ) => {
+        const corpus = requireCorpus();
+        const patch: Parameters<typeof upsertIngestRecord>[2] = {};
 
-      // --step accepts either a single step ("archive") or a comma-separated
-      // chain ("archive,wiki,backlink,lint") so the skill can close the books
-      // in one call instead of four CLI invocations.
-      let parsedSteps: IngestStep[] = [];
-      if (opts.step) {
-        parsedSteps = opts.step
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean) as IngestStep[];
+        // --step accepts either a single step ("archive") or a comma-separated
+        // chain ("archive,wiki,backlink,lint") so the skill can close the books
+        // in one call instead of four CLI invocations.
+        let parsedSteps: IngestStep[] = [];
+        if (opts.step) {
+          parsedSteps = opts.step
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean) as IngestStep[];
 
-        for (const s of parsedSteps) {
-          if (!VALID_STEPS.includes(s)) {
-            console.error(
-              `[lorekit ingest record] invalid step: ${s}. valid: ${VALID_STEPS.join(', ')}`,
-            );
-            process.exitCode = 2;
-            return;
+          for (const s of parsedSteps) {
+            if (!VALID_STEPS.includes(s)) {
+              console.error(
+                `[lorekit ingest record] invalid step: ${s}. valid: ${VALID_STEPS.join(', ')}`,
+              );
+              process.exitCode = 2;
+              return;
+            }
+          }
+
+          const existing = loadIngestState(corpus).ingests[url];
+          const prev = existing?.stepsDone ?? [];
+          patch.stepsDone = [...prev, ...parsedSteps];
+
+          // status precedence: explicit flags win; otherwise, if the chain
+          // includes 'lint' it implies completion.
+          if (!opts.status && !opts.complete && !opts.fail) {
+            if (parsedSteps.includes('lint')) patch.status = 'completed';
+            else patch.status = 'started';
+          }
+        }
+        if (opts.archivedTo) patch.archivedTo = opts.archivedTo;
+        if (opts.wikiPage && opts.wikiPage.length > 0) {
+          const existing = loadIngestState(corpus).ingests[url];
+          const prev = existing?.wikiPages ?? [];
+          patch.wikiPages = [...prev, ...opts.wikiPage];
+        }
+        if (opts.status) patch.status = opts.status as any;
+        if (opts.complete) patch.status = 'completed';
+        if (opts.fail) {
+          patch.status = 'failed';
+          patch.error = opts.fail;
+        }
+
+        const updated = upsertIngestRecord(corpus, url, patch);
+
+        // --log: append entry to corpus/log.md AFTER state is updated so the
+        // entry can include the freshly-recorded archive path / wiki pages.
+        let logAppended = false;
+        if (opts.log) {
+          try {
+            appendLogEntry(corpus, updated, opts.log);
+            logAppended = true;
+          } catch (e) {
+            console.error(`[lorekit ingest record] log append failed: ${(e as Error).message}`);
           }
         }
 
-        const existing = loadIngestState(corpus).ingests[url];
-        const prev = existing?.stepsDone ?? [];
-        patch.stepsDone = [...prev, ...parsedSteps];
-
-        // status precedence: explicit flags win; otherwise, if the chain
-        // includes 'lint' it implies completion.
-        if (!opts.status && !opts.complete && !opts.fail) {
-          if (parsedSteps.includes('lint')) patch.status = 'completed';
-          else patch.status = 'started';
-        }
-      }
-      if (opts.archivedTo) patch.archivedTo = opts.archivedTo;
-      if (opts.wikiPage && opts.wikiPage.length > 0) {
-        const existing = loadIngestState(corpus).ingests[url];
-        const prev = existing?.wikiPages ?? [];
-        patch.wikiPages = [...prev, ...opts.wikiPage];
-      }
-      if (opts.status) patch.status = opts.status as any;
-      if (opts.complete) patch.status = 'completed';
-      if (opts.fail) {
-        patch.status = 'failed';
-        patch.error = opts.fail;
-      }
-
-      const updated = upsertIngestRecord(corpus, url, patch);
-
-      // --log: append entry to corpus/log.md AFTER state is updated so the
-      // entry can include the freshly-recorded archive path / wiki pages.
-      let logAppended = false;
-      if (opts.log) {
-        try {
-          appendLogEntry(corpus, updated, opts.log);
-          logAppended = true;
-        } catch (e) {
-          console.error(`[lorekit ingest record] log append failed: ${(e as Error).message}`);
-        }
-      }
-
-      console.error(
-        `[lorekit ingest record] ${url}\n` +
-        `  status: ${updated.status}  steps: ${updated.stepsDone.join(',') || '(none)'}` +
-        (logAppended ? '  +log' : ''),
-      );
-      console.log(JSON.stringify({ ...updated, logAppended }));
-    });
+        console.error(
+          `[lorekit ingest record] ${url}\n` +
+            `  status: ${updated.status}  steps: ${updated.stepsDone.join(',') || '(none)'}` +
+            (logAppended ? '  +log' : ''),
+        );
+        console.log(JSON.stringify({ ...updated, logAppended }));
+      },
+    );
 
   // ---------- check ----------
   // Pre-flight broken-link check for one or more wiki pages. Used by the
@@ -254,8 +265,7 @@ export function ingestCommand(program: Command): void {
         }
       }
 
-      const stripCode = (s: string) =>
-        s.replace(/```[\s\S]*?```/g, '').replace(/`[^`\n]+`/g, '');
+      const stripCode = (s: string) => s.replace(/```[\s\S]*?```/g, '').replace(/`[^`\n]+`/g, '');
 
       const broken: { file: string; link: string }[] = [];
       const okLinks: { file: string; link: string }[] = [];
@@ -300,9 +310,7 @@ export function ingestCommand(program: Command): void {
           `[lorekit ingest check] ${checked.length} file(s), ${okLinks.length} link(s) ok, no broken links`,
         );
       } else {
-        console.error(
-          `[lorekit ingest check] ${broken.length} broken link(s) found:`,
-        );
+        console.error(`[lorekit ingest check] ${broken.length} broken link(s) found:`);
         for (const b of broken) {
           console.error(`  ✗ ${b.file}: [[${b.link}]]`);
         }
@@ -342,9 +350,10 @@ export function ingestCommand(program: Command): void {
       const added: string[] = [];
       for (const mdPath of collectMdFiles(sourcesRoot)) {
         const fm = extractFrontmatter(mdPath);
-        const url = (typeof fm.source_url === 'string' && fm.source_url)
-          || (typeof fm.url === 'string' && fm.url)
-          || '';
+        const url =
+          (typeof fm.source_url === 'string' && fm.source_url) ||
+          (typeof fm.url === 'string' && fm.url) ||
+          '';
         if (!url) continue;
         if (state.ingests[url]) continue;
 

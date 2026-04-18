@@ -16,20 +16,20 @@ Pure TypeScript, Node.js-only, usable from any AI coding agent (Claude Code / Co
 
 ### Required
 
-| Tool | Purpose | Install | Verify |
-|---|---|---|---|
-| Node.js ≥ 18 | JS runtime | `brew install node` | `node --version` |
-| git | Clone the repo | ships with the OS | `git --version` |
+| Tool         | Purpose        | Install             | Verify           |
+| ------------ | -------------- | ------------------- | ---------------- |
+| Node.js ≥ 18 | JS runtime     | `brew install node` | `node --version` |
+| git          | Clone the repo | ships with the OS   | `git --version`  |
 
 ### Optional (recommended)
 
-| Tool | Purpose | Install | Verify |
-|---|---|---|---|
-| ripgrep | Faster text search | `brew install ripgrep` | `rg --version` |
-| ollama | Local vector embeddings | `brew install ollama` | `ollama --version` |
-| bge-m3 | Embedding model (EN+ZH) | `ollama pull bge-m3` | `ollama list` |
+| Tool        | Purpose                    | Install                                    | Verify             |
+| ----------- | -------------------------- | ------------------------------------------ | ------------------ |
+| ripgrep     | Faster text search         | `brew install ripgrep`                     | `rg --version`     |
+| ollama      | Local vector embeddings    | `brew install ollama`                      | `ollama --version` |
+| bge-m3      | Embedding model (EN+ZH)    | `ollama pull bge-m3`                       | `ollama list`      |
 | Claude Code | Best end-to-end experience | [download](https://claude.com/claude-code) | `claude --version` |
-| Obsidian | Visual wiki browsing | [download](https://obsidian.md) | — |
+| Obsidian    | Visual wiki browsing       | [download](https://obsidian.md)            | —                  |
 
 **No bash / Python / uv / pip needed.** lorekit is a pure Node.js project and runs on macOS / Linux / Windows.
 
@@ -101,6 +101,7 @@ lorekit sync          # one-shot: index → vector sync --layered → doctor
 ```
 
 `lorekit sync` is the standard entry point after any ingest/fileback. It:
+
 1. Recursively refreshes every `_INDEX.md` (via `lorekit index`)
 2. Incrementally re-embeds only changed files into `sqlite-vec` + FTS5
 3. Runs `doctor` as a non-blocking sanity check
@@ -123,22 +124,27 @@ claude  # or codex / cursor / kimi …
 ```
 
 **Ingest an article:**
+
 > Ingest this article: https://mp.weixin.qq.com/s/xxx
 
 The agent triggers `wiki-ingest`: fetch → archive under `原料/文章/` → compile into `知识库/` → update `index.md` + `log.md`.
 
 **Query:**
+
 > What's the difference between RAG and an LLM wiki?
 
 Triggers `wiki-query`: read `lorekit vector status` → if `mode: text` walk `index.md` → `_INDEX.md` → specific files; if `mode: vector` run `lorekit vector query --hybrid`. Synthesize answer with citations.
 
 **File back an insight:**
+
 > Save that analysis into the knowledge base.
 
 **Lint:**
+
 > Check the corpus health.
 
 **Backup:**
+
 > Back up the corpus.
 
 ---
@@ -184,12 +190,15 @@ lorekit ingest reconcile             # commit
 Give the agent some initial context:
 
 ### `知识库/实体/me.md`
+
 Who you are, what you're working on, how you like to communicate.
 
 ### `知识库/实体/<current project>.md`
+
 The project taking most of your time.
 
 ### `知识库/概念/<a concept>.md`
+
 Something you've been thinking about. The agent mirrors this style when it generates new cards.
 
 All three need frontmatter:
@@ -221,18 +230,21 @@ The CLI follows `cwd`. `cd` into whichever corpus you want to operate on.
 `lorekit vector sync` will tell you. Run `ollama serve`.
 
 **Swap embedding models?**
+
 ```bash
 ollama pull nomic-embed-text
 lorekit vector sync --model nomic-embed-text --force
 ```
 
 **Migrate existing notes?**
+
 ```bash
 lorekit init ~/existing-notes
 # → detects existing content and offers backup
 ```
 
 **Update lorekit?**
+
 ```bash
 cd ~/code/lorekit
 git pull
@@ -247,11 +259,11 @@ npm run build
 
 Default is bge-m3; anything in ollama's catalog works:
 
-| Model | Install | Size | Dim | Best for |
-|---|---|---|---|---|
-| **bge-m3** (default) | `ollama pull bge-m3` | 1.2 GB | 1024 | Chinese+English, balanced |
-| nomic-embed-text | `ollama pull nomic-embed-text` | 274 MB | 768 | English-heavy, lightweight |
-| mxbai-embed-large | `ollama pull mxbai-embed-large` | 670 MB | 1024 | Strong English |
-| all-minilm | `ollama pull all-minilm` | 45 MB | 384 | Ultra-lightweight |
+| Model                | Install                         | Size   | Dim  | Best for                   |
+| -------------------- | ------------------------------- | ------ | ---- | -------------------------- |
+| **bge-m3** (default) | `ollama pull bge-m3`            | 1.2 GB | 1024 | Chinese+English, balanced  |
+| nomic-embed-text     | `ollama pull nomic-embed-text`  | 274 MB | 768  | English-heavy, lightweight |
+| mxbai-embed-large    | `ollama pull mxbai-embed-large` | 670 MB | 1024 | Strong English             |
+| all-minilm           | `ollama pull all-minilm`        | 45 MB  | 384  | Ultra-lightweight          |
 
 Rule of thumb: primary language is Chinese → bge-m3; English-only → nomic-embed-text; tight on disk → all-minilm.

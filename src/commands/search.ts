@@ -17,11 +17,7 @@ function searchWithRipgrep(
   opts: { type?: string; dir?: string },
 ): SearchResult[] {
   const searchDir = opts.dir ? join(corpus, opts.dir) : corpus;
-  const args: string[] = [
-    '--json',
-    '--no-heading',
-    '-i',
-  ];
+  const args: string[] = ['--json', '--no-heading', '-i'];
 
   if (opts.type) {
     args.push('--type', opts.type);
@@ -60,11 +56,7 @@ function searchWithRipgrep(
   return results;
 }
 
-function searchFallback(
-  query: string,
-  corpus: string,
-  opts: { dir?: string },
-): SearchResult[] {
+function searchFallback(query: string, corpus: string, opts: { dir?: string }): SearchResult[] {
   const searchDir = opts.dir ? join(corpus, opts.dir) : corpus;
   const files = collectMdFiles(searchDir);
   const pattern = new RegExp(query, 'i');

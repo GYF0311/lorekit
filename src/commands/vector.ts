@@ -30,9 +30,7 @@ export async function runVectorSync(
   const model = opts.model ?? 'bge-m3';
 
   const { embed, embedSingle } = await import('../lib/ollama.js');
-  const { openDb, syncFile, buildLayeredIndex, collectFiles } = await import(
-    '../lib/vectordb.js'
-  );
+  const { openDb, syncFile, buildLayeredIndex, collectFiles } = await import('../lib/vectordb.js');
 
   const testEmb = await embedSingle('test', model);
   const dim = testEmb.length;
@@ -48,9 +46,9 @@ export async function runVectorSync(
     const rel = filePath.replace(corpus + '/', '');
 
     if (!force) {
-      const row = db
-        .prepare('SELECT sha256 FROM documents WHERE path = ?')
-        .get(rel) as { sha256: string } | undefined;
+      const row = db.prepare('SELECT sha256 FROM documents WHERE path = ?').get(rel) as
+        | { sha256: string }
+        | undefined;
       if (row) {
         const { createHash } = await import('node:crypto');
         const { readFileSync } = await import('node:fs');
@@ -99,9 +97,7 @@ export function vectorCommand(program: Command) {
     .action(async (opts: { force: boolean; layered: boolean; model: string }) => {
       const corpus = requireCorpus();
       const r = await runVectorSync(corpus, opts);
-      ok(
-        `synced ${r.synced} files (${r.totalChunks} chunks), skipped ${r.skipped} unchanged`,
-      );
+      ok(`synced ${r.synced} files (${r.totalChunks} chunks), skipped ${r.skipped} unchanged`);
     });
 
   // --- query ---
@@ -111,11 +107,7 @@ export function vectorCommand(program: Command) {
     .option('--top-k <n>', 'number of results', '5')
     .option('--threshold <n>', 'minimum similarity score', '0.5')
     .option('--layered', 'use L0→L1→L2 layered vector retrieval', false)
-    .option(
-      '--hybrid',
-      'BM25 + vector layered + RRF fusion (阶段 2 推荐，无 re-rank)',
-      false,
-    )
+    .option('--hybrid', 'BM25 + vector layered + RRF fusion (阶段 2 推荐，无 re-rank)', false)
     .option('--bm25', 'BM25 layered only (FTS5, 用于 debug BM25 单路)', false)
     .option('--model <name>', 'ollama model name', 'bge-m3')
     .description('search the vector/FTS index')
@@ -144,9 +136,9 @@ export function vectorCommand(program: Command) {
         const dbPath = join(corpus, '.wiki', 'vector.sqlite');
         if (existsSync(dbPath)) {
           const tmpDb = await openDb(corpus);
-          const row = tmpDb
-            .prepare("SELECT value FROM meta WHERE key = 'dim'")
-            .get() as { value: string } | undefined;
+          const row = tmpDb.prepare("SELECT value FROM meta WHERE key = 'dim'").get() as
+            | { value: string }
+            | undefined;
           if (row) dim = parseInt(row.value, 10);
           tmpDb.close();
         }

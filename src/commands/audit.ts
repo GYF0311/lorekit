@@ -1,7 +1,12 @@
 import { Command } from 'commander';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, basename } from 'node:path';
-import { requireCorpus, collectMdFiles, hasFrontmatter, extractFrontmatter } from '../lib/corpus.js';
+import {
+  requireCorpus,
+  collectMdFiles,
+  hasFrontmatter,
+  extractFrontmatter,
+} from '../lib/corpus.js';
 import { ok, err } from '../utils/logger.js';
 
 const SEVERITY_ORDER: Record<string, number> = { high: 3, medium: 2, low: 1 };
@@ -21,8 +26,13 @@ function extractPreview(filePath: string): string {
   let inFm = false;
   for (const line of lines) {
     if (line.trimEnd() === '---') {
-      if (!inFm) { inFm = true; continue; }
-      else { inFm = false; continue; }
+      if (!inFm) {
+        inFm = true;
+        continue;
+      } else {
+        inFm = false;
+        continue;
+      }
     }
     if (inFm) continue;
     if (line.trim() === '') continue;
@@ -79,18 +89,25 @@ function listAudit(root: string, filter: 'all' | 'open' | 'resolved'): void {
 }
 
 function createAudit(root: string, target: string, severity: string, text: string): void {
-  if (!target) { err('audit --create requires --target'); process.exit(2); }
-  if (!severity) { err('audit --create requires --severity'); process.exit(2); }
-  if (!text) { err('audit --create requires --text'); process.exit(2); }
+  if (!target) {
+    err('audit --create requires --target');
+    process.exit(2);
+  }
+  if (!severity) {
+    err('audit --create requires --severity');
+    process.exit(2);
+  }
+  if (!text) {
+    err('audit --create requires --text');
+    process.exit(2);
+  }
 
   if (!['low', 'medium', 'high'].includes(severity)) {
     err(`severity must be low|medium|high, got: ${severity}`);
     process.exit(2);
   }
 
-  const slug = basename(target, '.md')
-    .replace(/[\s/]/g, '-')
-    .toLowerCase();
+  const slug = basename(target, '.md').replace(/[\s/]/g, '-').toLowerCase();
 
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');

@@ -19,8 +19,8 @@ export interface FetchResult {
   url: string;
   title?: string;
   author?: string;
-  publishDate?: string;  // YYYY-MM-DD, Asia/Shanghai
-  sourceKind?: string;   // clipping | article | ...
+  publishDate?: string; // YYYY-MM-DD, Asia/Shanghai
+  sourceKind?: string; // clipping | article | ...
   sourceLayer?: string;
   slug?: string;
   /**
@@ -39,8 +39,8 @@ export interface FetchResult {
   suggest?: string;
   reason?: string;
   duplicate?: {
-    path: string;          // existing article.md path
-    sourceDate?: string;   // from existing frontmatter
+    path: string; // existing article.md path
+    sourceDate?: string; // from existing frontmatter
     title?: string;
   };
 }
@@ -84,7 +84,9 @@ function detectSite(url: string): 'weixin' | 'generic' {
   try {
     const host = new URL(url).hostname.toLowerCase();
     if (host.includes('mp.weixin.qq.com')) return 'weixin';
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return 'generic';
 }
 
@@ -92,15 +94,15 @@ function buildHeaders(site: string): Record<string, string> {
   if (site === 'weixin') {
     return {
       'User-Agent': UA_IPHONE,
-      'Referer': 'https://mp.weixin.qq.com/',
+      Referer: 'https://mp.weixin.qq.com/',
       'Accept-Language': 'zh-CN,zh;q=0.9',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
     };
   }
   return {
     'User-Agent': UA_DESKTOP,
     'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
   };
 }
 
@@ -111,9 +113,7 @@ function detectAntibot(html: string, site: string): boolean {
 }
 
 function slugify(s: string): string {
-  let slug = s
-    .replace(/[^\w\u4e00-\u9fff-]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+  let slug = s.replace(/[^\w\u4e00-\u9fff-]+/g, '-').replace(/^-+|-+$/g, '');
   return slug.slice(0, 50) || 'untitled';
 }
 
@@ -218,15 +218,14 @@ function parseWeixin(html: string, baseUrl: string): ParsedDoc {
   const $ = cheerio.load(html);
 
   // Title
-  let title = $('h1#activity-name').text().trim()
-    || $('h1.rich_media_title').text().trim()
-    || $('meta[property="og:title"]').attr('content')?.trim()
-    || '';
+  let title =
+    $('h1#activity-name').text().trim() ||
+    $('h1.rich_media_title').text().trim() ||
+    $('meta[property="og:title"]').attr('content')?.trim() ||
+    '';
 
   // Author
-  const author = $('a#js_name').text().trim()
-    || $('#js_author_name').text().trim()
-    || '';
+  const author = $('a#js_name').text().trim() || $('#js_author_name').text().trim() || '';
 
   // Publish date — prefer `var ct = "<unix seconds>"` (most reliable),
   // fallback to <em id="publish_time"> text node.
@@ -255,8 +254,11 @@ function parseWeixin(html: string, baseUrl: string): ParsedDoc {
   body.find('img').each((_i, el) => {
     const $el = $(el);
     const real = (
-      $el.attr('data-src') || $el.attr('data-original') ||
-      $el.attr('data-url') || $el.attr('src') || ''
+      $el.attr('data-src') ||
+      $el.attr('data-original') ||
+      $el.attr('data-url') ||
+      $el.attr('src') ||
+      ''
     ).trim();
     if (!real || real.startsWith('data:')) {
       $el.remove();
@@ -265,8 +267,16 @@ function parseWeixin(html: string, baseUrl: string): ParsedDoc {
     const abs = resolveUrl(real, baseUrl);
     $el.attr('src', abs);
     // Remove noisy attrs
-    for (const a of ['data-src', 'data-original', 'data-url', 'data-w',
-      'data-ratio', 'data-type', 'data-s', 'srcset']) {
+    for (const a of [
+      'data-src',
+      'data-original',
+      'data-url',
+      'data-w',
+      'data-ratio',
+      'data-type',
+      'data-s',
+      'srcset',
+    ]) {
       $el.removeAttr(a);
     }
     imgSrcs.push(abs);
@@ -302,7 +312,10 @@ function parseGeneric(html: string, baseUrl: string): ParsedDoc {
   for (const cand of dateCandidates) {
     if (!cand) continue;
     const norm = normalizeDateText(cand);
-    if (norm) { publishDate = norm; break; }
+    if (norm) {
+      publishDate = norm;
+      break;
+    }
   }
 
   // Body: article > main > body
@@ -321,8 +334,10 @@ function parseGeneric(html: string, baseUrl: string): ParsedDoc {
   body.find('img').each((_i, el) => {
     const $el = $(el);
     const real = (
-      $el.attr('data-src') || $el.attr('data-original') ||
-      $el.attr('src') || ''
+      $el.attr('data-src') ||
+      $el.attr('data-original') ||
+      $el.attr('src') ||
+      ''
     ).trim();
     if (!real || real.startsWith('data:')) {
       $el.remove();
@@ -364,8 +379,16 @@ function sniffExt(head: Uint8Array, contentType: string): string | null {
     if (sig.every((b, i) => head[i] === b)) return ext;
   }
   // RIFF....WEBP
-  if (head[0] === 0x52 && head[1] === 0x49 && head[2] === 0x46 && head[3] === 0x46
-    && head[8] === 0x57 && head[9] === 0x45 && head[10] === 0x42 && head[11] === 0x50) {
+  if (
+    head[0] === 0x52 &&
+    head[1] === 0x49 &&
+    head[2] === 0x46 &&
+    head[3] === 0x46 &&
+    head[8] === 0x57 &&
+    head[9] === 0x45 &&
+    head[10] === 0x42 &&
+    head[11] === 0x50
+  ) {
     return '.webp';
   }
   const ct = contentType.toLowerCase();
@@ -442,19 +465,14 @@ async function downloadImages(
   for (let i = 0; i < imgSrcs.length; i += IMG_CONCURRENCY) {
     const batch = imgSrcs.slice(i, i + IMG_CONCURRENCY);
     const batchResults = await Promise.all(
-      batch.map((src, j) =>
-        downloadOneImage(src, i + j + 1, imagesDir, headers, assetsRelPath),
-      ),
+      batch.map((src, j) => downloadOneImage(src, i + j + 1, imagesDir, headers, assetsRelPath)),
     );
     results.push(...batchResults);
   }
   return results;
 }
 
-function rewriteMarkdownImages(
-  md: string,
-  imgResults: ImgDownloadResult[],
-): string {
+function rewriteMarkdownImages(md: string, imgResults: ImgDownloadResult[]): string {
   const urlToLocal = new Map<string, string>();
   for (const r of imgResults) {
     if (r.status === 'ok' && r.localRel) {
@@ -462,13 +480,10 @@ function rewriteMarkdownImages(
     }
   }
   // Replace ![alt](url) with ![alt](localRel)
-  return md.replace(
-    /!\[([^\]]*)\]\(([^)]+)\)/g,
-    (match, alt, url) => {
-      const local = urlToLocal.get(url);
-      return local ? `![${alt}](${local})` : match;
-    },
-  );
+  return md.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, url) => {
+    const local = urlToLocal.get(url);
+    return local ? `![${alt}](${local})` : match;
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -517,9 +532,7 @@ export async function fetchUrl(url: string, opts: FetchOptions): Promise<FetchRe
   }
 
   // --- Parse ---
-  const doc = site === 'weixin'
-    ? parseWeixin(html, url)
-    : parseGeneric(html, url);
+  const doc = site === 'weixin' ? parseWeixin(html, url) : parseGeneric(html, url);
 
   if (!doc.bodyHtml || doc.bodyHtml.replace(/<[^>]*>/g, '').trim().length < 50) {
     return {
@@ -544,12 +557,7 @@ export async function fetchUrl(url: string, opts: FetchOptions): Promise<FetchRe
   let imagesOk = 0;
   let imagesFailed = 0;
   if (!opts.noImages && doc.imgSrcs.length > 0) {
-    const imgResults = await downloadImages(
-      doc.imgSrcs,
-      assetsDir,
-      headers,
-      `./${slug}.assets/`,
-    );
+    const imgResults = await downloadImages(doc.imgSrcs, assetsDir, headers, `./${slug}.assets/`);
     md = rewriteMarkdownImages(md, imgResults);
     for (const r of imgResults) {
       if (r.status === 'ok') imagesOk++;
@@ -604,7 +612,10 @@ export async function fetchUrl(url: string, opts: FetchOptions): Promise<FetchRe
 function parseGistUrl(url: string): { user: string; id: string } | null {
   try {
     const u = new URL(url);
-    if (!u.hostname.endsWith('gist.github.com') && !u.hostname.endsWith('gist.githubusercontent.com')) {
+    if (
+      !u.hostname.endsWith('gist.github.com') &&
+      !u.hostname.endsWith('gist.githubusercontent.com')
+    ) {
       return null;
     }
     const parts = u.pathname.split('/').filter(Boolean);
@@ -672,8 +683,7 @@ export async function fetchGist(url: string, outRoot: string): Promise<FetchResu
   }
 
   // 优先 markdown，其次第一个
-  const mdLink =
-    rawLinks.find((l) => /\.(md|markdown)$/i.test(l.name)) || rawLinks[0];
+  const mdLink = rawLinks.find((l) => /\.(md|markdown)$/i.test(l.name)) || rawLinks[0];
 
   let content: string;
   try {
@@ -736,8 +746,8 @@ export async function fetchGist(url: string, outRoot: string): Promise<FetchResu
 interface GithubRepoRef {
   owner: string;
   repo: string;
-  ref: string;       // HEAD / branch / commit
-  subpath?: string;  // 具体文件路径，如 "docs/foo.md"
+  ref: string; // HEAD / branch / commit
+  subpath?: string; // 具体文件路径，如 "docs/foo.md"
 }
 
 function parseGithubRepoUrl(url: string): GithubRepoRef | null {
@@ -806,9 +816,7 @@ export async function fetchGithubDoc(url: string, outRoot: string): Promise<Fetc
   }
 
   const fileName = subpath ? subpath.split('/').pop()! : 'README.md';
-  const title = subpath
-    ? fileName.replace(/\.(md|markdown)$/i, '')
-    : `${owner}/${repo}`;
+  const title = subpath ? fileName.replace(/\.(md|markdown)$/i, '') : `${owner}/${repo}`;
 
   const slug = slugify(subpath ? `${owner}-${repo}-${fileName}` : `${owner}-${repo}`);
   await mkdir(outRoot, { recursive: true });

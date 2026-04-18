@@ -32,7 +32,9 @@ function showBanner() {
     const { collectMdFiles } = require('./lib/corpus.js');
     try {
       pages = String(collectMdFiles(corpus).length);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     try {
       const dbPath = `${corpus}/.wiki/vector.sqlite`;
@@ -41,11 +43,15 @@ function showBanner() {
         const Database = require('better-sqlite3');
         const db = new Database(dbPath, { readonly: true });
         indexed = String(db.prepare('SELECT COUNT(*) as c FROM documents').get()?.c ?? 0);
-        const row = db.prepare("SELECT value FROM meta WHERE key='model'").get() as { value: string } | undefined;
+        const row = db.prepare("SELECT value FROM meta WHERE key='model'").get() as
+          | { value: string }
+          | undefined;
         model = row?.value ?? '—';
         db.close();
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   const short = corpus && corpus.length > 45 ? '...' + corpus.slice(-42) : (corpus ?? '—');
@@ -77,10 +83,7 @@ function showBanner() {
 
 const program = new Command();
 
-program
-  .name('lorekit')
-  .version(version)
-  .description('Personal LLM Wiki Toolkit');
+program.name('lorekit').version(version).description('Personal LLM Wiki Toolkit');
 
 // register commands
 initCommand(program);

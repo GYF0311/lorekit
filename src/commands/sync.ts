@@ -82,9 +82,7 @@ export async function runSync(corpus: string, opts: SyncOptions = {}): Promise<v
     console.log(chalk.cyan('── [2/3] vector: sync chunks + L0/L1 ──'));
     try {
       const r = await runVectorSync(corpus, { force, model, layered: true });
-      ok(
-        `synced ${r.synced} files (${r.totalChunks} chunks), skipped ${r.skipped} unchanged`,
-      );
+      ok(`synced ${r.synced} files (${r.totalChunks} chunks), skipped ${r.skipped} unchanged`);
     } catch (e) {
       err(`vector sync failed: ${(e as Error).message}`);
       throw e;

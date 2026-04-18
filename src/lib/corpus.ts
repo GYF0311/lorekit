@@ -5,10 +5,7 @@ import matter from 'gray-matter';
 export function findCorpus(startDir?: string): string | null {
   let dir = startDir || process.cwd();
   while (dir !== '/' && dir) {
-    if (
-      existsSync(join(dir, '.wiki')) ||
-      existsSync(join(dir, 'CLAUDE.md'))
-    ) {
+    if (existsSync(join(dir, '.wiki')) || existsSync(join(dir, 'CLAUDE.md'))) {
       return dir;
     }
     dir = dirname(dir);
@@ -84,10 +81,7 @@ export function collectMdFiles(dir: string, opts?: { excludeIndex?: boolean }): 
       const full = join(d, entry.name);
       if (entry.isDirectory()) {
         walk(full);
-      } else if (
-        entry.name.endsWith('.md') &&
-        !EXCLUDE_NAMES.has(entry.name)
-      ) {
+      } else if (entry.name.endsWith('.md') && !EXCLUDE_NAMES.has(entry.name)) {
         results.push(full);
       }
     }

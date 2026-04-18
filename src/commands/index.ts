@@ -6,14 +6,7 @@ import { ok, warn, err } from '../utils/logger.js';
 
 // 递归扫描时跳过的目录前缀（corpus 根下的相对路径）
 // 对外导出，让 doctor / sync / 其他命令复用同一套排除规则，避免各处规则漂移。
-export const INDEX_EXCLUDE_DIR_PREFIXES = [
-  '.wiki',
-  '.git',
-  '_归档',
-  '_工作台',
-  '系统',
-  '反馈',
-];
+export const INDEX_EXCLUDE_DIR_PREFIXES = ['.wiki', '.git', '_归档', '_工作台', '系统', '反馈'];
 
 export function isIndexExcluded(rel: string): boolean {
   for (const prefix of INDEX_EXCLUDE_DIR_PREFIXES) {
@@ -59,10 +52,10 @@ function extractSummary(filePath: string): string {
 }
 
 interface IndexEntry {
-  slug: string;      // corpus 根相对路径，不含 .md；对目录包装式原料用父目录路径
-  title: string;     // frontmatter.title 或 basename
-  summary: string;   // Compiled Truth 首句或 "—"
-  updated: string;   // YYYY-MM-DD
+  slug: string; // corpus 根相对路径，不含 .md；对目录包装式原料用父目录路径
+  title: string; // frontmatter.title 或 basename
+  summary: string; // Compiled Truth 首句或 "—"
+  updated: string; // YYYY-MM-DD
 }
 
 function readEntryFromFile(filePath: string, slug: string): IndexEntry {
@@ -128,7 +121,11 @@ function buildIndex(dir: string, root: string): boolean {
 
     const full = join(dir, name);
     let stat;
-    try { stat = lstatSync(full); } catch { continue; }
+    try {
+      stat = lstatSync(full);
+    } catch {
+      continue;
+    }
 
     if (stat.isFile() && name.endsWith('.md')) {
       // 普通 .md 文件：slug = 完整相对路径去 .md
@@ -182,7 +179,11 @@ function findIndexableDirs(root: string): string[] {
     if (rel && isExcluded(rel)) return;
 
     let names: string[];
-    try { names = readdirSync(dir, { encoding: 'utf-8' }); } catch { return; }
+    try {
+      names = readdirSync(dir, { encoding: 'utf-8' });
+    } catch {
+      return;
+    }
 
     if (!isRoot) {
       let hasIndexable = false;
@@ -192,7 +193,11 @@ function findIndexableDirs(root: string): string[] {
 
         const full = join(dir, name);
         let stat;
-        try { stat = lstatSync(full); } catch { continue; }
+        try {
+          stat = lstatSync(full);
+        } catch {
+          continue;
+        }
 
         if (stat.isFile() && name.endsWith('.md')) {
           hasIndexable = true;
@@ -211,7 +216,11 @@ function findIndexableDirs(root: string): string[] {
       if (name.startsWith('.')) continue;
       const full = join(dir, name);
       let stat;
-      try { stat = lstatSync(full); } catch { continue; }
+      try {
+        stat = lstatSync(full);
+      } catch {
+        continue;
+      }
       if (!stat.isDirectory()) continue;
       if (isFolderPackage(full)) continue;
       walk(full, false);

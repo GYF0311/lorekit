@@ -5,11 +5,11 @@
 
 ## 你是哪种用法？
 
-| 场景 | 跳到 |
-|---|---|
-| 安装 lorekit 给用户用 | 本文「安装与使用」 |
-| 在用户的 corpus 里日常运行 | 本文「日常使用」 |
-| 修改 lorekit 源码 / 提 PR | 本文「贡献者文档」（强制读完 CONVENTIONS） |
+| 场景                       | 跳到                                       |
+| -------------------------- | ------------------------------------------ |
+| 安装 lorekit 给用户用      | 本文「安装与使用」                         |
+| 在用户的 corpus 里日常运行 | 本文「日常使用」                           |
+| 修改 lorekit 源码 / 提 PR  | 本文「贡献者文档」（强制读完 CONVENTIONS） |
 
 ---
 
@@ -112,12 +112,14 @@ lorekit sync   # 一条命令：刷 _INDEX.md → 向量嵌入 → 建 FTS5 → 
 安装完成后，用户在 corpus 目录下开对话。AI 读到 corpus 内的 CLAUDE.md（schema）和 AGENTS.md 就自动进入知识库模式。
 
 核心操作：
+
 - **ingest**：用户给 URL / 文本 → AI 抓取 → 原文存 `原料/` → 编译进 `知识库/` → 更新 `index.md` + `log.md`
 - **query**：用户提问 → AI 读 `index.md` 定位 → 读 wiki 页面 → 综合回答
 - **fileback**：对话中的好洞察 → AI 写回知识库对应页面
 - **lint**：定期健康检查 → 扫断链、孤岛、过期文件
 
 可用的 CLI 命令：
+
 ```bash
 lorekit doctor                              # 健康检查
 lorekit stats                               # 统计

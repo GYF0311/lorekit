@@ -70,14 +70,7 @@ const EMBEDDING_DIM = 1024;
  */
 export const MODE_THRESHOLD_FILES = 100;
 
-const INCLUDE_DIRS = [
-  '知识库',
-  '每日',
-  '写作',
-  '原料/文章',
-  '原料/书籍',
-  '原料/会议',
-];
+const INCLUDE_DIRS = ['知识库', '每日', '写作', '原料/文章', '原料/书籍', '原料/会议'];
 
 const EXCLUDE_PREFIXES = [
   '_工作台',
@@ -259,7 +252,8 @@ async function loadSqlite(): Promise<{
 }> {
   let Database: typeof import('better-sqlite3');
   try {
-    Database = (await import('better-sqlite3')).default as unknown as typeof import('better-sqlite3');
+    Database = (await import('better-sqlite3'))
+      .default as unknown as typeof import('better-sqlite3');
   } catch {
     throw new Error(
       'better-sqlite3 is required for the vector engine.\n' +
@@ -273,8 +267,7 @@ async function loadSqlite(): Promise<{
     sqliteVec = vecMod as unknown as { load: (db: Db) => void };
   } catch {
     throw new Error(
-      'sqlite-vec is required for the vector engine.\n' +
-        '  Install it: npm install sqlite-vec',
+      'sqlite-vec is required for the vector engine.\n' + '  Install it: npm install sqlite-vec',
     );
   }
 
@@ -331,9 +324,9 @@ export async function syncFile(
     | undefined;
   if (old) {
     // 1. chunks + vec_chunks + fts_chunks
-    const chunkIds = db
-      .prepare('SELECT id FROM chunks WHERE doc_id = ?')
-      .all(old.id) as { id: number }[];
+    const chunkIds = db.prepare('SELECT id FROM chunks WHERE doc_id = ?').all(old.id) as {
+      id: number;
+    }[];
     const delVecChunk = db.prepare('DELETE FROM vec_chunks WHERE rowid = ?');
     const delFtsChunk = db.prepare('DELETE FROM fts_chunks WHERE rowid = ?');
     for (const { id } of chunkIds) {
@@ -343,9 +336,9 @@ export async function syncFile(
     db.prepare('DELETE FROM chunks WHERE doc_id = ?').run(old.id);
 
     // 2. page_summaries + vec_pages + fts_pages（外键拦 documents 删除，必须先清）
-    const pageIds = db
-      .prepare('SELECT id FROM page_summaries WHERE doc_id = ?')
-      .all(old.id) as { id: number }[];
+    const pageIds = db.prepare('SELECT id FROM page_summaries WHERE doc_id = ?').all(old.id) as {
+      id: number;
+    }[];
     const delVecPage = db.prepare('DELETE FROM vec_pages WHERE rowid = ?');
     const delFtsPage = db.prepare('DELETE FROM fts_pages WHERE rowid = ?');
     for (const { id } of pageIds) {
@@ -459,9 +452,7 @@ export function queryLayered(
   // 从 dir_summaries.slug_list 拿 L0 命中分区覆盖的所有 slug
   const dirIds = l0Rows.map((r) => r.id);
   const dirRows = db
-    .prepare(
-      `SELECT slug_list FROM dir_summaries WHERE id IN (${dirIds.map(() => '?').join(',')})`,
-    )
+    .prepare(`SELECT slug_list FROM dir_summaries WHERE id IN (${dirIds.map(() => '?').join(',')})`)
     .all(...dirIds) as { slug_list: string }[];
 
   const candidateSlugs = new Set<string>();
@@ -484,9 +475,7 @@ export function queryLayered(
   const candidateDocIds = new Set<number>();
   for (const { id, path } of docRows) {
     const stem = path.replace(/\.md$/, '');
-    const folderSlug = path.endsWith('/article.md')
-      ? path.replace(/\/article\.md$/, '')
-      : null;
+    const folderSlug = path.endsWith('/article.md') ? path.replace(/\/article\.md$/, '') : null;
     if (candidateSlugs.has(path) || candidateSlugs.has(stem)) {
       candidateDocIds.add(id);
     } else if (folderSlug && candidateSlugs.has(folderSlug)) {
@@ -499,9 +488,7 @@ export function queryLayered(
   // L1: top-5 pages，候选限定在 L0 命中分区覆盖的 doc_id
   const docIdArr = [...candidateDocIds];
   const candidatePageIds = db
-    .prepare(
-      `SELECT id FROM page_summaries WHERE doc_id IN (${docIdArr.map(() => '?').join(',')})`,
-    )
+    .prepare(`SELECT id FROM page_summaries WHERE doc_id IN (${docIdArr.map(() => '?').join(',')})`)
     .all(...docIdArr) as { id: number }[];
 
   if (candidatePageIds.length === 0) return [];
@@ -534,9 +521,7 @@ export function queryLayered(
   // L2: chunks within matched docs
   const docIdList = docIds.map((r) => r.doc_id);
   const candidateChunkIds = db
-    .prepare(
-      `SELECT id FROM chunks WHERE doc_id IN (${docIdList.map(() => '?').join(',')})`,
-    )
+    .prepare(`SELECT id FROM chunks WHERE doc_id IN (${docIdList.map(() => '?').join(',')})`)
     .all(...docIdList) as { id: number }[];
 
   if (candidateChunkIds.length === 0) return [];
@@ -614,11 +599,7 @@ function sanitizeFtsQuery(q: string): string {
  *
  * FTS5 的 rank 字段是 BM25 分数（负数，越小越相关）。返回里 score 字段归一为正数。
  */
-export function queryBM25Layered(
-  db: Db,
-  queryText: string,
-  topK: number,
-): QueryResult[] {
+export function queryBM25Layered(db: Db, queryText: string, topK: number): QueryResult[] {
   const ftsQ = sanitizeFtsQuery(queryText);
   if (!ftsQ) return [];
 
@@ -637,9 +618,7 @@ export function queryBM25Layered(
 
   const dirIds = l0Rows.map((r) => r.id);
   const dirRows = db
-    .prepare(
-      `SELECT slug_list FROM dir_summaries WHERE id IN (${dirIds.map(() => '?').join(',')})`,
-    )
+    .prepare(`SELECT slug_list FROM dir_summaries WHERE id IN (${dirIds.map(() => '?').join(',')})`)
     .all(...dirIds) as { slug_list: string }[];
 
   const candidateSlugs = new Set<string>();
@@ -647,7 +626,9 @@ export function queryBM25Layered(
     try {
       const list = JSON.parse(row.slug_list) as string[];
       for (const s of list) candidateSlugs.add(s);
-    } catch { /* skip */ }
+    } catch {
+      /* skip */
+    }
   }
   if (candidateSlugs.size === 0) return [];
 
@@ -658,9 +639,7 @@ export function queryBM25Layered(
   const candidateDocIds = new Set<number>();
   for (const { id, path } of docRows) {
     const stem = path.replace(/\.md$/, '');
-    const folderSlug = path.endsWith('/article.md')
-      ? path.replace(/\/article\.md$/, '')
-      : null;
+    const folderSlug = path.endsWith('/article.md') ? path.replace(/\/article\.md$/, '') : null;
     if (candidateSlugs.has(path) || candidateSlugs.has(stem)) {
       candidateDocIds.add(id);
     } else if (folderSlug && candidateSlugs.has(folderSlug)) {
@@ -731,11 +710,7 @@ export function queryBM25Layered(
  * 公式：score(item) = Σ 1 / (k + rank_i)  （rank 从 1 开始，k 默认 60）
  * 在两路都靠前的 item 最终 score 最高。
  */
-export function rrfMerge(
-  lists: QueryResult[][],
-  topK: number,
-  k: number = 60,
-): QueryResult[] {
+export function rrfMerge(lists: QueryResult[][], topK: number, k: number = 60): QueryResult[] {
   // key = file + chunk 前 80 字（防 chunk 内容重复），value = { item, rrf }
   const merged = new Map<string, { item: QueryResult; rrf: number }>();
   for (const list of lists) {
@@ -835,9 +810,7 @@ function parseIndexSections(
  * 解析 `{dir}/_INDEX.md` 表格行：`| [[slug]] | summary | updated |`
  * 跳过表头（含"条目"二字）和分隔行（全是 - 和 |）
  */
-function parseIndexEntries(
-  content: string,
-): Array<{ slug: string; summary: string }> {
+function parseIndexEntries(content: string): Array<{ slug: string; summary: string }> {
   const lines = content.split('\n');
   const entries: Array<{ slug: string; summary: string }> = [];
 
@@ -845,9 +818,7 @@ function parseIndexEntries(
     if (/^\|\s*条目\s*\|/.test(line)) continue;
     if (/^\|[\s\-|]+\|?\s*$/.test(line)) continue;
 
-    const m = line.match(
-      /^\|\s*\[\[([^\]|#]+?)\]\]\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|/,
-    );
+    const m = line.match(/^\|\s*\[\[([^\]|#]+?)\]\]\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|/);
     if (!m) continue;
     const slug = m[1].trim();
     const summary = m[2].replace(/\\\|/g, '|').trim();
@@ -887,11 +858,7 @@ function findAllIndexFiles(corpus: string): string[] {
   return results.sort();
 }
 
-export async function buildLayeredIndex(
-  db: Db,
-  corpus: string,
-  embedFn: EmbedFn,
-): Promise<void> {
+export async function buildLayeredIndex(db: Db, corpus: string, embedFn: EmbedFn): Promise<void> {
   // --- L0: 从 corpus/index.md 按 ## 分区切，每区一条向量 + 一条 FTS ---
   db.prepare('DELETE FROM dir_summaries').run();
   db.prepare('DELETE FROM vec_dirs').run();
@@ -914,9 +881,7 @@ export async function buildLayeredIndex(
       const insertDir = db.prepare(
         'INSERT INTO dir_summaries (dir_path, summary, embedding, slug_list) VALUES (?, ?, ?, ?)',
       );
-      const insertFtsDir = db.prepare(
-        'INSERT INTO fts_dirs(rowid, summary) VALUES (?, ?)',
-      );
+      const insertFtsDir = db.prepare('INSERT INTO fts_dirs(rowid, summary) VALUES (?, ?)');
       for (let i = 0; i < sections.length; i++) {
         const blob = float32ToBuffer(embeddings[i]);
         const slugListJson = JSON.stringify(sections[i].slugs);
@@ -980,9 +945,7 @@ export async function buildLayeredIndex(
     }
     // 向量输入用 summary；summary 缺失时退回 slug（至少有语义路径）
     const text =
-      e.summary && e.summary !== '—' && e.summary !== '（缺少 frontmatter）'
-        ? e.summary
-        : e.slug;
+      e.summary && e.summary !== '—' && e.summary !== '（缺少 frontmatter）' ? e.summary : e.slug;
     matched.push({ docId, text, slug: e.slug });
   }
 
@@ -995,9 +958,7 @@ export async function buildLayeredIndex(
   const insertPage = db.prepare(
     'INSERT INTO page_summaries (doc_id, summary, embedding) VALUES (?, ?, ?)',
   );
-  const insertFtsPage = db.prepare(
-    'INSERT INTO fts_pages(rowid, summary) VALUES (?, ?)',
-  );
+  const insertFtsPage = db.prepare('INSERT INTO fts_pages(rowid, summary) VALUES (?, ?)');
   for (let i = 0; i < matched.length; i += BATCH) {
     const batch = matched.slice(i, i + BATCH);
     const texts = batch.map((m) => m.text);
@@ -1063,18 +1024,14 @@ export async function getStatus(corpus: string): Promise<StatusInfo> {
 
   const db = await openDb(corpus);
 
-  const docCount = (
-    db.prepare('SELECT COUNT(*) as n FROM documents').get() as { n: number }
-  ).n;
-  const chunkCount = (
-    db.prepare('SELECT COUNT(*) as n FROM chunks').get() as { n: number }
-  ).n;
-  const lastSync = db
-    .prepare("SELECT value FROM meta WHERE key = 'last_sync'")
-    .get() as { value: string } | undefined;
-  const model = db
-    .prepare("SELECT value FROM meta WHERE key = 'model'")
-    .get() as { value: string } | undefined;
+  const docCount = (db.prepare('SELECT COUNT(*) as n FROM documents').get() as { n: number }).n;
+  const chunkCount = (db.prepare('SELECT COUNT(*) as n FROM chunks').get() as { n: number }).n;
+  const lastSync = db.prepare("SELECT value FROM meta WHERE key = 'last_sync'").get() as
+    | { value: string }
+    | undefined;
+  const model = db.prepare("SELECT value FROM meta WHERE key = 'model'").get() as
+    | { value: string }
+    | undefined;
   const dim = db.prepare("SELECT value FROM meta WHERE key = 'dim'").get() as
     | { value: string }
     | undefined;
@@ -1084,12 +1041,8 @@ export async function getStatus(corpus: string): Promise<StatusInfo> {
   let dirCount = 0;
   let pageCount = 0;
   try {
-    dirCount = (
-      db.prepare('SELECT COUNT(*) as n FROM dir_summaries').get() as { n: number }
-    ).n;
-    pageCount = (
-      db.prepare('SELECT COUNT(*) as n FROM page_summaries').get() as { n: number }
-    ).n;
+    dirCount = (db.prepare('SELECT COUNT(*) as n FROM dir_summaries').get() as { n: number }).n;
+    pageCount = (db.prepare('SELECT COUNT(*) as n FROM page_summaries').get() as { n: number }).n;
   } catch {
     // tables may not exist in older DBs
   }

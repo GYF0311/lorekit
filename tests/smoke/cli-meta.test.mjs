@@ -3,14 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  runLorekit,
-  mkTmpDir,
-  cleanupTmpDir,
-  fmtRun,
-  VERSION,
-  hasSqliteVec,
-} from './_util.mjs';
+import { runLorekit, mkTmpDir, cleanupTmpDir, fmtRun, VERSION, hasSqliteVec } from './_util.mjs';
 
 test('lorekit --version 输出 VERSION 文件内容', () => {
   const args = ['--version'];
@@ -62,11 +55,7 @@ test('vector query 无 sqlite-vec 时报错（当前装了就跳过）', async (
     const args = ['vector', 'query', '--text', 'foo'];
     const r = runLorekit(args, { cwd: tmp });
     assert.notEqual(r.status, 0, fmtRun(r, args, 'exit != 0 (缺 sqlite-vec)'));
-    assert.match(
-      r.stderr,
-      /sqlite-vec/i,
-      fmtRun(r, args, 'stderr 提示 sqlite-vec'),
-    );
+    assert.match(r.stderr, /sqlite-vec/i, fmtRun(r, args, 'stderr 提示 sqlite-vec'));
   } finally {
     cleanupTmpDir(tmp);
   }

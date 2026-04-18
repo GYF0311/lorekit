@@ -27,16 +27,16 @@ export type IngestStep = 'fetch' | 'archive' | 'wiki' | 'backlink' | 'lint';
 export interface IngestRecord {
   url: string;
   title?: string;
-  sourceDate?: string;        // YYYY-MM-DD
-  startedAt: string;          // ISO timestamp
-  updatedAt: string;          // ISO timestamp
+  sourceDate?: string; // YYYY-MM-DD
+  startedAt: string; // ISO timestamp
+  updatedAt: string; // ISO timestamp
   status: IngestStatus;
   stepsDone: IngestStep[];
-  workbenchMd?: string;       // absolute path to <slug>.md while status=fetched
+  workbenchMd?: string; // absolute path to <slug>.md while status=fetched
   // 老字段，兼容 0.3.x 之前的 state.json（产物是 <slug>/article.md 嵌套结构）
   workbenchDir?: string;
-  archivedTo?: string;        // relative-to-corpus path (e.g. 原料/剪藏/xxx)
-  wikiPages?: string[];       // relative-to-corpus paths
+  archivedTo?: string; // relative-to-corpus path (e.g. 原料/剪藏/xxx)
+  wikiPages?: string[]; // relative-to-corpus paths
   error?: string;
 }
 
@@ -77,10 +77,7 @@ export function saveIngestState(corpus: string, state: IngestStateFile): void {
   writeFileSync(p, serialized + '\n', 'utf-8');
 }
 
-export function getIngestRecord(
-  corpus: string,
-  url: string,
-): IngestRecord | undefined {
+export function getIngestRecord(corpus: string, url: string): IngestRecord | undefined {
   return loadIngestState(corpus).ingests[url];
 }
 
@@ -95,13 +92,13 @@ export function upsertIngestRecord(
   const merged: IngestRecord = existing
     ? { ...existing, ...patch, url, updatedAt: now }
     : {
-      url,
-      startedAt: now,
-      updatedAt: now,
-      status: (patch.status as IngestStatus) ?? 'started',
-      stepsDone: patch.stepsDone ?? [],
-      ...patch,
-    };
+        url,
+        startedAt: now,
+        updatedAt: now,
+        status: (patch.status as IngestStatus) ?? 'started',
+        stepsDone: patch.stepsDone ?? [],
+        ...patch,
+      };
   // Dedup stepsDone
   if (merged.stepsDone) {
     merged.stepsDone = Array.from(new Set(merged.stepsDone));
@@ -121,9 +118,7 @@ export function deleteIngestRecord(corpus: string, url: string): boolean {
 
 export function listPendingIngests(corpus: string): IngestRecord[] {
   const state = loadIngestState(corpus);
-  return Object.values(state.ingests).filter(
-    (r) => r.status !== 'completed',
-  );
+  return Object.values(state.ingests).filter((r) => r.status !== 'completed');
 }
 
 /**

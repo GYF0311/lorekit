@@ -15,6 +15,7 @@ description: 从 corpus 检索已有内容并综合答案，按精确/模糊/图
 - 用户抛一个概念性问题，且明显在问已有知识库，而不是要上网
 
 **不要触发**：
+
 - 查询后用户说"把这个记下来" → 交给 `wiki-fileback`
 - 用户给了新外部资料要存 → 交给 `wiki-ingest`
 - 用户在问需要上网的新知识 → 用 `WebSearch` / `WebFetch`
@@ -23,19 +24,21 @@ description: 从 corpus 检索已有内容并综合答案，按精确/模糊/图
 
 **铁律**：先跑 `lorekit vector status`，直接看返回的 `mode` 字段决定路径。
 
-| 返回的 `mode` | 路径 |
-|---|---|
-| `"text"` | 走 Read 三层（见下方 Decision tree §2 的文本模式） |
-| `"vector"` | 走向量分层召回（见下方 Decision tree §2 的向量模式） |
+| 返回的 `mode` | 路径                                                 |
+| ------------- | ---------------------------------------------------- |
+| `"text"`      | 走 Read 三层（见下方 Decision tree §2 的文本模式）   |
+| `"vector"`    | 走向量分层召回（见下方 Decision tree §2 的向量模式） |
 
 **用户显式覆盖**：`--text` 或 `--vector` flag 优先于系统推荐的 mode。
 
 **为什么不在 skill 里写阈值数字**：
+
 - 阈值是系统参数，归 lorekit 代码持有（当前定义在 `src/lib/vectordb.ts::MODE_THRESHOLD_FILES`，按 Karpathy 原文锚定为 100 files）
 - skill 只负责"读 mode → 走对应路径"的流程判断
 - 未来阈值改了，skill 不用动，所有 skill 通过 `vector status` 自动跟随
 
 **status 返回字段解读**：
+
 - `indexed_files`: 文档总数（用来算 mode 的那个数字）
 - `mode_threshold`: 当前阈值（只读，参考用）
 - `mode_reason`: 一句话说明为什么是这个 mode
@@ -58,11 +61,13 @@ description: 从 corpus 检索已有内容并综合答案，按精确/模糊/图
 ### 2. 模糊语义（概念性 / 意图类 / "跟 X 相关的东西"）
 
 **文本模式**：
+
 - Read `corpus/index.md` → AI 按语义选 1-3 个分区
 - Read `{选中分区}/_INDEX.md` → 选具体页
 - Read 具体 `.md` 文件 → 综合答案
 
 **向量模式**（阶段 2 标配走混合检索，不是纯向量）：
+
 - `lorekit vector query --hybrid --text "<q>"` → BM25 + 向量分层 RRF 融合，返回 top-k chunk
   - BM25 擅长精确词（专有名词/日期/代码符号）
   - 向量擅长语义（意图/同义改写）
@@ -130,6 +135,7 @@ description: 从 corpus 检索已有内容并综合答案，按精确/模糊/图
 - **答案是**"corpus 里没有" → 同上，不提议 fileback
 
 **为什么这个闭环重要**：
+
 - 综合答案是 LLM 的劳动成果，不存下次就要重做
 - 用户的关注点是**临时**从短期记忆变成**长期**沉淀的唯一入口
 - 这是 corpus 从"静态数据"升级成"活知识"的核心机制

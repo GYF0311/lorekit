@@ -92,7 +92,7 @@
   cursor: pointer;
   display: inline-block;
 }
-.llm-wiki-audit-modal .audit-severity input[type="radio"] {
+.llm-wiki-audit-modal .audit-severity input[type='radio'] {
   position: absolute;
   opacity: 0;
   pointer-events: none;
@@ -112,17 +112,25 @@
   user-select: none;
 }
 .llm-wiki-audit-modal .audit-severity .audit-chip::before {
-  content: "";
+  content: '';
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: currentColor;
   transition: box-shadow 160ms ease;
 }
-.llm-wiki-audit-modal .audit-severity label[data-sev="info"]    .audit-chip { color: var(--audit-sev-info); }
-.llm-wiki-audit-modal .audit-severity label[data-sev="suggest"] .audit-chip { color: var(--audit-sev-suggest); }
-.llm-wiki-audit-modal .audit-severity label[data-sev="warn"]    .audit-chip { color: var(--audit-sev-warn); }
-.llm-wiki-audit-modal .audit-severity label[data-sev="error"]   .audit-chip { color: var(--audit-sev-error); }
+.llm-wiki-audit-modal .audit-severity label[data-sev='info'] .audit-chip {
+  color: var(--audit-sev-info);
+}
+.llm-wiki-audit-modal .audit-severity label[data-sev='suggest'] .audit-chip {
+  color: var(--audit-sev-suggest);
+}
+.llm-wiki-audit-modal .audit-severity label[data-sev='warn'] .audit-chip {
+  color: var(--audit-sev-warn);
+}
+.llm-wiki-audit-modal .audit-severity label[data-sev='error'] .audit-chip {
+  color: var(--audit-sev-error);
+}
 .llm-wiki-audit-modal .audit-severity label:hover .audit-chip {
   background: var(--background-secondary-alt);
   border-color: currentColor;
@@ -133,7 +141,9 @@
   color: var(--text-normal);
 }
 .llm-wiki-audit-modal .audit-severity input:checked + .audit-chip::before {
-  box-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
+  box-shadow:
+    0 0 10px currentColor,
+    0 0 20px currentColor;
 }
 
 /* Textarea */
@@ -149,7 +159,9 @@
   border: 1px solid var(--background-modifier-border);
   border-radius: 10px;
   resize: vertical;
-  transition: border-color 160ms ease, box-shadow 160ms ease;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
   font-family: var(--font-text);
 }
 .llm-wiki-audit-modal textarea.audit-comment:focus {

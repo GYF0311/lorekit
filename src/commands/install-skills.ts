@@ -1,5 +1,13 @@
 import { Command } from 'commander';
-import { existsSync, mkdirSync, readdirSync, symlinkSync, unlinkSync, readlinkSync, lstatSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  symlinkSync,
+  unlinkSync,
+  readlinkSync,
+  lstatSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { lorekitRoot } from '../utils/fs.js';
 import { ok, err } from '../utils/logger.js';
@@ -57,9 +65,13 @@ export function installSkillsCommand(program: Command): void {
 
     // Find wiki-* skill directories
     const allNames = readdirSync(skillsSrc, { encoding: 'utf-8' });
-    const skillNames = allNames.filter(name => {
+    const skillNames = allNames.filter((name) => {
       if (!name.startsWith('wiki-')) return false;
-      try { return lstatSync(join(skillsSrc, name)).isDirectory(); } catch { return false; }
+      try {
+        return lstatSync(join(skillsSrc, name)).isDirectory();
+      } catch {
+        return false;
+      }
     });
 
     let count = 0;

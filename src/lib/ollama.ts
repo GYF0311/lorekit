@@ -5,10 +5,7 @@
 const OLLAMA_URL = 'http://localhost:11434/api/embed';
 const DEFAULT_MODEL = 'bge-m3';
 
-export async function embed(
-  texts: string[],
-  model = DEFAULT_MODEL,
-): Promise<Float32Array[]> {
+export async function embed(texts: string[], model = DEFAULT_MODEL): Promise<Float32Array[]> {
   const payload = JSON.stringify({ model, input: texts });
 
   let resp: Response;
@@ -38,10 +35,7 @@ export async function embed(
   return embeddings.map((e) => new Float32Array(e));
 }
 
-export async function embedSingle(
-  text: string,
-  model = DEFAULT_MODEL,
-): Promise<Float32Array> {
+export async function embedSingle(text: string, model = DEFAULT_MODEL): Promise<Float32Array> {
   const results = await embed([text], model);
   return results[0];
 }

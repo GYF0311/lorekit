@@ -24,24 +24,24 @@ Three layers:
 
 ## Feature Map
 
-| Feature | Command | Notes |
-|---|---|---|
-| Launch screen | `lorekit` | No-arg invocation prints the blue logo + corpus status |
-| Init | `lorekit init` | Scaffolds the corpus, deploys the Obsidian plugin, auto-backs up pre-existing content |
-| Doctor | `lorekit doctor` | Directory integrity, frontmatter coverage, stale workbench reminders |
-| Stats | `lorekit stats` | Page count, type breakdown |
-| Search | `lorekit search` | Text search + vector semantic search (hybrid) |
-| Web fetch | `lorekit fetch <url>` | Pulls WeChat / generic pages into the workbench; auto-extracts `publishDate`, writes spec-compliant frontmatter, detects duplicate / in-progress URLs from state.json |
-| Ingest state | `lorekit ingest <sub>` | `list` / `pending` / `record` / `forget` / `reconcile` — the single source of truth for ingest pipeline progress |
-| Lint | `lorekit lint` | Broken wikilinks, orphan pages, duplicate detection |
-| Snapshot | `lorekit snapshot` | Full-corpus tarball + manifest |
-| Restore | `lorekit restore` | Recover missing / changed files from a snapshot |
-| Audit | `lorekit audit` | Create / list / resolve human feedback on wiki pages |
-| Vector sync | `lorekit vector sync` | Incrementally embed the corpus into sqlite-vec + FTS5 |
-| Vector query | `lorekit vector query` | Search modes: `--layered` (vector), `--bm25` (FTS5), `--hybrid` (both + RRF) |
-| Vector status | `lorekit vector status` | Inspect the index; returns `mode: text\|vector` recommendation based on `indexed_files` vs `MODE_THRESHOLD_FILES` (default 100) |
-| Directory index | `lorekit index` | Recursively generate `_INDEX.md` for every subdirectory (including folder-packaged sources like `原料/文章/<slug>/article.md`) |
-| **Sync** | **`lorekit sync`** | **One-shot: `index` → `vector sync --layered` → `doctor`. Use this after every ingest/fileback to keep text index + vector store aligned** |
+| Feature         | Command                 | Notes                                                                                                                                                                 |
+| --------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Launch screen   | `lorekit`               | No-arg invocation prints the blue logo + corpus status                                                                                                                |
+| Init            | `lorekit init`          | Scaffolds the corpus, deploys the Obsidian plugin, auto-backs up pre-existing content                                                                                 |
+| Doctor          | `lorekit doctor`        | Directory integrity, frontmatter coverage, stale workbench reminders                                                                                                  |
+| Stats           | `lorekit stats`         | Page count, type breakdown                                                                                                                                            |
+| Search          | `lorekit search`        | Text search + vector semantic search (hybrid)                                                                                                                         |
+| Web fetch       | `lorekit fetch <url>`   | Pulls WeChat / generic pages into the workbench; auto-extracts `publishDate`, writes spec-compliant frontmatter, detects duplicate / in-progress URLs from state.json |
+| Ingest state    | `lorekit ingest <sub>`  | `list` / `pending` / `record` / `forget` / `reconcile` — the single source of truth for ingest pipeline progress                                                      |
+| Lint            | `lorekit lint`          | Broken wikilinks, orphan pages, duplicate detection                                                                                                                   |
+| Snapshot        | `lorekit snapshot`      | Full-corpus tarball + manifest                                                                                                                                        |
+| Restore         | `lorekit restore`       | Recover missing / changed files from a snapshot                                                                                                                       |
+| Audit           | `lorekit audit`         | Create / list / resolve human feedback on wiki pages                                                                                                                  |
+| Vector sync     | `lorekit vector sync`   | Incrementally embed the corpus into sqlite-vec + FTS5                                                                                                                 |
+| Vector query    | `lorekit vector query`  | Search modes: `--layered` (vector), `--bm25` (FTS5), `--hybrid` (both + RRF)                                                                                          |
+| Vector status   | `lorekit vector status` | Inspect the index; returns `mode: text\|vector` recommendation based on `indexed_files` vs `MODE_THRESHOLD_FILES` (default 100)                                       |
+| Directory index | `lorekit index`         | Recursively generate `_INDEX.md` for every subdirectory (including folder-packaged sources like `原料/文章/<slug>/article.md`)                                        |
+| **Sync**        | **`lorekit sync`**      | **One-shot: `index` → `vector sync --layered` → `doctor`. Use this after every ingest/fileback to keep text index + vector store aligned**                            |
 
 > The CLI is named `lorekit`. The 6 Agent Skills keep the `wiki-` prefix (a nod to Karpathy's LLM Wiki): `wiki-ingest` / `wiki-query` / `wiki-fileback` / `wiki-lint` / `wiki-enrich` / `wiki-audit`.
 
@@ -74,12 +74,12 @@ Fine-grained progress is tracked in a `stepsDone[]` array so an interrupted inge
 
 **Status transitions** driven by `lorekit ingest record --step <X>`:
 
-| Action | `status` | `stepsDone` |
-|---|---|---|
-| `lorekit fetch <url>` (success) | `started` | `[fetch]` |
-| `lorekit ingest record <url> --step archive` | `started` | `[fetch, archive]` |
-| `lorekit ingest record <url> --step wiki` | `started` | `[fetch, archive, wiki]` |
-| `lorekit ingest record <url> --step lint` | **`completed`** | `[fetch, archive, wiki, lint]` |
+| Action                                       | `status`        | `stepsDone`                    |
+| -------------------------------------------- | --------------- | ------------------------------ |
+| `lorekit fetch <url>` (success)              | `started`       | `[fetch]`                      |
+| `lorekit ingest record <url> --step archive` | `started`       | `[fetch, archive]`             |
+| `lorekit ingest record <url> --step wiki`    | `started`       | `[fetch, archive, wiki]`       |
+| `lorekit ingest record <url> --step lint`    | **`completed`** | `[fetch, archive, wiki, lint]` |
 
 Only `--step lint` auto-promotes to `completed`. Every other `--step` keeps the top status at `started` — all progress detail lives in `stepsDone`. Explicit `--complete` and `--fail <reason>` are also available.
 
@@ -131,13 +131,13 @@ claude  # or codex / cursor / kimi …
 
 ### Dependencies
 
-| Tool | Purpose | Install | Required |
-|---|---|---|---|
-| Node.js ≥ 18 | JS runtime | `brew install node` | ✅ |
-| git | Version control | ships with macOS/Linux | ✅ |
-| ripgrep | Text-search acceleration | `brew install ripgrep` | Optional |
-| ollama | Local embedding runtime | `brew install ollama` | Optional |
-| bge-m3 | Embedding model | `ollama pull bge-m3` | Optional |
+| Tool         | Purpose                  | Install                | Required |
+| ------------ | ------------------------ | ---------------------- | -------- |
+| Node.js ≥ 18 | JS runtime               | `brew install node`    | ✅       |
+| git          | Version control          | ships with macOS/Linux | ✅       |
+| ripgrep      | Text-search acceleration | `brew install ripgrep` | Optional |
+| ollama       | Local embedding runtime  | `brew install ollama`  | Optional |
+| bge-m3       | Embedding model          | `ollama pull bge-m3`   | Optional |
 
 **Only Node.js is required.** No bash / Python / uv / pip. lorekit is pure TypeScript, cross-platform (macOS / Linux / Windows).
 
@@ -191,12 +191,12 @@ lorekit vector query --bm25    --text "xxx" # FTS5-only BM25 (debug precise keyw
 
 Swappable embedding models (any ollama-hosted model works):
 
-| Model | Install | Size | Dim | Best for |
-|---|---|---|---|---|
-| **bge-m3** (default) | `ollama pull bge-m3` | 1.2 GB | 1024 | Chinese+English, balanced |
-| nomic-embed-text | `ollama pull nomic-embed-text` | 274 MB | 768 | English-heavy, lightweight |
-| mxbai-embed-large | `ollama pull mxbai-embed-large` | 670 MB | 1024 | Strong English |
-| all-minilm | `ollama pull all-minilm` | 45 MB | 384 | Ultra-lightweight |
+| Model                | Install                         | Size   | Dim  | Best for                   |
+| -------------------- | ------------------------------- | ------ | ---- | -------------------------- |
+| **bge-m3** (default) | `ollama pull bge-m3`            | 1.2 GB | 1024 | Chinese+English, balanced  |
+| nomic-embed-text     | `ollama pull nomic-embed-text`  | 274 MB | 768  | English-heavy, lightweight |
+| mxbai-embed-large    | `ollama pull mxbai-embed-large` | 670 MB | 1024 | Strong English             |
+| all-minilm           | `ollama pull all-minilm`        | 45 MB  | 384  | Ultra-lightweight          |
 
 ## Progressive Disclosure
 
@@ -255,12 +255,12 @@ Mode switch is automatic. `lorekit vector status` returns a `mode` field (`text`
 
 In vector mode, `--hybrid` runs three-tier BM25 (via SQLite FTS5, `trigram` tokenizer for CJK) in parallel with three-tier vector, then merges results by **Reciprocal Rank Fusion** (`score = Σ 1/(k+rank)`, k=60).
 
-| Signal | BM25 (FTS5) | Vector (bge-m3) | RRF fusion |
-|---|---|---|---|
-| Exact entity names | ✅ nails it | ⚠️ averaged out | takes the BM25 winner |
-| Dates like `2026-04-15` | ✅ exact | ⚠️ cosine-similar to other dates | BM25 dominates |
-| Fuzzy intent ("relationship between X and Y") | ⚠️ AND-too-strict | ✅ embeddings shine | vector dominates |
-| Mixed (entity + intent) | partial | partial | both contribute → stable |
+| Signal                                        | BM25 (FTS5)       | Vector (bge-m3)                  | RRF fusion               |
+| --------------------------------------------- | ----------------- | -------------------------------- | ------------------------ |
+| Exact entity names                            | ✅ nails it       | ⚠️ averaged out                  | takes the BM25 winner    |
+| Dates like `2026-04-15`                       | ✅ exact          | ⚠️ cosine-similar to other dates | BM25 dominates           |
+| Fuzzy intent ("relationship between X and Y") | ⚠️ AND-too-strict | ✅ embeddings shine              | vector dominates         |
+| Mixed (entity + intent)                       | partial           | partial                          | both contribute → stable |
 
 LLM re-rank (the 4th stage in the qmd reference architecture) is **not yet implemented** — see `docs/IDEAS.md` for the rationale and four possible routes when the time comes.
 
@@ -346,12 +346,12 @@ Open any wiki page, select some text, press `Cmd + '` (or run "Add feedback on s
 
 Four severity levels:
 
-| Level | Meaning |
-|---|---|
-| `info` | Additional context, not an error |
-| `suggest` | Improvement suggestion |
-| `warn` | Needs attention |
-| `error` | Must fix |
+| Level     | Meaning                          |
+| --------- | -------------------------------- |
+| `info`    | Additional context, not an error |
+| `suggest` | Improvement suggestion           |
+| `warn`    | Needs attention                  |
+| `error`   | Must fix                         |
 
 Click **Save feedback** → written to `反馈/待处理/<timestamp>-<slug>.md` with anchor context (resilient to page edits).
 
@@ -408,42 +408,42 @@ lorekit would not exist without the following projects and people.
 
 ### Core inspiration
 
-| Source | Author | Contribution |
-|---|---|---|
+| Source                                                                             | Author              | Contribution                                                                                                                                                                                                         |
+| ---------------------------------------------------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [LLM Wiki Gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) | **Andrej Karpathy** | The core idea — three-layer architecture (raw / wiki / schema), the ingest / query / lint triad, the philosophy that "the wiki is a compilation cache, not the content itself." lorekit's soul comes from this gist. |
-| [llm-wiki-skill](https://github.com/lewislulu/llm-wiki-skill) | **Lewis Liu** | Audit feedback system design, Obsidian audit plugin, references-doc structure. lorekit's `反馈/` directory and audit plugin directly reference this project. |
+| [llm-wiki-skill](https://github.com/lewislulu/llm-wiki-skill)                      | **Lewis Liu**       | Audit feedback system design, Obsidian audit plugin, references-doc structure. lorekit's `反馈/` directory and audit plugin directly reference this project.                                                         |
 
 ### Referenced projects
 
-| Project | Author | Contribution |
-|---|---|---|
+| Project                                             | Author      | Contribution                                                         |
+| --------------------------------------------------- | ----------- | -------------------------------------------------------------------- |
 | [OpenViking](https://github.com/nicepkg/OpenViking) | **nicepkg** | Context Database design, inspired lorekit's layered vector retrieval |
 
 ### Key dependencies
 
-| Project | Author | Purpose |
-|---|---|---|
-| [bge-m3](https://huggingface.co/BAAI/bge-m3) | **BAAI** | Default embedding model (1024-d, 100+ languages) |
-| [sqlite-vec](https://github.com/asg017/sqlite-vec) | **Alex Garcia** | Vector storage (single-file sqlite extension) |
-| [ollama](https://github.com/ollama/ollama) | **Ollama Inc.** | Local model inference, zero-config embedding API |
-| [qmd](https://github.com/tobi/qmd) | **Tobi Lütke** (Shopify CEO) | Karpathy-endorsed local markdown search — our search design references it |
+| Project                                            | Author                       | Purpose                                                                   |
+| -------------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------- |
+| [bge-m3](https://huggingface.co/BAAI/bge-m3)       | **BAAI**                     | Default embedding model (1024-d, 100+ languages)                          |
+| [sqlite-vec](https://github.com/asg017/sqlite-vec) | **Alex Garcia**              | Vector storage (single-file sqlite extension)                             |
+| [ollama](https://github.com/ollama/ollama)         | **Ollama Inc.**              | Local model inference, zero-config embedding API                          |
+| [qmd](https://github.com/tobi/qmd)                 | **Tobi Lütke** (Shopify CEO) | Karpathy-endorsed local markdown search — our search design references it |
 
 ### Indirect influences
 
-| Source | Influence |
-|---|---|
-| Vannevar Bush, "As We May Think" (1945) | The Memex concept Karpathy cites — curated personal knowledge where the links matter more than the documents |
-| ByteDance RAG field guide | Chunking strategies, hybrid-retrieval engineering |
-| Coze Studio source | Four-step knowledge-base pipeline design |
-| [MTEB Leaderboard](https://huggingface.co/spaces/mteb/leaderboard) | Embedding-model selection |
+| Source                                                             | Influence                                                                                                    |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| Vannevar Bush, "As We May Think" (1945)                            | The Memex concept Karpathy cites — curated personal knowledge where the links matter more than the documents |
+| ByteDance RAG field guide                                          | Chunking strategies, hybrid-retrieval engineering                                                            |
+| Coze Studio source                                                 | Four-step knowledge-base pipeline design                                                                     |
+| [MTEB Leaderboard](https://huggingface.co/spaces/mteb/leaderboard) | Embedding-model selection                                                                                    |
 
 ### Design principles
 
-| Principle | Origin |
-|---|---|
-| "Thin CLI, fat skills" | Garry Tan (YC CEO) — latent judgment in markdown |
-| "Filesystem is all you need" | Unix philosophy + Obsidian's plain-file design |
-| "Compiled Truth + Timeline" | Wikipedia — editable body + append-only history |
+| Principle                        | Origin                                                      |
+| -------------------------------- | ----------------------------------------------------------- |
+| "Thin CLI, fat skills"           | Garry Tan (YC CEO) — latent judgment in markdown            |
+| "Filesystem is all you need"     | Unix philosophy + Obsidian's plain-file design              |
+| "Compiled Truth + Timeline"      | Wikipedia — editable body + append-only history             |
 | Per-corpus CLAUDE.md / AGENTS.md | Karpathy's schema concept + Claude Code / Codex conventions |
 
 ## License

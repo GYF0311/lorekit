@@ -9,30 +9,30 @@
 
 ## 总览
 
-| # | 标题 | LEGACY | 风险 | 估时 | 依赖 |
-|---|---|---|---|---|---|
-| ✅ 1 | smoke + verify 落地 | P1-4 | 低 | — | — |
-| ✅ 2 | tsc 解锁 + init 绝对路径修（作为"批次 0"在批次 1 之后立刻完成） | P1-7, P1-8 | 低 | — | 1 |
-| 3 | ESLint + Prettier 配置 | P1-5 | 低 | 1h | 1 |
-| 4 | cli.ts ESM `require()` 修 | P1-6 | 低 | 30m | 1, 2 |
-| 5 | 建 lib/paths.ts + 迁 corpus.ts | P1-1 (a) | 低 | 1h | 2 |
-| 6 | paths.ts 迁 vectordb.ts 常量 | P1-1 (b) | 中 | 30m | 5 |
-| 7 | paths.ts 迁 commands/{index,lint,snapshot} | P1-1 (c) | 中 | 1h | 5 |
-| 8 | 建 lib/date.ts + 迁 commands sweep 1 | P1-2 (a) | 低 | 1h | 2 |
-| 9 | date.ts sweep 2 | P1-2 (b) | 低 | 30m | 8 |
-| 10 | logger.ts 加等级 + bad → stderr | P1-3 | 中 | 1h | 1 |
-| 11 | P2 sweep — 沉默 catch | P2-2 | 低 | 1.5h | 10 |
-| 12 | P2 sweep — as any / @ts-ignore | P2-3 | 低 | 1h | 3, 10 |
-| 13 | P2 sweep — console → logger（cli + 简单 commands） | P2-4 (a) | 中 | 1.5h | 10 |
-| 14 | P2 sweep — console → logger（其余 9 个 commands，**单批合并**） | P2-4 (b) | 中 | 2-3h | 13 |
-| 15 | P2 杂项（vector.ts 静态 import + 退出码 + eslint disable 删） | P2-1, P2-5, P2-6 | 中 | 1h | 3, 10 |
-| 16 | P3 文档 sweep（README + integrations + 根 .wiki） | P3-1, P3-2, P3-3 | 低 | 30m | — |
-| 17 | P3 commands/index.ts rename + NaN 守卫 | P3-4, P3-5 | 中 | 1h | 7 |
-| 🅾️ 18 | P3 dist/CI 校验（**可选 / 推迟**：本轮重构暂不做，重构稳定后单独 session） | P3-6, P3-7 | 中 | 1.5h | — |
-| 19 | P4 已知小项（B3/B4/B5/B6） | P4-2, P4-3, P4-5 | 低 | 1h | 10 |
-| 20 | P4 待验证（B2 ingest variadic） | P4-1 | 待定 | 1h | 1 |
-| 21 | **P0-2 拆 fetcher.ts**（含 P4-4） | P0-2, P4-4 | 高 | 4-6h | 5, 9, 10, 11, 12, 14 |
-| 22 | **P0-1 拆 vectordb.ts** | P0-1 | 极高 | 6-8h | 6, 11, 12, 13, 14, 15, 21 |
+| #     | 标题                                                                       | LEGACY           | 风险 | 估时 | 依赖                      |
+| ----- | -------------------------------------------------------------------------- | ---------------- | ---- | ---- | ------------------------- |
+| ✅ 1  | smoke + verify 落地                                                        | P1-4             | 低   | —    | —                         |
+| ✅ 2  | tsc 解锁 + init 绝对路径修（作为"批次 0"在批次 1 之后立刻完成）            | P1-7, P1-8       | 低   | —    | 1                         |
+| 3     | ESLint + Prettier 配置                                                     | P1-5             | 低   | 1h   | 1                         |
+| 4     | cli.ts ESM `require()` 修                                                  | P1-6             | 低   | 30m  | 1, 2                      |
+| 5     | 建 lib/paths.ts + 迁 corpus.ts                                             | P1-1 (a)         | 低   | 1h   | 2                         |
+| 6     | paths.ts 迁 vectordb.ts 常量                                               | P1-1 (b)         | 中   | 30m  | 5                         |
+| 7     | paths.ts 迁 commands/{index,lint,snapshot}                                 | P1-1 (c)         | 中   | 1h   | 5                         |
+| 8     | 建 lib/date.ts + 迁 commands sweep 1                                       | P1-2 (a)         | 低   | 1h   | 2                         |
+| 9     | date.ts sweep 2                                                            | P1-2 (b)         | 低   | 30m  | 8                         |
+| 10    | logger.ts 加等级 + bad → stderr                                            | P1-3             | 中   | 1h   | 1                         |
+| 11    | P2 sweep — 沉默 catch                                                      | P2-2             | 低   | 1.5h | 10                        |
+| 12    | P2 sweep — as any / @ts-ignore                                             | P2-3             | 低   | 1h   | 3, 10                     |
+| 13    | P2 sweep — console → logger（cli + 简单 commands）                         | P2-4 (a)         | 中   | 1.5h | 10                        |
+| 14    | P2 sweep — console → logger（其余 9 个 commands，**单批合并**）            | P2-4 (b)         | 中   | 2-3h | 13                        |
+| 15    | P2 杂项（vector.ts 静态 import + 退出码 + eslint disable 删）              | P2-1, P2-5, P2-6 | 中   | 1h   | 3, 10                     |
+| 16    | P3 文档 sweep（README + integrations + 根 .wiki）                          | P3-1, P3-2, P3-3 | 低   | 30m  | —                         |
+| 17    | P3 commands/index.ts rename + NaN 守卫                                     | P3-4, P3-5       | 中   | 1h   | 7                         |
+| 🅾️ 18 | P3 dist/CI 校验（**可选 / 推迟**：本轮重构暂不做，重构稳定后单独 session） | P3-6, P3-7       | 中   | 1.5h | —                         |
+| 19    | P4 已知小项（B3/B4/B5/B6）                                                 | P4-2, P4-3, P4-5 | 低   | 1h   | 10                        |
+| 20    | P4 待验证（B2 ingest variadic）                                            | P4-1             | 待定 | 1h   | 1                         |
+| 21    | **P0-2 拆 fetcher.ts**（含 P4-4）                                          | P0-2, P4-4       | 高   | 4-6h | 5, 9, 10, 11, 12, 14      |
+| 22    | **P0-1 拆 vectordb.ts**                                                    | P0-1             | 极高 | 6-8h | 6, 11, 12, 13, 14, 15, 21 |
 
 总估时 ~30h（不含批次 18，因为推迟）。**可并行**：3 ‖ 4 ‖ 5 ‖ 8 ‖ 10 ‖ 16 ‖ 20（依赖只到批次 1 或 2 即可，且这两个已 ✅）。
 
@@ -374,6 +374,7 @@
 ### 可并行的批次
 
 批次 1 + 2 已 ✅，启动后立刻可同时开：
+
 - **批次 3**（ESLint 配置）
 - **批次 4**（cli.ts require 修）
 - **批次 5**（建 lib/paths.ts + corpus.ts 迁移）

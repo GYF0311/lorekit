@@ -1,20 +1,20 @@
 import type { Command } from 'commander';
-import { existsSync, mkdirSync, readdirSync, cpSync, readFileSync, writeFileSync, statSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  cpSync,
+  readFileSync,
+  writeFileSync,
+  statSync,
+} from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import chalk from 'chalk';
 import { ok, bad, warn } from '../utils/logger.js';
 import { readVersion, lorekitRoot } from '../utils/fs.js';
 
-const MINIMAL_DIRS = [
-  '原料',
-  '知识库/概念',
-  '知识库/实体',
-  '知识库/摘要',
-  '每日',
-  '系统',
-  '.wiki',
-];
+const MINIMAL_DIRS = ['原料', '知识库/概念', '知识库/实体', '知识库/摘要', '每日', '系统', '.wiki'];
 
 function ask(question: string): Promise<string> {
   const rl = createInterface({ input: process.stdin, output: process.stdout });

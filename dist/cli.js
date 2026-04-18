@@ -429,9 +429,7 @@ function queryLayered(db, embedding, topK, threshold) {
   ).all(blob);
   if (l0Rows.length === 0) return [];
   const dirIds = l0Rows.map((r) => r.id);
-  const dirRows = db.prepare(
-    `SELECT slug_list FROM dir_summaries WHERE id IN (${dirIds.map(() => "?").join(",")})`
-  ).all(...dirIds);
+  const dirRows = db.prepare(`SELECT slug_list FROM dir_summaries WHERE id IN (${dirIds.map(() => "?").join(",")})`).all(...dirIds);
   const candidateSlugs = /* @__PURE__ */ new Set();
   for (const row of dirRows) {
     try {
@@ -454,9 +452,7 @@ function queryLayered(db, embedding, topK, threshold) {
   }
   if (candidateDocIds.size === 0) return [];
   const docIdArr = [...candidateDocIds];
-  const candidatePageIds = db.prepare(
-    `SELECT id FROM page_summaries WHERE doc_id IN (${docIdArr.map(() => "?").join(",")})`
-  ).all(...docIdArr);
+  const candidatePageIds = db.prepare(`SELECT id FROM page_summaries WHERE doc_id IN (${docIdArr.map(() => "?").join(",")})`).all(...docIdArr);
   if (candidatePageIds.length === 0) return [];
   const searchK = Math.min(candidatePageIds.length, 50);
   const l1Rows = db.prepare(
@@ -474,9 +470,7 @@ function queryLayered(db, embedding, topK, threshold) {
   ).all(...pageIds);
   if (docIds.length === 0) return [];
   const docIdList = docIds.map((r) => r.doc_id);
-  const candidateChunkIds = db.prepare(
-    `SELECT id FROM chunks WHERE doc_id IN (${docIdList.map(() => "?").join(",")})`
-  ).all(...docIdList);
+  const candidateChunkIds = db.prepare(`SELECT id FROM chunks WHERE doc_id IN (${docIdList.map(() => "?").join(",")})`).all(...docIdList);
   if (candidateChunkIds.length === 0) return [];
   const searchK2 = Math.min(candidateChunkIds.length, topK * 5);
   const l2Rows = db.prepare(
@@ -530,9 +524,7 @@ function queryBM25Layered(db, queryText, topK) {
   }
   if (l0Rows.length === 0) return [];
   const dirIds = l0Rows.map((r) => r.id);
-  const dirRows = db.prepare(
-    `SELECT slug_list FROM dir_summaries WHERE id IN (${dirIds.map(() => "?").join(",")})`
-  ).all(...dirIds);
+  const dirRows = db.prepare(`SELECT slug_list FROM dir_summaries WHERE id IN (${dirIds.map(() => "?").join(",")})`).all(...dirIds);
   const candidateSlugs = /* @__PURE__ */ new Set();
   for (const row of dirRows) {
     try {
@@ -658,9 +650,7 @@ function parseIndexEntries(content) {
   for (const line of lines) {
     if (/^\|\s*条目\s*\|/.test(line)) continue;
     if (/^\|[\s\-|]+\|?\s*$/.test(line)) continue;
-    const m = line.match(
-      /^\|\s*\[\[([^\]|#]+?)\]\]\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|/
-    );
+    const m = line.match(/^\|\s*\[\[([^\]|#]+?)\]\]\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|/);
     if (!m) continue;
     const slug = m[1].trim();
     const summary = m[2].replace(/\\\|/g, "|").trim();
@@ -711,9 +701,7 @@ async function buildLayeredIndex(db, corpus, embedFn) {
       const insertDir = db.prepare(
         "INSERT INTO dir_summaries (dir_path, summary, embedding, slug_list) VALUES (?, ?, ?, ?)"
       );
-      const insertFtsDir = db.prepare(
-        "INSERT INTO fts_dirs(rowid, summary) VALUES (?, ?)"
-      );
+      const insertFtsDir = db.prepare("INSERT INTO fts_dirs(rowid, summary) VALUES (?, ?)");
       for (let i = 0; i < sections.length; i++) {
         const blob = float32ToBuffer(embeddings[i]);
         const slugListJson = JSON.stringify(sections[i].slugs);
@@ -775,9 +763,7 @@ async function buildLayeredIndex(db, corpus, embedFn) {
   const insertPage = db.prepare(
     "INSERT INTO page_summaries (doc_id, summary, embedding) VALUES (?, ?, ?)"
   );
-  const insertFtsPage = db.prepare(
-    "INSERT INTO fts_pages(rowid, summary) VALUES (?, ?)"
-  );
+  const insertFtsPage = db.prepare("INSERT INTO fts_pages(rowid, summary) VALUES (?, ?)");
   for (let i = 0; i < matched.length; i += BATCH) {
     const batch = matched.slice(i, i + BATCH);
     const texts = batch.map((m) => m.text);
@@ -863,14 +849,7 @@ var init_vectordb = __esm({
     "use strict";
     EMBEDDING_DIM = 1024;
     MODE_THRESHOLD_FILES = 100;
-    INCLUDE_DIRS = [
-      "\u77E5\u8BC6\u5E93",
-      "\u6BCF\u65E5",
-      "\u5199\u4F5C",
-      "\u539F\u6599/\u6587\u7AE0",
-      "\u539F\u6599/\u4E66\u7C4D",
-      "\u539F\u6599/\u4F1A\u8BAE"
-    ];
+    INCLUDE_DIRS = ["\u77E5\u8BC6\u5E93", "\u6BCF\u65E5", "\u5199\u4F5C", "\u539F\u6599/\u6587\u7AE0", "\u539F\u6599/\u4E66\u7C4D", "\u539F\u6599/\u4F1A\u8BAE"];
     EXCLUDE_PREFIXES = [
       "_\u5DE5\u4F5C\u53F0",
       "_archive",
@@ -965,7 +944,13 @@ function readVersion() {
 }
 
 // src/commands/init.ts
-import { existsSync as existsSync2, mkdirSync, readdirSync as readdirSync2, cpSync, writeFileSync } from "fs";
+import {
+  existsSync as existsSync2,
+  mkdirSync,
+  readdirSync as readdirSync2,
+  cpSync,
+  writeFileSync
+} from "fs";
 import { join as join3, resolve } from "path";
 import { createInterface } from "readline";
 import chalk2 from "chalk";
@@ -978,15 +963,7 @@ var warn = (msg) => console.error(`${chalk.yellow("lorekit:")} ${msg}`);
 var err = (msg) => console.error(`${chalk.red("lorekit:")} ${msg}`);
 
 // src/commands/init.ts
-var MINIMAL_DIRS = [
-  "\u539F\u6599",
-  "\u77E5\u8BC6\u5E93/\u6982\u5FF5",
-  "\u77E5\u8BC6\u5E93/\u5B9E\u4F53",
-  "\u77E5\u8BC6\u5E93/\u6458\u8981",
-  "\u6BCF\u65E5",
-  "\u7CFB\u7EDF",
-  ".wiki"
-];
+var MINIMAL_DIRS = ["\u539F\u6599", "\u77E5\u8BC6\u5E93/\u6982\u5FF5", "\u77E5\u8BC6\u5E93/\u5B9E\u4F53", "\u77E5\u8BC6\u5E93/\u6458\u8981", "\u6BCF\u65E5", "\u7CFB\u7EDF", ".wiki"];
 function ask(question) {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   return new Promise((resolve3) => {
@@ -1104,14 +1081,7 @@ init_corpus();
 init_corpus();
 import { existsSync as existsSync3, readdirSync as readdirSync3, readFileSync as readFileSync4, statSync as statSync4, writeFileSync as writeFileSync2, lstatSync } from "fs";
 import { join as join4, basename as basename2, relative as relative2, resolve as resolve2 } from "path";
-var INDEX_EXCLUDE_DIR_PREFIXES = [
-  ".wiki",
-  ".git",
-  "_\u5F52\u6863",
-  "_\u5DE5\u4F5C\u53F0",
-  "\u7CFB\u7EDF",
-  "\u53CD\u9988"
-];
+var INDEX_EXCLUDE_DIR_PREFIXES = [".wiki", ".git", "_\u5F52\u6863", "_\u5DE5\u4F5C\u53F0", "\u7CFB\u7EDF", "\u53CD\u9988"];
 function isIndexExcluded(rel) {
   for (const prefix of INDEX_EXCLUDE_DIR_PREFIXES) {
     if (rel === prefix || rel.startsWith(prefix + "/")) return true;
@@ -1530,25 +1500,10 @@ import { readFileSync as readFileSync7 } from "fs";
 import { relative as relative5, basename as basename3 } from "path";
 import chalk4 from "chalk";
 var REQUIRED_FIELDS = ["type", "title", "slug", "created", "updated"];
-var SKIP_FRONTMATTER_BASENAMES = /* @__PURE__ */ new Set([
-  "README.md",
-  "AGENTS.md",
-  "CLAUDE.md",
-  "MEMORY.md"
-]);
-var ROOT_ONLY_SKIP_BASENAMES = /* @__PURE__ */ new Set([
-  "index.md",
-  "log.md"
-]);
-var SKIP_ORPHAN_PREFIXES = [
-  "_\u5DE5\u4F5C\u53F0/",
-  "_\u5F52\u6863/",
-  "\u7CFB\u7EDF/"
-];
-var SKIP_FRONTMATTER_PREFIXES = [
-  "_\u5DE5\u4F5C\u53F0/",
-  "_\u5F52\u6863/"
-];
+var SKIP_FRONTMATTER_BASENAMES = /* @__PURE__ */ new Set(["README.md", "AGENTS.md", "CLAUDE.md", "MEMORY.md"]);
+var ROOT_ONLY_SKIP_BASENAMES = /* @__PURE__ */ new Set(["index.md", "log.md"]);
+var SKIP_ORPHAN_PREFIXES = ["_\u5DE5\u4F5C\u53F0/", "_\u5F52\u6863/", "\u7CFB\u7EDF/"];
+var SKIP_FRONTMATTER_PREFIXES = ["_\u5DE5\u4F5C\u53F0/", "_\u5F52\u6863/"];
 function isRootLevel(rel) {
   return !rel.includes("/");
 }
@@ -1803,7 +1758,15 @@ function auditCommand(program2) {
 }
 
 // src/commands/install-skills.ts
-import { existsSync as existsSync6, mkdirSync as mkdirSync3, readdirSync as readdirSync5, symlinkSync, unlinkSync, readlinkSync, lstatSync as lstatSync3 } from "fs";
+import {
+  existsSync as existsSync6,
+  mkdirSync as mkdirSync3,
+  readdirSync as readdirSync5,
+  symlinkSync,
+  unlinkSync,
+  readlinkSync,
+  lstatSync as lstatSync3
+} from "fs";
 import { join as join7 } from "path";
 function isSymlink(path) {
   try {
@@ -1880,7 +1843,13 @@ Installed ${count} skill(s). Restart Claude Code to load them.`);
 }
 
 // src/commands/snapshot.ts
-import { mkdirSync as mkdirSync4, writeFileSync as writeFileSync4, unlinkSync as unlinkSync2, readdirSync as readdirSync6, statSync as statSync6 } from "fs";
+import {
+  mkdirSync as mkdirSync4,
+  writeFileSync as writeFileSync4,
+  unlinkSync as unlinkSync2,
+  readdirSync as readdirSync6,
+  statSync as statSync6
+} from "fs";
 import { join as join8, relative as relative6 } from "path";
 import * as tar from "tar";
 init_corpus();
@@ -1937,10 +1906,7 @@ function snapshotCommand(program2) {
     const tag = opts.tag ? `-${opts.tag}` : "";
     const tarName = `${stamp}${tag}.tar.gz`;
     const tarPath = join8(snapshotsDir, tarName);
-    const allEntries = [
-      ...files,
-      relative6(corpus, manifestPath)
-    ];
+    const allEntries = [...files, relative6(corpus, manifestPath)];
     await tar.create(
       {
         gzip: true,
@@ -2078,11 +2044,7 @@ import { spawnSync } from "child_process";
 init_corpus();
 function searchWithRipgrep(query, corpus, opts) {
   const searchDir = opts.dir ? join10(corpus, opts.dir) : corpus;
-  const args = [
-    "--json",
-    "--no-heading",
-    "-i"
-  ];
+  const args = ["--json", "--no-heading", "-i"];
   if (opts.type) {
     args.push("--type", opts.type);
   }
@@ -2206,15 +2168,9 @@ function vectorCommand(program2) {
   vec.command("sync").option("--force", "full rebuild (re-embed all files)", false).option("--layered", "build L0/L1 layered index", false).option("--model <name>", "ollama model name", "bge-m3").description("index corpus into vector DB").action(async (opts) => {
     const corpus = requireCorpus();
     const r = await runVectorSync(corpus, opts);
-    ok(
-      `synced ${r.synced} files (${r.totalChunks} chunks), skipped ${r.skipped} unchanged`
-    );
+    ok(`synced ${r.synced} files (${r.totalChunks} chunks), skipped ${r.skipped} unchanged`);
   });
-  vec.command("query").requiredOption("--text <text>", "search query text").option("--top-k <n>", "number of results", "5").option("--threshold <n>", "minimum similarity score", "0.5").option("--layered", "use L0\u2192L1\u2192L2 layered vector retrieval", false).option(
-    "--hybrid",
-    "BM25 + vector layered + RRF fusion (\u9636\u6BB5 2 \u63A8\u8350\uFF0C\u65E0 re-rank)",
-    false
-  ).option("--bm25", "BM25 layered only (FTS5, \u7528\u4E8E debug BM25 \u5355\u8DEF)", false).option("--model <name>", "ollama model name", "bge-m3").description("search the vector/FTS index").action(
+  vec.command("query").requiredOption("--text <text>", "search query text").option("--top-k <n>", "number of results", "5").option("--threshold <n>", "minimum similarity score", "0.5").option("--layered", "use L0\u2192L1\u2192L2 layered vector retrieval", false).option("--hybrid", "BM25 + vector layered + RRF fusion (\u9636\u6BB5 2 \u63A8\u8350\uFF0C\u65E0 re-rank)", false).option("--bm25", "BM25 layered only (FTS5, \u7528\u4E8E debug BM25 \u5355\u8DEF)", false).option("--model <name>", "ollama model name", "bge-m3").description("search the vector/FTS index").action(
     async (opts) => {
       const corpus = requireCorpus();
       const topK = parseInt(opts.topK, 10);
@@ -2288,15 +2244,15 @@ function buildHeaders(site) {
   if (site === "weixin") {
     return {
       "User-Agent": UA_IPHONE,
-      "Referer": "https://mp.weixin.qq.com/",
+      Referer: "https://mp.weixin.qq.com/",
       "Accept-Language": "zh-CN,zh;q=0.9",
-      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
     };
   }
   return {
     "User-Agent": UA_DESKTOP,
     "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
   };
 }
 function detectAntibot(html, site) {
@@ -2530,9 +2486,7 @@ async function downloadImages(imgSrcs, imagesDir, headers, assetsRelPath) {
   for (let i = 0; i < imgSrcs.length; i += IMG_CONCURRENCY) {
     const batch = imgSrcs.slice(i, i + IMG_CONCURRENCY);
     const batchResults = await Promise.all(
-      batch.map(
-        (src, j) => downloadOneImage(src, i + j + 1, imagesDir, headers, assetsRelPath)
-      )
+      batch.map((src, j) => downloadOneImage(src, i + j + 1, imagesDir, headers, assetsRelPath))
     );
     results.push(...batchResults);
   }
@@ -2545,13 +2499,10 @@ function rewriteMarkdownImages(md, imgResults) {
       urlToLocal.set(r.originalUrl, r.localRel);
     }
   }
-  return md.replace(
-    /!\[([^\]]*)\]\(([^)]+)\)/g,
-    (match, alt, url) => {
-      const local = urlToLocal.get(url);
-      return local ? `![${alt}](${local})` : match;
-    }
-  );
+  return md.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, url) => {
+    const local = urlToLocal.get(url);
+    return local ? `![${alt}](${local})` : match;
+  });
 }
 async function fetchUrl(url, opts) {
   const site = detectSite(url);
@@ -2605,12 +2556,7 @@ async function fetchUrl(url, opts) {
   let imagesOk = 0;
   let imagesFailed = 0;
   if (!opts.noImages && doc.imgSrcs.length > 0) {
-    const imgResults = await downloadImages(
-      doc.imgSrcs,
-      assetsDir,
-      headers,
-      `./${slug}.assets/`
-    );
+    const imgResults = await downloadImages(doc.imgSrcs, assetsDir, headers, `./${slug}.assets/`);
     md = rewriteMarkdownImages(md, imgResults);
     for (const r of imgResults) {
       if (r.status === "ok") imagesOk++;
@@ -2907,9 +2853,7 @@ function deleteIngestRecord(corpus, url) {
 }
 function listPendingIngests(corpus) {
   const state = loadIngestState(corpus);
-  return Object.values(state.ingests).filter(
-    (r) => r.status !== "completed"
-  );
+  return Object.values(state.ingests).filter((r) => r.status !== "completed");
 }
 function nextStepHint(record) {
   if (record.status === "completed") return "nothing to do";
@@ -2952,101 +2896,105 @@ function isPdfUrl(url) {
   }
 }
 function fetchCommand(program2) {
-  program2.command("fetch").argument("<url>", "URL to fetch").option("--out <dir>", "output directory").option("--force-rich", "skip host routing, always use rich fetcher").option("--no-images", "skip image downloads").option("--force", "ignore duplicate-URL check and re-fetch anyway").description("Fetch a URL into local markdown + images").action(async (url, opts) => {
-    const corpus = findCorpus();
-    let outRoot;
-    if (opts.out) {
-      outRoot = opts.out;
-    } else {
-      outRoot = corpus ? join14(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch") : "/tmp/lorekit-fetch";
-    }
-    if (!existsSync11(outRoot)) {
-      mkdirSync8(outRoot, { recursive: true });
-    }
-    let duplicate;
-    if (corpus && !opts.force) {
-      const state = getIngestRecord(corpus, url);
-      if (state && state.status !== "completed") {
-        const hint = nextStepHint(state);
-        console.error(
-          `[lorekit fetch] in-progress ingest detected for ${url}
+  program2.command("fetch").argument("<url>", "URL to fetch").option("--out <dir>", "output directory").option("--force-rich", "skip host routing, always use rich fetcher").option("--no-images", "skip image downloads").option("--force", "ignore duplicate-URL check and re-fetch anyway").description("Fetch a URL into local markdown + images").action(
+    async (url, opts) => {
+      const corpus = findCorpus();
+      let outRoot;
+      if (opts.out) {
+        outRoot = opts.out;
+      } else {
+        outRoot = corpus ? join14(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch") : "/tmp/lorekit-fetch";
+      }
+      if (!existsSync11(outRoot)) {
+        mkdirSync8(outRoot, { recursive: true });
+      }
+      let duplicate;
+      if (corpus && !opts.force) {
+        const state = getIngestRecord(corpus, url);
+        if (state && state.status !== "completed") {
+          const hint = nextStepHint(state);
+          console.error(
+            `[lorekit fetch] in-progress ingest detected for ${url}
   status: ${state.status}  steps done: ${state.stepsDone.join(", ") || "(none)"}
   started: ${state.startedAt}
   next step \u2192 ${hint}
   use --force to restart from scratch`
-        );
-        console.log(JSON.stringify({
-          status: "in_progress",
-          route: "rich",
-          url,
-          ingestState: state,
-          nextStep: hint
-        }));
-        return;
-      }
-      if (state && state.status === "completed") {
-        duplicate = {
-          path: state.archivedTo ?? "(unknown)",
-          sourceDate: state.sourceDate,
-          title: state.title
-        };
-      } else {
-        const existing = findSourceByUrl(corpus, url);
-        if (existing) {
-          const fm = extractFrontmatter(existing);
-          const sdRaw = fm.source_date;
-          const sourceDate = typeof sdRaw === "string" ? sdRaw : sdRaw instanceof Date ? sdRaw.toISOString().slice(0, 10) : void 0;
+          );
+          console.log(
+            JSON.stringify({
+              status: "in_progress",
+              route: "rich",
+              url,
+              ingestState: state,
+              nextStep: hint
+            })
+          );
+          return;
+        }
+        if (state && state.status === "completed") {
           duplicate = {
-            path: relative11(corpus, existing),
-            sourceDate,
-            title: typeof fm.title === "string" ? fm.title : void 0
+            path: state.archivedTo ?? "(unknown)",
+            sourceDate: state.sourceDate,
+            title: state.title
           };
+        } else {
+          const existing = findSourceByUrl(corpus, url);
+          if (existing) {
+            const fm = extractFrontmatter(existing);
+            const sdRaw = fm.source_date;
+            const sourceDate = typeof sdRaw === "string" ? sdRaw : sdRaw instanceof Date ? sdRaw.toISOString().slice(0, 10) : void 0;
+            duplicate = {
+              path: relative11(corpus, existing),
+              sourceDate,
+              title: typeof fm.title === "string" ? fm.title : void 0
+            };
+          }
+        }
+        if (duplicate) {
+          console.error(
+            `[lorekit fetch] duplicate url: ${url} already ingested at ${duplicate.path}` + (duplicate.sourceDate ? ` (source_date: ${duplicate.sourceDate})` : "") + `. Use --force to re-fetch anyway.`
+          );
+          console.log(JSON.stringify({ status: "duplicate", route: "rich", url, duplicate }));
+          return;
         }
       }
-      if (duplicate) {
-        console.error(
-          `[lorekit fetch] duplicate url: ${url} already ingested at ${duplicate.path}` + (duplicate.sourceDate ? ` (source_date: ${duplicate.sourceDate})` : "") + `. Use --force to re-fetch anyway.`
-        );
-        console.log(JSON.stringify({ status: "duplicate", route: "rich", url, duplicate }));
-        return;
-      }
-    }
-    const noImages = opts.images === false;
-    let result;
-    if (opts.forceRich) {
-      result = await fetchUrl(url, { outRoot, noImages });
-    } else {
-      const host = getHost(url);
-      if (host.includes("mp.weixin.qq.com")) {
+      const noImages = opts.images === false;
+      let result;
+      if (opts.forceRich) {
         result = await fetchUrl(url, { outRoot, noImages });
-      } else if (host.includes("feishu.cn") || host.includes("larkoffice.com")) {
-        result = suggestResult("lark", url, "lark-cli docs +read --as user --doc <url>");
-      } else if (host === "x.com" || host === "twitter.com" || host.endsWith(".x.com") || host.endsWith(".twitter.com")) {
-        result = suggestResult("x", url, "paste screenshot or text (antibot too strong)");
-      } else if (host === "gist.github.com" || host === "gist.githubusercontent.com") {
-        result = await fetchGist(url, outRoot);
-      } else if (host === "github.com" || host === "www.github.com") {
-        result = await fetchGithubDoc(url, outRoot);
-      } else if (isPdfUrl(url)) {
-        result = suggestResult("pdf", url, "pdf skill");
       } else {
-        result = await fetchUrl(url, { outRoot, noImages });
+        const host = getHost(url);
+        if (host.includes("mp.weixin.qq.com")) {
+          result = await fetchUrl(url, { outRoot, noImages });
+        } else if (host.includes("feishu.cn") || host.includes("larkoffice.com")) {
+          result = suggestResult("lark", url, "lark-cli docs +read --as user --doc <url>");
+        } else if (host === "x.com" || host === "twitter.com" || host.endsWith(".x.com") || host.endsWith(".twitter.com")) {
+          result = suggestResult("x", url, "paste screenshot or text (antibot too strong)");
+        } else if (host === "gist.github.com" || host === "gist.githubusercontent.com") {
+          result = await fetchGist(url, outRoot);
+        } else if (host === "github.com" || host === "www.github.com") {
+          result = await fetchGithubDoc(url, outRoot);
+        } else if (isPdfUrl(url)) {
+          result = suggestResult("pdf", url, "pdf skill");
+        } else {
+          result = await fetchUrl(url, { outRoot, noImages });
+        }
+      }
+      if (corpus && result.status === "ok" && result.markdown) {
+        upsertIngestRecord(corpus, url, {
+          title: result.title,
+          sourceDate: result.publishDate,
+          status: "started",
+          stepsDone: ["fetch"],
+          workbenchMd: result.markdown
+        });
+      }
+      console.log(JSON.stringify(result));
+      if (result.status === "error") {
+        process.exitCode = 1;
       }
     }
-    if (corpus && result.status === "ok" && result.markdown) {
-      upsertIngestRecord(corpus, url, {
-        title: result.title,
-        sourceDate: result.publishDate,
-        status: "started",
-        stepsDone: ["fetch"],
-        workbenchMd: result.markdown
-      });
-    }
-    console.log(JSON.stringify(result));
-    if (result.status === "error") {
-      process.exitCode = 1;
-    }
-  });
+  );
 }
 
 // src/commands/ingest.ts
@@ -3126,65 +3074,72 @@ ${summary.join("\n")}`);
       return `  [${r.status.padEnd(12)}] ${r.url}
     next step \u2192 ${nextStepHint(r)}`;
     });
-    console.error(`[lorekit ingest pending] ${pending.length} ingest(s) need attention
-${summary.join("\n")}`);
+    console.error(
+      `[lorekit ingest pending] ${pending.length} ingest(s) need attention
+${summary.join("\n")}`
+    );
     console.log(JSON.stringify({ pending }));
     process.exitCode = 1;
   });
   group.command("record <url>").description("Record step progress for an ingest (call from wiki-ingest skill)").option(
     "--step <steps>",
     `mark step(s) as done. single: archive | multi: archive,wiki,backlink,lint. valid: ${VALID_STEPS.join(", ")}`
-  ).option("--archived-to <path>", "relative path where the source was moved (e.g. \u539F\u6599/\u526A\u85CF/xxx)").option("--wiki-page <path...>", "relative path of a wiki page created (can be repeated)").option("--log <body>", "append a one-paragraph summary to corpus/log.md (CLI auto-fills url/archive/pages)").option("--status <status>", "explicit status (started|completed|failed)").option("--complete", "shortcut: mark status=completed").option("--fail <reason>", "shortcut: mark status=failed with reason").action((url, opts) => {
-    const corpus = requireCorpus();
-    const patch = {};
-    let parsedSteps = [];
-    if (opts.step) {
-      parsedSteps = opts.step.split(",").map((s) => s.trim()).filter(Boolean);
-      for (const s of parsedSteps) {
-        if (!VALID_STEPS.includes(s)) {
-          console.error(
-            `[lorekit ingest record] invalid step: ${s}. valid: ${VALID_STEPS.join(", ")}`
-          );
-          process.exitCode = 2;
-          return;
+  ).option("--archived-to <path>", "relative path where the source was moved (e.g. \u539F\u6599/\u526A\u85CF/xxx)").option("--wiki-page <path...>", "relative path of a wiki page created (can be repeated)").option(
+    "--log <body>",
+    "append a one-paragraph summary to corpus/log.md (CLI auto-fills url/archive/pages)"
+  ).option("--status <status>", "explicit status (started|completed|failed)").option("--complete", "shortcut: mark status=completed").option("--fail <reason>", "shortcut: mark status=failed with reason").action(
+    (url, opts) => {
+      const corpus = requireCorpus();
+      const patch = {};
+      let parsedSteps = [];
+      if (opts.step) {
+        parsedSteps = opts.step.split(",").map((s) => s.trim()).filter(Boolean);
+        for (const s of parsedSteps) {
+          if (!VALID_STEPS.includes(s)) {
+            console.error(
+              `[lorekit ingest record] invalid step: ${s}. valid: ${VALID_STEPS.join(", ")}`
+            );
+            process.exitCode = 2;
+            return;
+          }
+        }
+        const existing = loadIngestState(corpus).ingests[url];
+        const prev = existing?.stepsDone ?? [];
+        patch.stepsDone = [...prev, ...parsedSteps];
+        if (!opts.status && !opts.complete && !opts.fail) {
+          if (parsedSteps.includes("lint")) patch.status = "completed";
+          else patch.status = "started";
         }
       }
-      const existing = loadIngestState(corpus).ingests[url];
-      const prev = existing?.stepsDone ?? [];
-      patch.stepsDone = [...prev, ...parsedSteps];
-      if (!opts.status && !opts.complete && !opts.fail) {
-        if (parsedSteps.includes("lint")) patch.status = "completed";
-        else patch.status = "started";
+      if (opts.archivedTo) patch.archivedTo = opts.archivedTo;
+      if (opts.wikiPage && opts.wikiPage.length > 0) {
+        const existing = loadIngestState(corpus).ingests[url];
+        const prev = existing?.wikiPages ?? [];
+        patch.wikiPages = [...prev, ...opts.wikiPage];
       }
-    }
-    if (opts.archivedTo) patch.archivedTo = opts.archivedTo;
-    if (opts.wikiPage && opts.wikiPage.length > 0) {
-      const existing = loadIngestState(corpus).ingests[url];
-      const prev = existing?.wikiPages ?? [];
-      patch.wikiPages = [...prev, ...opts.wikiPage];
-    }
-    if (opts.status) patch.status = opts.status;
-    if (opts.complete) patch.status = "completed";
-    if (opts.fail) {
-      patch.status = "failed";
-      patch.error = opts.fail;
-    }
-    const updated = upsertIngestRecord(corpus, url, patch);
-    let logAppended = false;
-    if (opts.log) {
-      try {
-        appendLogEntry(corpus, updated, opts.log);
-        logAppended = true;
-      } catch (e) {
-        console.error(`[lorekit ingest record] log append failed: ${e.message}`);
+      if (opts.status) patch.status = opts.status;
+      if (opts.complete) patch.status = "completed";
+      if (opts.fail) {
+        patch.status = "failed";
+        patch.error = opts.fail;
       }
-    }
-    console.error(
-      `[lorekit ingest record] ${url}
+      const updated = upsertIngestRecord(corpus, url, patch);
+      let logAppended = false;
+      if (opts.log) {
+        try {
+          appendLogEntry(corpus, updated, opts.log);
+          logAppended = true;
+        } catch (e) {
+          console.error(`[lorekit ingest record] log append failed: ${e.message}`);
+        }
+      }
+      console.error(
+        `[lorekit ingest record] ${url}
   status: ${updated.status}  steps: ${updated.stepsDone.join(",") || "(none)"}` + (logAppended ? "  +log" : "")
-    );
-    console.log(JSON.stringify({ ...updated, logAppended }));
-  });
+      );
+      console.log(JSON.stringify({ ...updated, logAppended }));
+    }
+  );
   group.command("check <files...>").description("Scan given wiki pages for broken [[wikilinks]] (pre-commit check)").action((files) => {
     const corpus = requireCorpus();
     const allMd = collectMdFiles(corpus);
@@ -3240,9 +3195,7 @@ ${summary.join("\n")}`);
         `[lorekit ingest check] ${checked.length} file(s), ${okLinks.length} link(s) ok, no broken links`
       );
     } else {
-      console.error(
-        `[lorekit ingest check] ${broken.length} broken link(s) found:`
-      );
+      console.error(`[lorekit ingest check] ${broken.length} broken link(s) found:`);
       for (const b of broken) {
         console.error(`  \u2717 ${b.file}: [[${b.link}]]`);
       }
@@ -3463,9 +3416,7 @@ async function runSync(corpus, opts = {}) {
     console.log(chalk6.cyan("\u2500\u2500 [2/3] vector: sync chunks + L0/L1 \u2500\u2500"));
     try {
       const r = await runVectorSync(corpus, { force, model, layered: true });
-      ok(
-        `synced ${r.synced} files (${r.totalChunks} chunks), skipped ${r.skipped} unchanged`
-      );
+      ok(`synced ${r.synced} files (${r.totalChunks} chunks), skipped ${r.skipped} unchanged`);
     } catch (e) {
       err(`vector sync failed: ${e.message}`);
       throw e;

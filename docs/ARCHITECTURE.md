@@ -106,38 +106,38 @@ flowchart LR
 
 ## 核心抽象
 
-| 抽象 | 文件 | 责任边界 |
-|---|---|---|
-| Corpus | `lib/corpus.ts` | 给一个目录，判定它是不是 corpus（看 `.wiki/` 或 `CLAUDE.md`），向上递归找根 |
-| Frontmatter | `lib/corpus.ts` | gray-matter 包装：`extractFrontmatter` / `hasFrontmatter` / `findSourceByUrl` |
-| IngestState | `lib/ingest-state.ts` | `.wiki/ingest-state.json` 单一事实源；3 个 status × N 个 stepsDone |
-| Fetcher | `lib/fetcher.ts` | URL → 本地 markdown + 图片；L1 native fetch，L2 playwright fallback |
-| Chunker | `lib/chunker.ts` | markdown 按 `## heading` 切，加 `[title][type]` prefix |
-| Ollama | `lib/ollama.ts` | 调本地 ollama `/api/embed` |
-| VectorDB | `lib/vectordb.ts` | sqlite-vec + FTS5；queryFlat / queryLayered / queryBM25Layered / queryHybrid |
-| RootIndex | `lib/root-index.ts` | `corpus/index.md` 的受控区合并刷新（保留人类摘要） |
-| DirIndex | `commands/index.ts → runIndex` | 所有子目录 `_INDEX.md` 自动生成 |
-| Logger | `utils/logger.ts` | 全仓库输出唯一通道（CONVENTIONS 强制） |
+| 抽象        | 文件                           | 责任边界                                                                      |
+| ----------- | ------------------------------ | ----------------------------------------------------------------------------- |
+| Corpus      | `lib/corpus.ts`                | 给一个目录，判定它是不是 corpus（看 `.wiki/` 或 `CLAUDE.md`），向上递归找根   |
+| Frontmatter | `lib/corpus.ts`                | gray-matter 包装：`extractFrontmatter` / `hasFrontmatter` / `findSourceByUrl` |
+| IngestState | `lib/ingest-state.ts`          | `.wiki/ingest-state.json` 单一事实源；3 个 status × N 个 stepsDone            |
+| Fetcher     | `lib/fetcher.ts`               | URL → 本地 markdown + 图片；L1 native fetch，L2 playwright fallback           |
+| Chunker     | `lib/chunker.ts`               | markdown 按 `## heading` 切，加 `[title][type]` prefix                        |
+| Ollama      | `lib/ollama.ts`                | 调本地 ollama `/api/embed`                                                    |
+| VectorDB    | `lib/vectordb.ts`              | sqlite-vec + FTS5；queryFlat / queryLayered / queryBM25Layered / queryHybrid  |
+| RootIndex   | `lib/root-index.ts`            | `corpus/index.md` 的受控区合并刷新（保留人类摘要）                            |
+| DirIndex    | `commands/index.ts → runIndex` | 所有子目录 `_INDEX.md` 自动生成                                               |
+| Logger      | `utils/logger.ts`              | 全仓库输出唯一通道（CONVENTIONS 强制）                                        |
 
 ## Schema 约束
 
-| 约束 | 位置 | 备注 |
-|---|---|---|
-| corpus 子目录名（中文） | 散布 lib/commands | `原料` / `知识库` / `_工作台` 等是 schema 决定，**不许动**（CONVENTIONS Do Not #8） |
-| 向量库路径 | `<corpus>/.wiki/vector.sqlite` | sqlite-vec 虚表 + FTS5 虚表共存于同一文件 |
-| ingest 状态机 | `started` / `completed` / `failed` × `stepsDone[]` | 加新 step 只需在 `IngestStep` 枚举里加值，状态枚举不动 |
-| 检索模式阈值 | `MODE_THRESHOLD_FILES = 100` | 按 indexed_files 计数，跟随 Karpathy 原文 "moderate scale ~100 sources" |
-| frontmatter 必填字段 | `templates/default-corpus/系统/frontmatter-spec.md` | 由 `lint` 命令检查（`type` / `title` / `slug` / `created` / `updated`） |
+| 约束                    | 位置                                                | 备注                                                                                |
+| ----------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| corpus 子目录名（中文） | 散布 lib/commands                                   | `原料` / `知识库` / `_工作台` 等是 schema 决定，**不许动**（CONVENTIONS Do Not #8） |
+| 向量库路径              | `<corpus>/.wiki/vector.sqlite`                      | sqlite-vec 虚表 + FTS5 虚表共存于同一文件                                           |
+| ingest 状态机           | `started` / `completed` / `failed` × `stepsDone[]`  | 加新 step 只需在 `IngestStep` 枚举里加值，状态枚举不动                              |
+| 检索模式阈值            | `MODE_THRESHOLD_FILES = 100`                        | 按 indexed_files 计数，跟随 Karpathy 原文 "moderate scale ~100 sources"             |
+| frontmatter 必填字段    | `templates/default-corpus/系统/frontmatter-spec.md` | 由 `lint` 命令检查（`type` / `title` / `slug` / `created` / `updated`）             |
 
 ## 外部依赖契约
 
-| 依赖 | 接口 | 失败降级 |
-|---|---|---|
-| ollama | `POST localhost:11434/api/embed` | 抛错；用户去 `ollama serve`。不影响 Read 三层 |
-| sqlite-vec | dynamic import | `optionalDependencies`；缺了 vector 命令报错并提示安装 |
-| ripgrep | `spawnSync('rg', ...)` | fallback 到内置正则扫描 |
-| playwright-core | dynamic import | 缺了 antibot 站点 fetch 失败并提示装 playwright |
-| tar | runtime dep | snapshot/restore 必需，无 fallback |
+| 依赖            | 接口                             | 失败降级                                               |
+| --------------- | -------------------------------- | ------------------------------------------------------ |
+| ollama          | `POST localhost:11434/api/embed` | 抛错；用户去 `ollama serve`。不影响 Read 三层          |
+| sqlite-vec      | dynamic import                   | `optionalDependencies`；缺了 vector 命令报错并提示安装 |
+| ripgrep         | `spawnSync('rg', ...)`           | fallback 到内置正则扫描                                |
+| playwright-core | dynamic import                   | 缺了 antibot 站点 fetch 失败并提示装 playwright        |
+| tar             | runtime dep                      | snapshot/restore 必需，无 fallback                     |
 
 ## 渐进披露的 token 预算
 

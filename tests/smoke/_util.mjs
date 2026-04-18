@@ -67,7 +67,9 @@ export function fmtRun(r, args, expectation = '') {
     `stdout: ${r.stdout.slice(0, 500)}${r.stdout.length > 500 ? '…' : ''}`,
     `stderr: ${r.stderr.slice(0, 500)}${r.stderr.length > 500 ? '…' : ''}`,
     r.error ? `spawn error: ${r.error.message}` : '',
-  ].filter(Boolean).join('\n  ');
+  ]
+    .filter(Boolean)
+    .join('\n  ');
 }
 
 /** sqlite-vec 当前是否可加载（用于条件跳过 vector 相关错误路径测试） */
