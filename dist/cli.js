@@ -1545,6 +1545,10 @@ var SKIP_ORPHAN_PREFIXES = [
   "_\u5F52\u6863/",
   "\u7CFB\u7EDF/"
 ];
+var SKIP_FRONTMATTER_PREFIXES = [
+  "_\u5DE5\u4F5C\u53F0/",
+  "_\u5F52\u6863/"
+];
 function isRootLevel(rel) {
   return !rel.includes("/");
 }
@@ -1552,6 +1556,9 @@ function shouldSkipFrontmatter(rel) {
   const base = basename3(rel);
   if (SKIP_FRONTMATTER_BASENAMES.has(base)) return true;
   if (isRootLevel(rel) && ROOT_ONLY_SKIP_BASENAMES.has(base)) return true;
+  for (const prefix of SKIP_FRONTMATTER_PREFIXES) {
+    if (rel.startsWith(prefix)) return true;
+  }
   return false;
 }
 function shouldSkipOrphan(rel) {

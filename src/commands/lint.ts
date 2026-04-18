@@ -28,6 +28,13 @@ const SKIP_ORPHAN_PREFIXES = [
   '系统/',
 ];
 
+// 不参与 frontmatter 检查的目录前缀：过渡区 / 冷数据区
+// （系统/ 里的 schema 文件有 frontmatter，保留检查以保障规范性）
+const SKIP_FRONTMATTER_PREFIXES = [
+  '_工作台/',
+  '_归档/',
+];
+
 function isRootLevel(rel: string): boolean {
   return !rel.includes('/');
 }
@@ -36,6 +43,9 @@ function shouldSkipFrontmatter(rel: string): boolean {
   const base = basename(rel);
   if (SKIP_FRONTMATTER_BASENAMES.has(base)) return true;
   if (isRootLevel(rel) && ROOT_ONLY_SKIP_BASENAMES.has(base)) return true;
+  for (const prefix of SKIP_FRONTMATTER_PREFIXES) {
+    if (rel.startsWith(prefix)) return true;
+  }
   return false;
 }
 
