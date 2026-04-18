@@ -1,7 +1,9 @@
 #!/usr/bin/env node
+import { existsSync } from 'node:fs';
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { findCorpus } from './lib/corpus.js';
+import Database from 'better-sqlite3';
+import { findCorpus, collectMdFiles } from './lib/corpus.js';
 import { readVersion } from './utils/fs.js';
 
 // commands
@@ -29,7 +31,6 @@ function showBanner() {
   let model = '—';
 
   if (corpus) {
-    const { collectMdFiles } = require('./lib/corpus.js');
     try {
       pages = String(collectMdFiles(corpus).length);
     } catch {
@@ -38,11 +39,12 @@ function showBanner() {
 
     try {
       const dbPath = `${corpus}/.wiki/vector.sqlite`;
-      const { existsSync } = require('node:fs');
       if (existsSync(dbPath)) {
-        const Database = require('better-sqlite3');
         const db = new Database(dbPath, { readonly: true });
-        indexed = String(db.prepare('SELECT COUNT(*) as c FROM documents').get()?.c ?? 0);
+        const cntRow = db.prepare('SELECT COUNT(*) as c FROM documents').get() as
+          | { c: number }
+          | undefined;
+        indexed = String(cntRow?.c ?? 0);
         const row = db.prepare("SELECT value FROM meta WHERE key='model'").get() as
           | { value: string }
           | undefined;

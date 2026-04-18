@@ -1,14 +1,6 @@
 #!/usr/bin/env node
 var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
-  get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
-}) : x)(function(x) {
-  if (typeof require !== "undefined") return require.apply(this, arguments);
-  throw Error('Dynamic require of "' + x + '" is not supported');
-});
 var __esm = (fn, res) => function __init() {
   return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
 };
@@ -16,102 +8,6 @@ var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
 };
-var __copyProps = (to, from, except, desc) => {
-  if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
-  }
-  return to;
-};
-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
-
-// src/lib/corpus.ts
-var corpus_exports = {};
-__export(corpus_exports, {
-  collectMdFiles: () => collectMdFiles,
-  extractFrontmatter: () => extractFrontmatter,
-  extractFrontmatterField: () => extractFrontmatterField,
-  findCorpus: () => findCorpus,
-  findSourceByUrl: () => findSourceByUrl,
-  hasFrontmatter: () => hasFrontmatter,
-  requireCorpus: () => requireCorpus
-});
-import { existsSync, readFileSync, readdirSync } from "fs";
-import { join, dirname } from "path";
-import matter from "gray-matter";
-function findCorpus(startDir) {
-  let dir = startDir || process.cwd();
-  while (dir !== "/" && dir) {
-    if (existsSync(join(dir, ".wiki")) || existsSync(join(dir, "CLAUDE.md"))) {
-      return dir;
-    }
-    dir = dirname(dir);
-  }
-  return null;
-}
-function requireCorpus(startDir) {
-  const corpus = findCorpus(startDir);
-  if (!corpus) {
-    throw new Error("not inside a corpus (no .wiki/ or CLAUDE.md found)");
-  }
-  return corpus;
-}
-function extractFrontmatter(filePath) {
-  try {
-    const content = readFileSync(filePath, "utf-8");
-    const { data } = matter(content);
-    return data;
-  } catch {
-    return {};
-  }
-}
-function hasFrontmatter(filePath) {
-  try {
-    const first = readFileSync(filePath, "utf-8").slice(0, 4);
-    return first === "---\n" || first === "---\r";
-  } catch {
-    return false;
-  }
-}
-function extractFrontmatterField(filePath, key) {
-  const fm = extractFrontmatter(filePath);
-  const val = fm[key];
-  return typeof val === "string" ? val : void 0;
-}
-function findSourceByUrl(corpus, url) {
-  const sourcesRoot = join(corpus, "\u539F\u6599");
-  if (!existsSync(sourcesRoot)) return null;
-  for (const mdPath of collectMdFiles(sourcesRoot)) {
-    const fm = extractFrontmatter(mdPath);
-    if (fm.source_url === url || fm.url === url) return mdPath;
-  }
-  return null;
-}
-function collectMdFiles(dir, opts) {
-  const results = [];
-  if (!existsSync(dir)) return results;
-  function walk(d) {
-    for (const entry of readdirSync(d, { withFileTypes: true })) {
-      if (entry.name.startsWith(".")) continue;
-      const full = join(d, entry.name);
-      if (entry.isDirectory()) {
-        walk(full);
-      } else if (entry.name.endsWith(".md") && !EXCLUDE_NAMES.has(entry.name)) {
-        results.push(full);
-      }
-    }
-  }
-  walk(dir);
-  return results.sort();
-}
-var EXCLUDE_NAMES;
-var init_corpus = __esm({
-  "src/lib/corpus.ts"() {
-    "use strict";
-    EXCLUDE_NAMES = /* @__PURE__ */ new Set([".gitkeep", ".DS_Store", "_INDEX.md"]);
-  }
-});
 
 // src/lib/ollama.ts
 var ollama_exports = {};
@@ -302,9 +198,9 @@ function collectFiles(corpus) {
   return results.sort();
 }
 async function loadSqlite() {
-  let Database;
+  let Database2;
   try {
-    Database = (await import("better-sqlite3")).default;
+    Database2 = (await import("better-sqlite3")).default;
   } catch {
     throw new Error(
       "better-sqlite3 is required for the vector engine.\n  Install it: npm install better-sqlite3"
@@ -319,14 +215,14 @@ async function loadSqlite() {
       "sqlite-vec is required for the vector engine.\n  Install it: npm install sqlite-vec"
     );
   }
-  return { Database, sqliteVec };
+  return { Database: Database2, sqliteVec };
 }
 async function openDb(corpus, dim = EMBEDDING_DIM) {
-  const { Database, sqliteVec } = await loadSqlite();
+  const { Database: Database2, sqliteVec } = await loadSqlite();
   const wikiDir = join11(corpus, ".wiki");
   if (!existsSync9(wikiDir)) mkdirSync6(wikiDir, { recursive: true });
   const dbPath = join11(wikiDir, "vector.sqlite");
-  const db = new Database(dbPath);
+  const db = new Database2(dbPath);
   sqliteVec.load(db);
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
@@ -918,9 +814,76 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fts_pages USING fts5(
 });
 
 // src/cli.ts
-init_corpus();
+import { existsSync as existsSync14 } from "fs";
 import { Command } from "commander";
 import chalk7 from "chalk";
+import Database from "better-sqlite3";
+
+// src/lib/corpus.ts
+import { existsSync, readFileSync, readdirSync } from "fs";
+import { join, dirname } from "path";
+import matter from "gray-matter";
+function findCorpus(startDir) {
+  let dir = startDir || process.cwd();
+  while (dir !== "/" && dir) {
+    if (existsSync(join(dir, ".wiki")) || existsSync(join(dir, "CLAUDE.md"))) {
+      return dir;
+    }
+    dir = dirname(dir);
+  }
+  return null;
+}
+function requireCorpus(startDir) {
+  const corpus = findCorpus(startDir);
+  if (!corpus) {
+    throw new Error("not inside a corpus (no .wiki/ or CLAUDE.md found)");
+  }
+  return corpus;
+}
+function extractFrontmatter(filePath) {
+  try {
+    const content = readFileSync(filePath, "utf-8");
+    const { data } = matter(content);
+    return data;
+  } catch {
+    return {};
+  }
+}
+function hasFrontmatter(filePath) {
+  try {
+    const first = readFileSync(filePath, "utf-8").slice(0, 4);
+    return first === "---\n" || first === "---\r";
+  } catch {
+    return false;
+  }
+}
+var EXCLUDE_NAMES = /* @__PURE__ */ new Set([".gitkeep", ".DS_Store", "_INDEX.md"]);
+function findSourceByUrl(corpus, url) {
+  const sourcesRoot = join(corpus, "\u539F\u6599");
+  if (!existsSync(sourcesRoot)) return null;
+  for (const mdPath of collectMdFiles(sourcesRoot)) {
+    const fm = extractFrontmatter(mdPath);
+    if (fm.source_url === url || fm.url === url) return mdPath;
+  }
+  return null;
+}
+function collectMdFiles(dir, opts) {
+  const results = [];
+  if (!existsSync(dir)) return results;
+  function walk(d) {
+    for (const entry of readdirSync(d, { withFileTypes: true })) {
+      if (entry.name.startsWith(".")) continue;
+      const full = join(d, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+      } else if (entry.name.endsWith(".md") && !EXCLUDE_NAMES.has(entry.name)) {
+        results.push(full);
+      }
+    }
+  }
+  walk(dir);
+  return results.sort();
+}
 
 // src/utils/fs.ts
 import { createHash } from "crypto";
@@ -1075,10 +1038,8 @@ function initCommand(program2) {
 import { existsSync as existsSync4, lstatSync as lstatSync2, readFileSync as readFileSync5, readdirSync as readdirSync4 } from "fs";
 import { join as join5, relative as relative3 } from "path";
 import chalk3 from "chalk";
-init_corpus();
 
 // src/commands/index.ts
-init_corpus();
 import { existsSync as existsSync3, readdirSync as readdirSync3, readFileSync as readFileSync4, statSync as statSync4, writeFileSync as writeFileSync2, lstatSync } from "fs";
 import { join as join4, basename as basename2, relative as relative2, resolve as resolve2 } from "path";
 var INDEX_EXCLUDE_DIR_PREFIXES = [".wiki", ".git", "_\u5F52\u6863", "_\u5DE5\u4F5C\u53F0", "\u7CFB\u7EDF", "\u53CD\u9988"];
@@ -1433,7 +1394,6 @@ function doctorCommand(program2) {
 }
 
 // src/commands/stats.ts
-init_corpus();
 import { readFileSync as readFileSync6, statSync as statSync5 } from "fs";
 import { relative as relative4 } from "path";
 function statsCommand(program2) {
@@ -1495,7 +1455,6 @@ function statsCommand(program2) {
 }
 
 // src/commands/lint.ts
-init_corpus();
 import { readFileSync as readFileSync7 } from "fs";
 import { relative as relative5, basename as basename3 } from "path";
 import chalk4 from "chalk";
@@ -1639,7 +1598,6 @@ lorekit lint \u2014 ${corpus}
 }
 
 // src/commands/audit.ts
-init_corpus();
 import { existsSync as existsSync5, mkdirSync as mkdirSync2, readFileSync as readFileSync8, writeFileSync as writeFileSync3 } from "fs";
 import { join as join6, basename as basename4 } from "path";
 var SEVERITY_ORDER = { high: 3, medium: 2, low: 1 };
@@ -1852,7 +1810,6 @@ import {
 } from "fs";
 import { join as join8, relative as relative6 } from "path";
 import * as tar from "tar";
-init_corpus();
 function collectAllFiles(dir, base) {
   const results = [];
   const EXCLUDE = /* @__PURE__ */ new Set([".wiki", ".git", ".DS_Store"]);
@@ -1930,7 +1887,6 @@ import { createInterface as createInterface2 } from "readline";
 import { tmpdir } from "os";
 import * as tar2 from "tar";
 import chalk5 from "chalk";
-init_corpus();
 function ask2(question) {
   const rl = createInterface2({ input: process.stdin, output: process.stdout });
   return new Promise((resolve3) => {
@@ -2041,7 +1997,6 @@ function restoreCommand(program2) {
 import { readFileSync as readFileSync11 } from "fs";
 import { join as join10, relative as relative8 } from "path";
 import { spawnSync } from "child_process";
-init_corpus();
 function searchWithRipgrep(query, corpus, opts) {
   const searchDir = opts.dir ? join10(corpus, opts.dir) : corpus;
   const args = ["--json", "--no-heading", "-i"];
@@ -2118,7 +2073,6 @@ function searchCommand(program2) {
 }
 
 // src/commands/vector.ts
-init_corpus();
 async function runVectorSync(corpus, opts = {}) {
   const force = opts.force ?? false;
   const layered = opts.layered ?? true;
@@ -2177,11 +2131,11 @@ function vectorCommand(program2) {
       const threshold = parseFloat(opts.threshold);
       const { embedSingle: embedSingle2 } = await Promise.resolve().then(() => (init_ollama(), ollama_exports));
       const { openDb: openDb2, queryFlat: queryFlat2, queryLayered: queryLayered2, queryBM25Layered: queryBM25Layered2, queryHybrid: queryHybrid2 } = await Promise.resolve().then(() => (init_vectordb(), vectordb_exports));
-      const { existsSync: existsSync14 } = await import("fs");
+      const { existsSync: existsSync15 } = await import("fs");
       const { join: join17 } = await import("path");
       let dim = 1024;
       const dbPath = join17(corpus, ".wiki", "vector.sqlite");
-      if (existsSync14(dbPath)) {
+      if (existsSync15(dbPath)) {
         const tmpDb = await openDb2(corpus);
         const row = tmpDb.prepare("SELECT value FROM meta WHERE key = 'dim'").get();
         if (row) dim = parseInt(row.value, 10);
@@ -2211,7 +2165,6 @@ function vectorCommand(program2) {
 }
 
 // src/commands/fetch.ts
-init_corpus();
 import { existsSync as existsSync11, mkdirSync as mkdirSync8 } from "fs";
 import { join as join14, relative as relative11 } from "path";
 
@@ -2998,7 +2951,6 @@ function fetchCommand(program2) {
 }
 
 // src/commands/ingest.ts
-init_corpus();
 import { existsSync as existsSync12, readFileSync as readFileSync15, writeFileSync as writeFileSync6 } from "fs";
 import { join as join15, relative as relative12 } from "path";
 var VALID_STEPS = ["fetch", "archive", "wiki", "backlink", "lint"];
@@ -3252,7 +3204,6 @@ ${summary.join("\n")}`
 }
 
 // src/commands/sync.ts
-init_corpus();
 import chalk6 from "chalk";
 
 // src/lib/root-index.ts
@@ -3447,18 +3398,16 @@ function showBanner() {
   let indexed = "0";
   let model = "\u2014";
   if (corpus) {
-    const { collectMdFiles: collectMdFiles2 } = (init_corpus(), __toCommonJS(corpus_exports));
     try {
-      pages = String(collectMdFiles2(corpus).length);
+      pages = String(collectMdFiles(corpus).length);
     } catch {
     }
     try {
       const dbPath = `${corpus}/.wiki/vector.sqlite`;
-      const { existsSync: existsSync14 } = __require("fs");
       if (existsSync14(dbPath)) {
-        const Database = __require("better-sqlite3");
         const db = new Database(dbPath, { readonly: true });
-        indexed = String(db.prepare("SELECT COUNT(*) as c FROM documents").get()?.c ?? 0);
+        const cntRow = db.prepare("SELECT COUNT(*) as c FROM documents").get();
+        indexed = String(cntRow?.c ?? 0);
         const row = db.prepare("SELECT value FROM meta WHERE key='model'").get();
         model = row?.value ?? "\u2014";
         db.close();

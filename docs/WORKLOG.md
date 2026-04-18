@@ -6,6 +6,28 @@
 
 ---
 
+## 2026-04-19 — 批次 3：ESLint 9 + Prettier 3 配置 + 全仓 initial format
+
+**做了什么**
+
+- d5a5da0 chore(lint): 引入 ESLint 9 flat config + Prettier 3（批次 3 config）— 装 devDeps、写 `eslint.config.js` / `.prettierrc.json` / `.prettierignore`、加 `lint` / `lint:fix` / `format` / `format:check` 4 个 script
+- 0420a94 style: 全仓跑一次 prettier 做 initial format（批次 3 format）— 42 文件机械 reformat（+1096 / -1085），verify 前后均绿
+- d4a8460 chore: 加 .git-blame-ignore-revs 让 blame 跳过批次 3 format commit
+- tag：`batch-3-config`、`batch-3-format`
+- lint baseline 132 problems（110 errors + 22 warnings）：101 no-console + 22 no-unused-vars + 3 no-require-imports（cli.ts ESM require）+ 3 prefer-const + 2 no-explicit-any + 1 ban-ts-comment
+
+**为什么**
+
+- 先生选 A：现在一次性 reformat 干净，避免 P0 拆 vectordb / fetcher 时混进 540+ 行格式噪声
+- `verify` chain 严守 `tsc + build + smoke`，**不加 lint**（先生硬约束）：lint 进 chain 会让 P2 sweep 完成前每批都红，安全网失效
+- `.git-blame-ignore-revs` 让 GitHub blame 自动跳过 format commit；本地 `git config blame.ignoreRevsFile .git-blame-ignore-revs` 启用
+
+**接下来**
+
+- 进批次 4：cli.ts `showBanner()` 内 ESM require → 静态 import（P1-6）
+
+---
+
 ## 2026-04-19 — 批次 0：修复 verify pipeline 前置阻塞（P1-7 / P1-8）
 
 **做了什么**
