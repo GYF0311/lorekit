@@ -869,7 +869,7 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fts_pages USING fts5(
 });
 
 // src/cli.ts
-import { existsSync as existsSync14 } from "fs";
+import { existsSync as existsSync15 } from "fs";
 import { Command } from "commander";
 import chalk7 from "chalk";
 import Database from "better-sqlite3";
@@ -1962,7 +1962,7 @@ function restoreCommand(program2) {
     const corpus = requireCorpus();
     if (!existsSync8(opts.from)) {
       bad(`snapshot not found: ${opts.from}`);
-      process.exitCode = 1;
+      process.exitCode = 2;
       return;
     }
     const tmpDir = join9(tmpdir(), `lorekit-restore-${Date.now()}`);
@@ -2131,6 +2131,9 @@ function searchCommand(program2) {
 }
 
 // src/commands/vector.ts
+import { createHash as createHash3 } from "crypto";
+import { existsSync as existsSync10, readFileSync as readFileSync14 } from "fs";
+import { join as join12 } from "path";
 async function runVectorSync(corpus, opts = {}) {
   const force = opts.force ?? false;
   const layered = opts.layered ?? true;
@@ -2149,9 +2152,7 @@ async function runVectorSync(corpus, opts = {}) {
     if (!force) {
       const row = db.prepare("SELECT sha256 FROM documents WHERE path = ?").get(rel);
       if (row) {
-        const { createHash: createHash3 } = await import("crypto");
-        const { readFileSync: readFileSync17 } = await import("fs");
-        const sha = createHash3("sha256").update(readFileSync17(filePath)).digest("hex");
+        const sha = createHash3("sha256").update(readFileSync14(filePath)).digest("hex");
         if (row.sha256 === sha) {
           skipped++;
           continue;
@@ -2189,11 +2190,9 @@ function vectorCommand(program2) {
       const threshold = parseFloat(opts.threshold);
       const { embedSingle: embedSingle2 } = await Promise.resolve().then(() => (init_ollama(), ollama_exports));
       const { openDb: openDb2, queryFlat: queryFlat2, queryLayered: queryLayered2, queryBM25Layered: queryBM25Layered2, queryHybrid: queryHybrid2 } = await Promise.resolve().then(() => (init_vectordb(), vectordb_exports));
-      const { existsSync: existsSync15 } = await import("fs");
-      const { join: join17 } = await import("path");
       let dim = 1024;
-      const dbPath = join17(corpus, ".wiki", "vector.sqlite");
-      if (existsSync15(dbPath)) {
+      const dbPath = join12(corpus, ".wiki", "vector.sqlite");
+      if (existsSync10(dbPath)) {
         const tmpDb = await openDb2(corpus);
         const row = tmpDb.prepare("SELECT value FROM meta WHERE key = 'dim'").get();
         if (row) dim = parseInt(row.value, 10);
@@ -2223,12 +2222,12 @@ function vectorCommand(program2) {
 }
 
 // src/commands/fetch.ts
-import { existsSync as existsSync11, mkdirSync as mkdirSync8 } from "fs";
-import { join as join14, relative as relative11 } from "path";
+import { existsSync as existsSync12, mkdirSync as mkdirSync8 } from "fs";
+import { join as join15, relative as relative11 } from "path";
 
 // src/lib/fetcher.ts
 import { mkdir, writeFile } from "fs/promises";
-import { join as join12 } from "path";
+import { join as join13 } from "path";
 import * as cheerio from "cheerio";
 import TurndownService from "turndown";
 var UA_IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
@@ -2483,7 +2482,7 @@ async function downloadOneImage(url, idx, imagesDir, headers, assetsRelPath) {
       const ext = sniffExt(data.slice(0, 16), res.headers.get("content-type") || "");
       if (!ext) continue;
       const fname = `img_${String(idx).padStart(2, "0")}${ext}`;
-      await writeFile(join12(imagesDir, fname), data);
+      await writeFile(join13(imagesDir, fname), data);
       return { originalUrl: url, localRel: `${assetsRelPath}${fname}`, status: "ok" };
     } catch {
     }
@@ -2562,7 +2561,7 @@ async function fetchUrl(url, opts) {
   }
   let md = htmlToMarkdown(doc.bodyHtml);
   const slug = slugify(doc.title || "untitled");
-  const assetsDir = join12(opts.outRoot, `${slug}.assets`);
+  const assetsDir = join13(opts.outRoot, `${slug}.assets`);
   await mkdir(opts.outRoot, { recursive: true });
   let imagesOk = 0;
   let imagesFailed = 0;
@@ -2589,7 +2588,7 @@ async function fetchUrl(url, opts) {
   fmLines.push("");
   if (doc.title) fmLines.push(`# ${doc.title}`, "");
   fmLines.push(md, "");
-  const articlePath = join12(opts.outRoot, `${slug}.md`);
+  const articlePath = join13(opts.outRoot, `${slug}.md`);
   await writeFile(articlePath, fmLines.join("\n"), "utf-8");
   return {
     status: "ok",
@@ -2693,7 +2692,7 @@ async function fetchGist(url, outRoot) {
   fmLines.push("");
   if (!hasH1) fmLines.push(`# ${title}`, "");
   fmLines.push(content.trim(), "");
-  const articlePath = join12(outRoot, `${slug}.md`);
+  const articlePath = join13(outRoot, `${slug}.md`);
   await writeFile(articlePath, fmLines.join("\n"), "utf-8");
   return {
     status: "ok",
@@ -2784,7 +2783,7 @@ async function fetchGithubDoc(url, outRoot) {
   if (!hasH1) fmLines.push(`# ${title}`, "");
   fmLines.push(`> Fetched from: ${chosenUrl}`, "");
   fmLines.push(content.trim(), "");
-  const articlePath = join12(outRoot, `${slug}.md`);
+  const articlePath = join13(outRoot, `${slug}.md`);
   await writeFile(articlePath, fmLines.join("\n"), "utf-8");
   return {
     status: "ok",
@@ -2802,18 +2801,18 @@ async function fetchGithubDoc(url, outRoot) {
 }
 
 // src/lib/ingest-state.ts
-import { existsSync as existsSync10, mkdirSync as mkdirSync7, readFileSync as readFileSync14, writeFileSync as writeFileSync5 } from "fs";
-import { join as join13, dirname as dirname4 } from "path";
+import { existsSync as existsSync11, mkdirSync as mkdirSync7, readFileSync as readFileSync15, writeFileSync as writeFileSync5 } from "fs";
+import { join as join14, dirname as dirname4 } from "path";
 function stateFilePath(corpus) {
-  return join13(corpus, ".wiki", "ingest-state.json");
+  return join14(corpus, ".wiki", "ingest-state.json");
 }
 function loadIngestState(corpus) {
   const p = stateFilePath(corpus);
-  if (!existsSync10(p)) {
+  if (!existsSync11(p)) {
     return { version: 1, ingests: {} };
   }
   try {
-    const raw = readFileSync14(p, "utf-8");
+    const raw = readFileSync15(p, "utf-8");
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") {
       return { version: 1, ingests: {} };
@@ -2914,9 +2913,9 @@ function fetchCommand(program2) {
       if (opts.out) {
         outRoot = opts.out;
       } else {
-        outRoot = corpus ? join14(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch") : "/tmp/lorekit-fetch";
+        outRoot = corpus ? join15(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch") : "/tmp/lorekit-fetch";
       }
-      if (!existsSync11(outRoot)) {
+      if (!existsSync12(outRoot)) {
         mkdirSync8(outRoot, { recursive: true });
       }
       let duplicate;
@@ -3009,14 +3008,14 @@ function fetchCommand(program2) {
 }
 
 // src/commands/ingest.ts
-import { existsSync as existsSync12, readFileSync as readFileSync15, writeFileSync as writeFileSync6 } from "fs";
-import { join as join15, relative as relative12 } from "path";
+import { existsSync as existsSync13, readFileSync as readFileSync16, writeFileSync as writeFileSync6 } from "fs";
+import { join as join16, relative as relative12 } from "path";
 var VALID_STEPS = ["fetch", "archive", "wiki", "backlink", "lint"];
 function today() {
   return dateToYMDLocal(/* @__PURE__ */ new Date());
 }
 function appendLogEntry(corpus, record, body) {
-  const logPath = join15(corpus, "log.md");
+  const logPath = join16(corpus, "log.md");
   const title = record.title ?? "(untitled)";
   const wikiList = (record.wikiPages ?? []).map((p) => `  - ${p}`).join("\n");
   const archived = record.archivedTo ?? "(unrecorded)";
@@ -3033,7 +3032,7 @@ ${wikiList}` : "- **\u65B0\u5EFA/\u66F4\u65B0\u9875**\uFF1A\uFF08\u65E0\uFF09",
     ""
   ].join("\n");
   let existing = "";
-  if (existsSync12(logPath)) existing = readFileSync15(logPath, "utf-8");
+  if (existsSync13(logPath)) existing = readFileSync16(logPath, "utf-8");
   if (!existing) {
     const header = '# Log\n\n> \u64CD\u4F5C\u65F6\u95F4\u7EBF\uFF0Cappend-only\u3002\u6BCF\u6761\u683C\u5F0F\uFF1A`## [YYYY-MM-DD] \u64CD\u4F5C\u7C7B\u578B | \u6807\u9898`\n> \u53EF\u7528 `grep "^## \\[" log.md | tail -10` \u5FEB\u901F\u67E5\u6700\u8FD1\u64CD\u4F5C\u3002\n\n';
     writeFileSync6(logPath, header + entry, "utf-8");
@@ -3179,8 +3178,8 @@ ${summary.join("\n")}`
     const okLinks = [];
     const checked = [];
     for (const f of files) {
-      const abs = f.startsWith("/") ? f : join15(process.cwd(), f);
-      if (!existsSync12(abs)) {
+      const abs = f.startsWith("/") ? f : join16(process.cwd(), f);
+      if (!existsSync13(abs)) {
         print(`[lorekit ingest check] file not found: ${f}`);
         process.exitCode = 2;
         continue;
@@ -3189,7 +3188,7 @@ ${summary.join("\n")}`
       checked.push(rel);
       let content;
       try {
-        content = stripCode(readFileSync15(abs, "utf-8"));
+        content = stripCode(readFileSync16(abs, "utf-8"));
       } catch {
         continue;
       }
@@ -3231,8 +3230,8 @@ ${summary.join("\n")}`
   });
   group.command("reconcile").description("Back-fill state for pre-existing \u539F\u6599/ pages missing a state record").option("--dry-run", "list what would be added without writing").action((opts) => {
     const corpus = requireCorpus();
-    const sourcesRoot = join15(corpus, "\u539F\u6599");
-    if (!existsSync12(sourcesRoot)) {
+    const sourcesRoot = join16(corpus, "\u539F\u6599");
+    if (!existsSync13(sourcesRoot)) {
       print("[lorekit ingest reconcile] no \u539F\u6599/ directory");
       return;
     }
@@ -3273,8 +3272,8 @@ ${summary.join("\n")}`
 import chalk6 from "chalk";
 
 // src/lib/root-index.ts
-import { existsSync as existsSync13, readFileSync as readFileSync16, readdirSync as readdirSync9, writeFileSync as writeFileSync7 } from "fs";
-import { join as join16 } from "path";
+import { existsSync as existsSync14, readFileSync as readFileSync17, readdirSync as readdirSync9, writeFileSync as writeFileSync7 } from "fs";
+import { join as join17 } from "path";
 var MANAGED_SECTIONS = [
   { heading: "## \u6982\u5FF5", subdir: "\u77E5\u8BC6\u5E93/\u6982\u5FF5" },
   { heading: "## \u5B9E\u4F53", subdir: "\u77E5\u8BC6\u5E93/\u5B9E\u4F53" },
@@ -3282,14 +3281,14 @@ var MANAGED_SECTIONS = [
   { heading: "## \u4E13\u9898", subdir: "\u77E5\u8BC6\u5E93/\u4E13\u9898" }
 ];
 function listEntriesInDir(corpus, subdir) {
-  const dirPath = join16(corpus, subdir);
-  if (!existsSync13(dirPath)) return [];
+  const dirPath = join17(corpus, subdir);
+  if (!existsSync14(dirPath)) return [];
   const out2 = [];
   for (const name of readdirSync9(dirPath)) {
     if (name.startsWith(".")) continue;
     if (name === "_INDEX.md") continue;
     if (!name.endsWith(".md")) continue;
-    const file = join16(dirPath, name);
+    const file = join17(dirPath, name);
     const slug = `${subdir}/${name.replace(/\.md$/, "")}`;
     out2.push({ slug, summary: extractCompiledTruthSnippet(file) });
   }
@@ -3298,7 +3297,7 @@ function listEntriesInDir(corpus, subdir) {
 function extractCompiledTruthSnippet(filePath) {
   let content;
   try {
-    content = readFileSync16(filePath, "utf-8");
+    content = readFileSync17(filePath, "utf-8");
   } catch (e) {
     debug(`extractCompiledTruthSnippet(${filePath}) failed: ${e.message}`);
     return "\u2014";
@@ -3367,11 +3366,11 @@ function mergeSection(content, heading, onDisk) {
   };
 }
 function refreshRootIndex(corpus) {
-  const indexPath = join16(corpus, "index.md");
-  if (!existsSync13(indexPath)) {
+  const indexPath = join17(corpus, "index.md");
+  if (!existsSync14(indexPath)) {
     return { filePath: indexPath, changed: false, perSection: [] };
   }
-  const before = readFileSync16(indexPath, "utf-8");
+  const before = readFileSync17(indexPath, "utf-8");
   let content = before;
   const perSection = [];
   for (const sec of MANAGED_SECTIONS) {
@@ -3472,7 +3471,7 @@ function showBanner() {
     }
     try {
       const dbPath = `${corpus}/.wiki/vector.sqlite`;
-      if (existsSync14(dbPath)) {
+      if (existsSync15(dbPath)) {
         const db = new Database(dbPath, { readonly: true });
         const cntRow = db.prepare("SELECT COUNT(*) as c FROM documents").get();
         indexed = String(cntRow?.c ?? 0);
@@ -3510,6 +3509,24 @@ function showBanner() {
   print();
 }
 var program = new Command();
+var ARG_ERROR_CODES = /* @__PURE__ */ new Set([
+  "commander.missingArgument",
+  "commander.missingMandatoryOptionValue",
+  "commander.invalidArgument",
+  "commander.invalidOptionArgument",
+  "commander.unknownCommand",
+  "commander.unknownOption",
+  "commander.excessArguments"
+]);
+program.exitOverride((cmdErr) => {
+  if (cmdErr.code === "commander.help" || cmdErr.code === "commander.version" || cmdErr.code === "commander.helpDisplayed") {
+    process.exit(0);
+  }
+  if (ARG_ERROR_CODES.has(cmdErr.code)) {
+    process.exit(2);
+  }
+  process.exit(cmdErr.exitCode || 1);
+});
 program.name("lorekit").version(version).description("Personal LLM Wiki Toolkit");
 initCommand(program);
 doctorCommand(program);

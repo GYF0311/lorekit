@@ -26,6 +26,19 @@ test('参数错误：lorekit install-skills 不传 --target → exit 2', () => {
   assert.equal(r.status, 2, fmtRun(r, args, 'exit 2 (参数错)'));
 });
 
+test('参数错误：lorekit fetch 不传 url → exit 2 (commander exitOverride，批次 15)', () => {
+  // 批次 15 之前 commander 默认 exit 1；本批 cli.ts 加了 exitOverride 把 arg 错都映射到 2
+  const args = ['fetch'];
+  const r = runLorekit(args);
+  assert.equal(r.status, 2, fmtRun(r, args, 'exit 2 (commander missingArgument)'));
+});
+
+test('参数错误：lorekit nonexistent-command → exit 2 (commander unknownCommand)', () => {
+  const args = ['nonexistent-command'];
+  const r = runLorekit(args);
+  assert.equal(r.status, 2, fmtRun(r, args, 'exit 2 (commander unknownCommand)'));
+});
+
 test('上下文错误：在非 corpus 目录跑 doctor → exit 1', () => {
   const tmp = mkTmpDir('lorekit-smoke-non-corpus-');
   try {

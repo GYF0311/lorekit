@@ -6,6 +6,34 @@
 
 ---
 
+## 2026-04-19 — 批次 15：P2 杂项 vector 静态 import + 退出码 + eslint disable 删（P2-1 / P2-5 / P2-6）
+
+**做了什么**
+
+- `src/commands/vector.ts`：4 处 `await import('node:fs')` / `'node:path'` / `'node:crypto'` 提到顶部静态 import（CONVENTIONS #8）
+- `src/lib/vectordb.ts:49`：删 `// eslint-disable-next-line @typescript-eslint/no-explicit-any`，注释里说明"由批次 22 拆 vectordb 时一并改成精确类型"。`Db = any` 暂留为已知违规
+- `src/commands/restore.ts:54`：snapshot 路径不存在 `process.exitCode = 1` → `2`（参数错，CONVENTIONS #4）
+- `src/cli.ts`：加 commander `exitOverride`，把 missing argument / unknown command / invalid option 等 arg 错统一映射到 exit 2；help / version → exit 0
+- `tests/smoke/cli-meta.test.mjs`：新增 2 条 smoke：`fetch` 缺 URL → exit 2，`nonexistent-command` → exit 2
+- tag：`refactor-batch-15`
+- smoke 15 tests / 14 pass / 1 skip
+
+**为什么**
+
+- LEGACY P2-1 / P2-5 / P2-6：把 P2 杂项一次清掉
+- exitOverride 是给 commander 的全局拦截，把"用户用法错"统一到 exit 2，下游脚本判断 status 码就能区分"运行时挂"vs"调用错了"
+
+**注**
+
+- ESLint baseline 现在 18 = 7 no-console (vectordb) + 5 no-console (fetch) + 3 no-console (install-skills) + 2 no-explicit-any (含本批暴露的 Db = any) + 1 ban-ts-comment
+- vectordb 的 `Db = any` 暂留是已知违规，待批次 22 拆库时按 `import type Database from 'better-sqlite3'` 改成精确类型
+
+**接下来**
+
+- 进批次 16：P3 文档 sweep（README 版本号 + integrations 删 / 转发 + 根 .wiki 进 .gitignore）
+
+---
+
 ## 2026-04-19 — 批次 14：P2 sweep console→logger 余下 9 commands（P2-4 b）
 
 **做了什么**

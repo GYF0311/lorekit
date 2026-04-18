@@ -1,4 +1,7 @@
 import type { Command } from 'commander';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { ok, warn, err, out, print } from '../utils/logger.js';
 import { requireCorpus } from '../lib/corpus.js';
 
@@ -50,8 +53,6 @@ export async function runVectorSync(
         | { sha256: string }
         | undefined;
       if (row) {
-        const { createHash } = await import('node:crypto');
-        const { readFileSync } = await import('node:fs');
         const sha = createHash('sha256').update(readFileSync(filePath)).digest('hex');
         if (row.sha256 === sha) {
           skipped++;
@@ -130,8 +131,6 @@ export function vectorCommand(program: Command) {
           await import('../lib/vectordb.js');
 
         // Probe dim from existing db or model
-        const { existsSync } = await import('node:fs');
-        const { join } = await import('node:path');
         let dim = 1024;
         const dbPath = join(corpus, '.wiki', 'vector.sqlite');
         if (existsSync(dbPath)) {

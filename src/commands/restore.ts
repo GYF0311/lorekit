@@ -51,7 +51,8 @@ export function restoreCommand(program: Command) {
 
       if (!existsSync(opts.from)) {
         bad(`snapshot not found: ${opts.from}`);
-        process.exitCode = 1;
+        // CONVENTIONS #4：用户提供的 --from 路径不存在 → 参数错 → exit 2
+        process.exitCode = 2;
         return;
       }
 

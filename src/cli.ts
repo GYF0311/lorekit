@@ -88,6 +88,32 @@ function showBanner() {
 
 const program = new Command();
 
+// CONVENTIONS #4：commander 默认对 missing arg / unknown command 都退出 1，
+// 跟我们"参数错→2"的语义不匹配。改用 exitOverride 拦截后按错误码分类。
+const ARG_ERROR_CODES = new Set([
+  'commander.missingArgument',
+  'commander.missingMandatoryOptionValue',
+  'commander.invalidArgument',
+  'commander.invalidOptionArgument',
+  'commander.unknownCommand',
+  'commander.unknownOption',
+  'commander.excessArguments',
+]);
+program.exitOverride((cmdErr) => {
+  // help / version 是正常退出
+  if (
+    cmdErr.code === 'commander.help' ||
+    cmdErr.code === 'commander.version' ||
+    cmdErr.code === 'commander.helpDisplayed'
+  ) {
+    process.exit(0);
+  }
+  if (ARG_ERROR_CODES.has(cmdErr.code)) {
+    process.exit(2);
+  }
+  process.exit(cmdErr.exitCode || 1);
+});
+
 program.name('lorekit').version(version).description('Personal LLM Wiki Toolkit');
 
 // register commands

@@ -46,7 +46,8 @@ export interface StatusInfo {
 type EmbedFn = (texts: string[]) => Promise<Float32Array[]>;
 
 // We use `any` for the Database type to avoid top-level import of better-sqlite3.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// 批次 15：删掉 eslint-disable 注释（ESLint 已配置该规则；Db = any 暂留为已知违规，
+// 由批次 22 拆 vectordb 时一并改成 import type Database 的精确类型）。
 type Db = any;
 
 // ---------------------------------------------------------------------------
