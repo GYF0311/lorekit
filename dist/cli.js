@@ -163,7 +163,7 @@ function distanceToScore(distance) {
 }
 function shouldIndex(rel) {
   const parts = rel.split("/");
-  if (EXCLUDE_NAMES2.has(parts[parts.length - 1])) return false;
+  if (EXCLUDE_NAMES.has(parts[parts.length - 1])) return false;
   if (!rel.endsWith(".md")) return false;
   for (const prefix of EXCLUDE_PREFIXES) {
     if (rel === prefix || rel.startsWith(prefix + "/")) return false;
@@ -739,7 +739,7 @@ async function getStatus(corpus) {
     mode_reason: rec.reason
   };
 }
-var EMBEDDING_DIM, MODE_THRESHOLD_FILES, INCLUDE_DIRS, EXCLUDE_PREFIXES, EXCLUDE_NAMES2, DDL, FTS_DDL;
+var EMBEDDING_DIM, MODE_THRESHOLD_FILES, INCLUDE_DIRS, EXCLUDE_PREFIXES, EXCLUDE_NAMES, DDL, FTS_DDL;
 var init_vectordb = __esm({
   "src/lib/vectordb.ts"() {
     "use strict";
@@ -756,7 +756,7 @@ var init_vectordb = __esm({
       "\u7CFB\u7EDF",
       ".wiki"
     ];
-    EXCLUDE_NAMES2 = /* @__PURE__ */ new Set([".gitkeep", ".DS_Store"]);
+    EXCLUDE_NAMES = /* @__PURE__ */ new Set([".gitkeep", ".DS_Store"]);
     DDL = `
 CREATE TABLE IF NOT EXISTS documents (
     id INTEGER PRIMARY KEY,
@@ -823,6 +823,15 @@ import Database from "better-sqlite3";
 import { existsSync, readFileSync, readdirSync } from "fs";
 import { join, dirname } from "path";
 import matter from "gray-matter";
+
+// src/lib/paths.ts
+var alwaysExcludeNames = /* @__PURE__ */ new Set([
+  ".gitkeep",
+  ".DS_Store",
+  "_INDEX.md"
+]);
+
+// src/lib/corpus.ts
 function findCorpus(startDir) {
   let dir = startDir || process.cwd();
   while (dir !== "/" && dir) {
@@ -857,7 +866,6 @@ function hasFrontmatter(filePath) {
     return false;
   }
 }
-var EXCLUDE_NAMES = /* @__PURE__ */ new Set([".gitkeep", ".DS_Store", "_INDEX.md"]);
 function findSourceByUrl(corpus, url) {
   const sourcesRoot = join(corpus, "\u539F\u6599");
   if (!existsSync(sourcesRoot)) return null;
@@ -876,7 +884,7 @@ function collectMdFiles(dir, opts) {
       const full = join(d, entry.name);
       if (entry.isDirectory()) {
         walk(full);
-      } else if (entry.name.endsWith(".md") && !EXCLUDE_NAMES.has(entry.name)) {
+      } else if (entry.name.endsWith(".md") && !alwaysExcludeNames.has(entry.name)) {
         results.push(full);
       }
     }

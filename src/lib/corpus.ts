@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import matter from 'gray-matter';
+import { alwaysExcludeNames } from './paths.js';
 
 export function findCorpus(startDir?: string): string | null {
   let dir = startDir || process.cwd();
@@ -55,8 +56,6 @@ export function extractFrontmatterField(filePath: string, key: string): string |
   return typeof val === 'string' ? val : undefined;
 }
 
-const EXCLUDE_NAMES = new Set(['.gitkeep', '.DS_Store', '_INDEX.md']);
-
 /**
  * Find an existing source page in 原料/ that has the given source_url.
  * Returns the absolute path or null.
@@ -81,7 +80,7 @@ export function collectMdFiles(dir: string, opts?: { excludeIndex?: boolean }): 
       const full = join(d, entry.name);
       if (entry.isDirectory()) {
         walk(full);
-      } else if (entry.name.endsWith('.md') && !EXCLUDE_NAMES.has(entry.name)) {
+      } else if (entry.name.endsWith('.md') && !alwaysExcludeNames.has(entry.name)) {
         results.push(full);
       }
     }

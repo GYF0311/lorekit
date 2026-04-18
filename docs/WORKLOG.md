@@ -6,6 +6,25 @@
 
 ---
 
+## 2026-04-19 — 批次 5：建 lib/paths.ts + 迁 corpus.ts EXCLUDE_NAMES（P1-1 a）
+
+**做了什么**
+
+- 新建 `src/lib/paths.ts`：导出 `alwaysExcludeNames`（`.gitkeep` / `.DS_Store` / `_INDEX.md`）；约定后续命名空间 `vectorInclude*` / `vectorExclude*` / `lintSkip*` / `indexExclude*` / `snapshotExclude*`，由批次 6 / 7 追加
+- `src/lib/corpus.ts`：删 `const EXCLUDE_NAMES = new Set(...)`，改 `import { alwaysExcludeNames } from './paths.js'`
+- tag：`refactor-batch-5`
+
+**为什么**
+
+- LEGACY P1-1：4-5 套独立维护的 exclude 集合，加新顶层目录易漏改某处。先建集中入口，再分批迁移
+- 本批只迁 corpus.ts 一处（最简单的入口）。CONVENTIONS Do Not #11 在批次 7 收尾后才"正式生效"
+
+**接下来**
+
+- 进批次 6：迁 vectordb.ts 的 INCLUDE_DIRS / EXCLUDE_PREFIXES / EXCLUDE_NAMES 到 paths.ts
+
+---
+
 ## 2026-04-19 — 批次 4：cli.ts banner 静态 import 替换 ESM require（P1-6）
 
 **做了什么**
