@@ -22,6 +22,7 @@ import {
   type IngestStatus,
 } from '../lib/ingest-state.js';
 import { dateToYMDLocal } from '../lib/date.js';
+import { out, print } from '../utils/logger.js';
 
 const VALID_STEPS: IngestStep[] = ['fetch', 'archive', 'wiki', 'backlink', 'lint'];
 
@@ -101,8 +102,8 @@ export function ingestCommand(program: Command): void {
       const state = loadIngestState(corpus);
       const rows = Object.values(state.ingests);
       if (rows.length === 0) {
-        console.error('[lorekit ingest list] no records');
-        console.log(JSON.stringify({ ingests: [] }));
+        print('[lorekit ingest list] no records');
+        out(JSON.stringify({ ingests: [] }));
         return;
       }
       const summary = rows.map((r) => {
@@ -110,8 +111,8 @@ export function ingestCommand(program: Command): void {
         const dest = r.archivedTo ?? r.workbenchMd ?? r.workbenchDir ?? '-';
         return `  [${r.status.padEnd(12)}] ${r.url}\n    steps: ${done}  →  ${dest}`;
       });
-      console.error(`[lorekit ingest list] ${rows.length} record(s)\n${summary.join('\n')}`);
-      console.log(JSON.stringify(state));
+      print(`[lorekit ingest list] ${rows.length} record(s)\n${summary.join('\n')}`);
+      out(JSON.stringify(state));
     });
 
   // ---------- pending ----------
@@ -122,17 +123,17 @@ export function ingestCommand(program: Command): void {
       const corpus = requireCorpus();
       const pending = listPendingIngests(corpus);
       if (pending.length === 0) {
-        console.error('[lorekit ingest pending] all ingests are completed — nothing to resume');
-        console.log(JSON.stringify({ pending: [] }));
+        print('[lorekit ingest pending] all ingests are completed — nothing to resume');
+        out(JSON.stringify({ pending: [] }));
         return;
       }
       const summary = pending.map((r) => {
         return `  [${r.status.padEnd(12)}] ${r.url}\n    next step → ${nextStepHint(r)}`;
       });
-      console.error(
+      print(
         `[lorekit ingest pending] ${pending.length} ingest(s) need attention\n${summary.join('\n')}`,
       );
-      console.log(JSON.stringify({ pending }));
+      out(JSON.stringify({ pending }));
       process.exitCode = 1;
     });
 
@@ -181,7 +182,7 @@ export function ingestCommand(program: Command): void {
 
           for (const s of parsedSteps) {
             if (!VALID_STEPS.includes(s)) {
-              console.error(
+              print(
                 `[lorekit ingest record] invalid step: ${s}. valid: ${VALID_STEPS.join(', ')}`,
               );
               process.exitCode = 2;
@@ -209,7 +210,7 @@ export function ingestCommand(program: Command): void {
         if (opts.status) {
           const validStatuses: readonly IngestStatus[] = ['started', 'completed', 'failed'];
           if (!validStatuses.includes(opts.status as IngestStatus)) {
-            console.error(
+            print(
               `[lorekit ingest record] invalid --status: ${opts.status}. valid: ${validStatuses.join(', ')}`,
             );
             process.exitCode = 2;
@@ -233,16 +234,16 @@ export function ingestCommand(program: Command): void {
             appendLogEntry(corpus, updated, opts.log);
             logAppended = true;
           } catch (e) {
-            console.error(`[lorekit ingest record] log append failed: ${(e as Error).message}`);
+            print(`[lorekit ingest record] log append failed: ${(e as Error).message}`);
           }
         }
 
-        console.error(
+        print(
           `[lorekit ingest record] ${url}\n` +
             `  status: ${updated.status}  steps: ${updated.stepsDone.join(',') || '(none)'}` +
             (logAppended ? '  +log' : ''),
         );
-        console.log(JSON.stringify({ ...updated, logAppended }));
+        out(JSON.stringify({ ...updated, logAppended }));
       },
     );
 
@@ -284,7 +285,7 @@ export function ingestCommand(program: Command): void {
       for (const f of files) {
         const abs = f.startsWith('/') ? f : join(process.cwd(), f);
         if (!existsSync(abs)) {
-          console.error(`[lorekit ingest check] file not found: ${f}`);
+          print(`[lorekit ingest check] file not found: ${f}`);
           process.exitCode = 2;
           continue;
         }
@@ -316,17 +317,17 @@ export function ingestCommand(program: Command): void {
       const result = { checked, ok: okLinks, broken };
 
       if (broken.length === 0) {
-        console.error(
+        print(
           `[lorekit ingest check] ${checked.length} file(s), ${okLinks.length} link(s) ok, no broken links`,
         );
       } else {
-        console.error(`[lorekit ingest check] ${broken.length} broken link(s) found:`);
+        print(`[lorekit ingest check] ${broken.length} broken link(s) found:`);
         for (const b of broken) {
-          console.error(`  ✗ ${b.file}: [[${b.link}]]`);
+          print(`  ✗ ${b.file}: [[${b.link}]]`);
         }
         process.exitCode = 1;
       }
-      console.log(JSON.stringify(result));
+      out(JSON.stringify(result));
     });
 
   // ---------- forget ----------
@@ -336,12 +337,12 @@ export function ingestCommand(program: Command): void {
     .action((url: string) => {
       const corpus = requireCorpus();
       const removed = deleteIngestRecord(corpus, url);
-      console.error(
+      print(
         removed
           ? `[lorekit ingest forget] removed ${url}`
           : `[lorekit ingest forget] no record for ${url}`,
       );
-      console.log(JSON.stringify({ removed, url }));
+      out(JSON.stringify({ removed, url }));
     });
 
   // ---------- reconcile ----------
@@ -353,7 +354,7 @@ export function ingestCommand(program: Command): void {
       const corpus = requireCorpus();
       const sourcesRoot = join(corpus, '原料');
       if (!existsSync(sourcesRoot)) {
-        console.error('[lorekit ingest reconcile] no 原料/ directory');
+        print('[lorekit ingest reconcile] no 原料/ directory');
         return;
       }
       const state = loadIngestState(corpus);
@@ -390,10 +391,10 @@ export function ingestCommand(program: Command): void {
         added.push(url);
       }
       if (!opts.dryRun && added.length > 0) saveIngestState(corpus, state);
-      console.error(
+      print(
         `[lorekit ingest reconcile] ${opts.dryRun ? 'would add' : 'added'} ${added.length} record(s)`,
       );
-      for (const u of added) console.error(`  + ${u}`);
-      console.log(JSON.stringify({ dryRun: !!opts.dryRun, added }));
+      for (const u of added) print(`  + ${u}`);
+      out(JSON.stringify({ dryRun: !!opts.dryRun, added }));
     });
 }

@@ -1,5 +1,5 @@
 import type { Command } from 'commander';
-import { ok, warn, err } from '../utils/logger.js';
+import { ok, warn, err, out, print } from '../utils/logger.js';
 import { requireCorpus } from '../lib/corpus.js';
 
 export interface VectorSyncOptions {
@@ -72,7 +72,7 @@ export async function runVectorSync(
   db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('dim', ?)").run(String(dim));
 
   if (layered || force) {
-    console.log('Building layered index (L0/L1)...');
+    print('Building layered index (L0/L1)...');
     const embedBatch = (texts: string[]) => embed(texts, model);
     await buildLayeredIndex(db, corpus, embedBatch);
   }
@@ -160,7 +160,7 @@ export function vectorCommand(program: Command) {
         }
 
         db.close();
-        console.log(JSON.stringify(results, null, 2));
+        out(JSON.stringify(results, null, 2));
       },
     );
 
@@ -172,6 +172,6 @@ export function vectorCommand(program: Command) {
       const corpus = requireCorpus();
       const { getStatus } = await import('../lib/vectordb.js');
       const info = await getStatus(corpus);
-      console.log(JSON.stringify(info, null, 2));
+      out(JSON.stringify(info, null, 2));
     });
 }

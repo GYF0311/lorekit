@@ -891,6 +891,7 @@ var debug = (msg) => {
   if (DEBUG_ENABLED) console.error(`${chalk.dim("debug:")} ${msg}`);
 };
 var print = (msg = "") => console.error(msg);
+var out = (msg) => console.log(msg);
 
 // src/lib/corpus.ts
 function findCorpus(startDir) {
@@ -1293,7 +1294,7 @@ function statsCommand(program2) {
       orphans: orphans.length,
       last_updated: lastUpdated || null
     };
-    console.log(JSON.stringify(result, null, 2));
+    out(JSON.stringify(result, null, 2));
   });
 }
 
@@ -1407,12 +1408,12 @@ function lintCommand(program2) {
         });
       }
     }
-    console.log(chalk4.bold(`
+    print(chalk4.bold(`
 lorekit lint \u2014 ${corpus}
 `));
     if (issues.length === 0) {
       ok("no issues found");
-      console.log();
+      print();
       return;
     }
     const grouped = {};
@@ -1425,13 +1426,13 @@ lorekit lint \u2014 ${corpus}
       orphan: "orphan pages"
     };
     for (const [kind, items] of Object.entries(grouped)) {
-      console.log(chalk4.cyan(`\u2500\u2500 ${kindLabels[kind] ?? kind} (${items.length}) \u2500\u2500`));
+      print(chalk4.cyan(`\u2500\u2500 ${kindLabels[kind] ?? kind} (${items.length}) \u2500\u2500`));
       for (const item of items) {
         bad(`${item.file}: ${item.detail}`);
       }
-      console.log();
+      print();
     }
-    console.log(chalk4.yellow(`${issues.length} issue(s) total
+    print(chalk4.yellow(`${issues.length} issue(s) total
 `));
     process.exitCode = 1;
   });
@@ -1517,15 +1518,15 @@ function listAudit(root, filter) {
     }
   }
   if (entries.length === 0) {
-    console.log("No audit entries found.");
+    print("No audit entries found.");
     return;
   }
   entries.sort((a, b) => b.sevOrder - a.sevOrder);
   for (const e of entries) {
-    console.log(`[${e.severity}] ${e.target} \u2014 ${e.preview} (${e.created}) [${e.status}]`);
+    print(`[${e.severity}] ${e.target} \u2014 ${e.preview} (${e.created}) [${e.status}]`);
   }
-  console.log();
-  console.log(`Total: ${entries.length} entries`);
+  print();
+  print(`Total: ${entries.length} entries`);
 }
 function createAudit(root, target, severity, text) {
   if (!target) {
@@ -1563,8 +1564,8 @@ ${text}
 `;
   writeFileSync2(dest, content, "utf-8");
   ok(`created: \u53CD\u9988/\u5F85\u5904\u7406/${filename}`);
-  console.log(`  target:   ${target}`);
-  console.log(`  severity: ${severity}`);
+  print(`  target:   ${target}`);
+  print(`  severity: ${severity}`);
 }
 function auditCommand(program2) {
   const cmd = program2.command("audit").description("Human feedback loop for corpus content").option("--list", "List entries (default)").option("--open", "Only show open (\u5F85\u5904\u7406) entries").option("--resolved", "Only show resolved (\u5DF2\u5904\u7406) entries").option("--create", "Create a new audit entry").option("--target <file>", "Target file path (relative to corpus root)").option("--severity <level>", "Severity: low | medium | high").option("--text <text>", "Feedback text");
@@ -2008,20 +2009,20 @@ function restoreCommand(program2) {
       const missing = diffs.filter((d) => d.kind === "MISSING");
       const changed = diffs.filter((d) => d.kind === "CHANGED");
       if (missing.length > 0) {
-        console.log(chalk5.yellow(`
+        print(chalk5.yellow(`
   MISSING (${missing.length}):`));
         for (const d of missing) {
-          console.log(`    + ${d.path}`);
+          print(`    + ${d.path}`);
         }
       }
       if (changed.length > 0) {
-        console.log(chalk5.cyan(`
+        print(chalk5.cyan(`
   CHANGED (${changed.length}):`));
         for (const d of changed) {
-          console.log(`    ~ ${d.path}`);
+          print(`    ~ ${d.path}`);
         }
       }
-      console.log();
+      print();
       if (opts.dryRun) {
         warn(`dry-run: ${diffs.length} file(s) would be restored`);
         return;
@@ -2121,7 +2122,7 @@ function searchCommand(program2) {
       results = searchFallback(query, corpus, { dir: opts.dir });
     }
     for (const r of results) {
-      console.log(JSON.stringify(r));
+      out(JSON.stringify(r));
     }
     if (results.length === 0) {
       warn("no results");
@@ -2167,7 +2168,7 @@ async function runVectorSync(corpus, opts = {}) {
   db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('model', ?)").run(model);
   db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('dim', ?)").run(String(dim));
   if (layered || force) {
-    console.log("Building layered index (L0/L1)...");
+    print("Building layered index (L0/L1)...");
     const embedBatch = (texts) => embed2(texts, model);
     await buildLayeredIndex2(db, corpus, embedBatch);
   }
@@ -2210,14 +2211,14 @@ function vectorCommand(program2) {
         results = opts.layered ? queryLayered2(db, embedding, topK, threshold) : queryFlat2(db, embedding, topK, threshold);
       }
       db.close();
-      console.log(JSON.stringify(results, null, 2));
+      out(JSON.stringify(results, null, 2));
     }
   );
   vec.command("status").description("show vector index status").action(async () => {
     const corpus = requireCorpus();
     const { getStatus: getStatus2 } = await Promise.resolve().then(() => (init_vectordb(), vectordb_exports));
     const info = await getStatus2(corpus);
-    console.log(JSON.stringify(info, null, 2));
+    out(JSON.stringify(info, null, 2));
   });
 }
 
@@ -3055,8 +3056,8 @@ function ingestCommand(program2) {
     const state = loadIngestState(corpus);
     const rows = Object.values(state.ingests);
     if (rows.length === 0) {
-      console.error("[lorekit ingest list] no records");
-      console.log(JSON.stringify({ ingests: [] }));
+      print("[lorekit ingest list] no records");
+      out(JSON.stringify({ ingests: [] }));
       return;
     }
     const summary = rows.map((r) => {
@@ -3065,27 +3066,27 @@ function ingestCommand(program2) {
       return `  [${r.status.padEnd(12)}] ${r.url}
     steps: ${done}  \u2192  ${dest}`;
     });
-    console.error(`[lorekit ingest list] ${rows.length} record(s)
+    print(`[lorekit ingest list] ${rows.length} record(s)
 ${summary.join("\n")}`);
-    console.log(JSON.stringify(state));
+    out(JSON.stringify(state));
   });
   group.command("pending").description("List only in-progress (non-completed) ingests \u2014 what you need to resume").action(() => {
     const corpus = requireCorpus();
     const pending = listPendingIngests(corpus);
     if (pending.length === 0) {
-      console.error("[lorekit ingest pending] all ingests are completed \u2014 nothing to resume");
-      console.log(JSON.stringify({ pending: [] }));
+      print("[lorekit ingest pending] all ingests are completed \u2014 nothing to resume");
+      out(JSON.stringify({ pending: [] }));
       return;
     }
     const summary = pending.map((r) => {
       return `  [${r.status.padEnd(12)}] ${r.url}
     next step \u2192 ${nextStepHint(r)}`;
     });
-    console.error(
+    print(
       `[lorekit ingest pending] ${pending.length} ingest(s) need attention
 ${summary.join("\n")}`
     );
-    console.log(JSON.stringify({ pending }));
+    out(JSON.stringify({ pending }));
     process.exitCode = 1;
   });
   group.command("record <url>").description("Record step progress for an ingest (call from wiki-ingest skill)").option(
@@ -3103,7 +3104,7 @@ ${summary.join("\n")}`
         parsedSteps = opts.step.split(",").map((s) => s.trim()).filter(Boolean);
         for (const s of parsedSteps) {
           if (!VALID_STEPS.includes(s)) {
-            console.error(
+            print(
               `[lorekit ingest record] invalid step: ${s}. valid: ${VALID_STEPS.join(", ")}`
             );
             process.exitCode = 2;
@@ -3127,7 +3128,7 @@ ${summary.join("\n")}`
       if (opts.status) {
         const validStatuses = ["started", "completed", "failed"];
         if (!validStatuses.includes(opts.status)) {
-          console.error(
+          print(
             `[lorekit ingest record] invalid --status: ${opts.status}. valid: ${validStatuses.join(", ")}`
           );
           process.exitCode = 2;
@@ -3147,14 +3148,14 @@ ${summary.join("\n")}`
           appendLogEntry(corpus, updated, opts.log);
           logAppended = true;
         } catch (e) {
-          console.error(`[lorekit ingest record] log append failed: ${e.message}`);
+          print(`[lorekit ingest record] log append failed: ${e.message}`);
         }
       }
-      console.error(
+      print(
         `[lorekit ingest record] ${url}
   status: ${updated.status}  steps: ${updated.stepsDone.join(",") || "(none)"}` + (logAppended ? "  +log" : "")
       );
-      console.log(JSON.stringify({ ...updated, logAppended }));
+      out(JSON.stringify({ ...updated, logAppended }));
     }
   );
   group.command("check <files...>").description("Scan given wiki pages for broken [[wikilinks]] (pre-commit check)").action((files) => {
@@ -3180,7 +3181,7 @@ ${summary.join("\n")}`
     for (const f of files) {
       const abs = f.startsWith("/") ? f : join15(process.cwd(), f);
       if (!existsSync12(abs)) {
-        console.error(`[lorekit ingest check] file not found: ${f}`);
+        print(`[lorekit ingest check] file not found: ${f}`);
         process.exitCode = 2;
         continue;
       }
@@ -3208,31 +3209,31 @@ ${summary.join("\n")}`
     }
     const result = { checked, ok: okLinks, broken };
     if (broken.length === 0) {
-      console.error(
+      print(
         `[lorekit ingest check] ${checked.length} file(s), ${okLinks.length} link(s) ok, no broken links`
       );
     } else {
-      console.error(`[lorekit ingest check] ${broken.length} broken link(s) found:`);
+      print(`[lorekit ingest check] ${broken.length} broken link(s) found:`);
       for (const b of broken) {
-        console.error(`  \u2717 ${b.file}: [[${b.link}]]`);
+        print(`  \u2717 ${b.file}: [[${b.link}]]`);
       }
       process.exitCode = 1;
     }
-    console.log(JSON.stringify(result));
+    out(JSON.stringify(result));
   });
   group.command("forget <url>").description("Remove a record from the state (e.g. after manual cleanup)").action((url) => {
     const corpus = requireCorpus();
     const removed = deleteIngestRecord(corpus, url);
-    console.error(
+    print(
       removed ? `[lorekit ingest forget] removed ${url}` : `[lorekit ingest forget] no record for ${url}`
     );
-    console.log(JSON.stringify({ removed, url }));
+    out(JSON.stringify({ removed, url }));
   });
   group.command("reconcile").description("Back-fill state for pre-existing \u539F\u6599/ pages missing a state record").option("--dry-run", "list what would be added without writing").action((opts) => {
     const corpus = requireCorpus();
     const sourcesRoot = join15(corpus, "\u539F\u6599");
     if (!existsSync12(sourcesRoot)) {
-      console.error("[lorekit ingest reconcile] no \u539F\u6599/ directory");
+      print("[lorekit ingest reconcile] no \u539F\u6599/ directory");
       return;
     }
     const state = loadIngestState(corpus);
@@ -3260,11 +3261,11 @@ ${summary.join("\n")}`
       added.push(url);
     }
     if (!opts.dryRun && added.length > 0) saveIngestState(corpus, state);
-    console.error(
+    print(
       `[lorekit ingest reconcile] ${opts.dryRun ? "would add" : "added"} ${added.length} record(s)`
     );
-    for (const u of added) console.error(`  + ${u}`);
-    console.log(JSON.stringify({ dryRun: !!opts.dryRun, added }));
+    for (const u of added) print(`  + ${u}`);
+    out(JSON.stringify({ dryRun: !!opts.dryRun, added }));
   });
 }
 
@@ -3283,16 +3284,16 @@ var MANAGED_SECTIONS = [
 function listEntriesInDir(corpus, subdir) {
   const dirPath = join16(corpus, subdir);
   if (!existsSync13(dirPath)) return [];
-  const out = [];
+  const out2 = [];
   for (const name of readdirSync9(dirPath)) {
     if (name.startsWith(".")) continue;
     if (name === "_INDEX.md") continue;
     if (!name.endsWith(".md")) continue;
     const file = join16(dirPath, name);
     const slug = `${subdir}/${name.replace(/\.md$/, "")}`;
-    out.push({ slug, summary: extractCompiledTruthSnippet(file) });
+    out2.push({ slug, summary: extractCompiledTruthSnippet(file) });
   }
-  return out.sort((a, b) => a.slug.localeCompare(b.slug));
+  return out2.sort((a, b) => a.slug.localeCompare(b.slug));
 }
 function extractCompiledTruthSnippet(filePath) {
   let content;

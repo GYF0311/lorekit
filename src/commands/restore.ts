@@ -5,7 +5,7 @@ import { createInterface } from 'node:readline';
 import { tmpdir } from 'node:os';
 import * as tar from 'tar';
 import chalk from 'chalk';
-import { ok, bad, err, warn } from '../utils/logger.js';
+import { ok, bad, err, warn, print } from '../utils/logger.js';
 import { requireCorpus } from '../lib/corpus.js';
 import { sha256 } from '../utils/fs.js';
 
@@ -113,18 +113,18 @@ export function restoreCommand(program: Command) {
         const changed = diffs.filter((d) => d.kind === 'CHANGED');
 
         if (missing.length > 0) {
-          console.log(chalk.yellow(`\n  MISSING (${missing.length}):`));
+          print(chalk.yellow(`\n  MISSING (${missing.length}):`));
           for (const d of missing) {
-            console.log(`    + ${d.path}`);
+            print(`    + ${d.path}`);
           }
         }
         if (changed.length > 0) {
-          console.log(chalk.cyan(`\n  CHANGED (${changed.length}):`));
+          print(chalk.cyan(`\n  CHANGED (${changed.length}):`));
           for (const d of changed) {
-            console.log(`    ~ ${d.path}`);
+            print(`    ~ ${d.path}`);
           }
         }
-        console.log();
+        print();
 
         if (opts.dryRun) {
           warn(`dry-run: ${diffs.length} file(s) would be restored`);

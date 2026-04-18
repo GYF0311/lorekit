@@ -9,7 +9,7 @@ import {
   lintSkipOrphanPrefixes,
   lintSkipFrontmatterPrefixes,
 } from '../lib/paths.js';
-import { bad, ok } from '../utils/logger.js';
+import { bad, ok, print } from '../utils/logger.js';
 
 const REQUIRED_FIELDS = ['type', 'title', 'slug', 'created', 'updated'] as const;
 
@@ -158,11 +158,11 @@ export function lintCommand(program: Command) {
       }
 
       // Output report
-      console.log(chalk.bold(`\nlorekit lint — ${corpus}\n`));
+      print(chalk.bold(`\nlorekit lint — ${corpus}\n`));
 
       if (issues.length === 0) {
         ok('no issues found');
-        console.log();
+        print();
         return;
       }
 
@@ -179,14 +179,14 @@ export function lintCommand(program: Command) {
       };
 
       for (const [kind, items] of Object.entries(grouped)) {
-        console.log(chalk.cyan(`── ${kindLabels[kind] ?? kind} (${items.length}) ──`));
+        print(chalk.cyan(`── ${kindLabels[kind] ?? kind} (${items.length}) ──`));
         for (const item of items) {
           bad(`${item.file}: ${item.detail}`);
         }
-        console.log();
+        print();
       }
 
-      console.log(chalk.yellow(`${issues.length} issue(s) total\n`));
+      print(chalk.yellow(`${issues.length} issue(s) total\n`));
       process.exitCode = 1;
     });
 }

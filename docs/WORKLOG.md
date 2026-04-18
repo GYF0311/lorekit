@@ -6,6 +6,41 @@
 
 ---
 
+## 2026-04-19 — 批次 14：P2 sweep console→logger 余下 9 commands（P2-4 b）
+
+**做了什么**
+
+- 加 `out(msg)` 到 logger.ts —— 写 stdout 给 JSON / 机器输出（CONVENTIONS Do Not #2 收口）
+- 9 commands 文件 sweep：
+  - `restore.ts` 5 处 `console.log` → `print`
+  - `audit.ts` 6 处 `console.log` → `print`（list / summary 输出归 stderr，符合 CONVENTIONS）
+  - `stats.ts` 1 处 `console.log(JSON.stringify)` → `out`
+  - `vector.ts` 3 处：1 print + 2 out（Building... → print，2 个 JSON → out）
+  - `search.ts` 1 处 `console.log(JSON.stringify)` → `out`
+  - `ingest.ts` 24 处：8 个 `console.log(JSON.stringify)` → `out`，16 个 `console.error('[lorekit ingest XXX] ...')` → `print`（消息自带前缀，不再叠加 logger 装饰）
+  - `index.ts` / `snapshot.ts` 已经 0 console，不动
+  - `lint.ts` 5 处 `console.log` → `print`
+- tag：`refactor-batch-14`
+- **lint baseline**：no-console 60 → **15**（-45）
+
+**手动验**
+
+- `stats 2>/dev/null | python3 -c 'json.load(sys.stdin)'` → JSON 解析成功 ✓
+- `vector status 2>/dev/null` → JSON 解析成功 ✓
+
+**已知遗留（不在批次 14 计划内，留 WORKLOG 给先生）**
+
+- `src/lib/vectordb.ts` 7 处 console — **批次 22 拆库时一起做**（已在原计划）
+- `src/commands/fetch.ts` 5 处 console — **不在 13 / 14 计划列表里**（计划遗漏）；建议明早先生决定：插入 batch 14 后做一次小补丁，或归到批次 21 拆 fetcher 时一并做
+- `src/commands/install-skills.ts` 3 处 console — 同样**不在计划列表**；建议同上处理（list 输出涉及 stdout 机器读用例 vs 人类输出之别，需要先生定夺）
+- 批次 12 时 ingest.ts 我引入的一处 console.error 已被本批顺手清掉（`out`→ 16 个 console.error 的批量替换覆盖到了）
+
+**接下来**
+
+- 进批次 15：P2 杂项（vector.ts 标准库静态 import + 退出码统一 + vectordb eslint disable 删）
+
+---
+
 ## 2026-04-19 — 批次 13：P2 sweep console→logger（cli + init + doctor + sync）（P2-4 a）
 
 **做了什么**

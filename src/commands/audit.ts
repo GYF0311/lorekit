@@ -8,7 +8,7 @@ import {
   extractFrontmatter,
 } from '../lib/corpus.js';
 import { tsCompact, tsMinute } from '../lib/date.js';
-import { ok, err } from '../utils/logger.js';
+import { ok, err, print } from '../utils/logger.js';
 
 const SEVERITY_ORDER: Record<string, number> = { high: 3, medium: 2, low: 1 };
 
@@ -75,7 +75,7 @@ function listAudit(root: string, filter: 'all' | 'open' | 'resolved'): void {
   }
 
   if (entries.length === 0) {
-    console.log('No audit entries found.');
+    print('No audit entries found.');
     return;
   }
 
@@ -83,10 +83,10 @@ function listAudit(root: string, filter: 'all' | 'open' | 'resolved'): void {
   entries.sort((a, b) => b.sevOrder - a.sevOrder);
 
   for (const e of entries) {
-    console.log(`[${e.severity}] ${e.target} — ${e.preview} (${e.created}) [${e.status}]`);
+    print(`[${e.severity}] ${e.target} — ${e.preview} (${e.created}) [${e.status}]`);
   }
-  console.log();
-  console.log(`Total: ${entries.length} entries`);
+  print();
+  print(`Total: ${entries.length} entries`);
 }
 
 function createAudit(root: string, target: string, severity: string, text: string): void {
@@ -131,8 +131,8 @@ ${text}
 
   writeFileSync(dest, content, 'utf-8');
   ok(`created: 反馈/待处理/${filename}`);
-  console.log(`  target:   ${target}`);
-  console.log(`  severity: ${severity}`);
+  print(`  target:   ${target}`);
+  print(`  severity: ${severity}`);
 }
 
 export function auditCommand(program: Command): void {

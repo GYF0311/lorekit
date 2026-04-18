@@ -40,3 +40,10 @@ export const debug = (msg: string) => {
  * 调用方负责自己加 chalk —— 如 `print(chalk.cyan('── 区块 ──'))`。
  */
 export const print = (msg = '') => console.error(msg);
+
+/**
+ * 原样写一行到 **stdout**（机器可读通道）。
+ * 用于 JSON / 数据结构 / 任何下游会用 `cmd | jq` 解析的输出。
+ * 这是 stdout 的唯一合法 logger 入口（CONVENTIONS Do Not #2）。
+ */
+export const out = (msg: string) => console.log(msg);

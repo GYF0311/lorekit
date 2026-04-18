@@ -2,7 +2,7 @@ import type { Command } from 'commander';
 import { readFileSync, statSync } from 'node:fs';
 import { relative } from 'node:path';
 import { requireCorpus, collectMdFiles, extractFrontmatter } from '../lib/corpus.js';
-import { debug } from '../utils/logger.js';
+import { debug, out } from '../utils/logger.js';
 
 export function statsCommand(program: Command) {
   program
@@ -80,6 +80,6 @@ export function statsCommand(program: Command) {
         last_updated: lastUpdated || null,
       };
 
-      console.log(JSON.stringify(result, null, 2));
+      out(JSON.stringify(result, null, 2));
     });
 }
