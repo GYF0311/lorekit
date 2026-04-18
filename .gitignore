@@ -5,6 +5,9 @@ __pycache__/
 .venv/
 node_modules/
 
+# 临时探针 / 测试残留
+tmp/
+
 # corpus 衍生物（不进 git）
 .wiki/vector.sqlite
 .wiki/vector.sqlite-wal

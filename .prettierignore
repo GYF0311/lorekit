@@ -1,0 +1,21 @@
+# 构建产物
+dist/
+
+# 第三方
+node_modules/
+plugins/obsidian-audit/main.js
+
+# 锁文件 / 大型生成物
+package-lock.json
+*.tar.gz
+*.sqlite
+*.sqlite-*
+
+# .wiki 是 corpus 元数据（不该出现在仓库根，见 LEGACY P3-3）
+.wiki/
+
+# 用户向 corpus 模板内容：lorekit init 拷给用户的，prettier 不该改它们
+templates/
+
+# 临时 / 测试残留
+tmp/
