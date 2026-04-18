@@ -8,9 +8,12 @@ Softlinks lorekit's fat skills into `~/.claude/skills/` so Claude Code auto-disc
 # Preferred (via wiki CLI):
 lorekit install-skills --target claude-code
 
-# Or directly:
+# Legacy shim (forwards to the CLI above):
 ./integrations/claude-code/install.sh
 ```
+
+`install.sh` 现在是 thin shim —— 直接 exec `lorekit install-skills --target claude-code`。
+保留只为兼容老教程的链接，没新功能。
 
 Both do the same thing:
 

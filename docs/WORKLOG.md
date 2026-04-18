@@ -6,6 +6,28 @@
 
 ---
 
+## 2026-04-19 — 批次 16：P3 文档 sweep（README + integrations + .gitignore）
+
+**做了什么**
+
+- `README.md` L116：`lorekit --version  # → 0.2.0` → `0.3.0`（VERSION 文件实值）
+- `.gitignore`：加 `/.wiki/` 根级排除；`.wiki/vector.sqlite*` 等子规则保留兼容 corpus 目录
+- `integrations/claude-code/install.sh`：57 行旧实现 → 11 行 thin shim，`exec lorekit install-skills --target claude-code "$@"`，去掉了原文里的 `rm -rf` 路径
+- `integrations/claude-code/uninstall.sh`：34 行旧实现 → 11 行 thin shim，转发 `lorekit install-skills --target claude-code --uninstall`
+- `integrations/claude-code/README.md`：补一行说明现在是 thin shim
+- tag：`refactor-batch-16`
+
+**为什么**
+
+- LEGACY P3-1 / P3-2 / P3-3：文档 / 历史脚本 / 仓库清洁的杂项
+- 旧 install.sh 自带 `rm -rf "$target"` 在 macOS rm-guard 红线眼里是定时炸弹；shim 化后所有删除都走 lorekit CLI 的 unlinkSync（仅删 symlink，安全）
+
+**接下来**
+
+- 进批次 17：P3 commands/index.ts rename + NaN 守卫（**单批合并**，先生 Q2 决定）
+
+---
+
 ## 2026-04-19 — 批次 15：P2 杂项 vector 静态 import + 退出码 + eslint disable 删（P2-1 / P2-5 / P2-6）
 
 **做了什么**

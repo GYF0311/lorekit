@@ -14,6 +14,9 @@ tmp/
 .wiki/vector.sqlite-shm
 .wiki/provider_cache/
 
+# 本仓库根本不该有 .wiki/（那是 corpus 元数据），整体排除避免开发探针漏 commit
+/.wiki/
+
 # _INDEX.md 是 sync 自动生成的目录索引，不进 lorekit 工具仓库
 # （corpus 在自己的 .git 里管，跟 lorekit 仓库无关）
 _INDEX.md

@@ -1,33 +1,11 @@
 #!/usr/bin/env bash
-# Remove lorekit skill symlinks from ~/.claude/skills/
+# Thin shim — 转发到 `lorekit install-skills --target claude-code --uninstall`。
+# 见 install.sh 的注释。
 set -euo pipefail
 
-LOREKIT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-SKILLS_SRC="$LOREKIT_ROOT/skills"
-SKILLS_DST="$HOME/.claude/skills"
-
-removed=0
-for skill_dir in "$SKILLS_SRC"/wiki-*/; do
-  name="$(basename "$skill_dir")"
-  target="$SKILLS_DST/$name"
-  if [ -L "$target" ]; then
-    rm "$target"
-    echo "  ✗ removed $name"
-    removed=$((removed + 1))
-  fi
-done
-
-# Clear corpus record
-_find_corpus() {
-  local d="$PWD"
-  while [ "$d" != "/" ]; do
-    [ -d "$d/.wiki" ] && { echo "$d"; return 0; }
-    d="$(dirname "$d")"
-  done
-  return 1
-}
-if corpus="$(_find_corpus)"; then
-  rm -f "$corpus/.wiki/installed-harnesses.json"
+if ! command -v lorekit >/dev/null 2>&1; then
+  echo "[err] lorekit CLI not found in PATH" >&2
+  exit 1
 fi
 
-echo "[lorekit] removed $removed skills."
+exec lorekit install-skills --target claude-code --uninstall "$@"
