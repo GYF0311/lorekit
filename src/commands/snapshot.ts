@@ -13,6 +13,7 @@ import * as tar from 'tar';
 import { ok, bad, err } from '../utils/logger.js';
 import { requireCorpus } from '../lib/corpus.js';
 import { snapshotExcludeNames } from '../lib/paths.js';
+import { tsCompact } from '../lib/date.js';
 import { sha256 } from '../utils/fs.js';
 
 interface ManifestEntry {
@@ -75,19 +76,8 @@ export function snapshotCommand(program: Command) {
       writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
 
       // Build filename: YYYYMMDD-HHMMSS[-tag].tar.gz
-      const now = new Date();
-      const pad = (n: number) => String(n).padStart(2, '0');
-      const stamp = [
-        now.getFullYear(),
-        pad(now.getMonth() + 1),
-        pad(now.getDate()),
-        '-',
-        pad(now.getHours()),
-        pad(now.getMinutes()),
-        pad(now.getSeconds()),
-      ].join('');
       const tag = opts.tag ? `-${opts.tag}` : '';
-      const tarName = `${stamp}${tag}.tar.gz`;
+      const tarName = `${tsCompact()}${tag}.tar.gz`;
       const tarPath = join(snapshotsDir, tarName);
 
       // Create tarball

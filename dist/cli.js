@@ -1907,19 +1907,8 @@ function snapshotCommand(program2) {
     });
     const manifestPath = join8(snapshotsDir, "manifest.json");
     writeFileSync4(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
-    const now = /* @__PURE__ */ new Date();
-    const pad = (n) => String(n).padStart(2, "0");
-    const stamp = [
-      now.getFullYear(),
-      pad(now.getMonth() + 1),
-      pad(now.getDate()),
-      "-",
-      pad(now.getHours()),
-      pad(now.getMinutes()),
-      pad(now.getSeconds())
-    ].join("");
     const tag = opts.tag ? `-${opts.tag}` : "";
-    const tarName = `${stamp}${tag}.tar.gz`;
+    const tarName = `${tsCompact()}${tag}.tar.gz`;
     const tarPath = join8(snapshotsDir, tarName);
     const allEntries = [...files, relative6(corpus, manifestPath)];
     await tar.create(
@@ -3013,9 +3002,7 @@ import { existsSync as existsSync12, readFileSync as readFileSync15, writeFileSy
 import { join as join15, relative as relative12 } from "path";
 var VALID_STEPS = ["fetch", "archive", "wiki", "backlink", "lint"];
 function today() {
-  const d = /* @__PURE__ */ new Date();
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return dateToYMDLocal(/* @__PURE__ */ new Date());
 }
 function appendLogEntry(corpus, record, body) {
   const logPath = join15(corpus, "log.md");

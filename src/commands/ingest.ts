@@ -20,14 +20,13 @@ import {
   type IngestRecord,
   type IngestStep,
 } from '../lib/ingest-state.js';
+import { dateToYMDLocal } from '../lib/date.js';
 
 const VALID_STEPS: IngestStep[] = ['fetch', 'archive', 'wiki', 'backlink', 'lint'];
 
 // Today as YYYY-MM-DD in local time (Asia/Shanghai assumed by user setup).
 function today(): string {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return dateToYMDLocal(new Date());
 }
 
 /**

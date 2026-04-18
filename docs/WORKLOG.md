@@ -6,6 +6,25 @@
 
 ---
 
+## 2026-04-19 — 批次 9：date.ts sweep 2（snapshot + ingest）（P1-2 b）
+
+**做了什么**
+
+- `src/commands/snapshot.ts`：8 行手写 `pad / now.getXxx` 拼接 → `tsCompact()` 一行
+- `src/commands/ingest.ts`：`today()` 内部从手写 → `dateToYMDLocal(new Date())`
+- tag：`refactor-batch-9`
+- fetcher.ts 内 `todayYMD/tsToYMD/normalizeDateText` 暂留，按计划随批次 21 拆 fetcher 时一起迁
+
+**为什么**
+
+- LEGACY P1-2 (b)：完成 P1-2 的剩余 sweep，集中完毕（除 fetcher.ts）
+
+**接下来**
+
+- 进批次 10：logger.ts 加 `info` / `debug` + `bad → stderr`（P1-3，**中风险，要额外手动验证**）
+
+---
+
 ## 2026-04-19 — 批次 8：建 lib/date.ts + 迁 index/audit（P1-2 a）
 
 **做了什么**
