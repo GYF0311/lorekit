@@ -5,6 +5,144 @@
 
 ---
 
+## [2026-04-18 深夜] wiki-ingest 流程下沉到 CLI + lorekitRoot() 老 bug 修复（v0.3.0）
+
+### 背景
+
+先生跑了一次 web-access 公众号文章的 ingest，**实测 5:27**——3 个 wiki 页 ≈ 6k 字。先生当场质疑：
+
+> "你这边执行的实在太久了。原因是什么？查重不应该在知识库里查，应该是有一个 json 的文件，那就是让程序直接匹配 url，如果重复不就直接回复重复就好了嘛。为什么要让大模型去检索呢？index 和 log 的功能是什么？"
+
+复盘 5:27 的耗时构成：
+- 3 个独立 wiki 页**串行 Write**：~180s（最大头）
+- `lorekit search` 二次查重：~10s（fetch 已做 URL dedupe，纯冗余）
+- 手动 Edit `corpus/index.md` + `corpus/log.md`：~30s
+- 4 次 `ingest record` 打卡：~8s
+- 死链事后清理：~15s
+
+第一性原理：**LLM 只该负责"主语识别 + Compiled Truth 写作 + Timeline 措辞"，其它（查重 / 刷 index / 写 log / 推 state machine / 死链检测）全是 CLI 的事**。当前 skill 文档让 LLM 做了一堆 grunt work。这轮把能下沉的全部下沉。
+
+### 主线 4 条
+
+1. **多步 record + 自动写 log**：一次 CLI 调用关账 + 写日志
+2. **死链预检命令**：写完页 commit 前检测 `[[broken]]`
+3. **sync 默认 merge `corpus/index.md`**：自动同步根索引，保留人类手写摘要
+4. **SKILL.md 大瘦身**：删冗余、精简 decision tree、强制并行写页
+
+### 改动 1：`ingest record --step <multi> --log <body>`
+
+`src/commands/ingest.ts`：
+
+- `--step` 支持逗号分隔：`--step archive,wiki,backlink,lint` 一次推进 4 步
+- `--step` 链含 `lint` 自动转 `status: completed`
+- 新增 `--log "一句话归纳"`：CLI 自动 prepend 标准格式条目到 `corpus/log.md`：
+
+```
+## [YYYY-MM-DD] ingest | <title from state>
+
+<body>
+
+- **URL**：<url>
+- **归档**：<archivedTo>
+- **新建/更新页**：
+  - <wikiPages[0]>
+  - <wikiPages[1]>
+```
+
+`title` / `archivedTo` / `wikiPages` 都从 state.json 自动读出来，LLM 不用重复传。日志条目按 `## [` 锚点 prepend 到第一条既有 section 之前——最新在上，跟既有惯例一致。
+
+向后兼容：单步 `--step lint` 走相同代码路径，行为不变。
+
+### 改动 2：新增 `lorekit ingest check <wiki-page...>`
+
+`src/commands/ingest.ts` 新子命令，给 wiki-ingest 的 Step 5 用——**写完页、记账前**预检死链：
+
+```bash
+lorekit ingest check 知识库/实体/A.md 知识库/概念/B.md
+# → JSON {checked, ok, broken}
+```
+
+复用 `lint.ts` 的 stem/baseName 解析逻辑（含目录包装式原料 `xxx/article` ↔ `xxx`）。`broken: []` 进 record，否则让 LLM 决定建 stub 还是降级 `[[xxx]]` 为纯文本——**不让死链漏到 sync / lint 阶段**。
+
+`process.exitCode = 1` 当有 broken，便于 `&&` 链式调用。
+
+### 改动 3：`lorekit sync` 默认 merge `corpus/index.md`
+
+新文件 `src/lib/root-index.ts`（95 行），实现 **merge 不覆盖** 的根索引同步：
+
+- 受控四区：`## 概念 / ## 实体 / ## 摘要 / ## 专题`
+- 文件在 disk + index 已登记 → 保留人类手写的 summary（不动！）
+- 文件在 disk + index 没登记 → 追加新行，summary 自动从 `## Compiled Truth` 首句抽（80 字截断 + 剥 `**bold**` 前缀）
+- 在 index + 文件已删 → 删除该行
+- 受控区**外**（`## 写作` / `## 待研究问题` / `## 空缺`）一字不动
+
+接进 `sync.ts` 作为 Step 1b（runIndex 之后），新增 `--skip-root-index` 退出。doctor 不报新告警，向量层（L0 读 `index.md` 的 `## 分区`）天然吃到刷新后的内容。
+
+**踩坑 + 修复**：第一版 normalize 逻辑只剥 leading/trailing 空行，中间空行保留——结果新增条目和既有条目之间多一个空白行。改成"扫描时丢弃所有 blank + placeholder，最后用 canonical padding 包裹"——一发即治。
+
+### 改动 4：顺手修 `lorekitRoot()` 老 bug
+
+`src/utils/fs.ts::lorekitRoot()` 写的是 `join(dirname(thisFile), '..', '..')`——但 tsup 把所有代码 bundle 到 `dist/cli.js`，`dirname = dist/`，往上两级跑到了 `~/code/` 而不是 `~/code/lorekit/`。结果 `readVersion()` 读不到 `VERSION` 文件，**走 catch 分支返回硬编码 `'0.2.0'`**——所以 banner 从 v0.1 起就一直显示老版本号。
+
+修：改成 `join(dirname(thisFile), '..')`，catch fallback 改成 `'unknown'`（不再硬编码版本号）。
+
+### 改动 5：SKILL.md 重写（195 行 → 217 行）
+
+`skills/wiki-ingest/SKILL.md` 整体重构：
+
+- **新增分工边界表**（CLI vs LLM 各干啥），强制让 LLM 一进来就知道哪些不该自己做
+- Decision tree **11 步 → 6 步**：fetch → 解析主语 → mv → **并行建页** → check → record + sync 一次关账
+- **铁律：多个独立 wiki 页必须并行 Write**——单条消息一次发出 N 个 Write，不要串行（这次 5:27 的根因）
+- 删 Step 4 查重（fetch 已做）
+- 删手动维护 `index.md` / `log.md` 的指令（sync 和 record 接管）
+- 删"意外中断怎么办"的繁琐恢复流程（保留一句"重跑 fetch，CLI 自己告诉你从哪继续"）
+- 新增 `ingest check` 引用，作为反链铁律的工具兜底
+
+行数没瘦但**信息密度大幅提升**：表格化、分工清晰、每条规则都有可执行的 CLI 命令兜底。
+
+### 验证
+
+| 测试项 | 结果 |
+|---|---|
+| `lorekit --version` | ✅ 0.3.0（修了老 bug） |
+| `ingest check` 3 文件 10 链接 | ✅ 0 broken，全 ok |
+| `sync` index.md unchanged | ✅ 8 entries 全保留 |
+| `sync` index.md merge（手动删一行测自动补回） | ✅ +1 added，slug 显示出来 |
+| `record --step a,b,c,d --log "..."` | ✅ status 一次到 completed，log 自动 prepend |
+| 第一版有空行 bug → 修后再测 | ✅ 条目间 blank 分隔正确 |
+| 向后兼容：单步 `--step lint` | ✅ 走相同代码路径 |
+
+### 收益预估
+
+同样 3 wiki 页规模的下次 ingest：
+
+| | 改造前 5:27 | 改造后预期 |
+|---|---|---|
+| fetch | 15s | 15s |
+| 查重 | 10s | 0s |
+| 写 3 wiki 页 | 180s **串行** | ~60s **并行** |
+| Edit index + log | 30s | 0s（CLI 包办） |
+| 4 次 record 打卡 | 8s | 2s（一次链式） |
+| 死链清理 | 15s | 5s（check 预警） |
+| sync + lint | 5s | 5s |
+| **总计** | **5:27** | **~1:50** |
+
+近 3 倍加速。
+
+### 番外：差点发 npm v0.3 但放弃
+
+- `npm publish` 报 `403 Forbidden`：npm 现在强制 publish 必须开 2FA 或用带 bypass 的 granular token
+- 先生评估后说"算啦，咱不走 npm 了，就老老实实 git 就行"
+- 这次踩到的"npm registry 默认是淘宝镜像 / username 在 settings URL 里 / publish 必须 --registry 切官方"已经记到 corpus 里：`知识库/概念/npm-publish-镜像与认证.md`（含 2 张截图）——下次想发再查
+- 顺带 `chore: gitignore _INDEX.md` 一次（commit `cf8ddf1`）：之前在 lorekit 仓库内误跑 sync 生成了 13 个 `_INDEX.md`，trash + 加 .gitignore 防止再生成
+
+### Commits
+
+- `8644c71` feat(ingest): 多步链式 record + --log 写日志 + check 死链预检 + sync 合并 root index.md
+- `cf8ddf1` chore: gitignore 排除 _INDEX.md，清理误生成的索引文件
+
+---
+
 ## [2026-04-18 晚] 文本三层 + 向量三层共享档案 + 阶段 2 混合检索骨架
 
 ### 背景
