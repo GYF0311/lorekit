@@ -1,0 +1,6 @@
+# 让 git blame 跳过这些"纯格式 / 机械重构"提交。
+# 用法：git config blame.ignoreRevsFile .git-blame-ignore-revs
+# GitHub 的 blame 视图会自动读取本文件。
+
+# 批次 3 format（2026-04-19）：全仓 prettier 初始 format，约 40 文件机械 reformat
+0420a9411226983a48f5397dd31830ad7422f9d7
