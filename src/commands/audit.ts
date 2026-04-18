@@ -7,6 +7,7 @@ import {
   hasFrontmatter,
   extractFrontmatter,
 } from '../lib/corpus.js';
+import { tsCompact, tsMinute } from '../lib/date.js';
 import { ok, err } from '../utils/logger.js';
 
 const SEVERITY_ORDER: Record<string, number> = { high: 3, medium: 2, low: 1 };
@@ -110,11 +111,9 @@ function createAudit(root: string, target: string, severity: string, text: strin
   const slug = basename(target, '.md').replace(/[\s/]/g, '-').toLowerCase();
 
   const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const tsFile = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-  const tsFm = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const filename = `${tsCompact(now)}-${slug}.md`;
+  const tsFm = tsMinute(now);
 
-  const filename = `${tsFile}-${slug}.md`;
   const destDir = join(root, '反馈', '待处理');
   mkdirSync(destDir, { recursive: true });
 

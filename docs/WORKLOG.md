@@ -6,6 +6,26 @@
 
 ---
 
+## 2026-04-19 — 批次 8：建 lib/date.ts + 迁 index/audit（P1-2 a）
+
+**做了什么**
+
+- 新建 `src/lib/date.ts`：导出 `pad2` / `todayYMDShanghai` / `dateToYMDUtc` / `dateToYMDLocal` / `tsCompact`（YYYYMMDD-HHMMSS）/ `tsMinute`（YYYY-MM-DD HH:MM）
+- `src/commands/index.ts`：2 处 `pad/getUTCFullYear/...` 拼接 → `dateToYMDUtc(d)` / `dateToYMDLocal(mtime)`
+- `src/commands/audit.ts`：`pad`+`tsFile`+`tsFm` 4 行 → `tsCompact(now)` + `tsMinute(now)`
+- tag：`refactor-batch-8`
+
+**为什么**
+
+- LEGACY P1-2 (a)：日期 helper 散落在 6 个文件，先把 init/index/audit 这一组迁掉
+- **发现并未处理**：`init.ts` 计划里列了，但实际只有 `Date.now()`（数字时间戳），没有日期格式化代码。**实际改动 = index.ts + audit.ts 两处**。计划文档里 init.ts 是误列；明早先生可在 LEGACY 备注下
+
+**接下来**
+
+- 进批次 9：snapshot.ts + ingest.ts 的 date 迁移
+
+---
+
 ## 2026-04-19 — 批次 7：paths.ts 迁 commands/{index,lint,snapshot,doctor}.ts（P1-1 c）
 
 **做了什么**

@@ -7,6 +7,7 @@ import {
   isIndexExcluded,
   isFolderPackage,
 } from '../lib/paths.js';
+import { dateToYMDUtc, dateToYMDLocal } from '../lib/date.js';
 import { ok, warn, err } from '../utils/logger.js';
 
 function extractSummary(filePath: string): string {
@@ -48,9 +49,7 @@ function readEntryFromFile(filePath: string, slug: string): IndexEntry {
     title = typeof fm.title === 'string' ? fm.title : fm.title != null ? String(fm.title) : '';
 
     if (fm.updated instanceof Date) {
-      const d = fm.updated;
-      const pad = (n: number) => String(n).padStart(2, '0');
-      updated = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+      updated = dateToYMDUtc(fm.updated);
     } else {
       updated = fm.updated != null ? String(fm.updated) : '';
     }
@@ -65,9 +64,7 @@ function readEntryFromFile(filePath: string, slug: string): IndexEntry {
 
   if (!updated) {
     try {
-      const mtime = statSync(filePath).mtime;
-      const pad = (n: number) => String(n).padStart(2, '0');
-      updated = `${mtime.getFullYear()}-${pad(mtime.getMonth() + 1)}-${pad(mtime.getDate())}`;
+      updated = dateToYMDLocal(statSync(filePath).mtime);
     } catch {
       updated = 'unknown';
     }

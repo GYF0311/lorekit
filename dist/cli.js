@@ -1430,6 +1430,34 @@ lorekit lint \u2014 ${corpus}
 // src/commands/audit.ts
 import { existsSync as existsSync4, mkdirSync as mkdirSync2, readFileSync as readFileSync7, writeFileSync as writeFileSync2 } from "fs";
 import { join as join5, basename as basename3 } from "path";
+
+// src/lib/date.ts
+var SHANGHAI_TZ_OFFSET_MS = 8 * 60 * 60 * 1e3;
+function pad2(n) {
+  return String(n).padStart(2, "0");
+}
+function dateToYMDUtc(d) {
+  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+}
+function dateToYMDLocal(d) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+function tsCompact(d = /* @__PURE__ */ new Date()) {
+  return [
+    d.getFullYear(),
+    pad2(d.getMonth() + 1),
+    pad2(d.getDate()),
+    "-",
+    pad2(d.getHours()),
+    pad2(d.getMinutes()),
+    pad2(d.getSeconds())
+  ].join("");
+}
+function tsMinute(d = /* @__PURE__ */ new Date()) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+// src/commands/audit.ts
 var SEVERITY_ORDER = { high: 3, medium: 2, low: 1 };
 function extractPreview(filePath) {
   const content = readFileSync7(filePath, "utf-8");
@@ -1508,10 +1536,8 @@ function createAudit(root, target, severity, text) {
   }
   const slug = basename3(target, ".md").replace(/[\s/]/g, "-").toLowerCase();
   const now = /* @__PURE__ */ new Date();
-  const pad = (n) => String(n).padStart(2, "0");
-  const tsFile = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-  const tsFm = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
-  const filename = `${tsFile}-${slug}.md`;
+  const filename = `${tsCompact(now)}-${slug}.md`;
+  const tsFm = tsMinute(now);
   const destDir = join5(root, "\u53CD\u9988", "\u5F85\u5904\u7406");
   mkdirSync2(destDir, { recursive: true });
   const dest = join5(destDir, filename);
@@ -1577,9 +1603,7 @@ function readEntryFromFile(filePath, slug) {
     const fm = extractFrontmatter(filePath);
     title = typeof fm.title === "string" ? fm.title : fm.title != null ? String(fm.title) : "";
     if (fm.updated instanceof Date) {
-      const d = fm.updated;
-      const pad = (n) => String(n).padStart(2, "0");
-      updated = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+      updated = dateToYMDUtc(fm.updated);
     } else {
       updated = fm.updated != null ? String(fm.updated) : "";
     }
@@ -1591,9 +1615,7 @@ function readEntryFromFile(filePath, slug) {
   if (!title) title = basename4(filePath, ".md");
   if (!updated) {
     try {
-      const mtime = statSync5(filePath).mtime;
-      const pad = (n) => String(n).padStart(2, "0");
-      updated = `${mtime.getFullYear()}-${pad(mtime.getMonth() + 1)}-${pad(mtime.getDate())}`;
+      updated = dateToYMDLocal(statSync5(filePath).mtime);
     } catch {
       updated = "unknown";
     }
@@ -2290,13 +2312,13 @@ async function fetchHtmlL2(url) {
     return null;
   }
 }
-var SHANGHAI_TZ_OFFSET_MS = 8 * 60 * 60 * 1e3;
+var SHANGHAI_TZ_OFFSET_MS2 = 8 * 60 * 60 * 1e3;
 function tsToYMD(seconds) {
-  const d = new Date(seconds * 1e3 + SHANGHAI_TZ_OFFSET_MS);
+  const d = new Date(seconds * 1e3 + SHANGHAI_TZ_OFFSET_MS2);
   return d.toISOString().slice(0, 10);
 }
 function todayYMD() {
-  const d = new Date(Date.now() + SHANGHAI_TZ_OFFSET_MS);
+  const d = new Date(Date.now() + SHANGHAI_TZ_OFFSET_MS2);
   return d.toISOString().slice(0, 10);
 }
 function normalizeDateText(raw) {
