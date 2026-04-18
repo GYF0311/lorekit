@@ -6,6 +6,26 @@
 
 ---
 
+## 2026-04-19 — 批次 4：cli.ts banner 静态 import 替换 ESM require（P1-6）
+
+**做了什么**
+
+- 5e778c7 refactor(cli): banner 用静态 import 替换 ESM require — 3 处 `require(...)` 改顶部静态 import：`existsSync` from node:fs、`Database` from better-sqlite3、`collectMdFiles` from ./lib/corpus.js
+- 副作用：better-sqlite3 类型暴露后 `.get()` 返回值需要显式 cast，加了 2 处 `as { c: number } | undefined` / `as { value: string } | undefined`（不是 `as any`，符合 CONVENTIONS Do Not #4）
+- tag：`refactor-batch-4`
+- verify 全绿；手动 `node dist/cli.js` banner 输出正常（corpus / pages / indexed / model 字段都对）
+
+**为什么**
+
+- LEGACY P1-6 + B1：ESM 文件里 `require()` 是巧合可跑，tsup bundle 后 `./lib/corpus.js` 相对路径在单文件 bundle 中可能解析不到。属于"基础设施级"风险
+- 静态 import 让 better-sqlite3 在 lorekit 任何子命令启动时都加载（哪怕 `--version`），但 better-sqlite3 启动开销小（< 50ms），可接受
+
+**接下来**
+
+- 进批次 5：建 `lib/paths.ts` 骨架 + 迁 `corpus.ts` 的 `EXCLUDE_NAMES`（P1-1 a）
+
+---
+
 ## 2026-04-19 — 批次 3：ESLint 9 + Prettier 3 配置 + 全仓 initial format
 
 **做了什么**
