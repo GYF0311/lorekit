@@ -6,6 +6,31 @@
 
 ---
 
+## 2026-04-19 — 批次 17：P3 commands/index.ts rename + NaN 守卫（**单批合并**）
+
+**做了什么**
+
+- `git mv src/commands/index.ts src/commands/dir-index.ts` —— 消除文件名歧义（之前像 barrel export，实际是 `lorekit index` 命令）
+- `src/cli.ts:16` import 路径 `./commands/index.js` → `./commands/dir-index.js`
+- `src/commands/sync.ts:5` import 路径 `./index.js` → `./dir-index.js`
+- `src/lib/paths.ts` 注释里 `commands/index.ts` → `commands/dir-index.ts`（cosmetic）
+- `src/commands/vector.ts`：query action 加 `topK` / `threshold` NaN + 范围守卫（`Number.isFinite + 范围`），不合法 → exit 2
+- `tests/smoke/cli-meta.test.mjs`：新增 `vector query --top-k notanumber → exit 2` smoke
+- tag：`refactor-batch-17`
+- smoke 16 tests / 15 pass / 1 skip
+
+**为什么**
+
+- LEGACY P3-4 + P3-5：commands/index.ts 名字误导 + parseInt/parseFloat 不守 NaN 是 CONVENTIONS #4 漏洞
+- doctor.ts 和 fetch.ts 在原计划列了，但实际 doctor 早已不 import commands/index.ts（批次 7 后改为 paths.ts），fetch.ts 没有 parseInt/parseFloat 调用 —— 计划列表是 forward-looking 误估
+
+**接下来 — 主线全部完成**
+
+- 批次 3-17 全完成（共 15 个逻辑批，约 18 个 commit）。剩 18 (CI 推迟) / 19-20 (P4 明早先生看) / 21-22 (P0 拆库, 不许 unattended 动)
+- 写 DONE.md 给先生明早复检
+
+---
+
 ## 2026-04-19 — 批次 16：P3 文档 sweep（README + integrations + .gitignore）
 
 **做了什么**

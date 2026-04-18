@@ -2,7 +2,7 @@ import type { Command } from 'commander';
 import chalk from 'chalk';
 import { requireCorpus } from '../lib/corpus.js';
 import { ok, warn, err, print } from '../utils/logger.js';
-import { runIndex } from './index.js';
+import { runIndex } from './dir-index.js';
 import { runVectorSync } from './vector.js';
 import { runDoctor } from './doctor.js';
 import { refreshRootIndex } from '../lib/root-index.js';

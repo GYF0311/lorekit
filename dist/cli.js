@@ -1582,7 +1582,7 @@ function auditCommand(program2) {
   });
 }
 
-// src/commands/index.ts
+// src/commands/dir-index.ts
 import { existsSync as existsSync5, readdirSync as readdirSync4, readFileSync as readFileSync8, statSync as statSync5, writeFileSync as writeFileSync3, lstatSync as lstatSync3 } from "fs";
 import { join as join6, basename as basename4, relative as relative5, resolve as resolve2 } from "path";
 init_paths();
@@ -2188,6 +2188,14 @@ function vectorCommand(program2) {
       const corpus = requireCorpus();
       const topK = parseInt(opts.topK, 10);
       const threshold = parseFloat(opts.threshold);
+      if (!Number.isFinite(topK) || topK <= 0) {
+        err(`--top-k must be a positive integer, got: "${opts.topK}"`);
+        process.exit(2);
+      }
+      if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1) {
+        err(`--threshold must be a number in [0, 1], got: "${opts.threshold}"`);
+        process.exit(2);
+      }
       const { embedSingle: embedSingle2 } = await Promise.resolve().then(() => (init_ollama(), ollama_exports));
       const { openDb: openDb2, queryFlat: queryFlat2, queryLayered: queryLayered2, queryBM25Layered: queryBM25Layered2, queryHybrid: queryHybrid2 } = await Promise.resolve().then(() => (init_vectordb(), vectordb_exports));
       let dim = 1024;
@@ -2666,13 +2674,13 @@ async function fetchGist(url, outRoot) {
     if (!res.ok) throw new Error(`HTTP ${res.status} on ${mdLink.rawUrl}`);
     content = await res.text();
   } catch (e) {
-    const err5 = e;
-    const cause = err5.cause?.message ? ` (${err5.cause.message})` : "";
+    const err4 = e;
+    const cause = err4.cause?.message ? ` (${err4.cause.message})` : "";
     return {
       status: "error",
       route: "gist",
       url,
-      reason: `raw_fetch_failed: ${err5.message}${cause} [raw_url=${mdLink.rawUrl}]`
+      reason: `raw_fetch_failed: ${err4.message}${cause} [raw_url=${mdLink.rawUrl}]`
     };
   }
   const slug = slugify(title);

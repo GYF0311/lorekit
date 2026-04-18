@@ -91,7 +91,7 @@ export const indexExcludeDirPrefixes: readonly string[] = [
 
 /**
  * 判断给定 corpus 内相对路径是否落在"不索引"前缀里。
- * 对外暴露的小工具（doctor.ts / commands/index.ts 都用）。
+ * 对外暴露的小工具（doctor.ts / commands/dir-index.ts 都用）。
  */
 export function isIndexExcluded(rel: string): boolean {
   for (const prefix of indexExcludeDirPrefixes) {

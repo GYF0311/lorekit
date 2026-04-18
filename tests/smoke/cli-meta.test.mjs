@@ -39,6 +39,13 @@ test('参数错误：lorekit nonexistent-command → exit 2 (commander unknownCo
   assert.equal(r.status, 2, fmtRun(r, args, 'exit 2 (commander unknownCommand)'));
 });
 
+test('参数错误：lorekit vector query --top-k notanumber → exit 2 (NaN 守卫，批次 17)', () => {
+  // 批次 17 给 vector.ts 加了 parseInt NaN 守卫；非法 --top-k 应 exit 2
+  const args = ['vector', 'query', '--text', 'foo', '--top-k', 'notanumber'];
+  const r = runLorekit(args);
+  assert.equal(r.status, 2, fmtRun(r, args, 'exit 2 (--top-k NaN)'));
+});
+
 test('上下文错误：在非 corpus 目录跑 doctor → exit 1', () => {
   const tmp = mkTmpDir('lorekit-smoke-non-corpus-');
   try {

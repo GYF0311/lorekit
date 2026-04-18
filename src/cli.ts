@@ -13,7 +13,7 @@ import { doctorCommand } from './commands/doctor.js';
 import { statsCommand } from './commands/stats.js';
 import { lintCommand } from './commands/lint.js';
 import { auditCommand } from './commands/audit.js';
-import { indexCommand } from './commands/index.js';
+import { indexCommand } from './commands/dir-index.js';
 import { installSkillsCommand } from './commands/install-skills.js';
 import { snapshotCommand } from './commands/snapshot.js';
 import { restoreCommand } from './commands/restore.js';

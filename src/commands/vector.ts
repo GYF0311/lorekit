@@ -126,6 +126,16 @@ export function vectorCommand(program: Command) {
         const topK = parseInt(opts.topK, 10);
         const threshold = parseFloat(opts.threshold);
 
+        // CONVENTIONS #4：参数解析失败 → exit 2
+        if (!Number.isFinite(topK) || topK <= 0) {
+          err(`--top-k must be a positive integer, got: "${opts.topK}"`);
+          process.exit(2);
+        }
+        if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1) {
+          err(`--threshold must be a number in [0, 1], got: "${opts.threshold}"`);
+          process.exit(2);
+        }
+
         const { embedSingle } = await import('../lib/ollama.js');
         const { openDb, queryFlat, queryLayered, queryBM25Layered, queryHybrid } =
           await import('../lib/vectordb.js');
