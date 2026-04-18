@@ -23,9 +23,17 @@ export interface FetchResult {
   sourceKind?: string;   // clipping | article | ...
   sourceLayer?: string;
   slug?: string;
-  dir?: string;
+  /**
+   * <outRoot>/<slug>.md  —— 原文文件（Obsidian 兼容扁平结构）。
+   * 跟 <outRoot>/<slug>.assets/ 同级；wiki 页里写 `[[<archive-root>/<slug>]]`
+   * 就能被 Obsidian 按 basename 直接匹配到这个文件。
+   */
   markdown?: string;
-  imagesDir?: string;
+  /**
+   * <outRoot>/<slug>.assets  —— 图片目录（Obsidian 原生 `.assets` 约定）。
+   * 跟 .md 同级，替代旧的 `<slug>/images/` 嵌套结构。
+   */
+  assetsDir?: string;
   imagesOk?: number;
   imagesFailed?: number;
   suggest?: string;
@@ -380,6 +388,7 @@ async function downloadOneImage(
   idx: number,
   imagesDir: string,
   headers: Record<string, string>,
+  assetsRelPath: string,
 ): Promise<ImgDownloadResult> {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -410,7 +419,8 @@ async function downloadOneImage(
 
       const fname = `img_${String(idx).padStart(2, '0')}${ext}`;
       await writeFile(join(imagesDir, fname), data);
-      return { originalUrl: url, localRel: `./images/${fname}`, status: 'ok' };
+      // localRel 相对于 .md 文件位置；assetsRelPath 例如 "./<slug>.assets/"
+      return { originalUrl: url, localRel: `${assetsRelPath}${fname}`, status: 'ok' };
     } catch {
       // retry
     }
@@ -422,6 +432,7 @@ async function downloadImages(
   imgSrcs: string[],
   imagesDir: string,
   headers: Record<string, string>,
+  assetsRelPath: string,
 ): Promise<ImgDownloadResult[]> {
   if (imgSrcs.length === 0) return [];
   await mkdir(imagesDir, { recursive: true });
@@ -431,7 +442,9 @@ async function downloadImages(
   for (let i = 0; i < imgSrcs.length; i += IMG_CONCURRENCY) {
     const batch = imgSrcs.slice(i, i + IMG_CONCURRENCY);
     const batchResults = await Promise.all(
-      batch.map((src, j) => downloadOneImage(src, i + j + 1, imagesDir, headers)),
+      batch.map((src, j) =>
+        downloadOneImage(src, i + j + 1, imagesDir, headers, assetsRelPath),
+      ),
     );
     results.push(...batchResults);
   }
@@ -520,17 +533,23 @@ export async function fetchUrl(url: string, opts: FetchOptions): Promise<FetchRe
   // --- Convert to markdown ---
   let md = htmlToMarkdown(doc.bodyHtml);
 
-  // --- Output directory ---
+  // --- Output paths (Obsidian-compatible flat layout) ---
+  //   <outRoot>/<slug>.md
+  //   <outRoot>/<slug>.assets/img_01.jpg
   const slug = slugify(doc.title || 'untitled');
-  const dir = join(opts.outRoot, slug);
-  const imagesDir = join(dir, 'images');
-  await mkdir(dir, { recursive: true });
+  const assetsDir = join(opts.outRoot, `${slug}.assets`);
+  await mkdir(opts.outRoot, { recursive: true });
 
   // --- Download images ---
   let imagesOk = 0;
   let imagesFailed = 0;
   if (!opts.noImages && doc.imgSrcs.length > 0) {
-    const imgResults = await downloadImages(doc.imgSrcs, imagesDir, headers);
+    const imgResults = await downloadImages(
+      doc.imgSrcs,
+      assetsDir,
+      headers,
+      `./${slug}.assets/`,
+    );
     md = rewriteMarkdownImages(md, imgResults);
     for (const r of imgResults) {
       if (r.status === 'ok') imagesOk++;
@@ -558,7 +577,7 @@ export async function fetchUrl(url: string, opts: FetchOptions): Promise<FetchRe
   if (doc.title) fmLines.push(`# ${doc.title}`, '');
   fmLines.push(md, '');
 
-  const articlePath = join(dir, 'article.md');
+  const articlePath = join(opts.outRoot, `${slug}.md`);
   await writeFile(articlePath, fmLines.join('\n'), 'utf-8');
 
   return {
@@ -571,9 +590,8 @@ export async function fetchUrl(url: string, opts: FetchOptions): Promise<FetchRe
     sourceKind,
     sourceLayer,
     slug,
-    dir,
     markdown: articlePath,
-    imagesDir,
+    assetsDir,
     imagesOk,
     imagesFailed,
   };
@@ -674,8 +692,7 @@ export async function fetchGist(url: string, outRoot: string): Promise<FetchResu
   }
 
   const slug = slugify(title);
-  const dir = join(outRoot, slug);
-  await mkdir(dir, { recursive: true });
+  await mkdir(outRoot, { recursive: true });
 
   const today = todayYMD();
   const hasH1 = /^#\s+/m.test(content);
@@ -693,7 +710,7 @@ export async function fetchGist(url: string, outRoot: string): Promise<FetchResu
   if (!hasH1) fmLines.push(`# ${title}`, '');
   fmLines.push(content.trim(), '');
 
-  const articlePath = join(dir, 'article.md');
+  const articlePath = join(outRoot, `${slug}.md`);
   await writeFile(articlePath, fmLines.join('\n'), 'utf-8');
 
   return {
@@ -706,7 +723,6 @@ export async function fetchGist(url: string, outRoot: string): Promise<FetchResu
     sourceKind: 'gist',
     sourceLayer: 'L1',
     slug,
-    dir,
     markdown: articlePath,
     imagesOk: 0,
     imagesFailed: 0,
@@ -795,8 +811,7 @@ export async function fetchGithubDoc(url: string, outRoot: string): Promise<Fetc
     : `${owner}/${repo}`;
 
   const slug = slugify(subpath ? `${owner}-${repo}-${fileName}` : `${owner}-${repo}`);
-  const dir = join(outRoot, slug);
-  await mkdir(dir, { recursive: true });
+  await mkdir(outRoot, { recursive: true });
 
   const today = todayYMD();
   const hasH1 = /^#\s+/m.test(content);
@@ -814,7 +829,7 @@ export async function fetchGithubDoc(url: string, outRoot: string): Promise<Fetc
   fmLines.push(`> Fetched from: ${chosenUrl}`, '');
   fmLines.push(content.trim(), '');
 
-  const articlePath = join(dir, 'article.md');
+  const articlePath = join(outRoot, `${slug}.md`);
   await writeFile(articlePath, fmLines.join('\n'), 'utf-8');
 
   return {
@@ -826,7 +841,6 @@ export async function fetchGithubDoc(url: string, outRoot: string): Promise<Fetc
     sourceKind: 'github',
     sourceLayer: 'L1',
     slug,
-    dir,
     markdown: articlePath,
     imagesOk: 0,
     imagesFailed: 0,

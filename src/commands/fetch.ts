@@ -158,7 +158,7 @@ export function fetchCommand(program: Command) {
           sourceDate: result.publishDate,
           status: 'started',
           stepsDone: ['fetch'],
-          workbenchDir: result.dir,
+          workbenchMd: result.markdown,
         });
       }
 

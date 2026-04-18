@@ -32,7 +32,9 @@ export interface IngestRecord {
   updatedAt: string;          // ISO timestamp
   status: IngestStatus;
   stepsDone: IngestStep[];
-  workbenchDir?: string;      // absolute path while status=fetched
+  workbenchMd?: string;       // absolute path to <slug>.md while status=fetched
+  // 老字段，兼容 0.3.x 之前的 state.json（产物是 <slug>/article.md 嵌套结构）
+  workbenchDir?: string;
   archivedTo?: string;        // relative-to-corpus path (e.g. 原料/剪藏/xxx)
   wikiPages?: string[];       // relative-to-corpus paths
   error?: string;

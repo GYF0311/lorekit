@@ -2485,7 +2485,7 @@ function sniffExt(head, contentType) {
   if (ct.includes("image/svg")) return ".svg";
   return null;
 }
-async function downloadOneImage(url, idx, imagesDir, headers) {
+async function downloadOneImage(url, idx, imagesDir, headers, assetsRelPath) {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const controller = new AbortController();
@@ -2510,20 +2510,22 @@ async function downloadOneImage(url, idx, imagesDir, headers) {
       if (!ext) continue;
       const fname = `img_${String(idx).padStart(2, "0")}${ext}`;
       await writeFile(join12(imagesDir, fname), data);
-      return { originalUrl: url, localRel: `./images/${fname}`, status: "ok" };
+      return { originalUrl: url, localRel: `${assetsRelPath}${fname}`, status: "ok" };
     } catch {
     }
   }
   return { originalUrl: url, localRel: null, status: "failed" };
 }
-async function downloadImages(imgSrcs, imagesDir, headers) {
+async function downloadImages(imgSrcs, imagesDir, headers, assetsRelPath) {
   if (imgSrcs.length === 0) return [];
   await mkdir(imagesDir, { recursive: true });
   const results = [];
   for (let i = 0; i < imgSrcs.length; i += IMG_CONCURRENCY) {
     const batch = imgSrcs.slice(i, i + IMG_CONCURRENCY);
     const batchResults = await Promise.all(
-      batch.map((src, j) => downloadOneImage(src, i + j + 1, imagesDir, headers))
+      batch.map(
+        (src, j) => downloadOneImage(src, i + j + 1, imagesDir, headers, assetsRelPath)
+      )
     );
     results.push(...batchResults);
   }
@@ -2591,13 +2593,17 @@ async function fetchUrl(url, opts) {
   }
   let md = htmlToMarkdown(doc.bodyHtml);
   const slug = slugify(doc.title || "untitled");
-  const dir = join12(opts.outRoot, slug);
-  const imagesDir = join12(dir, "images");
-  await mkdir(dir, { recursive: true });
+  const assetsDir = join12(opts.outRoot, `${slug}.assets`);
+  await mkdir(opts.outRoot, { recursive: true });
   let imagesOk = 0;
   let imagesFailed = 0;
   if (!opts.noImages && doc.imgSrcs.length > 0) {
-    const imgResults = await downloadImages(doc.imgSrcs, imagesDir, headers);
+    const imgResults = await downloadImages(
+      doc.imgSrcs,
+      assetsDir,
+      headers,
+      `./${slug}.assets/`
+    );
     md = rewriteMarkdownImages(md, imgResults);
     for (const r of imgResults) {
       if (r.status === "ok") imagesOk++;
@@ -2619,7 +2625,7 @@ async function fetchUrl(url, opts) {
   fmLines.push("");
   if (doc.title) fmLines.push(`# ${doc.title}`, "");
   fmLines.push(md, "");
-  const articlePath = join12(dir, "article.md");
+  const articlePath = join12(opts.outRoot, `${slug}.md`);
   await writeFile(articlePath, fmLines.join("\n"), "utf-8");
   return {
     status: "ok",
@@ -2631,9 +2637,8 @@ async function fetchUrl(url, opts) {
     sourceKind,
     sourceLayer,
     slug,
-    dir,
     markdown: articlePath,
-    imagesDir,
+    assetsDir,
     imagesOk,
     imagesFailed
   };
@@ -2708,8 +2713,7 @@ async function fetchGist(url, outRoot) {
     };
   }
   const slug = slugify(title);
-  const dir = join12(outRoot, slug);
-  await mkdir(dir, { recursive: true });
+  await mkdir(outRoot, { recursive: true });
   const today2 = todayYMD();
   const hasH1 = /^#\s+/m.test(content);
   const fmLines = ["---"];
@@ -2725,7 +2729,7 @@ async function fetchGist(url, outRoot) {
   fmLines.push("");
   if (!hasH1) fmLines.push(`# ${title}`, "");
   fmLines.push(content.trim(), "");
-  const articlePath = join12(dir, "article.md");
+  const articlePath = join12(outRoot, `${slug}.md`);
   await writeFile(articlePath, fmLines.join("\n"), "utf-8");
   return {
     status: "ok",
@@ -2737,7 +2741,6 @@ async function fetchGist(url, outRoot) {
     sourceKind: "gist",
     sourceLayer: "L1",
     slug,
-    dir,
     markdown: articlePath,
     imagesOk: 0,
     imagesFailed: 0
@@ -2801,8 +2804,7 @@ async function fetchGithubDoc(url, outRoot) {
   const fileName = subpath ? subpath.split("/").pop() : "README.md";
   const title = subpath ? fileName.replace(/\.(md|markdown)$/i, "") : `${owner}/${repo}`;
   const slug = slugify(subpath ? `${owner}-${repo}-${fileName}` : `${owner}-${repo}`);
-  const dir = join12(outRoot, slug);
-  await mkdir(dir, { recursive: true });
+  await mkdir(outRoot, { recursive: true });
   const today2 = todayYMD();
   const hasH1 = /^#\s+/m.test(content);
   const fmLines = ["---"];
@@ -2818,7 +2820,7 @@ async function fetchGithubDoc(url, outRoot) {
   if (!hasH1) fmLines.push(`# ${title}`, "");
   fmLines.push(`> Fetched from: ${chosenUrl}`, "");
   fmLines.push(content.trim(), "");
-  const articlePath = join12(dir, "article.md");
+  const articlePath = join12(outRoot, `${slug}.md`);
   await writeFile(articlePath, fmLines.join("\n"), "utf-8");
   return {
     status: "ok",
@@ -2829,7 +2831,6 @@ async function fetchGithubDoc(url, outRoot) {
     sourceKind: "github",
     sourceLayer: "L1",
     slug,
-    dir,
     markdown: articlePath,
     imagesOk: 0,
     imagesFailed: 0
@@ -3031,7 +3032,7 @@ function fetchCommand(program2) {
         sourceDate: result.publishDate,
         status: "started",
         stepsDone: ["fetch"],
-        workbenchDir: result.dir
+        workbenchMd: result.markdown
       });
     }
     console.log(JSON.stringify(result));
@@ -3098,7 +3099,7 @@ function ingestCommand(program2) {
     }
     const summary = rows.map((r) => {
       const done = r.stepsDone.join(",") || "(none)";
-      const dest = r.archivedTo ?? r.workbenchDir ?? "-";
+      const dest = r.archivedTo ?? r.workbenchMd ?? r.workbenchDir ?? "-";
       return `  [${r.status.padEnd(12)}] ${r.url}
     steps: ${done}  \u2192  ${dest}`;
     });

@@ -106,7 +106,7 @@ export function ingestCommand(program: Command): void {
       }
       const summary = rows.map((r) => {
         const done = r.stepsDone.join(',') || '(none)';
-        const dest = r.archivedTo ?? r.workbenchDir ?? '-';
+        const dest = r.archivedTo ?? r.workbenchMd ?? r.workbenchDir ?? '-';
         return `  [${r.status.padEnd(12)}] ${r.url}\n    steps: ${done}  →  ${dest}`;
       });
       console.error(`[lorekit ingest list] ${rows.length} record(s)\n${summary.join('\n')}`);
