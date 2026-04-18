@@ -4,7 +4,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import Database from 'better-sqlite3';
 import { findCorpus, collectMdFiles } from './lib/corpus.js';
-import { debug } from './utils/logger.js';
+import { debug, print } from './utils/logger.js';
 import { readVersion } from './utils/fs.js';
 
 // commands
@@ -66,24 +66,24 @@ function showBanner() {
   const D = chalk.dim;
   const W = chalk.white.bold;
 
-  console.log();
-  console.log(`  ${BB('██╗      ██████╗ ██████╗ ███████╗██╗  ██╗██╗████████╗')}`);
-  console.log(`  ${BB('██║     ██╔═══██╗██╔══██╗██╔════╝██║ ██╔╝██║╚══██╔══╝')}`);
-  console.log(`  ${BB('██║     ██║   ██║██████╔╝█████╗  █████╔╝ ██║   ██║   ')}`);
-  console.log(`  ${B('██║     ██║   ██║██╔══██╗██╔══╝  ██╔═██╗ ██║   ██║   ')}`);
-  console.log(`  ${B('███████╗╚██████╔╝██║  ██║███████╗██║  ██╗██║   ██║   ')}`);
-  console.log(`  ${D('╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝   ╚═╝   ')}`);
-  console.log(`  ${D('Personal LLM Wiki Toolkit')}  ${C(`v${version}`)}`);
-  console.log();
-  console.log(`  ${C('corpus')}  ${short}`);
-  console.log(`  ${C('pages')}   ${pages.padEnd(10)} ${C('indexed')} ${indexed}`);
-  if (model !== '—') console.log(`  ${C('model')}   ${model}`);
-  console.log();
-  console.log(`  ${W('$ lorekit doctor')}    健康检查`);
-  console.log(`  ${W('$ lorekit fetch')}     抓取网页`);
-  console.log(`  ${W('$ lorekit search')}    搜索`);
-  console.log(`  ${W('$ lorekit --help')}    所有命令`);
-  console.log();
+  print();
+  print(`  ${BB('██╗      ██████╗ ██████╗ ███████╗██╗  ██╗██╗████████╗')}`);
+  print(`  ${BB('██║     ██╔═══██╗██╔══██╗██╔════╝██║ ██╔╝██║╚══██╔══╝')}`);
+  print(`  ${BB('██║     ██║   ██║██████╔╝█████╗  █████╔╝ ██║   ██║   ')}`);
+  print(`  ${B('██║     ██║   ██║██╔══██╗██╔══╝  ██╔═██╗ ██║   ██║   ')}`);
+  print(`  ${B('███████╗╚██████╔╝██║  ██║███████╗██║  ██╗██║   ██║   ')}`);
+  print(`  ${D('╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝   ╚═╝   ')}`);
+  print(`  ${D('Personal LLM Wiki Toolkit')}  ${C(`v${version}`)}`);
+  print();
+  print(`  ${C('corpus')}  ${short}`);
+  print(`  ${C('pages')}   ${pages.padEnd(10)} ${C('indexed')} ${indexed}`);
+  if (model !== '—') print(`  ${C('model')}   ${model}`);
+  print();
+  print(`  ${W('$ lorekit doctor')}    健康检查`);
+  print(`  ${W('$ lorekit fetch')}     抓取网页`);
+  print(`  ${W('$ lorekit search')}    搜索`);
+  print(`  ${W('$ lorekit --help')}    所有命令`);
+  print();
 }
 
 const program = new Command();

@@ -6,6 +6,35 @@
 
 ---
 
+## 2026-04-19 — 批次 13：P2 sweep console→logger（cli + init + doctor + sync）（P2-4 a）
+
+**做了什么**
+
+- 加 `print(msg = '')` 到 logger.ts —— 写 stderr 无装饰，专为 banner / headers / 空行用
+- `src/cli.ts`：18 处 `console.log` → `print`（banner 全部，含 ASCII art）
+- `src/commands/init.ts`：2 处 `console.log` → `print`
+- `src/commands/doctor.ts`：15 处 `console.log` → `print`
+- `src/commands/sync.ts`：7 处 `console.log` → `print`
+- tag：`refactor-batch-13`
+- **lint baseline**：no-console 102 → **60**（-42 符合预期）；cli/init/doctor/sync 这 4 文件本批后 0 违规
+- **手动验**：`doctor 2>/dev/null` stdout 空（vs 批次 10 后 stdout 有 chalk headers）；stderr 含完整输出
+
+**为什么**
+
+- LEGACY P2-4 (a) + CONVENTIONS Do Not #2 / #3：commands 内的 `console.log(chalk.xxx)` 会污染 stdout，破坏 `lorekit ... | jq` 这种管道用法
+- 加 `print()` 而不是把所有 header 强行套 `info()` 的 ℹ 前缀，是为了保留 banner / 分区线的视觉结构
+
+**已知问题（批次 14 / 12 顺手项）**
+
+- 批次 12 修 ingest 时引入了一处 `console.error`（无意），由批次 14 sweep ingest.ts 时一并清掉
+- vectordb.ts 7 处 console.log 留给批次 22
+
+**接下来**
+
+- 进批次 14：余下 9 个 commands 文件 console→logger 大批合并
+
+---
+
 ## 2026-04-19 — 批次 12：P2 sweep `as any`（P2-3）
 
 **做了什么**

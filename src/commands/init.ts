@@ -11,7 +11,7 @@ import {
 import { join, relative, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import chalk from 'chalk';
-import { ok, bad, warn } from '../utils/logger.js';
+import { ok, bad, warn, print } from '../utils/logger.js';
 import { readVersion, lorekitRoot } from '../utils/fs.js';
 
 const MINIMAL_DIRS = ['原料', '知识库/概念', '知识库/实体', '知识库/摘要', '每日', '系统', '.wiki'];
@@ -112,7 +112,7 @@ export function initCommand(program: Command) {
       }
 
       if (!isDirEmpty(resolved) && !opts.inPlace) {
-        console.log(chalk.yellow(`\n  target directory is not empty: ${resolved}\n`));
+        print(chalk.yellow(`\n  target directory is not empty: ${resolved}\n`));
         const answer = await ask(
           '  [b] backup & init  [i] in-place (skip existing)  [c] cancel\n  > ',
         );
@@ -143,7 +143,7 @@ export function initCommand(program: Command) {
       createWikiMeta(resolved);
       deployObsidianPlugin(resolved);
 
-      console.log();
+      print();
       ok(chalk.bold(`corpus initialized at ${resolved}`));
     });
 }

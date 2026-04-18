@@ -2,7 +2,7 @@ import type { Command } from 'commander';
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import chalk from 'chalk';
-import { ok, bad, warn } from '../utils/logger.js';
+import { ok, bad, warn, print } from '../utils/logger.js';
 import { requireCorpus, collectMdFiles, hasFrontmatter } from '../lib/corpus.js';
 import { isIndexExcluded, isFolderPackage } from '../lib/paths.js';
 
@@ -51,7 +51,7 @@ function checkFrontmatterCoverage(corpus: string) {
 
   const color = pct >= 90 ? chalk.green : pct >= 60 ? chalk.yellow : chalk.red;
   const icon = pct >= 90 ? '✓' : pct >= 60 ? '⚠' : '✗';
-  console.log(`${color(icon)} frontmatter coverage: ${withFm}/${total} (${pct}%)`);
+  print(`${color(icon)} frontmatter coverage: ${withFm}/${total} (${pct}%)`);
 }
 
 function checkIndexFiles(corpus: string): number {
@@ -125,36 +125,36 @@ function checkArchive(corpus: string): number {
  * 返回 issue 总数。调用方自行决定要不要把退出码设成非零。
  */
 export function runDoctor(corpus: string): number {
-  console.log(chalk.bold(`\nlorekit doctor — ${corpus}\n`));
+  print(chalk.bold(`\nlorekit doctor — ${corpus}\n`));
 
   let issues = 0;
 
-  console.log(chalk.cyan('── directories ──'));
+  print(chalk.cyan('── directories ──'));
   issues += checkDirs(corpus);
-  console.log();
+  print();
 
-  console.log(chalk.cyan('── wiki metadata ──'));
+  print(chalk.cyan('── wiki metadata ──'));
   issues += checkWikiVersion(corpus);
-  console.log();
+  print();
 
-  console.log(chalk.cyan('── frontmatter ──'));
+  print(chalk.cyan('── frontmatter ──'));
   checkFrontmatterCoverage(corpus);
-  console.log();
+  print();
 
-  console.log(chalk.cyan('── index files ──'));
+  print(chalk.cyan('── index files ──'));
   issues += checkIndexFiles(corpus);
-  console.log();
+  print();
 
-  console.log(chalk.cyan('── archive ──'));
+  print(chalk.cyan('── archive ──'));
   checkArchive(corpus);
-  console.log();
+  print();
 
   if (issues === 0) {
-    console.log(chalk.green.bold('all checks passed ✓'));
+    print(chalk.green.bold('all checks passed ✓'));
   } else {
-    console.log(chalk.yellow(`${issues} issue(s) found`));
+    print(chalk.yellow(`${issues} issue(s) found`));
   }
-  console.log();
+  print();
 
   return issues;
 }

@@ -1,7 +1,7 @@
 import type { Command } from 'commander';
 import chalk from 'chalk';
 import { requireCorpus } from '../lib/corpus.js';
-import { ok, warn, err } from '../utils/logger.js';
+import { ok, warn, err, print } from '../utils/logger.js';
 import { runIndex } from './index.js';
 import { runVectorSync } from './vector.js';
 import { runDoctor } from './doctor.js';
@@ -33,7 +33,7 @@ export async function runSync(corpus: string, opts: SyncOptions = {}): Promise<v
   const model = opts.model ?? 'bge-m3';
 
   // Step 1a: 各子目录的 _INDEX.md
-  console.log(chalk.cyan('── [1/3] index: refresh _INDEX.md ──'));
+  print(chalk.cyan('── [1/3] index: refresh _INDEX.md ──'));
   try {
     const generated = runIndex(corpus);
     if (generated === 0) {
@@ -66,8 +66,8 @@ export async function runSync(corpus: string, opts: SyncOptions = {}): Promise<v
         );
         for (const s of r.perSection) {
           if (s.added.length === 0 && s.removed.length === 0) continue;
-          for (const slug of s.added) console.log(`    + ${slug}`);
-          for (const slug of s.removed) console.log(`    - ${slug} (file gone)`);
+          for (const slug of s.added) print(`    + ${slug}`);
+          for (const slug of s.removed) print(`    - ${slug} (file gone)`);
         }
       }
     } catch (e) {
@@ -75,11 +75,11 @@ export async function runSync(corpus: string, opts: SyncOptions = {}): Promise<v
       throw e;
     }
   }
-  console.log();
+  print();
 
   // Step 2: 向量库（除非显式 --skip-vector）
   if (!opts.skipVector) {
-    console.log(chalk.cyan('── [2/3] vector: sync chunks + L0/L1 ──'));
+    print(chalk.cyan('── [2/3] vector: sync chunks + L0/L1 ──'));
     try {
       const r = await runVectorSync(corpus, { force, model, layered: true });
       ok(`synced ${r.synced} files (${r.totalChunks} chunks), skipped ${r.skipped} unchanged`);
@@ -87,12 +87,12 @@ export async function runSync(corpus: string, opts: SyncOptions = {}): Promise<v
       err(`vector sync failed: ${(e as Error).message}`);
       throw e;
     }
-    console.log();
+    print();
   }
 
   // Step 3: 健康体检（只报告不阻塞）
   if (!opts.skipDoctor) {
-    console.log(chalk.cyan('── [3/3] doctor: sanity check ──'));
+    print(chalk.cyan('── [3/3] doctor: sanity check ──'));
     runDoctor(corpus);
   }
 }

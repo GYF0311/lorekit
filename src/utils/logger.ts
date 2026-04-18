@@ -33,3 +33,10 @@ export const info = (msg: string) => console.error(`${chalk.cyan('ℹ')} ${msg}`
 export const debug = (msg: string) => {
   if (DEBUG_ENABLED) console.error(`${chalk.dim('debug:')} ${msg}`);
 };
+
+/**
+ * 原样写一行到 stderr（无前缀 / 无装饰）。
+ * 用于 banner / 分隔线 / 空行 / 自定义 chalk 着色的 header 等纯展示内容。
+ * 调用方负责自己加 chalk —— 如 `print(chalk.cyan('── 区块 ──'))`。
+ */
+export const print = (msg = '') => console.error(msg);

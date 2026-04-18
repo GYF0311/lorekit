@@ -890,6 +890,7 @@ var err = (msg) => console.error(`${chalk.red("lorekit:")} ${msg}`);
 var debug = (msg) => {
   if (DEBUG_ENABLED) console.error(`${chalk.dim("debug:")} ${msg}`);
 };
+var print = (msg = "") => console.error(msg);
 
 // src/lib/corpus.ts
 function findCorpus(startDir) {
@@ -1064,7 +1065,7 @@ function initCommand(program2) {
       return;
     }
     if (!isDirEmpty(resolved) && !opts.inPlace) {
-      console.log(chalk2.yellow(`
+      print(chalk2.yellow(`
   target directory is not empty: ${resolved}
 `));
       const answer = await ask(
@@ -1091,7 +1092,7 @@ function initCommand(program2) {
     }
     createWikiMeta(resolved);
     deployObsidianPlugin(resolved);
-    console.log();
+    print();
     ok(chalk2.bold(`corpus initialized at ${resolved}`));
   });
 }
@@ -1142,7 +1143,7 @@ function checkFrontmatterCoverage(corpus) {
   const pct = total === 0 ? 100 : Math.round(withFm / total * 100);
   const color = pct >= 90 ? chalk3.green : pct >= 60 ? chalk3.yellow : chalk3.red;
   const icon = pct >= 90 ? "\u2713" : pct >= 60 ? "\u26A0" : "\u2717";
-  console.log(`${color(icon)} frontmatter coverage: ${withFm}/${total} (${pct}%)`);
+  print(`${color(icon)} frontmatter coverage: ${withFm}/${total} (${pct}%)`);
 }
 function checkIndexFiles(corpus) {
   let missing = 0;
@@ -1198,31 +1199,31 @@ function checkArchive(corpus) {
   return 0;
 }
 function runDoctor(corpus) {
-  console.log(chalk3.bold(`
+  print(chalk3.bold(`
 lorekit doctor \u2014 ${corpus}
 `));
   let issues = 0;
-  console.log(chalk3.cyan("\u2500\u2500 directories \u2500\u2500"));
+  print(chalk3.cyan("\u2500\u2500 directories \u2500\u2500"));
   issues += checkDirs(corpus);
-  console.log();
-  console.log(chalk3.cyan("\u2500\u2500 wiki metadata \u2500\u2500"));
+  print();
+  print(chalk3.cyan("\u2500\u2500 wiki metadata \u2500\u2500"));
   issues += checkWikiVersion(corpus);
-  console.log();
-  console.log(chalk3.cyan("\u2500\u2500 frontmatter \u2500\u2500"));
+  print();
+  print(chalk3.cyan("\u2500\u2500 frontmatter \u2500\u2500"));
   checkFrontmatterCoverage(corpus);
-  console.log();
-  console.log(chalk3.cyan("\u2500\u2500 index files \u2500\u2500"));
+  print();
+  print(chalk3.cyan("\u2500\u2500 index files \u2500\u2500"));
   issues += checkIndexFiles(corpus);
-  console.log();
-  console.log(chalk3.cyan("\u2500\u2500 archive \u2500\u2500"));
+  print();
+  print(chalk3.cyan("\u2500\u2500 archive \u2500\u2500"));
   checkArchive(corpus);
-  console.log();
+  print();
   if (issues === 0) {
-    console.log(chalk3.green.bold("all checks passed \u2713"));
+    print(chalk3.green.bold("all checks passed \u2713"));
   } else {
-    console.log(chalk3.yellow(`${issues} issue(s) found`));
+    print(chalk3.yellow(`${issues} issue(s) found`));
   }
-  console.log();
+  print();
   return issues;
 }
 function doctorCommand(program2) {
@@ -3387,7 +3388,7 @@ function refreshRootIndex(corpus) {
 async function runSync(corpus, opts = {}) {
   const force = opts.force ?? false;
   const model = opts.model ?? "bge-m3";
-  console.log(chalk6.cyan("\u2500\u2500 [1/3] index: refresh _INDEX.md \u2500\u2500"));
+  print(chalk6.cyan("\u2500\u2500 [1/3] index: refresh _INDEX.md \u2500\u2500"));
   try {
     const generated = runIndex(corpus);
     if (generated === 0) {
@@ -3418,8 +3419,8 @@ async function runSync(corpus, opts = {}) {
         );
         for (const s of r.perSection) {
           if (s.added.length === 0 && s.removed.length === 0) continue;
-          for (const slug of s.added) console.log(`    + ${slug}`);
-          for (const slug of s.removed) console.log(`    - ${slug} (file gone)`);
+          for (const slug of s.added) print(`    + ${slug}`);
+          for (const slug of s.removed) print(`    - ${slug} (file gone)`);
         }
       }
     } catch (e) {
@@ -3427,9 +3428,9 @@ async function runSync(corpus, opts = {}) {
       throw e;
     }
   }
-  console.log();
+  print();
   if (!opts.skipVector) {
-    console.log(chalk6.cyan("\u2500\u2500 [2/3] vector: sync chunks + L0/L1 \u2500\u2500"));
+    print(chalk6.cyan("\u2500\u2500 [2/3] vector: sync chunks + L0/L1 \u2500\u2500"));
     try {
       const r = await runVectorSync(corpus, { force, model, layered: true });
       ok(`synced ${r.synced} files (${r.totalChunks} chunks), skipped ${r.skipped} unchanged`);
@@ -3437,10 +3438,10 @@ async function runSync(corpus, opts = {}) {
       err(`vector sync failed: ${e.message}`);
       throw e;
     }
-    console.log();
+    print();
   }
   if (!opts.skipDoctor) {
-    console.log(chalk6.cyan("\u2500\u2500 [3/3] doctor: sanity check \u2500\u2500"));
+    print(chalk6.cyan("\u2500\u2500 [3/3] doctor: sanity check \u2500\u2500"));
     runDoctor(corpus);
   }
 }
@@ -3488,24 +3489,24 @@ function showBanner() {
   const C = chalk7.cyan;
   const D = chalk7.dim;
   const W = chalk7.white.bold;
-  console.log();
-  console.log(`  ${BB("\u2588\u2588\u2557      \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2557  \u2588\u2588\u2557\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557")}`);
-  console.log(`  ${BB("\u2588\u2588\u2551     \u2588\u2588\u2554\u2550\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255D\u2588\u2588\u2551 \u2588\u2588\u2554\u255D\u2588\u2588\u2551\u255A\u2550\u2550\u2588\u2588\u2554\u2550\u2550\u255D")}`);
-  console.log(`  ${BB("\u2588\u2588\u2551     \u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255D\u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2554\u255D \u2588\u2588\u2551   \u2588\u2588\u2551   ")}`);
-  console.log(`  ${B("\u2588\u2588\u2551     \u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u255D  \u2588\u2588\u2554\u2550\u2588\u2588\u2557 \u2588\u2588\u2551   \u2588\u2588\u2551   ")}`);
-  console.log(`  ${B("\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u255A\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255D\u2588\u2588\u2551  \u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2551  \u2588\u2588\u2557\u2588\u2588\u2551   \u2588\u2588\u2551   ")}`);
-  console.log(`  ${D("\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u255D \u255A\u2550\u2550\u2550\u2550\u2550\u255D \u255A\u2550\u255D  \u255A\u2550\u255D\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u255D\u255A\u2550\u255D  \u255A\u2550\u255D\u255A\u2550\u255D   \u255A\u2550\u255D   ")}`);
-  console.log(`  ${D("Personal LLM Wiki Toolkit")}  ${C(`v${version}`)}`);
-  console.log();
-  console.log(`  ${C("corpus")}  ${short}`);
-  console.log(`  ${C("pages")}   ${pages.padEnd(10)} ${C("indexed")} ${indexed}`);
-  if (model !== "\u2014") console.log(`  ${C("model")}   ${model}`);
-  console.log();
-  console.log(`  ${W("$ lorekit doctor")}    \u5065\u5EB7\u68C0\u67E5`);
-  console.log(`  ${W("$ lorekit fetch")}     \u6293\u53D6\u7F51\u9875`);
-  console.log(`  ${W("$ lorekit search")}    \u641C\u7D22`);
-  console.log(`  ${W("$ lorekit --help")}    \u6240\u6709\u547D\u4EE4`);
-  console.log();
+  print();
+  print(`  ${BB("\u2588\u2588\u2557      \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2557  \u2588\u2588\u2557\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557")}`);
+  print(`  ${BB("\u2588\u2588\u2551     \u2588\u2588\u2554\u2550\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255D\u2588\u2588\u2551 \u2588\u2588\u2554\u255D\u2588\u2588\u2551\u255A\u2550\u2550\u2588\u2588\u2554\u2550\u2550\u255D")}`);
+  print(`  ${BB("\u2588\u2588\u2551     \u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255D\u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2554\u255D \u2588\u2588\u2551   \u2588\u2588\u2551   ")}`);
+  print(`  ${B("\u2588\u2588\u2551     \u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u255D  \u2588\u2588\u2554\u2550\u2588\u2588\u2557 \u2588\u2588\u2551   \u2588\u2588\u2551   ")}`);
+  print(`  ${B("\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u255A\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255D\u2588\u2588\u2551  \u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2551  \u2588\u2588\u2557\u2588\u2588\u2551   \u2588\u2588\u2551   ")}`);
+  print(`  ${D("\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u255D \u255A\u2550\u2550\u2550\u2550\u2550\u255D \u255A\u2550\u255D  \u255A\u2550\u255D\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u255D\u255A\u2550\u255D  \u255A\u2550\u255D\u255A\u2550\u255D   \u255A\u2550\u255D   ")}`);
+  print(`  ${D("Personal LLM Wiki Toolkit")}  ${C(`v${version}`)}`);
+  print();
+  print(`  ${C("corpus")}  ${short}`);
+  print(`  ${C("pages")}   ${pages.padEnd(10)} ${C("indexed")} ${indexed}`);
+  if (model !== "\u2014") print(`  ${C("model")}   ${model}`);
+  print();
+  print(`  ${W("$ lorekit doctor")}    \u5065\u5EB7\u68C0\u67E5`);
+  print(`  ${W("$ lorekit fetch")}     \u6293\u53D6\u7F51\u9875`);
+  print(`  ${W("$ lorekit search")}    \u641C\u7D22`);
+  print(`  ${W("$ lorekit --help")}    \u6240\u6709\u547D\u4EE4`);
+  print();
 }
 var program = new Command();
 program.name("lorekit").version(version).description("Personal LLM Wiki Toolkit");
