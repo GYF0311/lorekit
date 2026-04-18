@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import matter from 'gray-matter';
 import { alwaysExcludeNames } from './paths.js';
+import { debug } from '../utils/logger.js';
 
 export function findCorpus(startDir?: string): string | null {
   let dir = startDir || process.cwd();
@@ -36,7 +37,10 @@ export function extractFrontmatter(filePath: string): Frontmatter {
     const content = readFileSync(filePath, 'utf-8');
     const { data } = matter(content);
     return data as Frontmatter;
-  } catch {
+  } catch (e) {
+    // 文件读不到 / YAML 损坏时返回空对象。在 lint / index 等命令里被大量
+    // 调用，warn 会刷屏，所以走 debug；真有异常先生开 LOREKIT_DEBUG=1 复现
+    debug(`extractFrontmatter(${filePath}) failed: ${(e as Error).message}`);
     return {};
   }
 }
@@ -45,7 +49,9 @@ export function hasFrontmatter(filePath: string): boolean {
   try {
     const first = readFileSync(filePath, 'utf-8').slice(0, 4);
     return first === '---\n' || first === '---\r';
-  } catch {
+  } catch (e) {
+    // 同 extractFrontmatter：批量调用，走 debug
+    debug(`hasFrontmatter(${filePath}) failed: ${(e as Error).message}`);
     return false;
   }
 }

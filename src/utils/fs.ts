@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { warn } from './logger.js';
 
 export function sha256(filePath: string): string {
   const content = readFileSync(filePath);
@@ -22,7 +23,9 @@ export function lorekitRoot(): string {
 export function readVersion(): string {
   try {
     return readFileSync(join(lorekitRoot(), 'VERSION'), 'utf-8').trim();
-  } catch {
+  } catch (e) {
+    // VERSION 文件应当随 lorekit 包发布，缺了说明安装环境异常 — 用 warn 不静默
+    warn(`VERSION file missing or unreadable: ${(e as Error).message}`);
     return 'unknown';
   }
 }

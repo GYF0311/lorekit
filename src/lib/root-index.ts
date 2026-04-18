@@ -15,6 +15,7 @@
  */
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { debug } from '../utils/logger.js';
 
 const MANAGED_SECTIONS: { heading: string; subdir: string }[] = [
   { heading: '## 概念', subdir: '知识库/概念' },
@@ -54,7 +55,9 @@ function extractCompiledTruthSnippet(filePath: string): string {
   let content: string;
   try {
     content = readFileSync(filePath, 'utf-8');
-  } catch {
+  } catch (e) {
+    // refreshRootIndex 会扫整个 知识库 子目录，单个文件读失败不阻塞批量；走 debug
+    debug(`extractCompiledTruthSnippet(${filePath}) failed: ${(e as Error).message}`);
     return '—';
   }
 

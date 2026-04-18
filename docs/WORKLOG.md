@@ -6,6 +6,31 @@
 
 ---
 
+## 2026-04-19 — 批次 11：P2 sweep 沉默 catch（P2-2）
+
+**做了什么**
+
+- 5 文件 8 处 catch 全清，按"批量调用 → debug；一次性关键 → warn"分级：
+  - `src/cli.ts` × 2（banner 内）→ `debug`
+  - `src/lib/corpus.ts` × 2（extractFrontmatter / hasFrontmatter）→ `debug`
+  - `src/lib/root-index.ts` × 1（extractCompiledTruthSnippet）→ `debug`
+  - `src/commands/stats.ts` × 2（per-file mtime / readFileSync）→ `debug`
+  - `src/utils/fs.ts` × 1（readVersion，VERSION 缺失是安装异常）→ `warn`
+- tag：`refactor-batch-11`
+- `fetcher.ts` / `vectordb.ts` 内的沉默 catch 按计划留给批次 21 / 22
+
+**为什么**
+
+- LEGACY P2-2 + CONVENTIONS Do Not #3：沉默 catch 丢诊断信息
+- 大 corpus 上批量调用的 catch（lib 层）走 debug 避免刷屏；用户开 `LOREKIT_DEBUG=1` 复现时再看
+- 每条 catch 加了一行注释解释"为什么可以继续 / 为什么仍降级"，符合 CONVENTIONS 范例
+
+**接下来**
+
+- 进批次 12：P2 sweep — `as any` / `@ts-ignore`（主要 ingest.ts，剩余 vectordb / fetcher 留给 21/22）
+
+---
+
 ## 2026-04-19 — 批次 10：logger 加等级 + bad → stderr（P1-3）
 
 **做了什么**

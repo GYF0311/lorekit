@@ -879,6 +879,19 @@ init_paths();
 import { existsSync, readFileSync, readdirSync } from "fs";
 import { join, dirname } from "path";
 import matter from "gray-matter";
+
+// src/utils/logger.ts
+import chalk from "chalk";
+var DEBUG_ENABLED = process.env.LOREKIT_DEBUG === "1";
+var ok = (msg) => console.error(`${chalk.green("\u2713")} ${msg}`);
+var bad = (msg) => console.error(`${chalk.red("\u2717")} ${msg}`);
+var warn = (msg) => console.error(`${chalk.yellow("lorekit:")} ${msg}`);
+var err = (msg) => console.error(`${chalk.red("lorekit:")} ${msg}`);
+var debug = (msg) => {
+  if (DEBUG_ENABLED) console.error(`${chalk.dim("debug:")} ${msg}`);
+};
+
+// src/lib/corpus.ts
 function findCorpus(startDir) {
   let dir = startDir || process.cwd();
   while (dir !== "/" && dir) {
@@ -901,7 +914,8 @@ function extractFrontmatter(filePath) {
     const content = readFileSync(filePath, "utf-8");
     const { data } = matter(content);
     return data;
-  } catch {
+  } catch (e) {
+    debug(`extractFrontmatter(${filePath}) failed: ${e.message}`);
     return {};
   }
 }
@@ -909,7 +923,8 @@ function hasFrontmatter(filePath) {
   try {
     const first = readFileSync(filePath, "utf-8").slice(0, 4);
     return first === "---\n" || first === "---\r";
-  } catch {
+  } catch (e) {
+    debug(`hasFrontmatter(${filePath}) failed: ${e.message}`);
     return false;
   }
 }
@@ -956,7 +971,8 @@ function lorekitRoot() {
 function readVersion() {
   try {
     return readFileSync2(join2(lorekitRoot(), "VERSION"), "utf-8").trim();
-  } catch {
+  } catch (e) {
+    warn(`VERSION file missing or unreadable: ${e.message}`);
     return "unknown";
   }
 }
@@ -972,16 +988,6 @@ import {
 import { join as join3, resolve } from "path";
 import { createInterface } from "readline";
 import chalk2 from "chalk";
-
-// src/utils/logger.ts
-import chalk from "chalk";
-var DEBUG_ENABLED = process.env.LOREKIT_DEBUG === "1";
-var ok = (msg) => console.error(`${chalk.green("\u2713")} ${msg}`);
-var bad = (msg) => console.error(`${chalk.red("\u2717")} ${msg}`);
-var warn = (msg) => console.error(`${chalk.yellow("lorekit:")} ${msg}`);
-var err = (msg) => console.error(`${chalk.red("lorekit:")} ${msg}`);
-
-// src/commands/init.ts
 var MINIMAL_DIRS = ["\u539F\u6599", "\u77E5\u8BC6\u5E93/\u6982\u5FF5", "\u77E5\u8BC6\u5E93/\u5B9E\u4F53", "\u77E5\u8BC6\u5E93/\u6458\u8981", "\u6BCF\u65E5", "\u7CFB\u7EDF", ".wiki"];
 function ask(question) {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -1255,7 +1261,8 @@ function statsCommand(program2) {
         }
         const iso = mtime.toISOString();
         if (iso > lastUpdated) lastUpdated = iso;
-      } catch {
+      } catch (e) {
+        debug(`stats: stat(${file}) failed: ${e.message}`);
       }
       try {
         const content = readFileSync5(file, "utf-8");
@@ -1264,7 +1271,8 @@ function statsCommand(program2) {
         while ((m = linkRe.exec(content)) !== null) {
           inboundLinks.add(m[1].trim());
         }
-      } catch {
+      } catch (e) {
+        debug(`stats: readFileSync(${file}) failed: ${e.message}`);
       }
     }
     const orphans = [];
@@ -3279,7 +3287,8 @@ function extractCompiledTruthSnippet(filePath) {
   let content;
   try {
     content = readFileSync16(filePath, "utf-8");
-  } catch {
+  } catch (e) {
+    debug(`extractCompiledTruthSnippet(${filePath}) failed: ${e.message}`);
     return "\u2014";
   }
   const body = content.replace(/^---\n[\s\S]*?\n---\n/, "");
@@ -3446,7 +3455,8 @@ function showBanner() {
   if (corpus) {
     try {
       pages = String(collectMdFiles(corpus).length);
-    } catch {
+    } catch (e) {
+      debug(`banner: collectMdFiles failed: ${e.message}`);
     }
     try {
       const dbPath = `${corpus}/.wiki/vector.sqlite`;
@@ -3458,7 +3468,8 @@ function showBanner() {
         model = row?.value ?? "\u2014";
         db.close();
       }
-    } catch {
+    } catch (e) {
+      debug(`banner: vector.sqlite read failed: ${e.message}`);
     }
   }
   const short = corpus && corpus.length > 45 ? "..." + corpus.slice(-42) : corpus ?? "\u2014";

@@ -2,6 +2,7 @@ import type { Command } from 'commander';
 import { readFileSync, statSync } from 'node:fs';
 import { relative } from 'node:path';
 import { requireCorpus, collectMdFiles, extractFrontmatter } from '../lib/corpus.js';
+import { debug } from '../utils/logger.js';
 
 export function statsCommand(program: Command) {
   program
@@ -38,8 +39,9 @@ export function statsCommand(program: Command) {
           }
           const iso = mtime.toISOString();
           if (iso > lastUpdated) lastUpdated = iso;
-        } catch {
-          /* skip */
+        } catch (e) {
+          // 单文件 stat 失败不应中断整体统计；走 debug
+          debug(`stats: stat(${file}) failed: ${(e as Error).message}`);
         }
 
         // Collect wikilink targets to identify orphans later
@@ -50,8 +52,9 @@ export function statsCommand(program: Command) {
           while ((m = linkRe.exec(content)) !== null) {
             inboundLinks.add(m[1].trim());
           }
-        } catch {
-          /* skip */
+        } catch (e) {
+          // 单文件读失败时该文件的 wikilinks 漏掉，但不影响全局统计；走 debug
+          debug(`stats: readFileSync(${file}) failed: ${(e as Error).message}`);
         }
       }
 

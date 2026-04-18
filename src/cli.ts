@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import Database from 'better-sqlite3';
 import { findCorpus, collectMdFiles } from './lib/corpus.js';
+import { debug } from './utils/logger.js';
 import { readVersion } from './utils/fs.js';
 
 // commands
@@ -33,8 +34,9 @@ function showBanner() {
   if (corpus) {
     try {
       pages = String(collectMdFiles(corpus).length);
-    } catch {
-      /* ignore */
+    } catch (e) {
+      // banner 是 best-effort 装饰，corpus 扫失败时不阻塞用户操作 — 仅 debug 留痕
+      debug(`banner: collectMdFiles failed: ${(e as Error).message}`);
     }
 
     try {
@@ -51,8 +53,9 @@ function showBanner() {
         model = row?.value ?? '—';
         db.close();
       }
-    } catch {
-      /* ignore */
+    } catch (e) {
+      // 向量库读失败（坏文件 / 锁 / native 加载错）不该阻断 banner 显示
+      debug(`banner: vector.sqlite read failed: ${(e as Error).message}`);
     }
   }
 
