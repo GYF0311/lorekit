@@ -975,8 +975,9 @@ import chalk2 from "chalk";
 
 // src/utils/logger.ts
 import chalk from "chalk";
-var ok = (msg) => console.log(`${chalk.green("\u2713")} ${msg}`);
-var bad = (msg) => console.log(`${chalk.red("\u2717")} ${msg}`);
+var DEBUG_ENABLED = process.env.LOREKIT_DEBUG === "1";
+var ok = (msg) => console.error(`${chalk.green("\u2713")} ${msg}`);
+var bad = (msg) => console.error(`${chalk.red("\u2717")} ${msg}`);
 var warn = (msg) => console.error(`${chalk.yellow("lorekit:")} ${msg}`);
 var err = (msg) => console.error(`${chalk.red("lorekit:")} ${msg}`);
 

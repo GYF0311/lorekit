@@ -6,6 +6,35 @@
 
 ---
 
+## 2026-04-19 — 批次 10：logger 加等级 + bad → stderr（P1-3）
+
+**做了什么**
+
+- `src/utils/logger.ts` 完全重写：所有 6 个 export（`ok` / `bad` / `warn` / `err` / `info` / `debug`）一律走 stderr；新增 `info` / `debug`；debug 受 `LOREKIT_DEBUG=1` 控制
+- 修了 `bad` 写 stdout 的 bug（CONVENTIONS #3 早就规定但 logger 自身没落地）
+- tag：`refactor-batch-10`
+- **手动验**（task spec 4 条全过）：
+  - `--version 2>/dev/null` → stdout = "0.3.0"，6 字符 ✓
+  - 非 corpus 跑 doctor → stdout 空 ✓
+  - `nonexistent-command` → stderr 有 "error: unknown command 'nonexistent-command'" ✓
+
+**为什么**
+
+- LEGACY P1-3：CONVENTIONS #3 锁定的 stdout/stderr 分流，logger 自己不实现等于规则没落地；这一改让所有走 logger 的输出全 stderr
+- `info` 是 batch 13/14 sweep 时大量用到的等级（替代当前的 `console.log` 中性提示）
+
+**已知中间态（不算"异常"）**
+
+- 在真实 corpus 内跑 `doctor 2>/dev/null` 会看到 chalk 着色的 headers 还在 stdout —— 那是 doctor.ts 自己有 `console.log(chalk.bold/cyan(...))` 直接调用，不是 logger 的问题。**批次 13 (cli + 简单 commands console→logger sweep) 收掉这个**
+- 同样问题在 init / sync 等 commands 的直接 console 调用里。批次 13 / 14 各自负责
+- smoke 全过；该中间态不阻塞，是计划内的
+
+**接下来**
+
+- 进批次 11：P2 sweep — 沉默 catch（cli + corpus + root-index + stats + utils/fs）
+
+---
+
 ## 2026-04-19 — 批次 9：date.ts sweep 2（snapshot + ingest）（P1-2 b）
 
 **做了什么**
