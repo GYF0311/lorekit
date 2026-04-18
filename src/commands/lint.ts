@@ -3,22 +3,15 @@ import { readFileSync } from 'node:fs';
 import { relative, basename } from 'node:path';
 import chalk from 'chalk';
 import { requireCorpus, collectMdFiles, extractFrontmatter } from '../lib/corpus.js';
+import {
+  lintSkipFrontmatterBasenames,
+  lintRootOnlySkipBasenames,
+  lintSkipOrphanPrefixes,
+  lintSkipFrontmatterPrefixes,
+} from '../lib/paths.js';
 import { bad, ok } from '../utils/logger.js';
 
 const REQUIRED_FIELDS = ['type', 'title', 'slug', 'created', 'updated'] as const;
-
-// 按 schema 设计就不承载 frontmatter 的顶层配置/指令文件，任何位置的同名文件都豁免
-const SKIP_FRONTMATTER_BASENAMES = new Set(['README.md', 'AGENTS.md', 'CLAUDE.md', 'MEMORY.md']);
-
-// corpus 根下的索引/日志文件（只在根目录豁免）
-const ROOT_ONLY_SKIP_BASENAMES = new Set(['index.md', 'log.md']);
-
-// 不参与 orphan 检查的目录前缀：过渡区 / 冷数据区 / 系统规范
-const SKIP_ORPHAN_PREFIXES = ['_工作台/', '_归档/', '系统/'];
-
-// 不参与 frontmatter 检查的目录前缀：过渡区 / 冷数据区
-// （系统/ 里的 schema 文件有 frontmatter，保留检查以保障规范性）
-const SKIP_FRONTMATTER_PREFIXES = ['_工作台/', '_归档/'];
 
 function isRootLevel(rel: string): boolean {
   return !rel.includes('/');
@@ -26,9 +19,9 @@ function isRootLevel(rel: string): boolean {
 
 function shouldSkipFrontmatter(rel: string): boolean {
   const base = basename(rel);
-  if (SKIP_FRONTMATTER_BASENAMES.has(base)) return true;
-  if (isRootLevel(rel) && ROOT_ONLY_SKIP_BASENAMES.has(base)) return true;
-  for (const prefix of SKIP_FRONTMATTER_PREFIXES) {
+  if (lintSkipFrontmatterBasenames.has(base)) return true;
+  if (isRootLevel(rel) && lintRootOnlySkipBasenames.has(base)) return true;
+  for (const prefix of lintSkipFrontmatterPrefixes) {
     if (rel.startsWith(prefix)) return true;
   }
   return false;
@@ -36,9 +29,9 @@ function shouldSkipFrontmatter(rel: string): boolean {
 
 function shouldSkipOrphan(rel: string): boolean {
   const base = basename(rel);
-  if (SKIP_FRONTMATTER_BASENAMES.has(base)) return true;
-  if (isRootLevel(rel) && ROOT_ONLY_SKIP_BASENAMES.has(base)) return true;
-  for (const prefix of SKIP_ORPHAN_PREFIXES) {
+  if (lintSkipFrontmatterBasenames.has(base)) return true;
+  if (isRootLevel(rel) && lintRootOnlySkipBasenames.has(base)) return true;
+  for (const prefix of lintSkipOrphanPrefixes) {
     if (rel.startsWith(prefix)) return true;
   }
   return false;

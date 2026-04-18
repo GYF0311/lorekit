@@ -2,32 +2,12 @@ import { Command } from 'commander';
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync, lstatSync } from 'node:fs';
 import { join, basename, relative, resolve } from 'node:path';
 import { requireCorpus, hasFrontmatter, extractFrontmatter } from '../lib/corpus.js';
+import {
+  indexExcludeDirPrefixes,
+  isIndexExcluded,
+  isFolderPackage,
+} from '../lib/paths.js';
 import { ok, warn, err } from '../utils/logger.js';
-
-// 递归扫描时跳过的目录前缀（corpus 根下的相对路径）
-// 对外导出，让 doctor / sync / 其他命令复用同一套排除规则，避免各处规则漂移。
-export const INDEX_EXCLUDE_DIR_PREFIXES = ['.wiki', '.git', '_归档', '_工作台', '系统', '反馈'];
-
-export function isIndexExcluded(rel: string): boolean {
-  for (const prefix of INDEX_EXCLUDE_DIR_PREFIXES) {
-    if (rel === prefix || rel.startsWith(prefix + '/')) return true;
-  }
-  return false;
-}
-
-// 判断是否"目录包装式原料"：子目录内有 article.md
-export function isFolderPackage(dir: string): boolean {
-  const articlePath = join(dir, 'article.md');
-  try {
-    return lstatSync(articlePath).isFile();
-  } catch {
-    return false;
-  }
-}
-
-// 内部别名，保持原函数体可读性
-const EXCLUDE_DIR_PREFIXES = INDEX_EXCLUDE_DIR_PREFIXES;
-const isExcluded = isIndexExcluded;
 
 function extractSummary(filePath: string): string {
   const content = readFileSync(filePath, 'utf-8');
@@ -167,7 +147,7 @@ function buildIndex(dir: string, root: string): boolean {
  *   - 或目录下有"目录包装式原料"子目录（xxx/article.md 形式）
  *
  * 排除规则：
- *   - EXCLUDE_DIR_PREFIXES 开头的目录整枝跳过
+ *   - indexExcludeDirPrefixes 开头的目录整枝跳过
  *   - corpus 根本身不索引（L0 = index.md 已承担其职能）
  *   - 目录包装式原料的内部目录不递归（它们是条目，不是容器）
  */
@@ -176,7 +156,7 @@ function findIndexableDirs(root: string): string[] {
 
   function walk(dir: string, isRoot: boolean) {
     const rel = dir === root ? '' : relative(root, dir);
-    if (rel && isExcluded(rel)) return;
+    if (rel && isIndexExcluded(rel)) return;
 
     let names: string[];
     try {
@@ -254,7 +234,7 @@ export function runIndex(root: string, specificDir?: string): number {
     const rel = relative(root, full);
     if (isIndexExcluded(rel)) {
       throw new Error(
-        `directory "${rel}" is in the exclude list (${INDEX_EXCLUDE_DIR_PREFIXES.join(' / ')})`,
+        `directory "${rel}" is in the exclude list (${indexExcludeDirPrefixes.join(' / ')})`,
       );
     }
     return buildIndex(full, root) ? 1 : 0;

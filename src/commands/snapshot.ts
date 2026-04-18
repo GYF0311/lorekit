@@ -12,6 +12,7 @@ import { join, relative } from 'node:path';
 import * as tar from 'tar';
 import { ok, bad, err } from '../utils/logger.js';
 import { requireCorpus } from '../lib/corpus.js';
+import { snapshotExcludeNames } from '../lib/paths.js';
 import { sha256 } from '../utils/fs.js';
 
 interface ManifestEntry {
@@ -23,11 +24,10 @@ interface ManifestEntry {
 
 function collectAllFiles(dir: string, base: string): string[] {
   const results: string[] = [];
-  const EXCLUDE = new Set(['.wiki', '.git', '.DS_Store']);
 
   function walk(d: string) {
     for (const entry of readdirSync(d, { withFileTypes: true })) {
-      if (EXCLUDE.has(entry.name)) continue;
+      if (snapshotExcludeNames.has(entry.name)) continue;
       const full = join(d, entry.name);
       if (entry.isDirectory()) {
         walk(full);

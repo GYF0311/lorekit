@@ -4,7 +4,7 @@ import { join, relative } from 'node:path';
 import chalk from 'chalk';
 import { ok, bad, warn } from '../utils/logger.js';
 import { requireCorpus, collectMdFiles, hasFrontmatter } from '../lib/corpus.js';
-import { isIndexExcluded, isFolderPackage } from './index.js';
+import { isIndexExcluded, isFolderPackage } from '../lib/paths.js';
 
 const EXPECTED_DIRS = [
   '每日',

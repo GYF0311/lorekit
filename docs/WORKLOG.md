@@ -6,6 +6,29 @@
 
 ---
 
+## 2026-04-19 — 批次 7：paths.ts 迁 commands/{index,lint,snapshot,doctor}.ts（P1-1 c）
+
+**做了什么**
+
+- `src/lib/paths.ts`：追加 `indexExcludeDirPrefixes` / `isIndexExcluded` / `isFolderPackage` / `lintSkipFrontmatterBasenames` / `lintRootOnlySkipBasenames` / `lintSkipOrphanPrefixes` / `lintSkipFrontmatterPrefixes` / `snapshotExcludeNames`
+- `src/commands/index.ts`：删 `INDEX_EXCLUDE_DIR_PREFIXES` / `isIndexExcluded` / `isFolderPackage` 定义，删 2 个内部别名 `EXCLUDE_DIR_PREFIXES` / `isExcluded`，全部改 import
+- `src/commands/lint.ts`：删 4 个 local set，改 import
+- `src/commands/snapshot.ts`：删函数内 local `EXCLUDE`，改 `snapshotExcludeNames` import
+- `src/commands/doctor.ts`：import 源从 `./index.js` 改为 `../lib/paths.js`
+- tag：`refactor-batch-7`
+- **CONVENTIONS Do Not #11 正式生效** —— 后续不许再硬编码新的"排除目录"集合
+
+**为什么**
+
+- LEGACY P1-1 (c)：把所有"排除规则"集中在 paths.ts 是 P1-1 的最后一步。完成后加新顶层目录只改一个文件
+- 函数 `isIndexExcluded` / `isFolderPackage` 也搬过去：它们是路径判定 helper，按职责归属属于 paths.ts；commands/index.ts 之前 export 它们就是为给 doctor.ts 用的，跨命令共享应该走 lib/
+
+**接下来**
+
+- 进批次 8：建 `lib/date.ts` + 迁 commands sweep 1（init / index / audit）
+
+---
+
 ## 2026-04-19 — 批次 6：paths.ts 迁 vectordb.ts 常量（P1-1 b）
 
 **做了什么**

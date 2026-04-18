@@ -10,7 +10,23 @@ var __export = (target, all) => {
 };
 
 // src/lib/paths.ts
-var alwaysExcludeNames, vectorIncludeDirs, vectorExcludePrefixes, vectorExcludeNames;
+import { lstatSync } from "fs";
+import { join as pathJoin } from "path";
+function isIndexExcluded(rel) {
+  for (const prefix of indexExcludeDirPrefixes) {
+    if (rel === prefix || rel.startsWith(prefix + "/")) return true;
+  }
+  return false;
+}
+function isFolderPackage(dir) {
+  const articlePath = pathJoin(dir, "article.md");
+  try {
+    return lstatSync(articlePath).isFile();
+  } catch {
+    return false;
+  }
+}
+var alwaysExcludeNames, vectorIncludeDirs, vectorExcludePrefixes, vectorExcludeNames, indexExcludeDirPrefixes, lintSkipFrontmatterBasenames, lintRootOnlySkipBasenames, lintSkipOrphanPrefixes, lintSkipFrontmatterPrefixes, snapshotExcludeNames;
 var init_paths = __esm({
   "src/lib/paths.ts"() {
     "use strict";
@@ -37,10 +53,25 @@ var init_paths = __esm({
       "\u7CFB\u7EDF",
       ".wiki"
     ];
-    vectorExcludeNames = /* @__PURE__ */ new Set([
-      ".gitkeep",
-      ".DS_Store"
+    vectorExcludeNames = /* @__PURE__ */ new Set([".gitkeep", ".DS_Store"]);
+    indexExcludeDirPrefixes = [
+      ".wiki",
+      ".git",
+      "_\u5F52\u6863",
+      "_\u5DE5\u4F5C\u53F0",
+      "\u7CFB\u7EDF",
+      "\u53CD\u9988"
+    ];
+    lintSkipFrontmatterBasenames = /* @__PURE__ */ new Set([
+      "README.md",
+      "AGENTS.md",
+      "CLAUDE.md",
+      "MEMORY.md"
     ]);
+    lintRootOnlySkipBasenames = /* @__PURE__ */ new Set(["index.md", "log.md"]);
+    lintSkipOrphanPrefixes = ["_\u5DE5\u4F5C\u53F0/", "_\u5F52\u6863/", "\u7CFB\u7EDF/"];
+    lintSkipFrontmatterPrefixes = ["_\u5DE5\u4F5C\u53F0/", "_\u5F52\u6863/"];
+    snapshotExcludeNames = /* @__PURE__ */ new Set([".wiki", ".git", ".DS_Store"]);
   }
 });
 
@@ -1059,232 +1090,10 @@ function initCommand(program2) {
 }
 
 // src/commands/doctor.ts
-import { existsSync as existsSync4, lstatSync as lstatSync2, readFileSync as readFileSync5, readdirSync as readdirSync4 } from "fs";
-import { join as join5, relative as relative3 } from "path";
+import { existsSync as existsSync3, lstatSync as lstatSync2, readFileSync as readFileSync4, readdirSync as readdirSync3 } from "fs";
+import { join as join4, relative as relative2 } from "path";
 import chalk3 from "chalk";
-
-// src/commands/index.ts
-import { existsSync as existsSync3, readdirSync as readdirSync3, readFileSync as readFileSync4, statSync as statSync4, writeFileSync as writeFileSync2, lstatSync } from "fs";
-import { join as join4, basename as basename2, relative as relative2, resolve as resolve2 } from "path";
-var INDEX_EXCLUDE_DIR_PREFIXES = [".wiki", ".git", "_\u5F52\u6863", "_\u5DE5\u4F5C\u53F0", "\u7CFB\u7EDF", "\u53CD\u9988"];
-function isIndexExcluded(rel) {
-  for (const prefix of INDEX_EXCLUDE_DIR_PREFIXES) {
-    if (rel === prefix || rel.startsWith(prefix + "/")) return true;
-  }
-  return false;
-}
-function isFolderPackage(dir) {
-  const articlePath = join4(dir, "article.md");
-  try {
-    return lstatSync(articlePath).isFile();
-  } catch {
-    return false;
-  }
-}
-var isExcluded = isIndexExcluded;
-function extractSummary(filePath) {
-  const content = readFileSync4(filePath, "utf-8");
-  const lines = content.split("\n");
-  let found = false;
-  for (const line of lines) {
-    if (/^## Compiled Truth/.test(line)) {
-      found = true;
-      continue;
-    }
-    if (!found) continue;
-    if (/^---\s*$/.test(line)) break;
-    if (/^## /.test(line)) break;
-    if (line.trim() === "") continue;
-    let text = line.trim().replace(/^\*\*[^*]*\*\*\s*/, "");
-    const periodMatch = text.match(/^([^。.]*[。.])/);
-    if (periodMatch && periodMatch[1].length <= 50) return periodMatch[1];
-    return text.slice(0, 50);
-  }
-  return "";
-}
-function readEntryFromFile(filePath, slug) {
-  let title = "";
-  let updated = "";
-  let summary = "";
-  if (hasFrontmatter(filePath)) {
-    const fm = extractFrontmatter(filePath);
-    title = typeof fm.title === "string" ? fm.title : fm.title != null ? String(fm.title) : "";
-    if (fm.updated instanceof Date) {
-      const d = fm.updated;
-      const pad = (n) => String(n).padStart(2, "0");
-      updated = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
-    } else {
-      updated = fm.updated != null ? String(fm.updated) : "";
-    }
-    summary = extractSummary(filePath);
-    if (!summary) summary = "\u2014";
-  } else {
-    summary = "\uFF08\u7F3A\u5C11 frontmatter\uFF09";
-  }
-  if (!title) title = basename2(filePath, ".md");
-  if (!updated) {
-    try {
-      const mtime = statSync4(filePath).mtime;
-      const pad = (n) => String(n).padStart(2, "0");
-      updated = `${mtime.getFullYear()}-${pad(mtime.getMonth() + 1)}-${pad(mtime.getDate())}`;
-    } catch {
-      updated = "unknown";
-    }
-  }
-  return { slug, title, summary, updated };
-}
-function escapeCell(s) {
-  return s.replace(/\|/g, "\\|");
-}
-function buildIndex(dir, root) {
-  const reldir = dir === root ? "" : relative2(root, dir);
-  const dirName = reldir === "" ? basename2(root) : basename2(dir);
-  const indexFile = join4(dir, "_INDEX.md");
-  let names;
-  try {
-    names = readdirSync3(dir, { encoding: "utf-8" });
-  } catch {
-    return false;
-  }
-  const entries = [];
-  for (const name of names) {
-    if (name.startsWith(".")) continue;
-    if (name === "_INDEX.md" || name === ".gitkeep") continue;
-    const full = join4(dir, name);
-    let stat;
-    try {
-      stat = lstatSync(full);
-    } catch {
-      continue;
-    }
-    if (stat.isFile() && name.endsWith(".md")) {
-      const slug = relative2(root, full).replace(/\.md$/, "");
-      entries.push(readEntryFromFile(full, slug));
-    } else if (stat.isDirectory() && isFolderPackage(full)) {
-      const articlePath = join4(full, "article.md");
-      const slug = relative2(root, full);
-      entries.push(readEntryFromFile(articlePath, slug));
-    }
-  }
-  if (entries.length === 0) return false;
-  entries.sort((a, b) => b.updated.localeCompare(a.updated));
-  const lines = [];
-  lines.push(`# ${dirName}`);
-  lines.push("");
-  lines.push(`> \u672C\u76EE\u5F55\u5171 ${entries.length} \u4E2A\u6761\u76EE\u3002\u7531 \`lorekit index\` \u81EA\u52A8\u751F\u6210\u3002`);
-  lines.push("");
-  lines.push("| \u6761\u76EE | \u6458\u8981 | \u66F4\u65B0 |");
-  lines.push("|---|---|---|");
-  for (const e of entries) {
-    lines.push(`| [[${e.slug}]] | ${escapeCell(e.summary)} | ${e.updated} |`);
-  }
-  lines.push("");
-  writeFileSync2(indexFile, lines.join("\n"), "utf-8");
-  const display = reldir === "" ? "_INDEX.md" : `${reldir}/_INDEX.md`;
-  ok(`${display} (${entries.length} entries)`);
-  return true;
-}
-function findIndexableDirs(root) {
-  const results = [];
-  function walk(dir, isRoot) {
-    const rel = dir === root ? "" : relative2(root, dir);
-    if (rel && isExcluded(rel)) return;
-    let names;
-    try {
-      names = readdirSync3(dir, { encoding: "utf-8" });
-    } catch {
-      return;
-    }
-    if (!isRoot) {
-      let hasIndexable = false;
-      for (const name of names) {
-        if (name.startsWith(".")) continue;
-        if (name === "_INDEX.md" || name === ".gitkeep") continue;
-        const full = join4(dir, name);
-        let stat;
-        try {
-          stat = lstatSync(full);
-        } catch {
-          continue;
-        }
-        if (stat.isFile() && name.endsWith(".md")) {
-          hasIndexable = true;
-          break;
-        }
-        if (stat.isDirectory() && isFolderPackage(full)) {
-          hasIndexable = true;
-          break;
-        }
-      }
-      if (hasIndexable) results.push(dir);
-    }
-    for (const name of names) {
-      if (name.startsWith(".")) continue;
-      const full = join4(dir, name);
-      let stat;
-      try {
-        stat = lstatSync(full);
-      } catch {
-        continue;
-      }
-      if (!stat.isDirectory()) continue;
-      if (isFolderPackage(full)) continue;
-      walk(full, false);
-    }
-  }
-  walk(root, true);
-  return results.sort();
-}
-function runIndex(root, specificDir) {
-  if (specificDir) {
-    const full = join4(root, specificDir);
-    if (!existsSync3(full)) {
-      throw new Error(`directory not found: ${specificDir}`);
-    }
-    if (resolve2(full) === resolve2(root)) {
-      throw new Error(
-        `cannot index the corpus root itself \u2014 L0 corpus/index.md already serves this role`
-      );
-    }
-    const rel = relative2(root, full);
-    if (isIndexExcluded(rel)) {
-      throw new Error(
-        `directory "${rel}" is in the exclude list (${INDEX_EXCLUDE_DIR_PREFIXES.join(" / ")})`
-      );
-    }
-    return buildIndex(full, root) ? 1 : 0;
-  }
-  const dirs = findIndexableDirs(root);
-  if (dirs.length === 0) return 0;
-  let generated = 0;
-  for (const d of dirs) {
-    if (buildIndex(d, root)) generated++;
-  }
-  return generated;
-}
-function indexCommand(program2) {
-  const cmd = program2.command("index").description("Generate _INDEX.md recursively for corpus directories").option("--dir <subdir>", "Only update a specific subdirectory");
-  cmd.action((opts) => {
-    const root = requireCorpus();
-    try {
-      if (opts.dir) {
-        runIndex(root, opts.dir);
-      } else {
-        const generated = runIndex(root);
-        if (generated === 0) {
-          warn("no indexable directories found");
-        } else {
-          ok(`generated ${generated} _INDEX.md file(s)`);
-        }
-      }
-    } catch (e) {
-      err(e.message);
-      process.exit(1);
-    }
-  });
-}
-
-// src/commands/doctor.ts
+init_paths();
 var EXPECTED_DIRS = [
   "\u6BCF\u65E5",
   "\u77E5\u8BC6\u5E93/\u5B9E\u4F53",
@@ -1299,8 +1108,8 @@ var EXPECTED_DIRS = [
 function checkDirs(corpus) {
   let issues = 0;
   for (const dir of EXPECTED_DIRS) {
-    const full = join5(corpus, dir);
-    if (existsSync4(full)) {
+    const full = join4(corpus, dir);
+    if (existsSync3(full)) {
       ok(`${dir}/`);
     } else {
       bad(`${dir}/ ${chalk3.dim("missing")}`);
@@ -1310,9 +1119,9 @@ function checkDirs(corpus) {
   return issues;
 }
 function checkWikiVersion(corpus) {
-  const versionFile = join5(corpus, ".wiki", "version");
-  if (existsSync4(versionFile)) {
-    const ver = readFileSync5(versionFile, "utf-8").trim();
+  const versionFile = join4(corpus, ".wiki", "version");
+  if (existsSync3(versionFile)) {
+    const ver = readFileSync4(versionFile, "utf-8").trim();
     ok(`.wiki/version \u2192 ${ver}`);
     return 0;
   }
@@ -1331,19 +1140,19 @@ function checkFrontmatterCoverage(corpus) {
 function checkIndexFiles(corpus) {
   let missing = 0;
   function walk(dir) {
-    if (!existsSync4(dir)) return;
-    for (const entry of readdirSync4(dir, { withFileTypes: true })) {
+    if (!existsSync3(dir)) return;
+    for (const entry of readdirSync3(dir, { withFileTypes: true })) {
       if (entry.name.startsWith(".")) continue;
       if (!entry.isDirectory()) continue;
-      const full = join5(dir, entry.name);
-      const rel = relative3(corpus, full);
+      const full = join4(dir, entry.name);
+      const rel = relative2(corpus, full);
       if (isIndexExcluded(rel)) continue;
       if (isFolderPackage(full)) continue;
       let shouldHaveIndex = false;
-      for (const name of readdirSync4(full)) {
+      for (const name of readdirSync3(full)) {
         if (name.startsWith(".")) continue;
         if (name === "_INDEX.md" || name === ".gitkeep") continue;
-        const childPath = join5(full, name);
+        const childPath = join4(full, name);
         let stat;
         try {
           stat = lstatSync2(childPath);
@@ -1359,7 +1168,7 @@ function checkIndexFiles(corpus) {
           break;
         }
       }
-      if (shouldHaveIndex && !existsSync4(join5(full, "_INDEX.md"))) {
+      if (shouldHaveIndex && !existsSync3(join4(full, "_INDEX.md"))) {
         warn(`_INDEX.md missing in ${rel}/`);
         missing++;
       }
@@ -1373,8 +1182,8 @@ function checkIndexFiles(corpus) {
   return missing;
 }
 function checkArchive(corpus) {
-  const archiveDir = join5(corpus, "_\u5F52\u6863");
-  if (existsSync4(archiveDir)) {
+  const archiveDir = join4(corpus, "_\u5F52\u6863");
+  if (existsSync3(archiveDir)) {
     ok("_\u5F52\u6863/ exists");
     return 0;
   }
@@ -1418,8 +1227,8 @@ function doctorCommand(program2) {
 }
 
 // src/commands/stats.ts
-import { readFileSync as readFileSync6, statSync as statSync5 } from "fs";
-import { relative as relative4 } from "path";
+import { readFileSync as readFileSync5, statSync as statSync4 } from "fs";
+import { relative as relative3 } from "path";
 function statsCommand(program2) {
   program2.command("stats").description("output corpus statistics as JSON").action(() => {
     const corpus = requireCorpus();
@@ -1435,11 +1244,11 @@ function statsCommand(program2) {
       const fm = extractFrontmatter(file);
       const type = fm.type || "unknown";
       byType[type] = (byType[type] || 0) + 1;
-      const rel = relative4(corpus, file);
+      const rel = relative3(corpus, file);
       const topDir = rel.split("/")[0] || ".";
       byDir[topDir] = (byDir[topDir] || 0) + 1;
       try {
-        const mtime = statSync5(file).mtime;
+        const mtime = statSync4(file).mtime;
         if (now - mtime.getTime() < sevenDays) {
           recentActive7d++;
         }
@@ -1448,7 +1257,7 @@ function statsCommand(program2) {
       } catch {
       }
       try {
-        const content = readFileSync6(file, "utf-8");
+        const content = readFileSync5(file, "utf-8");
         const linkRe = /\[\[([^\]|#]+)[^\]]*\]\]/g;
         let m;
         while ((m = linkRe.exec(content)) !== null) {
@@ -1459,7 +1268,7 @@ function statsCommand(program2) {
     }
     const orphans = [];
     for (const file of files) {
-      const rel = relative4(corpus, file);
+      const rel = relative3(corpus, file);
       const stem = rel.replace(/\.md$/, "");
       const baseName = stem.split("/").pop();
       if (!inboundLinks.has(stem) && !inboundLinks.has(baseName)) {
@@ -1479,31 +1288,28 @@ function statsCommand(program2) {
 }
 
 // src/commands/lint.ts
-import { readFileSync as readFileSync7 } from "fs";
-import { relative as relative5, basename as basename3 } from "path";
+import { readFileSync as readFileSync6 } from "fs";
+import { relative as relative4, basename as basename2 } from "path";
 import chalk4 from "chalk";
+init_paths();
 var REQUIRED_FIELDS = ["type", "title", "slug", "created", "updated"];
-var SKIP_FRONTMATTER_BASENAMES = /* @__PURE__ */ new Set(["README.md", "AGENTS.md", "CLAUDE.md", "MEMORY.md"]);
-var ROOT_ONLY_SKIP_BASENAMES = /* @__PURE__ */ new Set(["index.md", "log.md"]);
-var SKIP_ORPHAN_PREFIXES = ["_\u5DE5\u4F5C\u53F0/", "_\u5F52\u6863/", "\u7CFB\u7EDF/"];
-var SKIP_FRONTMATTER_PREFIXES = ["_\u5DE5\u4F5C\u53F0/", "_\u5F52\u6863/"];
 function isRootLevel(rel) {
   return !rel.includes("/");
 }
 function shouldSkipFrontmatter(rel) {
-  const base = basename3(rel);
-  if (SKIP_FRONTMATTER_BASENAMES.has(base)) return true;
-  if (isRootLevel(rel) && ROOT_ONLY_SKIP_BASENAMES.has(base)) return true;
-  for (const prefix of SKIP_FRONTMATTER_PREFIXES) {
+  const base = basename2(rel);
+  if (lintSkipFrontmatterBasenames.has(base)) return true;
+  if (isRootLevel(rel) && lintRootOnlySkipBasenames.has(base)) return true;
+  for (const prefix of lintSkipFrontmatterPrefixes) {
     if (rel.startsWith(prefix)) return true;
   }
   return false;
 }
 function shouldSkipOrphan(rel) {
-  const base = basename3(rel);
-  if (SKIP_FRONTMATTER_BASENAMES.has(base)) return true;
-  if (isRootLevel(rel) && ROOT_ONLY_SKIP_BASENAMES.has(base)) return true;
-  for (const prefix of SKIP_ORPHAN_PREFIXES) {
+  const base = basename2(rel);
+  if (lintSkipFrontmatterBasenames.has(base)) return true;
+  if (isRootLevel(rel) && lintRootOnlySkipBasenames.has(base)) return true;
+  for (const prefix of lintSkipOrphanPrefixes) {
     if (rel.startsWith(prefix)) return true;
   }
   return false;
@@ -1522,7 +1328,7 @@ function lintCommand(program2) {
     const baseNameSet = /* @__PURE__ */ new Set();
     const inboundLinks = /* @__PURE__ */ new Set();
     for (const file of files) {
-      const rel = relative5(corpus, file);
+      const rel = relative4(corpus, file);
       const stem = rel.replace(/\.md$/, "");
       stemSet.add(stem);
       baseNameSet.add(stem.split("/").pop());
@@ -1534,7 +1340,7 @@ function lintCommand(program2) {
     }
     const fileLinks = /* @__PURE__ */ new Map();
     for (const file of files) {
-      const rel = relative5(corpus, file);
+      const rel = relative4(corpus, file);
       if (!shouldSkipFrontmatter(rel)) {
         const fm = extractFrontmatter(file);
         for (const field of REQUIRED_FIELDS) {
@@ -1548,7 +1354,7 @@ function lintCommand(program2) {
         }
       }
       try {
-        const content = stripCodeBlocks(readFileSync7(file, "utf-8"));
+        const content = stripCodeBlocks(readFileSync6(file, "utf-8"));
         const linkRe = /\[\[([^\]|#]+)[^\]]*\]\]/g;
         const targets = [];
         let m;
@@ -1573,7 +1379,7 @@ function lintCommand(program2) {
       }
     }
     for (const file of files) {
-      const rel = relative5(corpus, file);
+      const rel = relative4(corpus, file);
       if (shouldSkipOrphan(rel)) continue;
       const stem = rel.replace(/\.md$/, "");
       const baseName = stem.split("/").pop();
@@ -1622,11 +1428,11 @@ lorekit lint \u2014 ${corpus}
 }
 
 // src/commands/audit.ts
-import { existsSync as existsSync5, mkdirSync as mkdirSync2, readFileSync as readFileSync8, writeFileSync as writeFileSync3 } from "fs";
-import { join as join6, basename as basename4 } from "path";
+import { existsSync as existsSync4, mkdirSync as mkdirSync2, readFileSync as readFileSync7, writeFileSync as writeFileSync2 } from "fs";
+import { join as join5, basename as basename3 } from "path";
 var SEVERITY_ORDER = { high: 3, medium: 2, low: 1 };
 function extractPreview(filePath) {
-  const content = readFileSync8(filePath, "utf-8");
+  const content = readFileSync7(filePath, "utf-8");
   const lines = content.split("\n");
   let inFm = false;
   for (const line of lines) {
@@ -1647,14 +1453,14 @@ function extractPreview(filePath) {
 }
 function listAudit(root, filter) {
   const dirs = [];
-  if (filter === "open" || filter === "all") dirs.push(join6(root, "\u53CD\u9988", "\u5F85\u5904\u7406"));
-  if (filter === "resolved" || filter === "all") dirs.push(join6(root, "\u53CD\u9988", "\u5DF2\u5904\u7406"));
+  if (filter === "open" || filter === "all") dirs.push(join5(root, "\u53CD\u9988", "\u5F85\u5904\u7406"));
+  if (filter === "resolved" || filter === "all") dirs.push(join5(root, "\u53CD\u9988", "\u5DF2\u5904\u7406"));
   const entries = [];
   for (const dir of dirs) {
-    if (!existsSync5(dir)) continue;
+    if (!existsSync4(dir)) continue;
     const files = collectMdFiles(dir);
     for (const f of files) {
-      if (basename4(f) === ".gitkeep") continue;
+      if (basename3(f) === ".gitkeep") continue;
       if (!hasFrontmatter(f)) continue;
       const fm = extractFrontmatter(f);
       const severity = fm.severity ?? "";
@@ -1700,15 +1506,15 @@ function createAudit(root, target, severity, text) {
     err(`severity must be low|medium|high, got: ${severity}`);
     process.exit(2);
   }
-  const slug = basename4(target, ".md").replace(/[\s/]/g, "-").toLowerCase();
+  const slug = basename3(target, ".md").replace(/[\s/]/g, "-").toLowerCase();
   const now = /* @__PURE__ */ new Date();
   const pad = (n) => String(n).padStart(2, "0");
   const tsFile = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
   const tsFm = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
   const filename = `${tsFile}-${slug}.md`;
-  const destDir = join6(root, "\u53CD\u9988", "\u5F85\u5904\u7406");
+  const destDir = join5(root, "\u53CD\u9988", "\u5F85\u5904\u7406");
   mkdirSync2(destDir, { recursive: true });
-  const dest = join6(destDir, filename);
+  const dest = join5(destDir, filename);
   const content = `---
 type: audit
 target: ${target}
@@ -1719,7 +1525,7 @@ created: ${tsFm}
 
 ${text}
 `;
-  writeFileSync3(dest, content, "utf-8");
+  writeFileSync2(dest, content, "utf-8");
   ok(`created: \u53CD\u9988/\u5F85\u5904\u7406/${filename}`);
   console.log(`  target:   ${target}`);
   console.log(`  severity: ${severity}`);
@@ -1739,6 +1545,212 @@ function auditCommand(program2) {
   });
 }
 
+// src/commands/index.ts
+import { existsSync as existsSync5, readdirSync as readdirSync4, readFileSync as readFileSync8, statSync as statSync5, writeFileSync as writeFileSync3, lstatSync as lstatSync3 } from "fs";
+import { join as join6, basename as basename4, relative as relative5, resolve as resolve2 } from "path";
+init_paths();
+function extractSummary(filePath) {
+  const content = readFileSync8(filePath, "utf-8");
+  const lines = content.split("\n");
+  let found = false;
+  for (const line of lines) {
+    if (/^## Compiled Truth/.test(line)) {
+      found = true;
+      continue;
+    }
+    if (!found) continue;
+    if (/^---\s*$/.test(line)) break;
+    if (/^## /.test(line)) break;
+    if (line.trim() === "") continue;
+    let text = line.trim().replace(/^\*\*[^*]*\*\*\s*/, "");
+    const periodMatch = text.match(/^([^。.]*[。.])/);
+    if (periodMatch && periodMatch[1].length <= 50) return periodMatch[1];
+    return text.slice(0, 50);
+  }
+  return "";
+}
+function readEntryFromFile(filePath, slug) {
+  let title = "";
+  let updated = "";
+  let summary = "";
+  if (hasFrontmatter(filePath)) {
+    const fm = extractFrontmatter(filePath);
+    title = typeof fm.title === "string" ? fm.title : fm.title != null ? String(fm.title) : "";
+    if (fm.updated instanceof Date) {
+      const d = fm.updated;
+      const pad = (n) => String(n).padStart(2, "0");
+      updated = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+    } else {
+      updated = fm.updated != null ? String(fm.updated) : "";
+    }
+    summary = extractSummary(filePath);
+    if (!summary) summary = "\u2014";
+  } else {
+    summary = "\uFF08\u7F3A\u5C11 frontmatter\uFF09";
+  }
+  if (!title) title = basename4(filePath, ".md");
+  if (!updated) {
+    try {
+      const mtime = statSync5(filePath).mtime;
+      const pad = (n) => String(n).padStart(2, "0");
+      updated = `${mtime.getFullYear()}-${pad(mtime.getMonth() + 1)}-${pad(mtime.getDate())}`;
+    } catch {
+      updated = "unknown";
+    }
+  }
+  return { slug, title, summary, updated };
+}
+function escapeCell(s) {
+  return s.replace(/\|/g, "\\|");
+}
+function buildIndex(dir, root) {
+  const reldir = dir === root ? "" : relative5(root, dir);
+  const dirName = reldir === "" ? basename4(root) : basename4(dir);
+  const indexFile = join6(dir, "_INDEX.md");
+  let names;
+  try {
+    names = readdirSync4(dir, { encoding: "utf-8" });
+  } catch {
+    return false;
+  }
+  const entries = [];
+  for (const name of names) {
+    if (name.startsWith(".")) continue;
+    if (name === "_INDEX.md" || name === ".gitkeep") continue;
+    const full = join6(dir, name);
+    let stat;
+    try {
+      stat = lstatSync3(full);
+    } catch {
+      continue;
+    }
+    if (stat.isFile() && name.endsWith(".md")) {
+      const slug = relative5(root, full).replace(/\.md$/, "");
+      entries.push(readEntryFromFile(full, slug));
+    } else if (stat.isDirectory() && isFolderPackage(full)) {
+      const articlePath = join6(full, "article.md");
+      const slug = relative5(root, full);
+      entries.push(readEntryFromFile(articlePath, slug));
+    }
+  }
+  if (entries.length === 0) return false;
+  entries.sort((a, b) => b.updated.localeCompare(a.updated));
+  const lines = [];
+  lines.push(`# ${dirName}`);
+  lines.push("");
+  lines.push(`> \u672C\u76EE\u5F55\u5171 ${entries.length} \u4E2A\u6761\u76EE\u3002\u7531 \`lorekit index\` \u81EA\u52A8\u751F\u6210\u3002`);
+  lines.push("");
+  lines.push("| \u6761\u76EE | \u6458\u8981 | \u66F4\u65B0 |");
+  lines.push("|---|---|---|");
+  for (const e of entries) {
+    lines.push(`| [[${e.slug}]] | ${escapeCell(e.summary)} | ${e.updated} |`);
+  }
+  lines.push("");
+  writeFileSync3(indexFile, lines.join("\n"), "utf-8");
+  const display = reldir === "" ? "_INDEX.md" : `${reldir}/_INDEX.md`;
+  ok(`${display} (${entries.length} entries)`);
+  return true;
+}
+function findIndexableDirs(root) {
+  const results = [];
+  function walk(dir, isRoot) {
+    const rel = dir === root ? "" : relative5(root, dir);
+    if (rel && isIndexExcluded(rel)) return;
+    let names;
+    try {
+      names = readdirSync4(dir, { encoding: "utf-8" });
+    } catch {
+      return;
+    }
+    if (!isRoot) {
+      let hasIndexable = false;
+      for (const name of names) {
+        if (name.startsWith(".")) continue;
+        if (name === "_INDEX.md" || name === ".gitkeep") continue;
+        const full = join6(dir, name);
+        let stat;
+        try {
+          stat = lstatSync3(full);
+        } catch {
+          continue;
+        }
+        if (stat.isFile() && name.endsWith(".md")) {
+          hasIndexable = true;
+          break;
+        }
+        if (stat.isDirectory() && isFolderPackage(full)) {
+          hasIndexable = true;
+          break;
+        }
+      }
+      if (hasIndexable) results.push(dir);
+    }
+    for (const name of names) {
+      if (name.startsWith(".")) continue;
+      const full = join6(dir, name);
+      let stat;
+      try {
+        stat = lstatSync3(full);
+      } catch {
+        continue;
+      }
+      if (!stat.isDirectory()) continue;
+      if (isFolderPackage(full)) continue;
+      walk(full, false);
+    }
+  }
+  walk(root, true);
+  return results.sort();
+}
+function runIndex(root, specificDir) {
+  if (specificDir) {
+    const full = join6(root, specificDir);
+    if (!existsSync5(full)) {
+      throw new Error(`directory not found: ${specificDir}`);
+    }
+    if (resolve2(full) === resolve2(root)) {
+      throw new Error(
+        `cannot index the corpus root itself \u2014 L0 corpus/index.md already serves this role`
+      );
+    }
+    const rel = relative5(root, full);
+    if (isIndexExcluded(rel)) {
+      throw new Error(
+        `directory "${rel}" is in the exclude list (${indexExcludeDirPrefixes.join(" / ")})`
+      );
+    }
+    return buildIndex(full, root) ? 1 : 0;
+  }
+  const dirs = findIndexableDirs(root);
+  if (dirs.length === 0) return 0;
+  let generated = 0;
+  for (const d of dirs) {
+    if (buildIndex(d, root)) generated++;
+  }
+  return generated;
+}
+function indexCommand(program2) {
+  const cmd = program2.command("index").description("Generate _INDEX.md recursively for corpus directories").option("--dir <subdir>", "Only update a specific subdirectory");
+  cmd.action((opts) => {
+    const root = requireCorpus();
+    try {
+      if (opts.dir) {
+        runIndex(root, opts.dir);
+      } else {
+        const generated = runIndex(root);
+        if (generated === 0) {
+          warn("no indexable directories found");
+        } else {
+          ok(`generated ${generated} _INDEX.md file(s)`);
+        }
+      }
+    } catch (e) {
+      err(e.message);
+      process.exit(1);
+    }
+  });
+}
+
 // src/commands/install-skills.ts
 import {
   existsSync as existsSync6,
@@ -1747,12 +1759,12 @@ import {
   symlinkSync,
   unlinkSync,
   readlinkSync,
-  lstatSync as lstatSync3
+  lstatSync as lstatSync4
 } from "fs";
 import { join as join7 } from "path";
 function isSymlink(path) {
   try {
-    return lstatSync3(path).isSymbolicLink();
+    return lstatSync4(path).isSymbolicLink();
   } catch {
     return false;
   }
@@ -1791,7 +1803,7 @@ function installSkillsCommand(program2) {
     const skillNames = allNames.filter((name) => {
       if (!name.startsWith("wiki-")) return false;
       try {
-        return lstatSync3(join7(skillsSrc, name)).isDirectory();
+        return lstatSync4(join7(skillsSrc, name)).isDirectory();
       } catch {
         return false;
       }
@@ -1834,12 +1846,12 @@ import {
 } from "fs";
 import { join as join8, relative as relative6 } from "path";
 import * as tar from "tar";
+init_paths();
 function collectAllFiles(dir, base) {
   const results = [];
-  const EXCLUDE = /* @__PURE__ */ new Set([".wiki", ".git", ".DS_Store"]);
   function walk(d) {
     for (const entry of readdirSync6(d, { withFileTypes: true })) {
-      if (EXCLUDE.has(entry.name)) continue;
+      if (snapshotExcludeNames.has(entry.name)) continue;
       const full = join8(d, entry.name);
       if (entry.isDirectory()) {
         walk(full);
