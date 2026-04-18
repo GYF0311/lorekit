@@ -1,6 +1,6 @@
 import type { Command } from 'commander';
 import { existsSync, mkdirSync, readdirSync, cpSync, readFileSync, writeFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import chalk from 'chalk';
 import { ok, bad, warn } from '../utils/logger.js';
@@ -98,7 +98,7 @@ export function initCommand(program: Command) {
     .option('--minimal', 'only create core directories (no template files)')
     .description('initialize a new lorekit corpus')
     .action(async (targetPath: string, opts: { inPlace?: boolean; minimal?: boolean }) => {
-      const resolved = join(process.cwd(), targetPath);
+      const resolved = resolve(targetPath);
       const templateDir = join(lorekitRoot(), 'templates', 'default-corpus');
 
       if (opts.minimal) {

@@ -29,7 +29,7 @@ export interface Frontmatter {
   title?: string;
   slug?: string;
   created?: string;
-  updated?: string;
+  updated?: string | Date;
   [key: string]: unknown;
 }
 

@@ -966,7 +966,7 @@ function readVersion() {
 
 // src/commands/init.ts
 import { existsSync as existsSync2, mkdirSync, readdirSync as readdirSync2, cpSync, writeFileSync } from "fs";
-import { join as join3 } from "path";
+import { join as join3, resolve } from "path";
 import { createInterface } from "readline";
 import chalk2 from "chalk";
 
@@ -989,10 +989,10 @@ var MINIMAL_DIRS = [
 ];
 function ask(question) {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve2) => {
+  return new Promise((resolve3) => {
     rl.question(question, (answer) => {
       rl.close();
-      resolve2(answer.trim());
+      resolve3(answer.trim());
     });
   });
 }
@@ -1051,7 +1051,7 @@ function createWikiMeta(corpusPath) {
 }
 function initCommand(program2) {
   program2.command("init").argument("[path]", "target directory", ".").option("--in-place", "initialize in-place even if directory is non-empty").option("--minimal", "only create core directories (no template files)").description("initialize a new lorekit corpus").action(async (targetPath, opts) => {
-    const resolved = join3(process.cwd(), targetPath);
+    const resolved = resolve(targetPath);
     const templateDir = join3(lorekitRoot(), "templates", "default-corpus");
     if (opts.minimal) {
       for (const dir of MINIMAL_DIRS) {
@@ -1103,7 +1103,7 @@ init_corpus();
 // src/commands/index.ts
 init_corpus();
 import { existsSync as existsSync3, readdirSync as readdirSync3, readFileSync as readFileSync4, statSync as statSync4, writeFileSync as writeFileSync2, lstatSync } from "fs";
-import { join as join4, basename as basename2, relative as relative2, resolve } from "path";
+import { join as join4, basename as basename2, relative as relative2, resolve as resolve2 } from "path";
 var INDEX_EXCLUDE_DIR_PREFIXES = [
   ".wiki",
   ".git",
@@ -1286,7 +1286,7 @@ function runIndex(root, specificDir) {
     if (!existsSync3(full)) {
       throw new Error(`directory not found: ${specificDir}`);
     }
-    if (resolve(full) === resolve(root)) {
+    if (resolve2(full) === resolve2(root)) {
       throw new Error(
         `cannot index the corpus root itself \u2014 L0 corpus/index.md already serves this role`
       );
@@ -1967,10 +1967,10 @@ import chalk5 from "chalk";
 init_corpus();
 function ask2(question) {
   const rl = createInterface2({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve2) => {
+  return new Promise((resolve3) => {
     rl.question(question, (answer) => {
       rl.close();
-      resolve2(answer.trim());
+      resolve3(answer.trim());
     });
   });
 }

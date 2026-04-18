@@ -17,12 +17,26 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "test:smoke": "node --test tests/smoke/*.test.mjs",
+    "verify": "tsc --noEmit && npm run build && npm run test:smoke",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "prepublishOnly": "npm run build"
   },
   "engines": {
     "node": ">=18"
   },
-  "keywords": ["llm", "wiki", "knowledge-base", "karpathy", "obsidian", "rag", "embedding"],
+  "keywords": [
+    "llm",
+    "wiki",
+    "knowledge-base",
+    "karpathy",
+    "obsidian",
+    "rag",
+    "embedding"
+  ],
   "author": "GYF0311",
   "license": "MIT",
   "repository": {
@@ -42,10 +56,15 @@
     "sqlite-vec": "^0.1.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.4",
     "@types/better-sqlite3": "^7.6.0",
     "@types/node": "^20.0.0",
     "@types/turndown": "^5.0.0",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^9.1.2",
+    "prettier": "^3.8.3",
     "tsup": "^8.0.0",
-    "typescript": "^5.5.0"
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.58.2"
   }
 }
