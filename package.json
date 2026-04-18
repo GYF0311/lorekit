@@ -1,6 +1,6 @@
 {
   "name": "lorekit",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Personal LLM Wiki toolkit — let AI build and maintain your knowledge base",
   "type": "module",
   "bin": {

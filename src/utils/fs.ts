@@ -14,15 +14,15 @@ export function fileMtime(filePath: string): Date {
 
 export function lorekitRoot(): string {
   const thisFile = fileURLToPath(import.meta.url);
-  // dist/utils/logger.js -> lorekit root is 2 levels up from dist/
-  // but since tsup bundles to dist/cli.js, we go up from dist/
-  return join(dirname(thisFile), '..', '..');
+  // tsup bundles everything to dist/cli.js — dirname(thisFile) === dist/,
+  // so the package root is one level up.
+  return join(dirname(thisFile), '..');
 }
 
 export function readVersion(): string {
   try {
     return readFileSync(join(lorekitRoot(), 'VERSION'), 'utf-8').trim();
   } catch {
-    return '0.2.0';
+    return 'unknown';
   }
 }

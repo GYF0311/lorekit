@@ -954,13 +954,13 @@ function sha256(filePath) {
 }
 function lorekitRoot() {
   const thisFile = fileURLToPath(import.meta.url);
-  return join2(dirname2(thisFile), "..", "..");
+  return join2(dirname2(thisFile), "..");
 }
 function readVersion() {
   try {
     return readFileSync2(join2(lorekitRoot(), "VERSION"), "utf-8").trim();
   } catch {
-    return "0.2.0";
+    return "unknown";
   }
 }
 
@@ -2158,8 +2158,8 @@ async function runVectorSync(corpus, opts = {}) {
       const row = db.prepare("SELECT sha256 FROM documents WHERE path = ?").get(rel);
       if (row) {
         const { createHash: createHash3 } = await import("crypto");
-        const { readFileSync: readFileSync15 } = await import("fs");
-        const sha = createHash3("sha256").update(readFileSync15(filePath)).digest("hex");
+        const { readFileSync: readFileSync17 } = await import("fs");
+        const sha = createHash3("sha256").update(readFileSync17(filePath)).digest("hex");
         if (row.sha256 === sha) {
           skipped++;
           continue;
@@ -2203,11 +2203,11 @@ function vectorCommand(program2) {
       const threshold = parseFloat(opts.threshold);
       const { embedSingle: embedSingle2 } = await Promise.resolve().then(() => (init_ollama(), ollama_exports));
       const { openDb: openDb2, queryFlat: queryFlat2, queryLayered: queryLayered2, queryBM25Layered: queryBM25Layered2, queryHybrid: queryHybrid2 } = await Promise.resolve().then(() => (init_vectordb(), vectordb_exports));
-      const { existsSync: existsSync13 } = await import("fs");
-      const { join: join16 } = await import("path");
+      const { existsSync: existsSync14 } = await import("fs");
+      const { join: join17 } = await import("path");
       let dim = 1024;
-      const dbPath = join16(corpus, ".wiki", "vector.sqlite");
-      if (existsSync13(dbPath)) {
+      const dbPath = join17(corpus, ".wiki", "vector.sqlite");
+      if (existsSync14(dbPath)) {
         const tmpDb = await openDb2(corpus);
         const row = tmpDb.prepare("SELECT value FROM meta WHERE key = 'dim'").get();
         if (row) dim = parseInt(row.value, 10);
@@ -2594,12 +2594,12 @@ async function fetchUrl(url, opts) {
     }
   }
   const sourceKind = site === "weixin" ? "clipping" : "article";
-  const today = todayYMD();
+  const today2 = todayYMD();
   const fmLines = ["---"];
   fmLines.push("type: source");
   if (doc.title) fmLines.push(`title: "${doc.title.replace(/"/g, '\\"')}"`);
-  fmLines.push(`created: ${today}`);
-  fmLines.push(`updated: ${today}`);
+  fmLines.push(`created: ${today2}`);
+  fmLines.push(`updated: ${today2}`);
   fmLines.push(`source_url: ${url}`);
   if (doc.author) fmLines.push(`source_author: "${doc.author.replace(/"/g, '\\"')}"`);
   if (doc.publishDate) fmLines.push(`source_date: ${doc.publishDate}`);
@@ -2699,13 +2699,13 @@ async function fetchGist(url, outRoot) {
   const slug = slugify(title);
   const dir = join12(outRoot, slug);
   await mkdir(dir, { recursive: true });
-  const today = todayYMD();
+  const today2 = todayYMD();
   const hasH1 = /^#\s+/m.test(content);
   const fmLines = ["---"];
   fmLines.push("type: source");
   fmLines.push(`title: "${title.replace(/"/g, '\\"')}"`);
-  fmLines.push(`created: ${today}`);
-  fmLines.push(`updated: ${today}`);
+  fmLines.push(`created: ${today2}`);
+  fmLines.push(`updated: ${today2}`);
   fmLines.push(`source_url: ${url}`);
   fmLines.push(`source_author: "${author.replace(/"/g, '\\"')}"`);
   if (publishDate) fmLines.push(`source_date: ${publishDate}`);
@@ -2792,13 +2792,13 @@ async function fetchGithubDoc(url, outRoot) {
   const slug = slugify(subpath ? `${owner}-${repo}-${fileName}` : `${owner}-${repo}`);
   const dir = join12(outRoot, slug);
   await mkdir(dir, { recursive: true });
-  const today = todayYMD();
+  const today2 = todayYMD();
   const hasH1 = /^#\s+/m.test(content);
   const fmLines = ["---"];
   fmLines.push("type: source");
   fmLines.push(`title: "${title.replace(/"/g, '\\"')}"`);
-  fmLines.push(`created: ${today}`);
-  fmLines.push(`updated: ${today}`);
+  fmLines.push(`created: ${today2}`);
+  fmLines.push(`updated: ${today2}`);
   fmLines.push(`source_url: ${url}`);
   fmLines.push(`source_author: "${owner.replace(/"/g, '\\"')}"`);
   fmLines.push("source_kind: github");
@@ -3032,9 +3032,48 @@ function fetchCommand(program2) {
 
 // src/commands/ingest.ts
 init_corpus();
-import { existsSync as existsSync12 } from "fs";
+import { existsSync as existsSync12, readFileSync as readFileSync15, writeFileSync as writeFileSync6 } from "fs";
 import { join as join15, relative as relative12 } from "path";
 var VALID_STEPS = ["fetch", "archive", "wiki", "backlink", "lint"];
+function today() {
+  const d = /* @__PURE__ */ new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+function appendLogEntry(corpus, record, body) {
+  const logPath = join15(corpus, "log.md");
+  const title = record.title ?? "(untitled)";
+  const wikiList = (record.wikiPages ?? []).map((p) => `  - ${p}`).join("\n");
+  const archived = record.archivedTo ?? "(unrecorded)";
+  const entry = [
+    `## [${today()}] ingest | ${title}`,
+    "",
+    body.trim(),
+    "",
+    `- **URL**\uFF1A${record.url}`,
+    `- **\u5F52\u6863**\uFF1A${archived}`,
+    record.wikiPages && record.wikiPages.length > 0 ? `- **\u65B0\u5EFA/\u66F4\u65B0\u9875**\uFF1A
+${wikiList}` : "- **\u65B0\u5EFA/\u66F4\u65B0\u9875**\uFF1A\uFF08\u65E0\uFF09",
+    "",
+    ""
+  ].join("\n");
+  let existing = "";
+  if (existsSync12(logPath)) existing = readFileSync15(logPath, "utf-8");
+  if (!existing) {
+    const header = '# Log\n\n> \u64CD\u4F5C\u65F6\u95F4\u7EBF\uFF0Cappend-only\u3002\u6BCF\u6761\u683C\u5F0F\uFF1A`## [YYYY-MM-DD] \u64CD\u4F5C\u7C7B\u578B | \u6807\u9898`\n> \u53EF\u7528 `grep "^## \\[" log.md | tail -10` \u5FEB\u901F\u67E5\u6700\u8FD1\u64CD\u4F5C\u3002\n\n';
+    writeFileSync6(logPath, header + entry, "utf-8");
+    return;
+  }
+  const firstSection = existing.search(/^## \[/m);
+  if (firstSection === -1) {
+    const sep = existing.endsWith("\n") ? "" : "\n";
+    writeFileSync6(logPath, existing + sep + entry, "utf-8");
+  } else {
+    const before = existing.slice(0, firstSection);
+    const after = existing.slice(firstSection);
+    writeFileSync6(logPath, before + entry + after, "utf-8");
+  }
+}
 function ingestCommand(program2) {
   const group = program2.command("ingest").description("Track ingest pipeline state (record step progress, list pending, reconcile)");
   group.command("list").description("List every ingest record (completed + in-progress)").action(() => {
@@ -3073,20 +3112,29 @@ ${summary.join("\n")}`);
     console.log(JSON.stringify({ pending }));
     process.exitCode = 1;
   });
-  group.command("record <url>").description("Record step progress for an ingest (call from wiki-ingest skill)").option("--step <step>", `mark step as done (one of: ${VALID_STEPS.join(", ")})`).option("--archived-to <path>", "relative path where the source was moved (e.g. \u539F\u6599/\u526A\u85CF/xxx)").option("--wiki-page <path...>", "relative path of a wiki page created (can be repeated)").option("--status <status>", "explicit status (fetched|archived|wiki_created|completed|failed)").option("--complete", "shortcut: mark status=completed").option("--fail <reason>", "shortcut: mark status=failed with reason").action((url, opts) => {
+  group.command("record <url>").description("Record step progress for an ingest (call from wiki-ingest skill)").option(
+    "--step <steps>",
+    `mark step(s) as done. single: archive | multi: archive,wiki,backlink,lint. valid: ${VALID_STEPS.join(", ")}`
+  ).option("--archived-to <path>", "relative path where the source was moved (e.g. \u539F\u6599/\u526A\u85CF/xxx)").option("--wiki-page <path...>", "relative path of a wiki page created (can be repeated)").option("--log <body>", "append a one-paragraph summary to corpus/log.md (CLI auto-fills url/archive/pages)").option("--status <status>", "explicit status (started|completed|failed)").option("--complete", "shortcut: mark status=completed").option("--fail <reason>", "shortcut: mark status=failed with reason").action((url, opts) => {
     const corpus = requireCorpus();
     const patch = {};
+    let parsedSteps = [];
     if (opts.step) {
-      if (!VALID_STEPS.includes(opts.step)) {
-        console.error(`[lorekit ingest record] invalid --step: ${opts.step}. valid: ${VALID_STEPS.join(", ")}`);
-        process.exitCode = 2;
-        return;
+      parsedSteps = opts.step.split(",").map((s) => s.trim()).filter(Boolean);
+      for (const s of parsedSteps) {
+        if (!VALID_STEPS.includes(s)) {
+          console.error(
+            `[lorekit ingest record] invalid step: ${s}. valid: ${VALID_STEPS.join(", ")}`
+          );
+          process.exitCode = 2;
+          return;
+        }
       }
       const existing = loadIngestState(corpus).ingests[url];
       const prev = existing?.stepsDone ?? [];
-      patch.stepsDone = [...prev, opts.step];
+      patch.stepsDone = [...prev, ...parsedSteps];
       if (!opts.status && !opts.complete && !opts.fail) {
-        if (opts.step === "lint") patch.status = "completed";
+        if (parsedSteps.includes("lint")) patch.status = "completed";
         else patch.status = "started";
       }
     }
@@ -3103,11 +3151,85 @@ ${summary.join("\n")}`);
       patch.error = opts.fail;
     }
     const updated = upsertIngestRecord(corpus, url, patch);
+    let logAppended = false;
+    if (opts.log) {
+      try {
+        appendLogEntry(corpus, updated, opts.log);
+        logAppended = true;
+      } catch (e) {
+        console.error(`[lorekit ingest record] log append failed: ${e.message}`);
+      }
+    }
     console.error(
       `[lorekit ingest record] ${url}
-  status: ${updated.status}  steps: ${updated.stepsDone.join(",") || "(none)"}`
+  status: ${updated.status}  steps: ${updated.stepsDone.join(",") || "(none)"}` + (logAppended ? "  +log" : "")
     );
-    console.log(JSON.stringify(updated));
+    console.log(JSON.stringify({ ...updated, logAppended }));
+  });
+  group.command("check <files...>").description("Scan given wiki pages for broken [[wikilinks]] (pre-commit check)").action((files) => {
+    const corpus = requireCorpus();
+    const allMd = collectMdFiles(corpus);
+    const stemSet = /* @__PURE__ */ new Set();
+    const baseNameSet = /* @__PURE__ */ new Set();
+    for (const file of allMd) {
+      const rel = relative12(corpus, file);
+      const stem = rel.replace(/\.md$/, "");
+      stemSet.add(stem);
+      baseNameSet.add(stem.split("/").pop());
+      if (stem.endsWith("/article")) {
+        const folder = stem.replace(/\/article$/, "");
+        stemSet.add(folder);
+        baseNameSet.add(folder.split("/").pop());
+      }
+    }
+    const stripCode = (s) => s.replace(/```[\s\S]*?```/g, "").replace(/`[^`\n]+`/g, "");
+    const broken = [];
+    const okLinks = [];
+    const checked = [];
+    for (const f of files) {
+      const abs = f.startsWith("/") ? f : join15(process.cwd(), f);
+      if (!existsSync12(abs)) {
+        console.error(`[lorekit ingest check] file not found: ${f}`);
+        process.exitCode = 2;
+        continue;
+      }
+      const rel = relative12(corpus, abs);
+      checked.push(rel);
+      let content;
+      try {
+        content = stripCode(readFileSync15(abs, "utf-8"));
+      } catch {
+        continue;
+      }
+      const linkRe = /\[\[([^\]|#]+)[^\]]*\]\]/g;
+      let m;
+      const seen = /* @__PURE__ */ new Set();
+      while ((m = linkRe.exec(content)) !== null) {
+        const target = m[1].trim();
+        if (seen.has(target)) continue;
+        seen.add(target);
+        if (stemSet.has(target) || baseNameSet.has(target)) {
+          okLinks.push({ file: rel, link: target });
+        } else {
+          broken.push({ file: rel, link: target });
+        }
+      }
+    }
+    const result = { checked, ok: okLinks, broken };
+    if (broken.length === 0) {
+      console.error(
+        `[lorekit ingest check] ${checked.length} file(s), ${okLinks.length} link(s) ok, no broken links`
+      );
+    } else {
+      console.error(
+        `[lorekit ingest check] ${broken.length} broken link(s) found:`
+      );
+      for (const b of broken) {
+        console.error(`  \u2717 ${b.file}: [[${b.link}]]`);
+      }
+      process.exitCode = 1;
+    }
+    console.log(JSON.stringify(result));
   });
   group.command("forget <url>").description("Remove a record from the state (e.g. after manual cleanup)").action((url) => {
     const corpus = requireCorpus();
@@ -3160,6 +3282,120 @@ ${summary.join("\n")}`);
 // src/commands/sync.ts
 init_corpus();
 import chalk6 from "chalk";
+
+// src/lib/root-index.ts
+import { existsSync as existsSync13, readFileSync as readFileSync16, readdirSync as readdirSync9, writeFileSync as writeFileSync7 } from "fs";
+import { join as join16 } from "path";
+var MANAGED_SECTIONS = [
+  { heading: "## \u6982\u5FF5", subdir: "\u77E5\u8BC6\u5E93/\u6982\u5FF5" },
+  { heading: "## \u5B9E\u4F53", subdir: "\u77E5\u8BC6\u5E93/\u5B9E\u4F53" },
+  { heading: "## \u6458\u8981", subdir: "\u77E5\u8BC6\u5E93/\u6458\u8981" },
+  { heading: "## \u4E13\u9898", subdir: "\u77E5\u8BC6\u5E93/\u4E13\u9898" }
+];
+function listEntriesInDir(corpus, subdir) {
+  const dirPath = join16(corpus, subdir);
+  if (!existsSync13(dirPath)) return [];
+  const out = [];
+  for (const name of readdirSync9(dirPath)) {
+    if (name.startsWith(".")) continue;
+    if (name === "_INDEX.md") continue;
+    if (!name.endsWith(".md")) continue;
+    const file = join16(dirPath, name);
+    const slug = `${subdir}/${name.replace(/\.md$/, "")}`;
+    out.push({ slug, summary: extractCompiledTruthSnippet(file) });
+  }
+  return out.sort((a, b) => a.slug.localeCompare(b.slug));
+}
+function extractCompiledTruthSnippet(filePath) {
+  let content;
+  try {
+    content = readFileSync16(filePath, "utf-8");
+  } catch {
+    return "\u2014";
+  }
+  const body = content.replace(/^---\n[\s\S]*?\n---\n/, "");
+  const sectionMatch = body.match(/##\s*Compiled Truth\s*\n+([\s\S]*?)(?=\n---|\n##\s|$)/);
+  if (!sectionMatch) return "\u2014";
+  const para = sectionMatch[1].split("\n").map((l) => l.trim()).find((l) => l.length > 0);
+  if (!para) return "\u2014";
+  const cleaned = para.replace(/^\*\*([^*]+)\*\*\s*/, "$1 ");
+  const sentenceMatch = cleaned.match(/^(.{1,80}?[。.！？!?])/);
+  if (sentenceMatch) return sentenceMatch[1];
+  return cleaned.slice(0, 80) + (cleaned.length > 80 ? "\u2026" : "");
+}
+function mergeSection(content, heading, onDisk) {
+  const lines = content.split("\n");
+  const startIdx = lines.findIndex((l) => l.trim() === heading);
+  if (startIdx === -1) {
+    return { newContent: content, result: { added: [], removed: [], kept: 0 } };
+  }
+  let endIdx = lines.length;
+  for (let i = startIdx + 1; i < lines.length; i++) {
+    if (lines[i].startsWith("## ")) {
+      endIdx = i;
+      break;
+    }
+  }
+  const sectionBody = lines.slice(startIdx + 1, endIdx);
+  const linkRe = /^-\s+\[\[([^\]|#]+)[^\]]*\]\]/;
+  const onDiskSlugs = new Set(onDisk.map((e) => e.slug));
+  const seenInIndex = /* @__PURE__ */ new Set();
+  const removed = [];
+  const kept = [];
+  for (const line of sectionBody) {
+    const trimmed = line.trim();
+    if (trimmed === "" || trimmed === "\uFF08\u6682\u65E0\u6761\u76EE\uFF09") continue;
+    const m = line.match(linkRe);
+    if (m) {
+      const slug = m[1].trim();
+      if (onDiskSlugs.has(slug)) {
+        seenInIndex.add(slug);
+        kept.push(line);
+      } else {
+        removed.push(slug);
+      }
+    } else {
+      kept.push(line);
+    }
+  }
+  const added = [];
+  for (const e of onDisk) {
+    if (!seenInIndex.has(e.slug)) {
+      kept.push(`- [[${e.slug}]] \u2014 ${e.summary}`);
+      added.push(e.slug);
+    }
+  }
+  const sectionContentLines = kept.length === 0 ? ["", "\uFF08\u6682\u65E0\u6761\u76EE\uFF09", ""] : ["", ...kept, ""];
+  const newLines = [
+    ...lines.slice(0, startIdx + 1),
+    ...sectionContentLines,
+    ...lines.slice(endIdx)
+  ];
+  return {
+    newContent: newLines.join("\n"),
+    result: { added, removed, kept: seenInIndex.size }
+  };
+}
+function refreshRootIndex(corpus) {
+  const indexPath = join16(corpus, "index.md");
+  if (!existsSync13(indexPath)) {
+    return { filePath: indexPath, changed: false, perSection: [] };
+  }
+  const before = readFileSync16(indexPath, "utf-8");
+  let content = before;
+  const perSection = [];
+  for (const sec of MANAGED_SECTIONS) {
+    const onDisk = listEntriesInDir(corpus, sec.subdir);
+    const { newContent, result } = mergeSection(content, sec.heading, onDisk);
+    content = newContent;
+    perSection.push({ heading: sec.heading, ...result });
+  }
+  const changed = content !== before;
+  if (changed) writeFileSync7(indexPath, content, "utf-8");
+  return { filePath: indexPath, changed, perSection };
+}
+
+// src/commands/sync.ts
 async function runSync(corpus, opts = {}) {
   const force = opts.force ?? false;
   const model = opts.model ?? "bge-m3";
@@ -3174,6 +3410,34 @@ async function runSync(corpus, opts = {}) {
   } catch (e) {
     err(`index failed: ${e.message}`);
     throw e;
+  }
+  if (!opts.skipRootIndex) {
+    try {
+      const r = refreshRootIndex(corpus);
+      const totals = r.perSection.reduce(
+        (acc, s) => ({
+          added: acc.added + s.added.length,
+          removed: acc.removed + s.removed.length,
+          kept: acc.kept + s.kept
+        }),
+        { added: 0, removed: 0, kept: 0 }
+      );
+      if (!r.changed) {
+        ok(`index.md unchanged (${totals.kept} entries across managed sections)`);
+      } else {
+        ok(
+          `index.md merged: +${totals.added} added, -${totals.removed} removed, ${totals.kept} kept`
+        );
+        for (const s of r.perSection) {
+          if (s.added.length === 0 && s.removed.length === 0) continue;
+          for (const slug of s.added) console.log(`    + ${slug}`);
+          for (const slug of s.removed) console.log(`    - ${slug} (file gone)`);
+        }
+      }
+    } catch (e) {
+      err(`root index sync failed: ${e.message}`);
+      throw e;
+    }
   }
   console.log();
   if (!opts.skipVector) {
@@ -3195,7 +3459,7 @@ async function runSync(corpus, opts = {}) {
   }
 }
 function syncCommand(program2) {
-  program2.command("sync").description("one-shot: refresh _INDEX.md \u2192 vector sync (layered) \u2192 doctor").option("--force", "full rebuild of vector index", false).option("--model <name>", "ollama model name", "bge-m3").option("--skip-doctor", "skip the final doctor sanity check", false).option("--skip-vector", "only refresh _INDEX.md, skip vector sync", false).action(async (opts) => {
+  program2.command("sync").description("one-shot: refresh _INDEX.md \u2192 vector sync (layered) \u2192 doctor").option("--force", "full rebuild of vector index", false).option("--model <name>", "ollama model name", "bge-m3").option("--skip-doctor", "skip the final doctor sanity check", false).option("--skip-vector", "only refresh _INDEX.md, skip vector sync", false).option("--skip-root-index", "skip merging corpus/index.md against disk", false).action(async (opts) => {
     const corpus = requireCorpus();
     try {
       await runSync(corpus, opts);
@@ -3220,8 +3484,8 @@ function showBanner() {
     }
     try {
       const dbPath = `${corpus}/.wiki/vector.sqlite`;
-      const { existsSync: existsSync13 } = __require("fs");
-      if (existsSync13(dbPath)) {
+      const { existsSync: existsSync14 } = __require("fs");
+      if (existsSync14(dbPath)) {
         const Database = __require("better-sqlite3");
         const db = new Database(dbPath, { readonly: true });
         indexed = String(db.prepare("SELECT COUNT(*) as c FROM documents").get()?.c ?? 0);
