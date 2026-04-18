@@ -2,7 +2,7 @@ import type { Command } from 'commander';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { findCorpus, findSourceByUrl, extractFrontmatter } from '../lib/corpus.js';
-import { fetchUrl } from '../lib/fetcher.js';
+import { fetchUrl, fetchGist, fetchGithubDoc } from '../lib/fetcher.js';
 import type { FetchResult } from '../lib/fetcher.js';
 import { getIngestRecord, upsertIngestRecord, nextStepHint } from '../lib/ingest-state.js';
 
@@ -138,8 +138,10 @@ export function fetchCommand(program: Command) {
           result = suggestResult('lark', url, 'lark-cli docs +read --as user --doc <url>');
         } else if (host === 'x.com' || host === 'twitter.com' || host.endsWith('.x.com') || host.endsWith('.twitter.com')) {
           result = suggestResult('x', url, 'paste screenshot or text (antibot too strong)');
-        } else if (host === 'github.com' || host === 'gist.github.com') {
-          result = suggestResult('github', url, 'WebFetch or github-content-fetch skill');
+        } else if (host === 'gist.github.com' || host === 'gist.githubusercontent.com') {
+          result = await fetchGist(url, outRoot);
+        } else if (host === 'github.com' || host === 'www.github.com') {
+          result = await fetchGithubDoc(url, outRoot);
         } else if (isPdfUrl(url)) {
           result = suggestResult('pdf', url, 'pdf skill');
         } else {

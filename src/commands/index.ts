@@ -84,8 +84,15 @@ function buildIndex(dir: string, root: string): void {
 
     if (hasFrontmatter(f)) {
       const fm = extractFrontmatter(f);
-      title = (fm.title as string) ?? '';
-      updated = (fm.updated as string) ?? '';
+      title = typeof fm.title === 'string' ? fm.title : fm.title != null ? String(fm.title) : '';
+      // YAML 会把 ISO 日期字面量解析成 Date；统一归一为 YYYY-MM-DD 字符串
+      if (fm.updated instanceof Date) {
+        const d = fm.updated;
+        const pad = (n: number) => String(n).padStart(2, '0');
+        updated = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+      } else {
+        updated = fm.updated != null ? String(fm.updated) : '';
+      }
       summary = extractSummary(f);
       if (!summary) summary = '—';
     } else {

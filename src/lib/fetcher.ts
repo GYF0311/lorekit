@@ -578,3 +578,257 @@ export async function fetchUrl(url: string, opts: FetchOptions): Promise<FetchRe
     imagesFailed,
   };
 }
+
+// ---------------------------------------------------------------------------
+// GitHub Gist fetcher
+// ---------------------------------------------------------------------------
+
+function parseGistUrl(url: string): { user: string; id: string } | null {
+  try {
+    const u = new URL(url);
+    if (!u.hostname.endsWith('gist.github.com') && !u.hostname.endsWith('gist.githubusercontent.com')) {
+      return null;
+    }
+    const parts = u.pathname.split('/').filter(Boolean);
+    if (parts.length < 2) return null;
+    return { user: parts[0], id: parts[1] };
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchGist(url: string, outRoot: string): Promise<FetchResult> {
+  const parsed = parseGistUrl(url);
+  if (!parsed) {
+    return { status: 'error', route: 'gist', url, reason: 'invalid_gist_url' };
+  }
+
+  const headers = buildHeaders('generic');
+  let html: string;
+  try {
+    html = await fetchHtmlL1(url, headers);
+  } catch (e) {
+    return {
+      status: 'error',
+      route: 'gist',
+      url,
+      reason: `fetch_failed: ${(e as Error).message}`,
+    };
+  }
+
+  const $ = cheerio.load(html);
+
+  // gist 页面把描述放在 .gist-header [itemprop="about"]，OpenGraph title 通常是第一个文件名
+  const description = $('[itemprop="about"]').first().text().trim();
+  const ogTitle = $('meta[property="og:title"]').attr('content')?.trim();
+  const title = description || ogTitle || parsed.id;
+
+  const author = parsed.user;
+
+  // 日期：<relative-time datetime="ISO"> 是 GitHub 标准元素
+  let publishDate: string | undefined;
+  const dateRaw =
+    $('relative-time').first().attr('datetime') ||
+    $('time-ago').first().attr('datetime') ||
+    $('meta[property="article:published_time"]').attr('content') ||
+    '';
+  if (dateRaw) publishDate = normalizeDateText(dateRaw);
+
+  // 抽 raw 链接。gist 页面的 raw 链接形如：
+  //   /karpathy/442a6b.../raw/ac46de.../llm-wiki.md
+  const rawRe = /^\/([^/]+)\/([a-f0-9]{20,})\/raw\/([a-f0-9]{20,})\/(.+)$/i;
+  const rawLinks: Array<{ name: string; rawUrl: string }> = [];
+  $('a').each((_i, el) => {
+    const href = $(el).attr('href') || '';
+    const m = href.match(rawRe);
+    if (m) {
+      rawLinks.push({
+        name: m[4],
+        rawUrl: 'https://gist.githubusercontent.com' + href,
+      });
+    }
+  });
+
+  if (rawLinks.length === 0) {
+    return { status: 'error', route: 'gist', url, reason: 'no_raw_files_found' };
+  }
+
+  // 优先 markdown，其次第一个
+  const mdLink =
+    rawLinks.find((l) => /\.(md|markdown)$/i.test(l.name)) || rawLinks[0];
+
+  let content: string;
+  try {
+    const res = await fetch(mdLink.rawUrl, { headers, redirect: 'follow' });
+    if (!res.ok) throw new Error(`HTTP ${res.status} on ${mdLink.rawUrl}`);
+    content = await res.text();
+  } catch (e) {
+    const err = e as Error & { cause?: Error };
+    const cause = err.cause?.message ? ` (${err.cause.message})` : '';
+    return {
+      status: 'error',
+      route: 'gist',
+      url,
+      reason: `raw_fetch_failed: ${err.message}${cause} [raw_url=${mdLink.rawUrl}]`,
+    };
+  }
+
+  const slug = slugify(title);
+  const dir = join(outRoot, slug);
+  await mkdir(dir, { recursive: true });
+
+  const today = todayYMD();
+  const hasH1 = /^#\s+/m.test(content);
+  const fmLines = ['---'];
+  fmLines.push('type: source');
+  fmLines.push(`title: "${title.replace(/"/g, '\\"')}"`);
+  fmLines.push(`created: ${today}`);
+  fmLines.push(`updated: ${today}`);
+  fmLines.push(`source_url: ${url}`);
+  fmLines.push(`source_author: "${author.replace(/"/g, '\\"')}"`);
+  if (publishDate) fmLines.push(`source_date: ${publishDate}`);
+  fmLines.push('source_kind: gist');
+  fmLines.push('---');
+  fmLines.push('');
+  if (!hasH1) fmLines.push(`# ${title}`, '');
+  fmLines.push(content.trim(), '');
+
+  const articlePath = join(dir, 'article.md');
+  await writeFile(articlePath, fmLines.join('\n'), 'utf-8');
+
+  return {
+    status: 'ok',
+    route: 'gist',
+    url,
+    title,
+    author,
+    publishDate,
+    sourceKind: 'gist',
+    sourceLayer: 'L1',
+    slug,
+    dir,
+    markdown: articlePath,
+    imagesOk: 0,
+    imagesFailed: 0,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// GitHub repo / blob fetcher (README.md or a specific file)
+// ---------------------------------------------------------------------------
+
+interface GithubRepoRef {
+  owner: string;
+  repo: string;
+  ref: string;       // HEAD / branch / commit
+  subpath?: string;  // 具体文件路径，如 "docs/foo.md"
+}
+
+function parseGithubRepoUrl(url: string): GithubRepoRef | null {
+  try {
+    const u = new URL(url);
+    if (u.hostname !== 'github.com' && u.hostname !== 'www.github.com') return null;
+    const parts = u.pathname.split('/').filter(Boolean);
+    if (parts.length < 2) return null;
+    const [owner, rawRepo, ...rest] = parts;
+    const repo = rawRepo.replace(/\.git$/, '');
+
+    if (rest.length === 0) {
+      return { owner, repo, ref: 'HEAD' };
+    }
+    if (rest[0] === 'blob' && rest.length >= 3) {
+      return { owner, repo, ref: rest[1], subpath: rest.slice(2).join('/') };
+    }
+    if (rest[0] === 'tree' && rest.length >= 2) {
+      return { owner, repo, ref: rest[1] };
+    }
+    return { owner, repo, ref: 'HEAD' };
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchGithubDoc(url: string, outRoot: string): Promise<FetchResult> {
+  const parsed = parseGithubRepoUrl(url);
+  if (!parsed) {
+    return { status: 'error', route: 'github', url, reason: 'invalid_github_url' };
+  }
+
+  const { owner, repo, ref, subpath } = parsed;
+  const headers = buildHeaders('generic');
+
+  // 确定候选 raw URL 列表
+  const candidates: string[] = [];
+  if (subpath) {
+    candidates.push(`https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${subpath}`);
+  } else {
+    // 仓库根：尝试常见 README 文件名
+    for (const name of ['README.md', 'README.MD', 'Readme.md', 'readme.md', 'README']) {
+      candidates.push(`https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${name}`);
+    }
+  }
+
+  let content = '';
+  let chosenUrl = '';
+  for (const candUrl of candidates) {
+    try {
+      const res = await fetch(candUrl, { headers });
+      if (!res.ok) continue;
+      const text = await res.text();
+      if (text && text.trim().length > 20) {
+        content = text;
+        chosenUrl = candUrl;
+        break;
+      }
+    } catch {
+      // try next
+    }
+  }
+
+  if (!content) {
+    return { status: 'error', route: 'github', url, reason: 'no_readable_content_found' };
+  }
+
+  const fileName = subpath ? subpath.split('/').pop()! : 'README.md';
+  const title = subpath
+    ? fileName.replace(/\.(md|markdown)$/i, '')
+    : `${owner}/${repo}`;
+
+  const slug = slugify(subpath ? `${owner}-${repo}-${fileName}` : `${owner}-${repo}`);
+  const dir = join(outRoot, slug);
+  await mkdir(dir, { recursive: true });
+
+  const today = todayYMD();
+  const hasH1 = /^#\s+/m.test(content);
+  const fmLines = ['---'];
+  fmLines.push('type: source');
+  fmLines.push(`title: "${title.replace(/"/g, '\\"')}"`);
+  fmLines.push(`created: ${today}`);
+  fmLines.push(`updated: ${today}`);
+  fmLines.push(`source_url: ${url}`);
+  fmLines.push(`source_author: "${owner.replace(/"/g, '\\"')}"`);
+  fmLines.push('source_kind: github');
+  fmLines.push('---');
+  fmLines.push('');
+  if (!hasH1) fmLines.push(`# ${title}`, '');
+  fmLines.push(`> Fetched from: ${chosenUrl}`, '');
+  fmLines.push(content.trim(), '');
+
+  const articlePath = join(dir, 'article.md');
+  await writeFile(articlePath, fmLines.join('\n'), 'utf-8');
+
+  return {
+    status: 'ok',
+    route: 'github',
+    url,
+    title,
+    author: owner,
+    sourceKind: 'github',
+    sourceLayer: 'L1',
+    slug,
+    dir,
+    markdown: articlePath,
+    imagesOk: 0,
+    imagesFailed: 0,
+  };
+}

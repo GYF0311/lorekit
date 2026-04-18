@@ -1,11 +1,60 @@
 import type { Command } from 'commander';
 import { readFileSync } from 'node:fs';
-import { relative, join } from 'node:path';
+import { relative, basename } from 'node:path';
 import chalk from 'chalk';
 import { requireCorpus, collectMdFiles, extractFrontmatter } from '../lib/corpus.js';
-import { bad, ok, warn } from '../utils/logger.js';
+import { bad, ok } from '../utils/logger.js';
 
 const REQUIRED_FIELDS = ['type', 'title', 'slug', 'created', 'updated'] as const;
+
+// 按 schema 设计就不承载 frontmatter 的顶层配置/指令文件，任何位置的同名文件都豁免
+const SKIP_FRONTMATTER_BASENAMES = new Set([
+  'README.md',
+  'AGENTS.md',
+  'CLAUDE.md',
+  'MEMORY.md',
+]);
+
+// corpus 根下的索引/日志文件（只在根目录豁免）
+const ROOT_ONLY_SKIP_BASENAMES = new Set([
+  'index.md',
+  'log.md',
+]);
+
+// 不参与 orphan 检查的目录前缀：过渡区 / 冷数据区 / 系统规范
+const SKIP_ORPHAN_PREFIXES = [
+  '_工作台/',
+  '_归档/',
+  '系统/',
+];
+
+function isRootLevel(rel: string): boolean {
+  return !rel.includes('/');
+}
+
+function shouldSkipFrontmatter(rel: string): boolean {
+  const base = basename(rel);
+  if (SKIP_FRONTMATTER_BASENAMES.has(base)) return true;
+  if (isRootLevel(rel) && ROOT_ONLY_SKIP_BASENAMES.has(base)) return true;
+  return false;
+}
+
+function shouldSkipOrphan(rel: string): boolean {
+  const base = basename(rel);
+  if (SKIP_FRONTMATTER_BASENAMES.has(base)) return true;
+  if (isRootLevel(rel) && ROOT_ONLY_SKIP_BASENAMES.has(base)) return true;
+  for (const prefix of SKIP_ORPHAN_PREFIXES) {
+    if (rel.startsWith(prefix)) return true;
+  }
+  return false;
+}
+
+// 去掉围栏代码块和行内代码，避免文档里 `[[Page]]` 这类占位符被当作真 wikilink
+function stripCodeBlocks(content: string): string {
+  content = content.replace(/```[\s\S]*?```/g, '');
+  content = content.replace(/`[^`\n]+`/g, '');
+  return content;
+}
 
 interface LintIssue {
   file: string;
@@ -34,6 +83,14 @@ export function lintCommand(program: Command) {
         const stem = rel.replace(/\.md$/, '');
         stemSet.add(stem);
         baseNameSet.add(stem.split('/').pop()!);
+
+        // 文件夹包装式原料：`原料/文章/xxx/article.md` 的规范引用是 `[[原料/文章/xxx]]`
+        // 把父目录路径也登记为有效链接目标
+        if (stem.endsWith('/article')) {
+          const folderStem = stem.replace(/\/article$/, '');
+          stemSet.add(folderStem);
+          baseNameSet.add(folderStem.split('/').pop()!);
+        }
       }
 
       // Pass 1: frontmatter + collect wikilinks
@@ -41,22 +98,24 @@ export function lintCommand(program: Command) {
 
       for (const file of files) {
         const rel = relative(corpus, file);
-        const fm = extractFrontmatter(file);
 
-        // Check required frontmatter fields
-        for (const field of REQUIRED_FIELDS) {
-          if (!fm[field]) {
-            issues.push({
-              file: rel,
-              kind: 'missing-field',
-              detail: `missing frontmatter field: ${field}`,
-            });
+        // Check required frontmatter fields (skip top-level config/index files)
+        if (!shouldSkipFrontmatter(rel)) {
+          const fm = extractFrontmatter(file);
+          for (const field of REQUIRED_FIELDS) {
+            if (!fm[field]) {
+              issues.push({
+                file: rel,
+                kind: 'missing-field',
+                detail: `missing frontmatter field: ${field}`,
+              });
+            }
           }
         }
 
-        // Extract wikilinks
+        // Extract wikilinks (ignore matches inside code blocks)
         try {
-          const content = readFileSync(file, 'utf-8');
+          const content = stripCodeBlocks(readFileSync(file, 'utf-8'));
           const linkRe = /\[\[([^\]|#]+)[^\]]*\]\]/g;
           const targets: string[] = [];
           let m: RegExpExecArray | null;
@@ -87,9 +146,21 @@ export function lintCommand(program: Command) {
       // Pass 3: orphan pages (no inbound links)
       for (const file of files) {
         const rel = relative(corpus, file);
+        if (shouldSkipOrphan(rel)) continue;
+
         const stem = rel.replace(/\.md$/, '');
         const baseName = stem.split('/').pop()!;
-        if (!inboundLinks.has(stem) && !inboundLinks.has(baseName)) {
+
+        let hasInbound = inboundLinks.has(stem) || inboundLinks.has(baseName);
+
+        // 文件夹包装式原料：父目录形式的引用也算入链
+        if (!hasInbound && stem.endsWith('/article')) {
+          const folderStem = stem.replace(/\/article$/, '');
+          const folderName = folderStem.split('/').pop()!;
+          hasInbound = inboundLinks.has(folderStem) || inboundLinks.has(folderName);
+        }
+
+        if (!hasInbound) {
           issues.push({
             file: rel,
             kind: 'orphan',
