@@ -19,30 +19,74 @@ description: 从 corpus 检索已有内容并综合答案，按精确/模糊/图
 - 用户给了新外部资料要存 → 交给 `wiki-ingest`
 - 用户在问需要上网的新知识 → 用 `WebSearch` / `WebFetch`
 
+## 规模模式（读 `mode` 字段，不自己算阈值）
+
+**铁律**：先跑 `lorekit vector status`，直接看返回的 `mode` 字段决定路径。
+
+| 返回的 `mode` | 路径 |
+|---|---|
+| `"text"` | 走 Read 三层（见下方 Decision tree §2 的文本模式） |
+| `"vector"` | 走向量分层召回（见下方 Decision tree §2 的向量模式） |
+
+**用户显式覆盖**：`--text` 或 `--vector` flag 优先于系统推荐的 mode。
+
+**为什么不在 skill 里写阈值数字**：
+- 阈值是系统参数，归 lorekit 代码持有（当前定义在 `src/lib/vectordb.ts::MODE_THRESHOLD_FILES`，按 Karpathy 原文锚定为 100 files）
+- skill 只负责"读 mode → 走对应路径"的流程判断
+- 未来阈值改了，skill 不用动，所有 skill 通过 `vector status` 自动跟随
+
+**status 返回字段解读**：
+- `indexed_files`: 文档总数（用来算 mode 的那个数字）
+- `mode_threshold`: 当前阈值（只读，参考用）
+- `mode_reason`: 一句话说明为什么是这个 mode
+
 ## Decision tree
 
-先判断 query 类型，再选检索层：
+第 0 步先做规模判断，然后按 query 类型选层：
 
-1. **有具体实体名 / 文件名 / 明确关键词** → **精确层**
-   - `lorekit search "<实体名>"` (ripgrep)
-   - 命中就直接读对应 L2 页面
-2. **概念性 / 模糊意图 / 时间模糊** → **模糊层**
-   - `lorekit vector query "<fuzzy intent>"`（两阶段层次检索）
-   - 读 top 5 候选对应的 L2 文件
-3. **多跳推理**（"跟 A 相关的 B 的 C"）→ **图遍历层**
-   - 先模糊层拿候选
-   - 沿候选页的 `[[wikilinks]]` 递归遍历 2 步
-   - 综合
+### 0. 规模判断
 
-**大部分真实 query 是组合**：先精确找锚点，再沿链接展开。
+- 跑 `lorekit vector status` → 读返回的 `mode` 字段（lorekit 内部按文档数和阈值算好了）
+- `mode: "text"` → 走下面每步的"文本模式"分支
+- `mode: "vector"` → 走下面每步的"向量模式"分支
+- 用户带 `--text` / `--vector` flag → 显式覆盖
+
+### 1. 精确关键词（实体名 / 文件名 / 具体词）
+
+两种模式都走 `lorekit search "<q>"`（ripgrep，跟规模无关）。命中就读对应页面。
+
+### 2. 模糊语义（概念性 / 意图类 / "跟 X 相关的东西"）
+
+**文本模式**：
+- Read `corpus/index.md` → AI 按语义选 1-3 个分区
+- Read `{选中分区}/_INDEX.md` → 选具体页
+- Read 具体 `.md` 文件 → 综合答案
+
+**向量模式**（阶段 2 标配走混合检索，不是纯向量）：
+- `lorekit vector query --hybrid --text "<q>"` → BM25 + 向量分层 RRF 融合，返回 top-k chunk
+  - BM25 擅长精确词（专有名词/日期/代码符号）
+  - 向量擅长语义（意图/同义改写）
+  - RRF 把两路融合成单一排名
+- chunk 信息足就直接综合；不足再 Read 对应完整文件
+- **debug flag**：纯向量跑 `--layered`，纯 BM25 跑 `--bm25`（单路用于排查"这个 query 谁贡献了召回"）
+
+### 3. 多跳推理（"A 相关 B 的 C"）
+
+在第 2 步基础上，沿候选页的 `[[wikilinks]]` 递归遍历 1-2 步，综合。
+
+---
+
+**大部分真实 query 是组合**：先精确找锚点（第 1 步），再沿语义展开（第 2 步），最后拉链接（第 3 步）。
 
 ## Tools to use
 
-- `lorekit search "<q>"` — 精确 ripgrep
-- `lorekit vector query "<q>"` — 模糊语义检索（v0.5+）
-- `lorekit show <page>` — 读某页完整内容
-- `lorekit links <page>` — 列出某页的所有 wikilinks（正反向）
-- 底层：Read、Grep
+- `lorekit vector status` — 看 corpus 规模和向量库状态（每次 query 开始必跑）
+- `lorekit search "<q>"` — 精确 ripgrep（两种规模模式都用）
+- `lorekit vector query --hybrid --text "<q>"` — BM25 + 向量分层 RRF 融合（阶段 2 标配）
+- `lorekit vector query --layered --text "<q>"` — 纯向量分层（debug 用）
+- `lorekit vector query --bm25 --text "<q>"` — 纯 BM25 分层（debug 用）
+- Read `corpus/index.md` / `{dir}/_INDEX.md` / 具体文件（文本模式三层）
+- 底层：Grep（复杂匹配时用）
 
 ## Output format
 

@@ -37,10 +37,11 @@ Three layers:
 | Snapshot | `lorekit snapshot` | Full-corpus tarball + manifest |
 | Restore | `lorekit restore` | Recover missing / changed files from a snapshot |
 | Audit | `lorekit audit` | Create / list / resolve human feedback on wiki pages |
-| Vector sync | `lorekit vector sync` | Incrementally embed the corpus into sqlite-vec |
-| Vector query | `lorekit vector query` | Vector search with optional L0 / L1 / L2 layering |
-| Vector status | `lorekit vector status` | Inspect the vector index |
-| Directory index | `lorekit index` | Generate / refresh `_INDEX.md` files per subdirectory |
+| Vector sync | `lorekit vector sync` | Incrementally embed the corpus into sqlite-vec + FTS5 |
+| Vector query | `lorekit vector query` | Search modes: `--layered` (vector), `--bm25` (FTS5), `--hybrid` (both + RRF) |
+| Vector status | `lorekit vector status` | Inspect the index; returns `mode: text\|vector` recommendation based on `indexed_files` vs `MODE_THRESHOLD_FILES` (default 100) |
+| Directory index | `lorekit index` | Recursively generate `_INDEX.md` for every subdirectory (including folder-packaged sources like `原料/文章/<slug>/article.md`) |
+| **Sync** | **`lorekit sync`** | **One-shot: `index` → `vector sync --layered` → `doctor`. Use this after every ingest/fileback to keep text index + vector store aligned** |
 
 > The CLI is named `lorekit`. The 6 Agent Skills keep the `wiki-` prefix (a nod to Karpathy's LLM Wiki): `wiki-ingest` / `wiki-query` / `wiki-fileback` / `wiki-lint` / `wiki-enrich` / `wiki-audit`.
 
@@ -179,15 +180,13 @@ Embeddings are produced through ollama's local API. **No torch, no pip, no API k
 brew install ollama
 ollama pull bge-m3
 
-# Incremental index
-lorekit vector sync
+# Standard workflow (layered + FTS5 by default)
+lorekit sync                               # index → vector sync → doctor, one shot
 
-# Semantic query
-lorekit vector query --text "relationship between RAG and LLM wikis"
-
-# Layered retrieval (L0 dir → L1 page → L2 chunk)
-lorekit vector sync --layered
-lorekit vector query --text "xxx" --layered
+# Three query modes (pick based on the problem, not the index)
+lorekit vector query --hybrid --text "xxx" # BM25 + vector + RRF fusion (production default)
+lorekit vector query --layered --text "xxx" # vector-only layered (debug)
+lorekit vector query --bm25    --text "xxx" # FTS5-only BM25 (debug precise keywords / dates)
 ```
 
 Swappable embedding models (any ollama-hosted model works):
@@ -225,42 +224,45 @@ L2 (targeted)
       ↓ still not enough?
 
 L3 (semantic fallback)
-  lorekit vector query
-  → vector search as last resort
+  lorekit vector query --hybrid
+  → BM25 + vector + RRF hybrid, only when text drill-down misses
 ```
 
 Like a human looking for a book: floor directory (L0) → shelf (L1) → take the book off the shelf (L2) → ask the librarian (L3). Total budget typically < 5k tokens.
 
-### Vector retrieval (layered, `--layered` opt-in)
+**The same archive is read by humans/LLMs (via `Read`) and embedded by vectors (via `lorekit sync`)** — one source of truth, no drift between text index and vector store.
 
-The vector index itself is three tables in `.wiki/vector.sqlite`:
+### Vector retrieval shares the same archive as document retrieval
+
+This is the key design: **one archive, two reading modes**. The vector side does NOT synthesize its own summaries — it reads `index.md` and each `_INDEX.md` directly. So updating `index.md` automatically updates the L0 semantics on next `lorekit sync`.
 
 ```
-L0: directory-level (vec_dirs)
-  One "directory summary vector" per subdirectory
-  Coarse filter: "which shelf is this question on?"
-
-      ↓ drill into the top-3 shelves only
-
-L1: page-level (vec_pages)
-  Encodes title + Compiled Truth lead paragraph of each wiki page
-  "Which book?"
-
-      ↓ scan the top-5 pages only
-
-L2: chunk-level (vec_chunks)
-  Each page split at `## headings`, each chunk encoded
-  "Which paragraph?"
+              Document mode (small corpora, < 100 files)         Vector mode (≥ 100 files)
+              ─────────────────────────────────────────          ──────────────────────────
+L0            Read corpus/index.md                               Embed each `## section` of index.md
+              (LLM picks 1-3 sections semantically)              → vec_dirs + fts_dirs
+                          ↓                                              ↓
+L1            Read {section}/_INDEX.md                            Embed each `- [[slug]] — summary` line
+              (LLM picks candidate pages)                         → vec_pages + fts_pages
+                          ↓                                              ↓
+L2            Read specific .md file                              Chunk every page by `## heading`
+              (LLM reads full page)                               → vec_chunks + fts_chunks
 ```
 
-Off by default (for small corpora `index.md` is enough). Enable for 500+ pages:
+Mode switch is automatic. `lorekit vector status` returns a `mode` field (`text` | `vector`) based on `indexed_files` vs `MODE_THRESHOLD_FILES` (default 100, defined in `src/lib/vectordb.ts`). Skills read the `mode` field and route accordingly — no numeric threshold in skill files.
 
-```bash
-lorekit vector sync --layered
-lorekit vector query --text "xxx" --layered
-```
+### Hybrid retrieval (vector mode default)
 
-Same philosophy as hybrid retrieval (keyword coarse filter → vector rerank). lorekit keeps it simple — no rerank model, just layered embeddings.
+In vector mode, `--hybrid` runs three-tier BM25 (via SQLite FTS5, `trigram` tokenizer for CJK) in parallel with three-tier vector, then merges results by **Reciprocal Rank Fusion** (`score = Σ 1/(k+rank)`, k=60).
+
+| Signal | BM25 (FTS5) | Vector (bge-m3) | RRF fusion |
+|---|---|---|---|
+| Exact entity names | ✅ nails it | ⚠️ averaged out | takes the BM25 winner |
+| Dates like `2026-04-15` | ✅ exact | ⚠️ cosine-similar to other dates | BM25 dominates |
+| Fuzzy intent ("relationship between X and Y") | ⚠️ AND-too-strict | ✅ embeddings shine | vector dominates |
+| Mixed (entity + intent) | partial | partial | both contribute → stable |
+
+LLM re-rank (the 4th stage in the qmd reference architecture) is **not yet implemented** — see `docs/IDEAS.md` for the rationale and four possible routes when the time comes.
 
 ## Corpus Layout
 

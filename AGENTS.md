@@ -93,10 +93,11 @@ ollama serve   # 如果没自动启动
 ollama pull bge-m3
 
 cd <corpus-path>
-lorekit vector sync
+lorekit sync   # 一条命令：刷 _INDEX.md → 向量嵌入 → 建 FTS5 → doctor 体检
 ```
 
-不装也能用——AI 通过 index.md 文本定位内容，小规模完全够用。
+不装 ollama 也能用——AI 通过 `index.md` → `_INDEX.md` → 具体文件三层 Read 定位内容，< 100 文档时完全够用。
+`lorekit vector status` 返回的 `mode` 字段会按 `MODE_THRESHOLD_FILES`（默认 100）自动推荐 text 还是 vector 模式，skill 读这个字段决定检索路径，不用手工记阈值。
 
 ## 使用（AI 日常）
 
@@ -110,16 +111,22 @@ lorekit vector sync
 
 可用的 CLI 命令：
 ```bash
-lorekit doctor          # 健康检查
-lorekit stats           # 统计
-lorekit search <text>   # 文本搜索
-lorekit fetch <url>     # 网页抓取
-lorekit snapshot        # 备份快照
-lorekit restore         # 从快照恢复
-lorekit audit --list    # 查看反馈
-lorekit vector sync     # 向量索引（需要 ollama）
-lorekit vector query    # 语义检索
-lorekit index           # 生成子目录索引
+lorekit doctor                        # 健康检查
+lorekit stats                         # 统计
+lorekit search <text>                 # ripgrep 文本搜索
+lorekit fetch <url>                   # 网页抓取
+lorekit snapshot                      # 备份快照
+lorekit restore                       # 从快照恢复
+lorekit audit --list                  # 查看反馈
+lorekit lint                          # frontmatter / 死链 / 孤岛扫描
+
+lorekit index                         # 递归生成所有 _INDEX.md（L1 书架）
+lorekit sync                          # 一条命令：index → vector sync --layered → doctor
+lorekit vector sync [--layered]       # 仅向量同步（需要 ollama bge-m3）
+lorekit vector status                 # 看 mode 推荐（text|vector）+ indexed_files
+lorekit vector query --hybrid --text "<q>"  # 混合检索（BM25+向量+RRF）— 阶段 2 标配
+lorekit vector query --layered --text "<q>" # 纯向量分层（debug）
+lorekit vector query --bm25 --text "<q>"    # 纯 BM25（debug 精确词/日期）
 ```
 
 详见 `docs/QUICKSTART.md` 和 `README.md`。

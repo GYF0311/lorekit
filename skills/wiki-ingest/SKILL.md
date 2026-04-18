@@ -90,11 +90,18 @@ stdout 是**单行 JSON**，解析它决定下一步：
    - 页面里提到的所有 `[[人物]]` / `[[项目]]` / `[[概念]]` 都要确认目标页存在
    - 目标页也要在 timeline 留下一条反向引用
    - 写完 wiki 后：`lorekit ingest record <url> --step wiki --wiki-page <每个新建/更新的 wiki 路径>`
-9. **自检**：
+9. **同步档案与向量**（`lorekit sync`）：
+   - 一条命令完成三件事：
+     1. 扫 corpus 刷新所有 `_INDEX.md`（Phase A 支持递归 + 目录包装式原料）
+     2. 增量嵌入 chunk 向量（sha256 对齐未变更文件跳过）
+     3. 刷新 L0/L1 向量（L0 读 `corpus/index.md` 的 `## 分区`，L1 读每个 `_INDEX.md` 条目）
+   - 必须在 Step 8 反向链接写完 + `corpus/index.md` 和 `log.md` 更新后跑——向量输入源才是最新的
+   - 无 ollama 或 corpus 很小时可加 `--skip-vector` 跳过向量步骤，只刷新 `_INDEX.md`
+10. **自检**：
    - `lorekit lint` — 扫 frontmatter 合规、死链、孤岛（知识库层面的健康度）
    - `lorekit ingest pending` — 看 state.json 里有没有非 completed 的记录（ingest 管道层面的状态，权威）
    自检过了以后：`lorekit ingest record <url> --step lint` → status 自动进 `completed`
-10. **汇报**（见 Output format）
+11. **汇报**（见 Output format）
 
 ## 意外中断怎么办
 

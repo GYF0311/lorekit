@@ -90,17 +90,28 @@ Restart Claude Code to pick them up. Other agents: point them at the markdown fi
 
 ---
 
-## 5. Enable vector retrieval (optional)
+## 5. Enable vector + FTS5 retrieval (optional)
 
 ```bash
 ollama serve          # if not already running
 ollama pull bge-m3    # 1.2 GB, one time
 
 cd ~/Desktop/my-corpus
-lorekit vector sync
+lorekit sync          # one-shot: index → vector sync --layered → doctor
 ```
 
-From then on, `lorekit vector sync` incrementally re-embeds only what changed.
+`lorekit sync` is the standard entry point after any ingest/fileback. It:
+1. Recursively refreshes every `_INDEX.md` (via `lorekit index`)
+2. Incrementally re-embeds only changed files into `sqlite-vec` + FTS5
+3. Runs `doctor` as a non-blocking sanity check
+
+Query modes (pick based on intent, not scale — the skill reads `lorekit vector status`'s `mode` field and routes automatically):
+
+```bash
+lorekit vector query --hybrid  --text "…"   # BM25 + vector + RRF (production default)
+lorekit vector query --layered --text "…"   # vector-only layered (debug)
+lorekit vector query --bm25    --text "…"   # FTS5-only BM25 (debug precise terms / dates)
+```
 
 ---
 
@@ -119,7 +130,7 @@ The agent triggers `wiki-ingest`: fetch → archive under `原料/文章/` → c
 **Query:**
 > What's the difference between RAG and an LLM wiki?
 
-Triggers `wiki-query`: read `index.md` → vector search → synthesize answer.
+Triggers `wiki-query`: read `lorekit vector status` → if `mode: text` walk `index.md` → `_INDEX.md` → specific files; if `mode: vector` run `lorekit vector query --hybrid`. Synthesize answer with citations.
 
 **File back an insight:**
 > Save that analysis into the knowledge base.

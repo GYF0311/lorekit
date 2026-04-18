@@ -1,22 +1,40 @@
 import { Command } from 'commander';
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync, lstatSync } from 'node:fs';
-import { join, basename } from 'node:path';
+import { join, basename, relative } from 'node:path';
 import { requireCorpus, hasFrontmatter, extractFrontmatter } from '../lib/corpus.js';
 import { ok, warn, err } from '../utils/logger.js';
 
-const INDEX_DIRS = [
-  '知识库/概念',
-  '知识库/实体',
-  '知识库/摘要',
-  '知识库/专题',
-  '每日',
-  '写作',
-  '原料/文章',
-  '原料/书籍',
-  '原料/会议',
-  '原料/录音',
-  '原料/剪藏',
+// 递归扫描时跳过的目录前缀（corpus 根下的相对路径）
+// 对外导出，让 doctor / sync / 其他命令复用同一套排除规则，避免各处规则漂移。
+export const INDEX_EXCLUDE_DIR_PREFIXES = [
+  '.wiki',
+  '.git',
+  '_归档',
+  '_工作台',
+  '系统',
+  '反馈',
 ];
+
+export function isIndexExcluded(rel: string): boolean {
+  for (const prefix of INDEX_EXCLUDE_DIR_PREFIXES) {
+    if (rel === prefix || rel.startsWith(prefix + '/')) return true;
+  }
+  return false;
+}
+
+// 判断是否"目录包装式原料"：子目录内有 article.md
+export function isFolderPackage(dir: string): boolean {
+  const articlePath = join(dir, 'article.md');
+  try {
+    return lstatSync(articlePath).isFile();
+  } catch {
+    return false;
+  }
+}
+
+// 内部别名，保持原函数体可读性
+const EXCLUDE_DIR_PREFIXES = INDEX_EXCLUDE_DIR_PREFIXES;
+const isExcluded = isIndexExcluded;
 
 function extractSummary(filePath: string): string {
   const content = readFileSync(filePath, 'utf-8');
@@ -32,88 +50,100 @@ function extractSummary(filePath: string): string {
     if (/^## /.test(line)) break;
     if (line.trim() === '') continue;
 
-    // Strip leading bold markup
     let text = line.trim().replace(/^\*\*[^*]*\*\*\s*/, '');
-
-    // Take up to first period or 50 chars
     const periodMatch = text.match(/^([^。.]*[。.])/);
-    if (periodMatch && periodMatch[1].length <= 50) {
-      return periodMatch[1];
-    }
+    if (periodMatch && periodMatch[1].length <= 50) return periodMatch[1];
     return text.slice(0, 50);
   }
   return '';
 }
 
 interface IndexEntry {
-  title: string;
-  summary: string;
-  updated: string;
+  slug: string;      // corpus 根相对路径，不含 .md；对目录包装式原料用父目录路径
+  title: string;     // frontmatter.title 或 basename
+  summary: string;   // Compiled Truth 首句或 "—"
+  updated: string;   // YYYY-MM-DD
 }
 
-function buildIndex(dir: string, root: string): void {
-  const reldir = dir.slice(root.length + 1);
-  const dirName = basename(dir);
+function readEntryFromFile(filePath: string, slug: string): IndexEntry {
+  let title = '';
+  let updated = '';
+  let summary = '';
+
+  if (hasFrontmatter(filePath)) {
+    const fm = extractFrontmatter(filePath);
+    title = typeof fm.title === 'string' ? fm.title : fm.title != null ? String(fm.title) : '';
+
+    if (fm.updated instanceof Date) {
+      const d = fm.updated;
+      const pad = (n: number) => String(n).padStart(2, '0');
+      updated = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+    } else {
+      updated = fm.updated != null ? String(fm.updated) : '';
+    }
+
+    summary = extractSummary(filePath);
+    if (!summary) summary = '—';
+  } else {
+    summary = '（缺少 frontmatter）';
+  }
+
+  if (!title) title = basename(filePath, '.md');
+
+  if (!updated) {
+    try {
+      const mtime = statSync(filePath).mtime;
+      const pad = (n: number) => String(n).padStart(2, '0');
+      updated = `${mtime.getFullYear()}-${pad(mtime.getMonth() + 1)}-${pad(mtime.getDate())}`;
+    } catch {
+      updated = 'unknown';
+    }
+  }
+
+  return { slug, title, summary, updated };
+}
+
+// 转义表格单元格里的 | 字符（防止撑散 markdown 表格）
+function escapeCell(s: string): string {
+  return s.replace(/\|/g, '\\|');
+}
+
+function buildIndex(dir: string, root: string): boolean {
+  const reldir = dir === root ? '' : relative(root, dir);
+  const dirName = reldir === '' ? basename(root) : basename(dir);
   const indexFile = join(dir, '_INDEX.md');
 
-  // Collect .md files in this directory (non-recursive, exclude special files)
-  const mdFiles: string[] = [];
   let names: string[];
   try {
     names = readdirSync(dir, { encoding: 'utf-8' });
   } catch {
-    return;
+    return false;
   }
+
+  const entries: IndexEntry[] = [];
 
   for (const name of names) {
     if (name.startsWith('.')) continue;
-    if (!name.endsWith('.md')) continue;
     if (name === '_INDEX.md' || name === '.gitkeep') continue;
+
     const full = join(dir, name);
-    try { if (lstatSync(full).isDirectory()) continue; } catch { continue; }
-    mdFiles.push(full);
+    let stat;
+    try { stat = lstatSync(full); } catch { continue; }
+
+    if (stat.isFile() && name.endsWith('.md')) {
+      // 普通 .md 文件：slug = 完整相对路径去 .md
+      const slug = relative(root, full).replace(/\.md$/, '');
+      entries.push(readEntryFromFile(full, slug));
+    } else if (stat.isDirectory() && isFolderPackage(full)) {
+      // 目录包装式原料：xxx/article.md → slug = xxx 父目录路径
+      const articlePath = join(full, 'article.md');
+      const slug = relative(root, full);
+      entries.push(readEntryFromFile(articlePath, slug));
+    }
   }
 
-  if (mdFiles.length === 0) return;
+  if (entries.length === 0) return false;
 
-  const entries: IndexEntry[] = [];
-  for (const f of mdFiles) {
-    let title = '';
-    let updated = '';
-    let summary = '';
-
-    if (hasFrontmatter(f)) {
-      const fm = extractFrontmatter(f);
-      title = typeof fm.title === 'string' ? fm.title : fm.title != null ? String(fm.title) : '';
-      // YAML 会把 ISO 日期字面量解析成 Date；统一归一为 YYYY-MM-DD 字符串
-      if (fm.updated instanceof Date) {
-        const d = fm.updated;
-        const pad = (n: number) => String(n).padStart(2, '0');
-        updated = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
-      } else {
-        updated = fm.updated != null ? String(fm.updated) : '';
-      }
-      summary = extractSummary(f);
-      if (!summary) summary = '—';
-    } else {
-      summary = '（缺少 frontmatter）';
-    }
-
-    if (!title) title = basename(f, '.md');
-    if (!updated) {
-      try {
-        const mtime = statSync(f).mtime;
-        const pad = (n: number) => String(n).padStart(2, '0');
-        updated = `${mtime.getFullYear()}-${pad(mtime.getMonth() + 1)}-${pad(mtime.getDate())}`;
-      } catch {
-        updated = 'unknown';
-      }
-    }
-
-    entries.push({ title, summary, updated });
-  }
-
-  // Sort by updated descending
   entries.sort((a, b) => b.updated.localeCompare(a.updated));
 
   const lines: string[] = [];
@@ -124,41 +154,118 @@ function buildIndex(dir: string, root: string): void {
   lines.push('| 条目 | 摘要 | 更新 |');
   lines.push('|---|---|---|');
   for (const e of entries) {
-    lines.push(`| [[${e.title}]] | ${e.summary} | ${e.updated} |`);
+    lines.push(`| [[${e.slug}]] | ${escapeCell(e.summary)} | ${e.updated} |`);
   }
   lines.push('');
 
   writeFileSync(indexFile, lines.join('\n'), 'utf-8');
-  ok(`${reldir}/_INDEX.md (${entries.length} entries)`);
+  const display = reldir === '' ? '_INDEX.md' : `${reldir}/_INDEX.md`;
+  ok(`${display} (${entries.length} entries)`);
+  return true;
+}
+
+/**
+ * 递归发现"可索引目录"：
+ *   - 目录下有直接 .md 文件（非 _INDEX.md / 隐藏）
+ *   - 或目录下有"目录包装式原料"子目录（xxx/article.md 形式）
+ *
+ * 排除规则：
+ *   - EXCLUDE_DIR_PREFIXES 开头的目录整枝跳过
+ *   - corpus 根本身不索引（L0 = index.md 已承担其职能）
+ *   - 目录包装式原料的内部目录不递归（它们是条目，不是容器）
+ */
+function findIndexableDirs(root: string): string[] {
+  const results: string[] = [];
+
+  function walk(dir: string, isRoot: boolean) {
+    const rel = dir === root ? '' : relative(root, dir);
+    if (rel && isExcluded(rel)) return;
+
+    let names: string[];
+    try { names = readdirSync(dir, { encoding: 'utf-8' }); } catch { return; }
+
+    if (!isRoot) {
+      let hasIndexable = false;
+      for (const name of names) {
+        if (name.startsWith('.')) continue;
+        if (name === '_INDEX.md' || name === '.gitkeep') continue;
+
+        const full = join(dir, name);
+        let stat;
+        try { stat = lstatSync(full); } catch { continue; }
+
+        if (stat.isFile() && name.endsWith('.md')) {
+          hasIndexable = true;
+          break;
+        }
+        if (stat.isDirectory() && isFolderPackage(full)) {
+          hasIndexable = true;
+          break;
+        }
+      }
+      if (hasIndexable) results.push(dir);
+    }
+
+    // 递归子目录（跳过目录包装式原料的内部）
+    for (const name of names) {
+      if (name.startsWith('.')) continue;
+      const full = join(dir, name);
+      let stat;
+      try { stat = lstatSync(full); } catch { continue; }
+      if (!stat.isDirectory()) continue;
+      if (isFolderPackage(full)) continue;
+      walk(full, false);
+    }
+  }
+
+  walk(root, true);
+  return results.sort();
+}
+
+/**
+ * 程序内复用入口：扫 corpus 生成所有 _INDEX.md。
+ * 返回生成的文件数。specificDir 限定在单个子目录（相对 root 的路径）。
+ */
+export function runIndex(root: string, specificDir?: string): number {
+  if (specificDir) {
+    const full = join(root, specificDir);
+    if (!existsSync(full)) {
+      throw new Error(`directory not found: ${specificDir}`);
+    }
+    return buildIndex(full, root) ? 1 : 0;
+  }
+  const dirs = findIndexableDirs(root);
+  if (dirs.length === 0) return 0;
+  let generated = 0;
+  for (const d of dirs) {
+    if (buildIndex(d, root)) generated++;
+  }
+  return generated;
 }
 
 export function indexCommand(program: Command): void {
   const cmd = program
     .command('index')
-    .description('Generate _INDEX.md for corpus directories')
+    .description('Generate _INDEX.md recursively for corpus directories')
     .option('--dir <subdir>', 'Only update a specific subdirectory');
 
   cmd.action((opts) => {
     const root = requireCorpus();
 
-    if (opts.dir) {
-      const full = join(root, opts.dir);
-      if (!existsSync(full)) {
-        err(`directory not found: ${opts.dir}`);
-        process.exit(1);
+    try {
+      if (opts.dir) {
+        runIndex(root, opts.dir);
+      } else {
+        const generated = runIndex(root);
+        if (generated === 0) {
+          warn('no indexable directories found');
+        } else {
+          ok(`generated ${generated} _INDEX.md file(s)`);
+        }
       }
-      buildIndex(full, root);
-    } else {
-      let generated = 0;
-      for (const d of INDEX_DIRS) {
-        const full = join(root, d);
-        if (!existsSync(full)) continue;
-        buildIndex(full, root);
-        generated++;
-      }
-      if (generated === 0) {
-        warn('no indexable directories found');
-      }
+    } catch (e) {
+      err((e as Error).message);
+      process.exit(1);
     }
   });
 }

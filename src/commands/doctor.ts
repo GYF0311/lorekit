@@ -1,9 +1,10 @@
 import type { Command } from 'commander';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import chalk from 'chalk';
 import { ok, bad, warn } from '../utils/logger.js';
 import { requireCorpus, collectMdFiles, hasFrontmatter } from '../lib/corpus.js';
+import { isIndexExcluded, isFolderPackage } from './index.js';
 
 const EXPECTED_DIRS = [
   '每日',
@@ -58,21 +59,43 @@ function checkIndexFiles(corpus: string): number {
 
   function walk(dir: string) {
     if (!existsSync(dir)) return;
+
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       if (entry.name.startsWith('.')) continue;
+      if (!entry.isDirectory()) continue;
+
       const full = join(dir, entry.name);
-      if (entry.isDirectory()) {
-        // Check if this directory has .md files but no _INDEX.md
-        const hasMd = readdirSync(full).some(
-          (f) => f.endsWith('.md') && f !== '_INDEX.md',
-        );
-        if (hasMd && !existsSync(join(full, '_INDEX.md'))) {
-          const rel = relative(corpus, full);
-          warn(`_INDEX.md missing in ${rel}/`);
-          missing++;
+      const rel = relative(corpus, full);
+
+      // 复用 index 命令的排除规则：不对这些目录要求 _INDEX.md
+      if (isIndexExcluded(rel)) continue;
+      // 目录包装式原料（xxx/article.md）是一个 entry，不是容器——不需要 _INDEX.md
+      if (isFolderPackage(full)) continue;
+
+      // 本目录是否应该有 _INDEX.md：
+      //   有直接 .md 文件 或 有目录包装式原料子目录
+      let shouldHaveIndex = false;
+      for (const name of readdirSync(full)) {
+        if (name.startsWith('.')) continue;
+        if (name === '_INDEX.md' || name === '.gitkeep') continue;
+        const childPath = join(full, name);
+        let stat;
+        try { stat = lstatSync(childPath); } catch { continue; }
+        if (stat.isFile() && name.endsWith('.md')) {
+          shouldHaveIndex = true;
+          break;
         }
-        walk(full);
+        if (stat.isDirectory() && isFolderPackage(childPath)) {
+          shouldHaveIndex = true;
+          break;
+        }
       }
+
+      if (shouldHaveIndex && !existsSync(join(full, '_INDEX.md'))) {
+        warn(`_INDEX.md missing in ${rel}/`);
+        missing++;
+      }
+      walk(full);
     }
   }
 
@@ -93,43 +116,52 @@ function checkArchive(corpus: string): number {
   return 0; // not a hard failure
 }
 
+/**
+ * 程序内复用入口：跑健康体检。
+ * 返回 issue 总数。调用方自行决定要不要把退出码设成非零。
+ */
+export function runDoctor(corpus: string): number {
+  console.log(chalk.bold(`\nlorekit doctor — ${corpus}\n`));
+
+  let issues = 0;
+
+  console.log(chalk.cyan('── directories ──'));
+  issues += checkDirs(corpus);
+  console.log();
+
+  console.log(chalk.cyan('── wiki metadata ──'));
+  issues += checkWikiVersion(corpus);
+  console.log();
+
+  console.log(chalk.cyan('── frontmatter ──'));
+  checkFrontmatterCoverage(corpus);
+  console.log();
+
+  console.log(chalk.cyan('── index files ──'));
+  issues += checkIndexFiles(corpus);
+  console.log();
+
+  console.log(chalk.cyan('── archive ──'));
+  checkArchive(corpus);
+  console.log();
+
+  if (issues === 0) {
+    console.log(chalk.green.bold('all checks passed ✓'));
+  } else {
+    console.log(chalk.yellow(`${issues} issue(s) found`));
+  }
+  console.log();
+
+  return issues;
+}
+
 export function doctorCommand(program: Command) {
   program
     .command('doctor')
     .description('run health checks on the corpus')
     .action(() => {
       const corpus = requireCorpus();
-      console.log(chalk.bold(`\nlorekit doctor — ${corpus}\n`));
-
-      let issues = 0;
-
-      console.log(chalk.cyan('── directories ──'));
-      issues += checkDirs(corpus);
-      console.log();
-
-      console.log(chalk.cyan('── wiki metadata ──'));
-      issues += checkWikiVersion(corpus);
-      console.log();
-
-      console.log(chalk.cyan('── frontmatter ──'));
-      checkFrontmatterCoverage(corpus);
-      console.log();
-
-      console.log(chalk.cyan('── index files ──'));
-      issues += checkIndexFiles(corpus);
-      console.log();
-
-      console.log(chalk.cyan('── archive ──'));
-      checkArchive(corpus);
-      console.log();
-
-      if (issues === 0) {
-        console.log(chalk.green.bold('all checks passed ✓'));
-      } else {
-        console.log(chalk.yellow(`${issues} issue(s) found`));
-      }
-      console.log();
-
+      const issues = runDoctor(corpus);
       process.exitCode = issues > 0 ? 1 : 0;
     });
 }
