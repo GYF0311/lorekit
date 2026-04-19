@@ -5,6 +5,144 @@
 
 ---
 
+## [2026-04-19] 综合 wiki schema 升级：按类型分目录 + domains tag + L0 改领域导览图
+
+### 背景
+
+lorekit 当前 schema 继承自 Karpathy 专项 wiki（单一主题），但先生 corpus 实际要服务多领域（AI / 求职 / 金融 / 内容生产 / 个人项目 / 思考...）。今日讨论确定方向：
+
+- **物理按内容类型**（保持现有）：`知识库/{概念,实体,摘要,专题}/` + 新增 `知识库/思考/`
+- **逻辑按领域**：frontmatter 加 `domains: [ai, 求职, ...]` 多 tag
+- **corpus/index.md 改成"图书馆导览图"**：按领域分 section + 每节一段领域介绍（不是 wikilink 列表）
+- **lorekit 加 `--domain <name>` 过滤**
+
+### 动因
+
+queryLayered L0 gate 失败的根因之一就是 corpus/index.md 是"L1 冒充 L0"（全 wikilink 列表），embedding 语义稀释。升级后 L0 是领域介绍（短密语义），Agent Read 和向量 MATCH 都能工作。
+
+### 工作量估计
+
+见 `docs/DESIGN-NOTES.md` §5.1，分 4-5 个子批约 2.5h + 用户 30min 写领域介绍。
+
+### 为什么不立刻做
+
+- 重构刚完成 4 批（21/22/23/24-fix），该先让代码稳定
+- schema 升级涉及 corpus 迁移（现有 wiki page 都要加 domains 字段），希望先生想清楚主题域分类再动
+
+---
+
+## [2026-04-19 迁自 LEGACY P4-2] snapshot 的 manifest.json 应该写到 tmpdir + try/finally 清理
+
+### 背景
+
+`src/commands/snapshot.ts:67` 把 `manifest.json` 写到 `<corpus>/.wiki/snapshots/`，然后 `tar.create` 打包，最后 `unlinkSync`。两个隐患：
+
+1. 期间若 `tar.create` 抛错则 manifest 残留在 corpus 内
+2. manifest 在被打包目录内，理论上可能被自己包进去
+
+### 改法
+
+改用 `os.tmpdir()` 写 manifest，或者保持原位置但用 `try/finally` 包住 unlink，确保失败也清理。
+
+### 估算
+低优先，30 分钟工作量。
+
+---
+
+## [2026-04-19 迁自 LEGACY P4-3] restore 的 rmSync 加注释明确 tmpdir 范围
+
+### 背景
+
+`src/commands/restore.ts:158` 用 `rmSync(tmpDir, { recursive: true, force: true })` 清理临时解压目录。这是 `rm -rf` 等价。虽然路径锁定在 `os.tmpdir()`，但触发先生 CLAUDE.md 全局规则的精神。
+
+### 改法
+
+**保留 `rmSync`**（这里没法走 trash，是程序自动清理），但必须：
+
+- 加注释明确 `// 仅限 os.tmpdir() 子目录，不许扩展到任何用户数据路径`
+- 路径必须由 `tmpdir() + 'lorekit-restore-' + Date.now()` 构造
+- 禁止接受外部路径参数
+
+### 估算
+低优先，15 分钟工作量。中等数据安全敏感度。
+
+---
+
+## [2026-04-19 迁自 LEGACY P4-5] vector.ts 用 path.relative 替代字符串替换
+
+### 背景
+
+`src/commands/vector.ts:47` 的 `filePath.replace(corpus + '/', '')` 在 corpus 路径在 filePath 里出现两次（罕见）时会替换错位。
+
+### 改法
+
+改用 `path.relative(corpus, filePath)` 更稳。
+
+### 估算
+低优先，10 分钟工作量。
+
+---
+
+## [2026-04-19 迁自 LEGACY P4-6] fetcher web 路由抽 source_date
+
+### 背景
+
+昨晚真实 ingest `claude.com/blog/...` 验证发现：原文页面多处可见 "April 15, 2026"，但 fetcher 产物 frontmatter 缺 `source_date` 字段。所有 claude.com / Webflow 类站点受影响。21 严守 strangler fig "copy 不修"原则未动 parseGeneric 内逻辑；gist 路由的 `<relative-time datetime>` 抽取在原代码已存在。
+
+### 改法
+
+在 `src/lib/fetcher/routes/web.ts` parseGeneric 阶段识别常见日期 pattern：
+
+- `<time datetime="...">`
+- `meta[property=article:published_time]`
+- JSON-LD `datePublished`
+
+抽到后回填 `frontmatter.source_date`。
+
+### 估算
+低优先，1 小时工作量（含写 mock 测试）。
+
+---
+
+## [2026-04-19 迁自 LEGACY P4-7] 决策 fetcher 产物 slug 字段
+
+### 背景
+
+昨晚真实 ingest 验证发现：lint 报 `missing frontmatter field: slug`。frontmatter-spec 把 slug 列为必填，所有 fetch 产物都触发这条。21b `buildFrontmatter` 注释明说 "slug omitted: fetcher doesn't know the final archive location, wiki-ingest will set it on mv"——这是 by-design，但 lint 仍报。
+
+### 待决策方案
+
+(a) 改 lint 规则承认"工作台收件未归档"状态，对 `_工作台/收件/` 下的产物豁免 slug 检查
+(b) 在 `buildFrontmatter` 加可选 `slug` 字段，调用方按需传
+
+### 备注
+
+(a) 已部分落地（最近 commit `f0f4027 fix(lint): 豁免 _工作台/ _归档/ 目录下文件的 frontmatter 检查`），但是否完全覆盖 slug 这一条还要确认。可能本条已被消化，需要先复核 lint 现状再决定是否还要 (b)。
+
+### 估算
+低优先，30-60 分钟（含决策 + 实施 + 验证）。
+
+---
+
+## [2026-04-19 迁自 LEGACY P4-8] Windows 路径分隔符兼容
+
+### 背景
+
+`src/lib/vectordb.ts:182 / 185 / 837` + `src/lib/paths.ts:98` 共 4 处用 `rel.startsWith(prefix + '/')` 判断目录归属。Windows 上 Node `path.relative()` 返回反斜杠 `\`，这些判断永远 false → 该排除的目录没排除（向量化、索引、lint 全部受影响）。批次 22 拆 vectordb 时未顺手做。
+
+### 何时做
+
+**当前无 Windows 用户需求，暂不动**。等真有反馈时单批处理。
+
+### 改法
+
+统一改用 `path.sep` 或路径归一化（`rel.split(path.sep).join('/')`）。vectordb 拆分后这 3 处分布到子模块，需重新定位；paths.ts 的 1 处独立做。
+
+### 估算
+低优先，1-2 小时工作量（含 Windows 环境验证）。
+
+---
+
 ## [2026-04-18] LLM re-rank 作为混合检索的第四环
 
 ### 来源
