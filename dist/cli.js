@@ -776,85 +776,28 @@ function sanitizeFtsQuery(q) {
 function queryBM25Layered(db, queryText, topK) {
   const ftsQ = sanitizeFtsQuery(queryText);
   if (!ftsQ) return [];
-  let l0Rows = [];
+  let rows = [];
   try {
-    l0Rows = db.prepare(
-      `SELECT rowid as id, rank FROM fts_dirs WHERE fts_dirs MATCH ? ORDER BY rank LIMIT 3`
-    ).all(ftsQ);
-  } catch (e) {
-    warn(`queryBM25Layered L0 fts5: ${e.message}`);
-    return [];
-  }
-  if (l0Rows.length === 0) return [];
-  const dirIds = l0Rows.map((r) => r.id);
-  const dirRows = db.prepare(`SELECT slug_list FROM dir_summaries WHERE id IN (${dirIds.map(() => "?").join(",")})`).all(...dirIds);
-  const candidateSlugs = /* @__PURE__ */ new Set();
-  for (const row of dirRows) {
-    try {
-      const list = JSON.parse(row.slug_list);
-      for (const s of list) candidateSlugs.add(s);
-    } catch {
-    }
-  }
-  if (candidateSlugs.size === 0) return [];
-  const docRows = db.prepare("SELECT id, path FROM documents").all();
-  const candidateDocIds = /* @__PURE__ */ new Set();
-  for (const { id, path } of docRows) {
-    const stem = path.replace(/\.md$/, "");
-    const folderSlug = path.endsWith("/article.md") ? path.replace(/\/article\.md$/, "") : null;
-    if (candidateSlugs.has(path) || candidateSlugs.has(stem)) {
-      candidateDocIds.add(id);
-    } else if (folderSlug && candidateSlugs.has(folderSlug)) {
-      candidateDocIds.add(id);
-    }
-  }
-  if (candidateDocIds.size === 0) return [];
-  let l1Rows = [];
-  try {
-    l1Rows = db.prepare(
-      `SELECT fp.rowid as id, fp.rank as rank, ps.doc_id as doc_id
-         FROM fts_pages fp
-         JOIN page_summaries ps ON fp.rowid = ps.id
-         WHERE fp.fts_pages MATCH ? AND ps.doc_id IN (${[...candidateDocIds].map(() => "?").join(",")})
-         ORDER BY fp.rank LIMIT 5`
-    ).all(ftsQ, ...candidateDocIds);
-  } catch (e) {
-    warn(`queryBM25Layered L1 fts5: ${e.message}`);
-    return [];
-  }
-  if (l1Rows.length === 0) return [];
-  const l2DocIds = [...new Set(l1Rows.map((r) => r.doc_id))];
-  let l2Rows = [];
-  try {
-    l2Rows = db.prepare(
-      `SELECT fc.rowid as id, fc.rank as rank, c.doc_id as doc_id
+    rows = db.prepare(
+      `SELECT fc.rank as rank, c.content as content, c.section as section, d.path as path
          FROM fts_chunks fc
          JOIN chunks c ON fc.rowid = c.id
-         WHERE fc.fts_chunks MATCH ? AND c.doc_id IN (${l2DocIds.map(() => "?").join(",")})
-         ORDER BY fc.rank LIMIT ?`
-    ).all(ftsQ, ...l2DocIds, topK);
+         JOIN documents d ON c.doc_id = d.id
+         WHERE fc.fts_chunks MATCH ?
+         ORDER BY fc.rank
+         LIMIT ?`
+    ).all(ftsQ, topK);
   } catch (e) {
-    warn(`queryBM25Layered L2 fts5: ${e.message}`);
+    warn(`queryBM25Layered fts5 match: ${e.message}`);
     return [];
   }
-  if (l2Rows.length === 0) return [];
-  const results = [];
-  const getChunk = db.prepare(
-    `SELECT c.content, c.section, d.path FROM chunks c JOIN documents d ON c.doc_id = d.id WHERE c.id = ?`
-  );
-  for (const row of l2Rows) {
-    const cr = getChunk.get(row.id);
-    if (cr) {
-      results.push({
-        file: cr.path,
-        chunk: cr.content,
-        // FTS5 rank 是负数（越小越相关），取绝对值作为正向分数；归一化留给 RRF
-        score: Math.round(-row.rank * 1e4) / 1e4,
-        section: cr.section
-      });
-    }
-  }
-  return results;
+  return rows.map((r) => ({
+    file: r.path,
+    chunk: r.content,
+    // FTS5 rank 是负数（越小越相关），取绝对值作为正向分数；归一化留给 RRF
+    score: Math.round(-r.rank * 1e4) / 1e4,
+    section: r.section ?? ""
+  }));
 }
 var init_query_bm25 = __esm({
   "src/lib/vectordb/query-bm25.ts"() {

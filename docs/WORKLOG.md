@@ -6,6 +6,38 @@
 
 ---
 
+## 2026-04-19 — 批次 24-fix：BM25 取消 L0/L1 gate 走 chunk 层直查（21 老 bug）
+
+**做了什么**
+
+- **根因诊断（在临时 corpus + sqlite3 cli 直查）**
+  1. 起点：批次 24 规划方以为 FTS5 tokenizer 是 `unicode61` 默认、日期被 `-` 拆散。我读 `src/lib/vectordb/schema.ts` 发现实际是 `tokenize='trigram'`，trigram 天然保留 `-` 在 trigram 里。写 STATUS.md 停下来等规划方决策。
+  2. 规划方承认前提错、改任务：查先生 corpus 里 `"2026-04-19"` 到底有没有。`grep` 10 个文件共 27+ 处命中，证明"查不到"不是 corpus 问题。
+  3. 规划方再改任务：临时 corpus + `sqlite3 .wiki/vector.sqlite` 直查。发现 `fts_chunks MATCH 'browser'` 命中 1 条、`MATCH '"2026-04-19"'` 命中 2 条——**索引层完全正常**。继续手工跑 `fts_dirs MATCH 'browser'` → **0 条**。dir 摘要只有 `## 概念\n- [[知识库/概念/test]] — —`（标题 + wikilink），根本没有正文关键词。L0 空集 → `return []` → 整条 BM25 死链。
+  4. 时间线对比：`git show refactor-batch-21-done:src/lib/vectordb.ts` 的 queryBM25Layered 跟当前拆分后一模一样——这是 21 引入分层 BM25 时的**设计缺陷**，不是 22 回归。隐藏在 hybrid 融合后（向量路补救了这个 bug），22 byte-level parity 没抓到，22f 真实 ingest 才暴露。
+
+- **src 改动**：`src/lib/vectordb/query-bm25.ts` 单文件。删原三层 L0/L1/L2 逻辑（约 100 行），换成一条 `fts_chunks MATCH ? ORDER BY rank LIMIT ?` + join chunks/documents 的单层 SQL（~25 行）。**函数名 `queryBM25Layered` / 签名 `(db, queryText, topK): QueryResult[]` / 返回字段 `{file, chunk, score, section}` 全部保留**——commands/vector.ts、query-hybrid.ts 无需改 import。`sanitizeFtsQuery` 原样保留（23b 的 ISO 日期 protect-restore 仍生效）。
+
+- **端到端 smoke**：`tests/smoke/vectordb-bm25-e2e.test.mjs` 三条 case：
+  - `--text "browser"` 命中 trigram 子串 "browser-use"
+  - `--text "2026-04-19"` 经 sanitize 包装 phrase 后命中
+  - `--text "nonexistent-xyzzy-token"` 返回 `[]`（负例）
+
+  实现方式：`lorekit init` 建骨架 → 用 `better-sqlite3` 直接写 `.wiki/vector.sqlite`（documents/chunks/fts_chunks + dummy embedding blob）→ spawn `node dist/cli.js vector query --bm25`。**不依赖 ollama**，`hasSqliteVec()` gate 跳过（sqlite-vec 缺失时 skip）。
+
+- **STATUS.md 清理**：trash 掉（task-1 阶段的诊断报告）。
+- **LEGACY.md 加 P0-3 ✅**：BM25 layered gate 设计缺陷（21 引入，24-fix 修完）。
+
+**为什么**
+- 方案 X（规划方批准）：BM25 本质是精确关键词 rank，不需要分层缩候选集。dir/page 摘要不含正文是 `buildLayeredIndex` 的写入语义（架构事实不是 bug），让 BM25 强行走它们是设计错配。向量路的 `queryLayered` 保留 L0 gate 不动——向量相似度下 L0 能做语义 gate（"这篇文章讲什么领域"），而 BM25 在 L0 永远不命中。
+- smoke 不跑 `lorekit sync` 是因为 sync 要 ollama + bge-m3 在线 + 模型下载，CI 拿不到；mock db 走全套 CLI 入口（`vector query --bm25`）已经覆盖 24-fix 改动的全部代码路径。
+
+**接下来**
+- commit + tag `refactor-batch-24-fix`，报告给规划方做最终检修
+- 待规划方决策：是否要开 25 继续处理 LEGACY P0（vectordb 核心拆分后续 / fetcher 拆分 / 其他 CONVENTIONS 违反点）
+
+---
+
 ## 2026-04-19 — 批次 23c：Db 精确化 + cap 联动 + RRF k + rename（设计优化 / 批次 23 全图收尾）
 
 **做了什么**

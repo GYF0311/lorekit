@@ -1,12 +1,20 @@
 /**
- * vectordb/query-bm25.ts — BM25（FTS5）三层召回
+ * vectordb/query-bm25.ts — BM25（FTS5）chunk 层直查
  *
- * 批次 22d strangler fig 第四步：从 src/lib/vectordb.ts copy 出 sanitizeFtsQuery
- * + queryBM25Layered。原 vectordb.ts 同名函数仍保留，commands/*.ts 暂未切换；
- * 本文件目前未被任何调用方 import。22f 才切换 dispatcher 并删旧。
+ * **批次 24-fix（2026-04-19）重写**：原 layered 三层 (fts_dirs → fts_pages →
+ * fts_chunks) 在 21 引入时设计错误——L0 的 dir 摘要只含目录标题 + wikilink 列表，
+ * **不含正文**，用户关键词几乎永不命中 L0；一旦 L0 空集整条链路 `return []`，
+ * 导致 `lorekit vector query --bm25 --text "browser-use"` 这种最朴素的调用
+ * 返回空。这个缺陷隐藏在 hybrid 融合后（向量路补救），22 系列 byte-level 拆分
+ * 验证没抓到，22f 真实 ingest 验收时先生发现真实 corpus 里 BM25 永远空才暴露。
  *
- * 镜像 query-layered 的三层结构，但底层走 fts_dirs / fts_pages / fts_chunks（FTS5
- * BM25 排名）而非 vec_*（向量 ANN）。两路结果在 query-hybrid.ts 用 RRF 融合。
+ * 方案 X（规划方批准）：BM25 不分层，直接 fts_chunks MATCH + rank 排 topK。
+ * 依据：
+ * - BM25 本身就用 rank 排精度，不需要 L0/L1 预先缩候选集
+ * - dir / page 摘要不含正文是架构事实（buildLayeredIndex 写入语义），不是 bug
+ * - 向量路的 queryLayered 保留 L0 gate（向量相似度下 L0 能做语义 gate）
+ *
+ * 函数名 / 签名 / 返回类型全部保留，commands / query-hybrid 无需改 import。
  *
  * 适用：精确实体名 / 日期 / 专有名词召回（"Harness" / "Anthropic" / "2026-04-15"）。
  * 中英混合复合短语建议走向量或 hybrid。
@@ -68,130 +76,61 @@ function sanitizeFtsQuery(q: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// queryBM25Layered — BM25 三层
+// queryBM25Layered — BM25 chunk 层直查（名字保留，语义改为单层）
 // ---------------------------------------------------------------------------
 
 /**
- * BM25 三层分层召回，镜像 queryLayered 的过滤逻辑：
- *   L0 fts_dirs → 命中分区的 slug_list
- *   L1 fts_pages 限定 L0 覆盖的 doc_id
- *   L2 fts_chunks 限定 L1 命中页的 doc_id
+ * BM25 召回：fts_chunks MATCH + rank 排序，topK 截断。
  *
- * FTS5 的 rank 字段是 BM25 分数（负数，越小越相关）。返回里 score 字段归一为正数。
+ * **不再走 layered 三层**——L0/L1 的 dir/page 摘要不含正文，永不命中用户关键词
+ * （详见文件头注释）。改为对 fts_chunks 直接 MATCH，rank 列就是 BM25 负数，
+ * 越小越相关；返回时归一为正数。
  *
- * **23a 改动**：原 3 处沉默 catch（L0/L1/L2 各一）改为 `logger.warn` + 注释。
- * FTS5 对 sanitizeFtsQuery 后仍可能因边界 token 抛错（如纯 trigram 不可分串），
- * catch 后返回 `[]` 让上层 hybrid 优雅降级到纯向量；现在失败原因会进 stderr
- * 便于 debug，不再静默吞错。
+ * 命名保留 `queryBM25Layered` 是为了兼容现有 import（query-hybrid / commands/vector /
+ * lib/vectordb/index）。后续批次若要改名，整个 import 图一起改。
+ *
+ * 失败路径：FTS5 对 sanitizeFtsQuery 后的 query 仍可能因边界 token 抛错（纯 trigram
+ * 不可分串），catch 后返回 `[]` 让上层 hybrid 优雅降级到纯向量；失败原因走 stderr
+ * 便于 debug。
  */
 export function queryBM25Layered(db: Db, queryText: string, topK: number): QueryResult[] {
   const ftsQ = sanitizeFtsQuery(queryText);
   if (!ftsQ) return [];
 
-  // L0: top-3 分区
-  let l0Rows: { id: number; rank: number }[] = [];
-  try {
-    l0Rows = db
-      .prepare(
-        `SELECT rowid as id, rank FROM fts_dirs WHERE fts_dirs MATCH ? ORDER BY rank LIMIT 3`,
-      )
-      .all(ftsQ) as { id: number; rank: number }[];
-  } catch (e) {
-    // FTS5 边界 token 失败 → BM25 整体降级为空，上层 hybrid 回退纯向量
-    logger.warn(`queryBM25Layered L0 fts5: ${(e as Error).message}`);
-    return [];
-  }
-  if (l0Rows.length === 0) return [];
-
-  const dirIds = l0Rows.map((r) => r.id);
-  const dirRows = db
-    .prepare(`SELECT slug_list FROM dir_summaries WHERE id IN (${dirIds.map(() => '?').join(',')})`)
-    .all(...dirIds) as { slug_list: string }[];
-
-  const candidateSlugs = new Set<string>();
-  for (const row of dirRows) {
-    try {
-      const list = JSON.parse(row.slug_list) as string[];
-      for (const s of list) candidateSlugs.add(s);
-    } catch {
-      /* skip */
-    }
-  }
-  if (candidateSlugs.size === 0) return [];
-
-  const docRows = db.prepare('SELECT id, path FROM documents').all() as {
-    id: number;
+  let rows: {
+    rank: number;
+    content: string;
+    section: string | null;
     path: string;
-  }[];
-  const candidateDocIds = new Set<number>();
-  for (const { id, path } of docRows) {
-    const stem = path.replace(/\.md$/, '');
-    const folderSlug = path.endsWith('/article.md') ? path.replace(/\/article\.md$/, '') : null;
-    if (candidateSlugs.has(path) || candidateSlugs.has(stem)) {
-      candidateDocIds.add(id);
-    } else if (folderSlug && candidateSlugs.has(folderSlug)) {
-      candidateDocIds.add(id);
-    }
-  }
-  if (candidateDocIds.size === 0) return [];
-
-  // L1: top-5 pages，候选限定在 L0 覆盖的 doc_id
-  let l1Rows: { id: number; rank: number; doc_id: number }[] = [];
+  }[] = [];
   try {
-    l1Rows = db
+    rows = db
       .prepare(
-        `SELECT fp.rowid as id, fp.rank as rank, ps.doc_id as doc_id
-         FROM fts_pages fp
-         JOIN page_summaries ps ON fp.rowid = ps.id
-         WHERE fp.fts_pages MATCH ? AND ps.doc_id IN (${[...candidateDocIds].map(() => '?').join(',')})
-         ORDER BY fp.rank LIMIT 5`,
-      )
-      .all(ftsQ, ...candidateDocIds) as { id: number; rank: number; doc_id: number }[];
-  } catch (e) {
-    // 同 L0：fts5 边界 token 失败 → 降级
-    logger.warn(`queryBM25Layered L1 fts5: ${(e as Error).message}`);
-    return [];
-  }
-  if (l1Rows.length === 0) return [];
-
-  const l2DocIds = [...new Set(l1Rows.map((r) => r.doc_id))];
-
-  // L2: chunks 限定在 L1 命中页的 doc_id
-  let l2Rows: { id: number; rank: number; doc_id: number }[] = [];
-  try {
-    l2Rows = db
-      .prepare(
-        `SELECT fc.rowid as id, fc.rank as rank, c.doc_id as doc_id
+        `SELECT fc.rank as rank, c.content as content, c.section as section, d.path as path
          FROM fts_chunks fc
          JOIN chunks c ON fc.rowid = c.id
-         WHERE fc.fts_chunks MATCH ? AND c.doc_id IN (${l2DocIds.map(() => '?').join(',')})
-         ORDER BY fc.rank LIMIT ?`,
+         JOIN documents d ON c.doc_id = d.id
+         WHERE fc.fts_chunks MATCH ?
+         ORDER BY fc.rank
+         LIMIT ?`,
       )
-      .all(ftsQ, ...l2DocIds, topK) as { id: number; rank: number; doc_id: number }[];
+      .all(ftsQ, topK) as {
+      rank: number;
+      content: string;
+      section: string | null;
+      path: string;
+    }[];
   } catch (e) {
-    // 同 L0/L1：fts5 边界 token 失败 → 降级
-    logger.warn(`queryBM25Layered L2 fts5: ${(e as Error).message}`);
+    // FTS5 边界 token 失败 → BM25 整体降级为空，上层 hybrid 回退纯向量
+    logger.warn(`queryBM25Layered fts5 match: ${(e as Error).message}`);
     return [];
   }
-  if (l2Rows.length === 0) return [];
 
-  const results: QueryResult[] = [];
-  const getChunk = db.prepare(
-    `SELECT c.content, c.section, d.path FROM chunks c JOIN documents d ON c.doc_id = d.id WHERE c.id = ?`,
-  );
-  for (const row of l2Rows) {
-    const cr = getChunk.get(row.id) as
-      | { content: string; section: string; path: string }
-      | undefined;
-    if (cr) {
-      results.push({
-        file: cr.path,
-        chunk: cr.content,
-        // FTS5 rank 是负数（越小越相关），取绝对值作为正向分数；归一化留给 RRF
-        score: Math.round(-row.rank * 10000) / 10000,
-        section: cr.section,
-      });
-    }
-  }
-  return results;
+  return rows.map((r) => ({
+    file: r.path,
+    chunk: r.content,
+    // FTS5 rank 是负数（越小越相关），取绝对值作为正向分数；归一化留给 RRF
+    score: Math.round(-r.rank * 10000) / 10000,
+    section: r.section ?? '',
+  }));
 }
