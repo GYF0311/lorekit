@@ -29,16 +29,42 @@ import type { Db, QueryResult } from './schema.js';
  * 或带空格的 query 几乎永远命中不上。默认 AND 更宽松，跟 BM25 的"精确关键词"
  * 定位一致——先生查"Harness"/"Anthropic"这种精确实体名能命中；查"Harness 五版
  * 演化"这种复合短语 BM25 空是合理的（语义匹配应该走向量或 Hybrid）。
+ *
+ * **23b 修**：`\d{4}-\d{2}-\d{2}` 完整 ISO 日期 protect-and-restore，避免被
+ * `-` 拆 token 退化为 `2026`。流程：
+ *   1. 提取所有 ISO 日期，用 `__DATE0__` / `__DATE1__` 占位符替换（前后空格保证分词）
+ *   2. 跑现有 sanitize（占位符 `_` 不在 FTS5 运算符 set 里，整串 9 字符 > 3 通过过滤）
+ *   3. 把占位符还原为 `"YYYY-MM-DD"`（双引号包裹让 FTS5 当 phrase token，
+ *      避免 `-` 被解析成 NOT 前缀）
+ *
+ * 不识别 `2026/04/15`（`/` 不在原 sanitize 拆分字符里，本来就 OK 不需要保护）。
+ * 不识别 `2026-4-15`（年月日不补 0 的非标准格式，避免误识别行内 hyphenated 词如
+ * `self-hosted`）。
  */
 function sanitizeFtsQuery(q: string): string {
+  // 1. protect ISO dates
+  const dates: string[] = [];
+  const protectedQ = q.replace(/\d{4}-\d{2}-\d{2}/g, (m) => {
+    const i = dates.length;
+    dates.push(m);
+    return ` __DATE${i}__ `;
+  });
+
+  // 2. 现有 sanitize 流程
   // FTS5 运算符：" * : ^ ( ) - +（`-` 前缀是 NOT，内部的 `-` 也会让日期类 query 失效）
-  let s = q.replace(/["*:^()\-+]/g, ' ');
+  let s = protectedQ.replace(/["*:^()\-+]/g, ' ');
   s = s.replace(/\b(OR|AND|NOT|NEAR)\b/gi, ' ');
   s = s.replace(/\s+/g, ' ').trim();
   if (!s) return '';
   const tokens = s.split(' ').filter((t) => t.length >= 3);
   if (tokens.length === 0) return '';
-  return tokens.join(' ');
+
+  // 3. 还原占位符为 quoted 完整日期（FTS5 phrase syntax）
+  const restored = tokens.map((t) => {
+    const m = t.match(/^__DATE(\d+)__$/);
+    return m ? `"${dates[Number(m[1])]}"` : t;
+  });
+  return restored.join(' ');
 }
 
 // ---------------------------------------------------------------------------

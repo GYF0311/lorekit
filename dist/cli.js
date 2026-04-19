@@ -749,13 +749,23 @@ var init_query_layered = __esm({
 
 // src/lib/vectordb/query-bm25.ts
 function sanitizeFtsQuery(q) {
-  let s = q.replace(/["*:^()\-+]/g, " ");
+  const dates = [];
+  const protectedQ = q.replace(/\d{4}-\d{2}-\d{2}/g, (m) => {
+    const i = dates.length;
+    dates.push(m);
+    return ` __DATE${i}__ `;
+  });
+  let s = protectedQ.replace(/["*:^()\-+]/g, " ");
   s = s.replace(/\b(OR|AND|NOT|NEAR)\b/gi, " ");
   s = s.replace(/\s+/g, " ").trim();
   if (!s) return "";
   const tokens = s.split(" ").filter((t) => t.length >= 3);
   if (tokens.length === 0) return "";
-  return tokens.join(" ");
+  const restored = tokens.map((t) => {
+    const m = t.match(/^__DATE(\d+)__$/);
+    return m ? `"${dates[Number(m[1])]}"` : t;
+  });
+  return restored.join(" ");
 }
 function queryBM25Layered(db, queryText, topK) {
   const ftsQ = sanitizeFtsQuery(queryText);
@@ -848,11 +858,13 @@ var init_query_bm25 = __esm({
 });
 
 // src/lib/vectordb/query-hybrid.ts
+import { createHash as createHash3 } from "crypto";
 function rrfMerge(lists, topK, k = 60) {
   const merged = /* @__PURE__ */ new Map();
   for (const list of lists) {
     list.forEach((item, i) => {
-      const key = `${item.file}::${item.chunk.slice(0, 80)}`;
+      const fingerprint = createHash3("sha256").update(item.chunk).digest("hex").slice(0, 16);
+      const key = `${item.file}::${fingerprint}`;
       const rrf = 1 / (k + i + 1);
       const prev = merged.get(key);
       if (prev) {
@@ -2255,7 +2267,7 @@ function searchCommand(program2) {
 
 // src/commands/vector.ts
 init_logger();
-import { createHash as createHash3 } from "crypto";
+import { createHash as createHash4 } from "crypto";
 import { existsSync as existsSync12, readFileSync as readFileSync15 } from "fs";
 import { join as join15, relative as relative13 } from "path";
 async function runVectorSync(corpus, opts = {}) {
@@ -2276,7 +2288,7 @@ async function runVectorSync(corpus, opts = {}) {
     if (!force) {
       const row = db.prepare("SELECT sha256 FROM documents WHERE path = ?").get(rel);
       if (row) {
-        const sha = createHash3("sha256").update(readFileSync15(filePath)).digest("hex");
+        const sha = createHash4("sha256").update(readFileSync15(filePath)).digest("hex");
         if (row.sha256 === sha) {
           skipped++;
           continue;

@@ -6,6 +6,57 @@
 
 ---
 
+## 2026-04-19 — 批次 23b：rrfMerge dedup + sanitizeFtsQuery 日期 (LEGACY P4-9 / P4-10 真 bug 修)
+
+**做了什么**
+
+22d 抄写发现的两条真行为 bug 修，并加 smoke 锁定预期行为：
+
+- **动作 1** — `rrfMerge` dedup key 改 sha256 前 16 hex（query-hybrid.ts）
+  - 原: `key = ${item.file}::${item.chunk.slice(0, 80)}`
+  - 新: `key = ${item.file}::${sha256(chunk).slice(0, 16)}`（64 bits 指纹）
+  - import `createHash` from `node:crypto`（顶部静态 import，CONVENTIONS #8）
+  - 行为变化：中文长文档 chunk 段首固定开场白（如 `[title][type]\n# title\n## section\n...`）两个真实不同的 chunk 不再被错误合并
+
+- **动作 2** — `sanitizeFtsQuery` ISO 日期 protect-and-restore（query-bm25.ts）
+  - 流程：(1) 提取所有 `\d{4}-\d{2}-\d{2}` 用 `__DATE0__` / `__DATE1__` 占位符替换 → (2) 跑现有 sanitize 流程（占位符 9 字符 > 3 通过过滤）→ (3) 把占位符还原为 `"2026-04-15"` 双引号包裹（FTS5 phrase syntax 避免 `-` 被解析成 NOT 前缀）
+  - 不识别 `2026/04/15`（`/` 不在原 sanitize 拆分字符里，本来就 OK 不需保护）
+  - 不识别 `2026-4-15`（年月日不补 0 的非标准格式，避免误识别 `self-hosted` 类行内 hyphenated 词）
+  - 顺手修一个 lint：`let protectedQ` → `const protectedQ`（never reassigned）
+
+- **动作 3** — 加 2 条 smoke 共 7 case 全 pass：
+  - `tests/smoke/vectordb-rrf-dedup.test.mjs` 3 case：(a) 前 80 字相同但全文不同的 chunks 不合并（验证 22d B6 bug 修复）+ (b) 完全相同 chunk 仍合并（dedup 功能未失效）+ (c) 不同 file 同 chunk 内容仍独立（key 含 file）
+  - `tests/smoke/vectordb-fts-date.test.mjs` 4 case：(a) ISO 日期保留为 quoted phrase + (b) `self-hosted` 不被识别为日期按原 sanitize 拆 + (c) 多日期混合 + (d) 非标准 `2026-4-15` 不识别
+
+  smoke **采用 inline copy 函数体模式**（同 22 系列 parity 脚本风格）：rrfMerge 和 sanitizeFtsQuery 是 vectordb 内部 helper 没有 cli 入口直接暴露，且 dist/cli.js 是 bundle 不导出函数。改源代码时**必须同步改这两个 smoke 的 inline 复制**，否则失去 lock 作用——文件头注释明确写了。
+
+**LEGACY 同步**：新增 P4-9 / P4-10 条目并标 ✅（追溯式记账，原 22d 发现时只在 WORKLOG 留 follow-up，现在正式进 LEGACY 留 audit trail）。
+
+**验证**
+
+- `npm run verify` 全绿，**25 tests / 24 pass / 1 skip / ~1.6s**（原 18 + 新 7）
+- `npm run lint` src 范围 **27 不变**（query-hybrid.ts / query-bm25.ts 改动 0 新 lint error；let → const 顺手修消除一个潜在新增）
+- tag：`refactor-batch-23b`
+
+**为什么**
+
+- sha256 前 16 hex 是规划方决策 A：64 bits 全文档级避碰仍极低（≈ 2^-32），不用全 64 hex 节省 key 空间
+- protect-and-restore 是规划方决策 B：仅识别完整 ISO 4-2-2 格式，比"任意 \d-\d-\d"严，避免误识别 `self-hosted` / `state-of-the-art` 等 hyphenated 词；FTS5 双引号包裹让整串当 phrase token 不被 `-` 误读为 NOT
+- inline copy smoke 是当前最务实方案：`node --test` 默认不 enable strip-types，dist/cli.js bundle 不导出函数，改 verify 脚本加 `--experimental-strip-types` 又超出 23b 范围；inline copy 的代价是"改源要同步改 smoke"，已在文件头注释明示
+
+**发现但未处理**
+
+- inline copy smoke 与源代码可能漂移：依赖维护者纪律。理想方案是让 `node --test` enable strip-types 直接 import 源 .ts，但需要改 `package.json` test:smoke script，超出 23b 范围。可作为后续 testing infra 子批考虑
+- `query-bm25.ts` JSON.parse slug_list 处仍 `/* skip */` 沉默（23a 范围未含），LEGACY P2-2 后续清理
+- `commands/fetch.ts` 5 处 console（23a 同样未处理）继续留 LEGACY P2-4
+
+**接下来**
+
+- 进 23c：Db 精确化 + queryLayered cap 联动 + RRF k 暴露 + queryLayered 变量 rename —— 等规划方下达指令
+- 不主动开始 23c
+
+---
+
 ## 2026-04-19 — 批次 23a：vectordb CONVENTIONS 残留 sweep（P2-2 + P2-4 vectordb 部分收尾）
 
 **做了什么**

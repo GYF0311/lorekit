@@ -14,6 +14,8 @@
  * （根据当前 cli.ts 设定）。
  */
 
+import { createHash } from 'node:crypto';
+
 import { queryBM25Layered } from './query-bm25.js';
 import { queryLayered } from './query-layered.js';
 import type { Db, QueryResult } from './schema.js';
@@ -26,13 +28,25 @@ import type { Db, QueryResult } from './schema.js';
  * Reciprocal Rank Fusion — 多路召回结果的排名合并。
  * 公式：score(item) = Σ 1 / (k + rank_i)  （rank 从 1 开始，k 默认 60）
  * 在两路都靠前的 item 最终 score 最高。
+ *
+ * **23b 修**：dedup key 从 `${file}::${chunk.slice(0, 80)}` 改为
+ * `${file}::${sha256(chunk).slice(0, 16)}`。
+ *
+ * 原代码用前 80 字做 dedup，中文长文档 chunk 段首固定开场白时（如
+ * "[title] [type]\n\n# title\n## section\n..."）两个真实不同的 chunk 前 80 字
+ * 可能完全相同 → 被错误合并为 1 条，丢正确召回（22d B6 mock case 复现）。
+ *
+ * 改用 sha256 前 16 hex char（64 bits）作为 chunk 内容指纹，避碰概率 ≈ 2^-32 全文档级
+ * 仍极低，且对 chunk 全文敏感不再依赖前缀重复程度。规划方决策：64 bits 足够，
+ * 不用全 64 hex 节省 key 空间。
  */
 export function rrfMerge(lists: QueryResult[][], topK: number, k: number = 60): QueryResult[] {
-  // key = file + chunk 前 80 字（防 chunk 内容重复），value = { item, rrf }
+  // key = file + chunk sha256 前 16 hex（64 bits 指纹），value = { item, rrf }
   const merged = new Map<string, { item: QueryResult; rrf: number }>();
   for (const list of lists) {
     list.forEach((item, i) => {
-      const key = `${item.file}::${item.chunk.slice(0, 80)}`;
+      const fingerprint = createHash('sha256').update(item.chunk).digest('hex').slice(0, 16);
+      const key = `${item.file}::${fingerprint}`;
       const rrf = 1 / (k + i + 1);
       const prev = merged.get(key);
       if (prev) {
