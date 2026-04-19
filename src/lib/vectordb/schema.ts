@@ -17,6 +17,8 @@
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
+import type DatabaseNS from 'better-sqlite3';
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -49,11 +51,12 @@ export interface StatusInfo {
   mode_reason?: string;
 }
 
-// We use `any` for the Database type to avoid top-level import of better-sqlite3.
-// 22a：从原 vectordb.ts copy 时保留 `Db = any` 兼容旧实现；
-// "改成 import type Database 的精确类型" 留给 22 后续子批或独立 cleanup（22a 严守
-// strangler fig "copy 不修" 原则）。
-export type Db = any;
+// **23c 改**：原 `Db = any` → `DatabaseNS.Database` 精确类型（来自 @types/better-sqlite3
+// 的 namespace 别名 `BetterSqlite3.Database`）。`import type DatabaseNS` 是类型 only，
+// 不引入 runtime 依赖（runtime 仍走 schema.ts 内的 dynamic import 兜可选 dep 缺失）。
+// **重命名 NS 后缀**：避开 loadSqlite() 内部 `let Database = ...` 局部变量 shadowing。
+// 编辑器对 db.prepare/get/run/exec/pragma/close 的智能补全和参数校验恢复正常。
+export type Db = DatabaseNS.Database;
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -229,7 +232,9 @@ export async function openDb(corpus: string, dim = EMBEDDING_DIM): Promise<Db> {
   if (!existsSync(wikiDir)) mkdirSync(wikiDir, { recursive: true });
 
   const dbPath = join(wikiDir, 'vector.sqlite');
-  const db = new (Database as any)(dbPath);
+  // `Database` 的实际 runtime 值是 `BetterSqlite3.DatabaseConstructor`（可 new 的
+  // class）；dynamic import 拿回的 `default` 已是构造器本体，直接 new 即可。
+  const db = new Database(dbPath);
   sqliteVec.load(db);
 
   db.pragma('journal_mode = WAL');

@@ -659,12 +659,14 @@ var init_query_flat = __esm({
 // src/lib/vectordb/query-layered.ts
 function queryLayered(db, embedding, topK, threshold) {
   const blob = float32ToBuffer(embedding);
+  const L0_K = Math.max(3, Math.ceil(topK / 10));
+  const L1_CAP = Math.max(5, Math.ceil(topK / 5));
   const l0Rows = db.prepare(
     `SELECT v.rowid as id, v.distance
        FROM vec_dirs v
-       WHERE v.embedding MATCH ? AND k = 3
+       WHERE v.embedding MATCH ? AND k = ?
        ORDER BY v.distance`
-  ).all(blob);
+  ).all(blob, L0_K);
   if (l0Rows.length === 0) return [];
   const dirIds = l0Rows.map((r) => r.id);
   const dirRows = db.prepare(`SELECT slug_list FROM dir_summaries WHERE id IN (${dirIds.map(() => "?").join(",")})`).all(...dirIds);
@@ -678,19 +680,21 @@ function queryLayered(db, embedding, topK, threshold) {
   }
   if (candidateSlugs.size === 0) return [];
   const docRows = db.prepare("SELECT id, path FROM documents").all();
-  const candidateDocIds = /* @__PURE__ */ new Set();
+  const L0CandidateDocIds = /* @__PURE__ */ new Set();
   for (const { id, path } of docRows) {
     const stem = path.replace(/\.md$/, "");
     const folderSlug = path.endsWith("/article.md") ? path.replace(/\/article\.md$/, "") : null;
     if (candidateSlugs.has(path) || candidateSlugs.has(stem)) {
-      candidateDocIds.add(id);
+      L0CandidateDocIds.add(id);
     } else if (folderSlug && candidateSlugs.has(folderSlug)) {
-      candidateDocIds.add(id);
+      L0CandidateDocIds.add(id);
     }
   }
-  if (candidateDocIds.size === 0) return [];
-  const docIdArr = [...candidateDocIds];
-  const candidatePageIds = db.prepare(`SELECT id FROM page_summaries WHERE doc_id IN (${docIdArr.map(() => "?").join(",")})`).all(...docIdArr);
+  if (L0CandidateDocIds.size === 0) return [];
+  const L0CandidateDocIdArr = [...L0CandidateDocIds];
+  const candidatePageIds = db.prepare(
+    `SELECT id FROM page_summaries WHERE doc_id IN (${L0CandidateDocIdArr.map(() => "?").join(",")})`
+  ).all(...L0CandidateDocIdArr);
   if (candidatePageIds.length === 0) return [];
   const searchK = Math.min(candidatePageIds.length, 50);
   const l1Rows = db.prepare(
@@ -700,15 +704,17 @@ function queryLayered(db, embedding, topK, threshold) {
        ORDER BY v.distance`
   ).all(blob, searchK);
   const candidateSet = new Set(candidatePageIds.map((r) => r.id));
-  const l1Filtered = l1Rows.filter((r) => candidateSet.has(r.id)).slice(0, 5);
+  const l1Filtered = l1Rows.filter((r) => candidateSet.has(r.id)).slice(0, L1_CAP);
   if (l1Filtered.length === 0) return [];
   const pageIds = l1Filtered.map((r) => r.id);
-  const docIds = db.prepare(
+  const L1CandidateDocIds = db.prepare(
     `SELECT DISTINCT doc_id FROM page_summaries WHERE id IN (${pageIds.map(() => "?").join(",")})`
   ).all(...pageIds);
-  if (docIds.length === 0) return [];
-  const docIdList = docIds.map((r) => r.doc_id);
-  const candidateChunkIds = db.prepare(`SELECT id FROM chunks WHERE doc_id IN (${docIdList.map(() => "?").join(",")})`).all(...docIdList);
+  if (L1CandidateDocIds.length === 0) return [];
+  const L1CandidateDocIdList = L1CandidateDocIds.map((r) => r.doc_id);
+  const candidateChunkIds = db.prepare(
+    `SELECT id FROM chunks WHERE doc_id IN (${L1CandidateDocIdList.map(() => "?").join(",")})`
+  ).all(...L1CandidateDocIdList);
   if (candidateChunkIds.length === 0) return [];
   const searchK2 = Math.min(candidateChunkIds.length, topK * 5);
   const l2Rows = db.prepare(
@@ -879,11 +885,11 @@ function rrfMerge(lists, topK, k = 60) {
     score: Math.round(rrf * 1e4) / 1e4
   }));
 }
-function queryHybrid(db, embedding, queryText, topK, threshold) {
+function queryHybrid(db, embedding, queryText, topK, threshold, k) {
   const candN = topK * 2;
   const vecResults = queryLayered(db, embedding, candN, threshold);
   const bm25Results = queryBM25Layered(db, queryText, candN);
-  return rrfMerge([vecResults, bm25Results], topK);
+  return rrfMerge([vecResults, bm25Results], topK, k);
 }
 var init_query_hybrid = __esm({
   "src/lib/vectordb/query-hybrid.ts"() {

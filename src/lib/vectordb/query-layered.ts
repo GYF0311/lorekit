@@ -37,15 +37,21 @@ export function queryLayered(
 ): QueryResult[] {
   const blob = float32ToBuffer(embedding);
 
-  // L0: top-3 sections（分区向量，每个分区 = index.md 里一个 ## 区块）
+  // **23c 改：cap 联动 topK** —— 3/5 是 Karpathy 原文 baseline（小 topK 精度优先），
+  // topK 上来时按比例放大避免过早收窄。topK=10 默认：L0_K=3, L1_CAP=5（向后兼容）。
+  // topK=100 时：L0_K=10, L1_CAP=20，让 L0 覆盖更多分区 / L1 保留更多候选页。
+  const L0_K = Math.max(3, Math.ceil(topK / 10));
+  const L1_CAP = Math.max(5, Math.ceil(topK / 5));
+
+  // L0: top-L0_K sections（分区向量，每个分区 = index.md 里一个 ## 区块）
   const l0Rows = db
     .prepare(
       `SELECT v.rowid as id, v.distance
        FROM vec_dirs v
-       WHERE v.embedding MATCH ? AND k = 3
+       WHERE v.embedding MATCH ? AND k = ?
        ORDER BY v.distance`,
     )
-    .all(blob) as { id: number; distance: number }[];
+    .all(blob, L0_K) as { id: number; distance: number }[];
 
   if (l0Rows.length === 0) return [];
 
@@ -68,28 +74,32 @@ export function queryLayered(
   if (candidateSlugs.size === 0) return [];
 
   // 把 slug 映射成 doc_id（兼容目录包装式 slug、去/不去 .md 后缀）
+  // **23c 改：变量 rename** `candidateDocIds` → `L0CandidateDocIds` 按层语义命名
   const docRows = db.prepare('SELECT id, path FROM documents').all() as {
     id: number;
     path: string;
   }[];
-  const candidateDocIds = new Set<number>();
+  const L0CandidateDocIds = new Set<number>();
   for (const { id, path } of docRows) {
     const stem = path.replace(/\.md$/, '');
     const folderSlug = path.endsWith('/article.md') ? path.replace(/\/article\.md$/, '') : null;
     if (candidateSlugs.has(path) || candidateSlugs.has(stem)) {
-      candidateDocIds.add(id);
+      L0CandidateDocIds.add(id);
     } else if (folderSlug && candidateSlugs.has(folderSlug)) {
-      candidateDocIds.add(id);
+      L0CandidateDocIds.add(id);
     }
   }
 
-  if (candidateDocIds.size === 0) return [];
+  if (L0CandidateDocIds.size === 0) return [];
 
-  // L1: top-5 pages，候选限定在 L0 命中分区覆盖的 doc_id
-  const docIdArr = [...candidateDocIds];
+  // L1: top-L1_CAP pages，候选限定在 L0 命中分区覆盖的 doc_id
+  // **23c 改：变量 rename** `docIdArr` → `L0CandidateDocIdArr`（L0 doc_id 的 array view）
+  const L0CandidateDocIdArr = [...L0CandidateDocIds];
   const candidatePageIds = db
-    .prepare(`SELECT id FROM page_summaries WHERE doc_id IN (${docIdArr.map(() => '?').join(',')})`)
-    .all(...docIdArr) as { id: number }[];
+    .prepare(
+      `SELECT id FROM page_summaries WHERE doc_id IN (${L0CandidateDocIdArr.map(() => '?').join(',')})`,
+    )
+    .all(...L0CandidateDocIdArr) as { id: number }[];
 
   if (candidatePageIds.length === 0) return [];
 
@@ -104,25 +114,29 @@ export function queryLayered(
     .all(blob, searchK) as { id: number; distance: number }[];
 
   const candidateSet = new Set(candidatePageIds.map((r) => r.id));
-  const l1Filtered = l1Rows.filter((r) => candidateSet.has(r.id)).slice(0, 5);
+  const l1Filtered = l1Rows.filter((r) => candidateSet.has(r.id)).slice(0, L1_CAP);
 
   if (l1Filtered.length === 0) return [];
 
   // Get doc_ids from matched page summaries
+  // **23c 改：变量 rename** `docIds` → `L1CandidateDocIds`（L1 命中页对应的 doc_id 对象数组）
   const pageIds = l1Filtered.map((r) => r.id);
-  const docIds = db
+  const L1CandidateDocIds = db
     .prepare(
       `SELECT DISTINCT doc_id FROM page_summaries WHERE id IN (${pageIds.map(() => '?').join(',')})`,
     )
     .all(...pageIds) as { doc_id: number }[];
 
-  if (docIds.length === 0) return [];
+  if (L1CandidateDocIds.length === 0) return [];
 
   // L2: chunks within matched docs
-  const docIdList = docIds.map((r) => r.doc_id);
+  // **23c 改：变量 rename** `docIdList` → `L1CandidateDocIdList`（plain number[] 形式）
+  const L1CandidateDocIdList = L1CandidateDocIds.map((r) => r.doc_id);
   const candidateChunkIds = db
-    .prepare(`SELECT id FROM chunks WHERE doc_id IN (${docIdList.map(() => '?').join(',')})`)
-    .all(...docIdList) as { id: number }[];
+    .prepare(
+      `SELECT id FROM chunks WHERE doc_id IN (${L1CandidateDocIdList.map(() => '?').join(',')})`,
+    )
+    .all(...L1CandidateDocIdList) as { id: number }[];
 
   if (candidateChunkIds.length === 0) return [];
 

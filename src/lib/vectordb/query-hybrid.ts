@@ -71,8 +71,12 @@ export function rrfMerge(lists: QueryResult[][], topK: number, k: number = 60): 
 
 /**
  * Hybrid 分层召回：向量三层 + BM25 三层 + RRF 融合。
- * 跟 queryLayered 同签名，可在上层命令里用 `--hybrid` flag 切换。
+ * 跟 queryLayered 同签名（多一个可选 `k` 参数），可在上层命令里用 `--hybrid` flag 切换。
  * 不做 LLM re-rank（先生决定本轮不上，留给未来）。
+ *
+ * **23c 改**：新增可选 `k` 参数透传到 rrfMerge 的 RRF 公式常数（默认 60）。
+ * 暴露此参数是给实验调优用（小 k 让排名靠前 item 权重更突出，大 k 更平滑），
+ * cli 暂不暴露 flag（保持 surface 简洁向后兼容）。
  */
 export function queryHybrid(
   db: Db,
@@ -80,10 +84,11 @@ export function queryHybrid(
   queryText: string,
   topK: number,
   threshold: number,
+  k?: number,
 ): QueryResult[] {
   // 两路各召回 topK * 2 作为候选，给 RRF 足够的排名信息
   const candN = topK * 2;
   const vecResults = queryLayered(db, embedding, candN, threshold);
   const bm25Results = queryBM25Layered(db, queryText, candN);
-  return rrfMerge([vecResults, bm25Results], topK);
+  return rrfMerge([vecResults, bm25Results], topK, k);
 }
