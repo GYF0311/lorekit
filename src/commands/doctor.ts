@@ -5,6 +5,11 @@ import chalk from 'chalk';
 import { ok, bad, warn, print } from '../utils/logger.js';
 import { requireCorpus, collectMdFiles, hasFrontmatter } from '../lib/corpus.js';
 import { isIndexExcluded, isFolderPackage } from '../lib/paths.js';
+import {
+  getRecommendedFilter,
+  readCorpusFilter,
+  isFilterComplete,
+} from '../lib/obsidian.js';
 
 const EXPECTED_DIRS = [
   '每日',
@@ -110,6 +115,29 @@ function checkIndexFiles(corpus: string): number {
   return missing;
 }
 
+/**
+ * 检查 .obsidian/graph.json filter 是否含推荐项（批次 26 触达老用户）。
+ * obsidian 是可选用途，不阻塞 doctor 整体绿 —— 故意不计入 issues 总数。
+ */
+function checkObsidianGraph(corpus: string): void {
+  try {
+    const recommended = getRecommendedFilter();
+    const cur = readCorpusFilter(corpus);
+    if (!cur.exists) {
+      warn('obsidian: graph filter 不完整，运行 lorekit obsidian-tune 查看详情');
+      return;
+    }
+    if (isFilterComplete(cur.search, recommended)) {
+      ok('obsidian: graph filter 完整');
+    } else {
+      warn('obsidian: graph filter 不完整，运行 lorekit obsidian-tune 查看详情');
+    }
+  } catch (e) {
+    // 模板缺失或读失败：不阻塞 doctor 主流程，给个 warn
+    warn(`obsidian: 检查 graph filter 失败: ${(e as Error).message}`);
+  }
+}
+
 function checkArchive(corpus: string): number {
   const archiveDir = join(corpus, '_归档');
   if (existsSync(archiveDir)) {
@@ -147,6 +175,10 @@ export function runDoctor(corpus: string): number {
 
   print(chalk.cyan('── archive ──'));
   checkArchive(corpus);
+  print();
+
+  print(chalk.cyan('── obsidian ──'));
+  checkObsidianGraph(corpus);
   print();
 
   if (issues === 0) {

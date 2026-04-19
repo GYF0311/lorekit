@@ -148,8 +148,8 @@ var init_ollama = __esm({
 });
 
 // src/lib/vectordb/schema.ts
-import { existsSync as existsSync9, mkdirSync as mkdirSync6 } from "fs";
-import { join as join11 } from "path";
+import { existsSync as existsSync10, mkdirSync as mkdirSync6 } from "fs";
+import { join as join12 } from "path";
 function vecDdl(dim) {
   return `
 CREATE VIRTUAL TABLE IF NOT EXISTS vec_chunks USING vec0(
@@ -187,9 +187,9 @@ async function loadSqlite() {
 }
 async function openDb(corpus, dim = EMBEDDING_DIM) {
   const { Database: Database2, sqliteVec } = await loadSqlite();
-  const wikiDir = join11(corpus, ".wiki");
-  if (!existsSync9(wikiDir)) mkdirSync6(wikiDir, { recursive: true });
-  const dbPath = join11(wikiDir, "vector.sqlite");
+  const wikiDir = join12(corpus, ".wiki");
+  if (!existsSync10(wikiDir)) mkdirSync6(wikiDir, { recursive: true });
+  const dbPath = join12(wikiDir, "vector.sqlite");
   const db = new Database2(dbPath);
   sqliteVec.load(db);
   db.pragma("journal_mode = WAL");
@@ -267,11 +267,11 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fts_pages USING fts5(
 
 // src/lib/vectordb/files.ts
 import { createHash as createHash2 } from "crypto";
-import { readFileSync as readFileSync12, readdirSync as readdirSync7 } from "fs";
-import { basename as basename5, join as join12, relative as relative9 } from "path";
+import { readFileSync as readFileSync13, readdirSync as readdirSync7 } from "fs";
+import { basename as basename5, join as join13, relative as relative9 } from "path";
 import matter2 from "gray-matter";
 function sha2562(filePath) {
-  const data = readFileSync12(filePath);
+  const data = readFileSync13(filePath);
   return createHash2("sha256").update(data).digest("hex");
 }
 function float32ToBuffer(arr) {
@@ -302,7 +302,7 @@ function collectFiles(corpus) {
       return;
     }
     for (const entry of entries) {
-      const full = join12(dir, entry.name);
+      const full = join13(dir, entry.name);
       if (entry.isDirectory()) {
         walk(full);
       } else if (entry.name.endsWith(".md")) {
@@ -328,11 +328,11 @@ var chunker_exports = {};
 __export(chunker_exports, {
   chunkFile: () => chunkFile
 });
-import { readFileSync as readFileSync13 } from "fs";
+import { readFileSync as readFileSync14 } from "fs";
 import { basename as basename6 } from "path";
 import matter3 from "gray-matter";
 function chunkFile(filePath, corpusRoot) {
-  const raw = readFileSync13(filePath, "utf-8");
+  const raw = readFileSync14(filePath, "utf-8");
   const { data: fm, content: body } = matter3(raw);
   let title = fm.title || "";
   const type = fm.type || "";
@@ -447,8 +447,8 @@ var init_sync = __esm({
 });
 
 // src/lib/vectordb/build-layered-index.ts
-import { existsSync as existsSync10, readFileSync as readFileSync14, readdirSync as readdirSync8 } from "fs";
-import { join as join13, relative as relative12 } from "path";
+import { existsSync as existsSync11, readFileSync as readFileSync15, readdirSync as readdirSync8 } from "fs";
+import { join as join14, relative as relative12 } from "path";
 import matter4 from "gray-matter";
 function parseIndexSections(content) {
   const lines = content.split("\n");
@@ -504,7 +504,7 @@ function findAllIndexFiles(corpus) {
     }
     for (const entry of entries) {
       if (entry.name.startsWith(".")) continue;
-      const full = join13(dir, entry.name);
+      const full = join14(dir, entry.name);
       const rel = relative12(corpus, full);
       if (vectorExcludePrefixes.some((p) => rel === p || rel.startsWith(p + "/"))) continue;
       if (entry.isDirectory()) {
@@ -521,11 +521,11 @@ async function buildLayeredIndex(db, corpus, embedFn) {
   db.prepare("DELETE FROM dir_summaries").run();
   db.prepare("DELETE FROM vec_dirs").run();
   db.prepare("DELETE FROM fts_dirs").run();
-  const indexPath = join13(corpus, "index.md");
-  if (!existsSync10(indexPath)) {
+  const indexPath = join14(corpus, "index.md");
+  if (!existsSync11(indexPath)) {
     info("  L0: corpus/index.md not found, skipped");
   } else {
-    const raw = readFileSync14(indexPath, "utf-8");
+    const raw = readFileSync15(indexPath, "utf-8");
     const { content } = matter4(raw);
     const sections = parseIndexSections(content);
     if (sections.length === 0) {
@@ -563,7 +563,7 @@ async function buildLayeredIndex(db, corpus, embedFn) {
   }
   const allEntries = [];
   for (const f of indexFiles) {
-    const raw = readFileSync14(f, "utf-8");
+    const raw = readFileSync15(f, "utf-8");
     allEntries.push(...parseIndexEntries(raw));
   }
   if (allEntries.length === 0) {
@@ -850,8 +850,8 @@ var init_query_hybrid = __esm({
 });
 
 // src/lib/vectordb/status.ts
-import { existsSync as existsSync11 } from "fs";
-import { join as join14 } from "path";
+import { existsSync as existsSync12 } from "fs";
+import { join as join15 } from "path";
 function computeMode(indexed, indexedFiles) {
   if (!indexed) {
     return {
@@ -871,8 +871,8 @@ function computeMode(indexed, indexedFiles) {
   };
 }
 async function getStatus(corpus) {
-  const dbPath = join14(corpus, ".wiki", "vector.sqlite");
-  if (!existsSync11(dbPath)) {
+  const dbPath = join15(corpus, ".wiki", "vector.sqlite");
+  if (!existsSync12(dbPath)) {
     const rec2 = computeMode(false, 0);
     return {
       indexed: false,
@@ -956,7 +956,7 @@ var init_vectordb = __esm({
 });
 
 // src/cli.ts
-import { existsSync as existsSync17 } from "fs";
+import { existsSync as existsSync19 } from "fs";
 import { Command } from "commander";
 import chalk7 from "chalk";
 import Database from "better-sqlite3";
@@ -1196,10 +1196,52 @@ function initCommand(program2) {
 
 // src/commands/doctor.ts
 init_logger();
-import { existsSync as existsSync3, lstatSync as lstatSync2, readFileSync as readFileSync4, readdirSync as readdirSync3 } from "fs";
-import { join as join4, relative as relative2 } from "path";
+import { existsSync as existsSync4, lstatSync as lstatSync2, readFileSync as readFileSync5, readdirSync as readdirSync3 } from "fs";
+import { join as join5, relative as relative2 } from "path";
 import chalk3 from "chalk";
 init_paths();
+
+// src/lib/obsidian.ts
+import { existsSync as existsSync3, readFileSync as readFileSync4 } from "fs";
+import { join as join4 } from "path";
+function getRecommendedGraphConfig() {
+  const tpl = join4(lorekitRoot(), "templates", "default-corpus", ".obsidian", "graph.json");
+  const raw = readFileSync4(tpl, "utf-8");
+  return JSON.parse(raw);
+}
+function getRecommendedFilter() {
+  const cfg = getRecommendedGraphConfig();
+  return cfg.search ?? "";
+}
+function readCorpusFilter(corpus) {
+  const dest = join4(corpus, ".obsidian", "graph.json");
+  if (!existsSync3(dest)) return { exists: false };
+  try {
+    const raw = readFileSync4(dest, "utf-8");
+    const parsed = JSON.parse(raw);
+    return { exists: true, search: parsed.search, raw: parsed };
+  } catch {
+    return { exists: true, search: void 0 };
+  }
+}
+function tokenize(search) {
+  return search.split(/\s+/).map((t) => t.trim()).filter(Boolean);
+}
+function isFilterComplete(actual, recommended) {
+  if (!actual) return false;
+  const want = new Set(tokenize(recommended));
+  const have = new Set(tokenize(actual));
+  for (const t of want) {
+    if (!have.has(t)) return false;
+  }
+  return true;
+}
+function missingTokens(actual, recommended) {
+  const have = new Set(actual ? tokenize(actual) : []);
+  return tokenize(recommended).filter((t) => !have.has(t));
+}
+
+// src/commands/doctor.ts
 var EXPECTED_DIRS = [
   "\u6BCF\u65E5",
   "\u77E5\u8BC6\u5E93/\u5B9E\u4F53",
@@ -1214,8 +1256,8 @@ var EXPECTED_DIRS = [
 function checkDirs(corpus) {
   let issues = 0;
   for (const dir of EXPECTED_DIRS) {
-    const full = join4(corpus, dir);
-    if (existsSync3(full)) {
+    const full = join5(corpus, dir);
+    if (existsSync4(full)) {
       ok(`${dir}/`);
     } else {
       bad(`${dir}/ ${chalk3.dim("missing")}`);
@@ -1225,9 +1267,9 @@ function checkDirs(corpus) {
   return issues;
 }
 function checkWikiVersion(corpus) {
-  const versionFile = join4(corpus, ".wiki", "version");
-  if (existsSync3(versionFile)) {
-    const ver = readFileSync4(versionFile, "utf-8").trim();
+  const versionFile = join5(corpus, ".wiki", "version");
+  if (existsSync4(versionFile)) {
+    const ver = readFileSync5(versionFile, "utf-8").trim();
     ok(`.wiki/version \u2192 ${ver}`);
     return 0;
   }
@@ -1246,11 +1288,11 @@ function checkFrontmatterCoverage(corpus) {
 function checkIndexFiles(corpus) {
   let missing = 0;
   function walk(dir) {
-    if (!existsSync3(dir)) return;
+    if (!existsSync4(dir)) return;
     for (const entry of readdirSync3(dir, { withFileTypes: true })) {
       if (entry.name.startsWith(".")) continue;
       if (!entry.isDirectory()) continue;
-      const full = join4(dir, entry.name);
+      const full = join5(dir, entry.name);
       const rel = relative2(corpus, full);
       if (isIndexExcluded(rel)) continue;
       if (isFolderPackage(full)) continue;
@@ -1258,7 +1300,7 @@ function checkIndexFiles(corpus) {
       for (const name of readdirSync3(full)) {
         if (name.startsWith(".")) continue;
         if (name === "_INDEX.md" || name === ".gitkeep") continue;
-        const childPath = join4(full, name);
+        const childPath = join5(full, name);
         let stat;
         try {
           stat = lstatSync2(childPath);
@@ -1274,7 +1316,7 @@ function checkIndexFiles(corpus) {
           break;
         }
       }
-      if (shouldHaveIndex && !existsSync3(join4(full, "_INDEX.md"))) {
+      if (shouldHaveIndex && !existsSync4(join5(full, "_INDEX.md"))) {
         warn(`_INDEX.md missing in ${rel}/`);
         missing++;
       }
@@ -1287,9 +1329,26 @@ function checkIndexFiles(corpus) {
   }
   return missing;
 }
+function checkObsidianGraph(corpus) {
+  try {
+    const recommended = getRecommendedFilter();
+    const cur = readCorpusFilter(corpus);
+    if (!cur.exists) {
+      warn("obsidian: graph filter \u4E0D\u5B8C\u6574\uFF0C\u8FD0\u884C lorekit obsidian-tune \u67E5\u770B\u8BE6\u60C5");
+      return;
+    }
+    if (isFilterComplete(cur.search, recommended)) {
+      ok("obsidian: graph filter \u5B8C\u6574");
+    } else {
+      warn("obsidian: graph filter \u4E0D\u5B8C\u6574\uFF0C\u8FD0\u884C lorekit obsidian-tune \u67E5\u770B\u8BE6\u60C5");
+    }
+  } catch (e) {
+    warn(`obsidian: \u68C0\u67E5 graph filter \u5931\u8D25: ${e.message}`);
+  }
+}
 function checkArchive(corpus) {
-  const archiveDir = join4(corpus, "_\u5F52\u6863");
-  if (existsSync3(archiveDir)) {
+  const archiveDir = join5(corpus, "_\u5F52\u6863");
+  if (existsSync4(archiveDir)) {
     ok("_\u5F52\u6863/ exists");
     return 0;
   }
@@ -1316,6 +1375,9 @@ lorekit doctor \u2014 ${corpus}
   print(chalk3.cyan("\u2500\u2500 archive \u2500\u2500"));
   checkArchive(corpus);
   print();
+  print(chalk3.cyan("\u2500\u2500 obsidian \u2500\u2500"));
+  checkObsidianGraph(corpus);
+  print();
   if (issues === 0) {
     print(chalk3.green.bold("all checks passed \u2713"));
   } else {
@@ -1333,7 +1395,7 @@ function doctorCommand(program2) {
 }
 
 // src/commands/stats.ts
-import { readFileSync as readFileSync5, statSync as statSync4 } from "fs";
+import { readFileSync as readFileSync6, statSync as statSync4 } from "fs";
 import { relative as relative3 } from "path";
 init_logger();
 function statsCommand(program2) {
@@ -1365,7 +1427,7 @@ function statsCommand(program2) {
         debug(`stats: stat(${file}) failed: ${e.message}`);
       }
       try {
-        const content = readFileSync5(file, "utf-8");
+        const content = readFileSync6(file, "utf-8");
         const linkRe = /\[\[([^\]|#]+)[^\]]*\]\]/g;
         let m;
         while ((m = linkRe.exec(content)) !== null) {
@@ -1397,7 +1459,7 @@ function statsCommand(program2) {
 }
 
 // src/commands/lint.ts
-import { readFileSync as readFileSync6 } from "fs";
+import { readFileSync as readFileSync7 } from "fs";
 import { relative as relative4, basename as basename2 } from "path";
 import chalk4 from "chalk";
 init_paths();
@@ -1479,7 +1541,7 @@ function lintCommand(program2) {
         }
       }
       try {
-        const content = stripCodeBlocks(readFileSync6(file, "utf-8"));
+        const content = stripCodeBlocks(readFileSync7(file, "utf-8"));
         const linkRe = /\[\[([^\]|#]+)[^\]]*\]\]/g;
         const targets = [];
         let m;
@@ -1556,8 +1618,8 @@ lorekit lint \u2014 ${corpus}
 }
 
 // src/commands/audit.ts
-import { existsSync as existsSync4, mkdirSync as mkdirSync2, readFileSync as readFileSync7, writeFileSync as writeFileSync2 } from "fs";
-import { join as join5, basename as basename3 } from "path";
+import { existsSync as existsSync5, mkdirSync as mkdirSync2, readFileSync as readFileSync8, writeFileSync as writeFileSync2 } from "fs";
+import { join as join6, basename as basename3 } from "path";
 
 // src/lib/date.ts
 var SHANGHAI_TZ_OFFSET_MS = 8 * 60 * 60 * 1e3;
@@ -1589,7 +1651,7 @@ function tsMinute(d = /* @__PURE__ */ new Date()) {
 init_logger();
 var SEVERITY_ORDER = { high: 3, medium: 2, low: 1 };
 function extractPreview(filePath) {
-  const content = readFileSync7(filePath, "utf-8");
+  const content = readFileSync8(filePath, "utf-8");
   const lines = content.split("\n");
   let inFm = false;
   for (const line of lines) {
@@ -1610,11 +1672,11 @@ function extractPreview(filePath) {
 }
 function listAudit(root, filter) {
   const dirs = [];
-  if (filter === "open" || filter === "all") dirs.push(join5(root, "\u53CD\u9988", "\u5F85\u5904\u7406"));
-  if (filter === "resolved" || filter === "all") dirs.push(join5(root, "\u53CD\u9988", "\u5DF2\u5904\u7406"));
+  if (filter === "open" || filter === "all") dirs.push(join6(root, "\u53CD\u9988", "\u5F85\u5904\u7406"));
+  if (filter === "resolved" || filter === "all") dirs.push(join6(root, "\u53CD\u9988", "\u5DF2\u5904\u7406"));
   const entries = [];
   for (const dir of dirs) {
-    if (!existsSync4(dir)) continue;
+    if (!existsSync5(dir)) continue;
     const files = collectMdFiles(dir);
     for (const f of files) {
       if (basename3(f) === ".gitkeep") continue;
@@ -1667,9 +1729,9 @@ function createAudit(root, target, severity, text) {
   const now = /* @__PURE__ */ new Date();
   const filename = `${tsCompact(now)}-${slug}.md`;
   const tsFm = tsMinute(now);
-  const destDir = join5(root, "\u53CD\u9988", "\u5F85\u5904\u7406");
+  const destDir = join6(root, "\u53CD\u9988", "\u5F85\u5904\u7406");
   mkdirSync2(destDir, { recursive: true });
-  const dest = join5(destDir, filename);
+  const dest = join6(destDir, filename);
   const content = `---
 type: audit
 target: ${target}
@@ -1701,12 +1763,12 @@ function auditCommand(program2) {
 }
 
 // src/commands/dir-index.ts
-import { existsSync as existsSync5, readdirSync as readdirSync4, readFileSync as readFileSync8, statSync as statSync5, writeFileSync as writeFileSync3, lstatSync as lstatSync3 } from "fs";
-import { join as join6, basename as basename4, relative as relative5, resolve as resolve2 } from "path";
+import { existsSync as existsSync6, readdirSync as readdirSync4, readFileSync as readFileSync9, statSync as statSync5, writeFileSync as writeFileSync3, lstatSync as lstatSync3 } from "fs";
+import { join as join7, basename as basename4, relative as relative5, resolve as resolve2 } from "path";
 init_paths();
 init_logger();
 function extractSummary(filePath) {
-  const content = readFileSync8(filePath, "utf-8");
+  const content = readFileSync9(filePath, "utf-8");
   const lines = content.split("\n");
   let found = false;
   for (const line of lines) {
@@ -1758,7 +1820,7 @@ function escapeCell(s) {
 function buildIndex(dir, root) {
   const reldir = dir === root ? "" : relative5(root, dir);
   const dirName = reldir === "" ? basename4(root) : basename4(dir);
-  const indexFile = join6(dir, "_INDEX.md");
+  const indexFile = join7(dir, "_INDEX.md");
   let names;
   try {
     names = readdirSync4(dir, { encoding: "utf-8" });
@@ -1769,7 +1831,7 @@ function buildIndex(dir, root) {
   for (const name of names) {
     if (name.startsWith(".")) continue;
     if (name === "_INDEX.md" || name === ".gitkeep") continue;
-    const full = join6(dir, name);
+    const full = join7(dir, name);
     let stat;
     try {
       stat = lstatSync3(full);
@@ -1780,7 +1842,7 @@ function buildIndex(dir, root) {
       const slug = relative5(root, full).replace(/\.md$/, "");
       entries.push(readEntryFromFile(full, slug));
     } else if (stat.isDirectory() && isFolderPackage(full)) {
-      const articlePath = join6(full, "article.md");
+      const articlePath = join7(full, "article.md");
       const slug = relative5(root, full);
       entries.push(readEntryFromFile(articlePath, slug));
     }
@@ -1819,7 +1881,7 @@ function findIndexableDirs(root) {
       for (const name of names) {
         if (name.startsWith(".")) continue;
         if (name === "_INDEX.md" || name === ".gitkeep") continue;
-        const full = join6(dir, name);
+        const full = join7(dir, name);
         let stat;
         try {
           stat = lstatSync3(full);
@@ -1839,7 +1901,7 @@ function findIndexableDirs(root) {
     }
     for (const name of names) {
       if (name.startsWith(".")) continue;
-      const full = join6(dir, name);
+      const full = join7(dir, name);
       let stat;
       try {
         stat = lstatSync3(full);
@@ -1856,8 +1918,8 @@ function findIndexableDirs(root) {
 }
 function runIndex(root, specificDir) {
   if (specificDir) {
-    const full = join6(root, specificDir);
-    if (!existsSync5(full)) {
+    const full = join7(root, specificDir);
+    if (!existsSync6(full)) {
       throw new Error(`directory not found: ${specificDir}`);
     }
     if (resolve2(full) === resolve2(root)) {
@@ -1905,7 +1967,7 @@ function indexCommand(program2) {
 
 // src/commands/install-skills.ts
 import {
-  existsSync as existsSync6,
+  existsSync as existsSync7,
   mkdirSync as mkdirSync3,
   readdirSync as readdirSync5,
   symlinkSync,
@@ -1913,7 +1975,7 @@ import {
   readlinkSync,
   lstatSync as lstatSync4
 } from "fs";
-import { join as join7 } from "path";
+import { join as join8 } from "path";
 init_logger();
 function isSymlink(path) {
   try {
@@ -1925,13 +1987,13 @@ function isSymlink(path) {
 function installSkillsCommand(program2) {
   const cmd = program2.command("install-skills").description("Install lorekit skills into a harness (e.g. Claude Code)").option("--target <harness>", 'Target harness (currently only "claude-code")').option("--list", "List currently installed wiki-* skill symlinks").option("--uninstall", "Remove installed skill symlinks");
   cmd.action((opts) => {
-    const skillsDest = join7(process.env.HOME ?? "", ".claude", "skills");
+    const skillsDest = join8(process.env.HOME ?? "", ".claude", "skills");
     if (opts.list) {
-      if (!existsSync6(skillsDest)) return;
+      if (!existsSync7(skillsDest)) return;
       const names = readdirSync5(skillsDest, { encoding: "utf-8" });
       for (const name of names) {
         if (!name.startsWith("wiki-")) continue;
-        const full = join7(skillsDest, name);
+        const full = join8(skillsDest, name);
         if (!isSymlink(full)) continue;
         const target = readlinkSync(full);
         out(`${name} -> ${target}`);
@@ -1947,8 +2009,8 @@ function installSkillsCommand(program2) {
       process.exit(2);
     }
     mkdirSync3(skillsDest, { recursive: true });
-    const skillsSrc = join7(lorekitRoot(), "skills");
-    if (!existsSync6(skillsSrc)) {
+    const skillsSrc = join8(lorekitRoot(), "skills");
+    if (!existsSync7(skillsSrc)) {
       err(`skills directory not found: ${skillsSrc}`);
       process.exit(1);
     }
@@ -1956,17 +2018,17 @@ function installSkillsCommand(program2) {
     const skillNames = allNames.filter((name) => {
       if (!name.startsWith("wiki-")) return false;
       try {
-        return lstatSync4(join7(skillsSrc, name)).isDirectory();
+        return lstatSync4(join8(skillsSrc, name)).isDirectory();
       } catch {
         return false;
       }
     });
     let count = 0;
     for (const name of skillNames) {
-      const srcDir = join7(skillsSrc, name);
-      const skillFile = join7(srcDir, "SKILL.md");
-      if (!existsSync6(skillFile)) continue;
-      const dest = join7(skillsDest, name);
+      const srcDir = join8(skillsSrc, name);
+      const skillFile = join8(srcDir, "SKILL.md");
+      if (!existsSync7(skillFile)) continue;
+      const dest = join8(skillsDest, name);
       if (opts.uninstall) {
         if (isSymlink(dest)) {
           unlinkSync(dest);
@@ -1992,14 +2054,14 @@ Installed ${count} skill(s). Restart Claude Code to load them.`);
 // src/commands/snapshot.ts
 init_logger();
 import {
-  existsSync as existsSync7,
+  existsSync as existsSync8,
   mkdirSync as mkdirSync4,
   writeFileSync as writeFileSync4,
   unlinkSync as unlinkSync2,
   readdirSync as readdirSync6,
   statSync as statSync6
 } from "fs";
-import { join as join8, relative as relative6 } from "path";
+import { join as join9, relative as relative6 } from "path";
 import * as tar from "tar";
 init_paths();
 function collectAllFiles(dir, base) {
@@ -2007,7 +2069,7 @@ function collectAllFiles(dir, base) {
   function walk(d) {
     for (const entry of readdirSync6(d, { withFileTypes: true })) {
       if (snapshotExcludeNames.has(entry.name)) continue;
-      const full = join8(d, entry.name);
+      const full = join9(d, entry.name);
       if (entry.isDirectory()) {
         walk(full);
       } else {
@@ -2021,7 +2083,7 @@ function collectAllFiles(dir, base) {
 function snapshotCommand(program2) {
   program2.command("snapshot").option("--tag <name>", "optional tag appended to filename").description("create a tarball snapshot of the corpus").action(async (opts) => {
     const corpus = requireCorpus();
-    const snapshotsDir = join8(corpus, ".wiki", "snapshots");
+    const snapshotsDir = join9(corpus, ".wiki", "snapshots");
     mkdirSync4(snapshotsDir, { recursive: true });
     const files = collectAllFiles(corpus, corpus);
     if (files.length === 0) {
@@ -2029,7 +2091,7 @@ function snapshotCommand(program2) {
       return;
     }
     const manifest = files.map((relPath) => {
-      const full = join8(corpus, relPath);
+      const full = join9(corpus, relPath);
       const st = statSync6(full);
       return {
         path: relPath,
@@ -2038,12 +2100,12 @@ function snapshotCommand(program2) {
         mtime: st.mtime.toISOString()
       };
     });
-    const manifestPath = join8(snapshotsDir, "manifest.json");
+    const manifestPath = join9(snapshotsDir, "manifest.json");
     writeFileSync4(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
     try {
       const tag = opts.tag ? `-${opts.tag}` : "";
       const tarName = `${tsCompact()}${tag}.tar.gz`;
-      const tarPath = join8(snapshotsDir, tarName);
+      const tarPath = join9(snapshotsDir, tarName);
       const allEntries = [...files, relative6(corpus, manifestPath)];
       await tar.create(
         {
@@ -2058,15 +2120,15 @@ function snapshotCommand(program2) {
       const sizeMB = (tarStat.size / 1024 / 1024).toFixed(1);
       ok(`snapshot saved: ${tarPath} (${files.length} files, ${sizeMB} MB)`);
     } finally {
-      if (existsSync7(manifestPath)) unlinkSync2(manifestPath);
+      if (existsSync8(manifestPath)) unlinkSync2(manifestPath);
     }
   });
 }
 
 // src/commands/restore.ts
 init_logger();
-import { existsSync as existsSync8, mkdirSync as mkdirSync5, readFileSync as readFileSync10, copyFileSync, rmSync } from "fs";
-import { join as join9, dirname as dirname3 } from "path";
+import { existsSync as existsSync9, mkdirSync as mkdirSync5, readFileSync as readFileSync11, copyFileSync, rmSync } from "fs";
+import { join as join10, dirname as dirname3 } from "path";
 import { createInterface as createInterface2 } from "readline";
 import { tmpdir } from "os";
 import * as tar2 from "tar";
@@ -2086,30 +2148,30 @@ function rmDirRecursive(dir) {
 function restoreCommand(program2) {
   program2.command("restore").requiredOption("--from <snapshot>", "path to snapshot .tar.gz").option("--dry-run", "only list differences, do not restore").option("--file <path>", "restore only this specific file").description("restore files from a snapshot").action(async (opts) => {
     const corpus = requireCorpus();
-    if (!existsSync8(opts.from)) {
+    if (!existsSync9(opts.from)) {
       bad(`snapshot not found: ${opts.from}`);
       process.exitCode = 2;
       return;
     }
-    const tmpDir = join9(tmpdir(), `lorekit-restore-${Date.now()}`);
+    const tmpDir = join10(tmpdir(), `lorekit-restore-${Date.now()}`);
     mkdirSync5(tmpDir, { recursive: true });
     try {
       await tar2.extract({
         file: opts.from,
         cwd: tmpDir
       });
-      const manifestPath = join9(tmpDir, ".wiki", "snapshots", "manifest.json");
-      if (!existsSync8(manifestPath)) {
+      const manifestPath = join10(tmpDir, ".wiki", "snapshots", "manifest.json");
+      if (!existsSync9(manifestPath)) {
         bad("manifest.json not found in snapshot");
         process.exitCode = 1;
         return;
       }
-      const manifest = JSON.parse(readFileSync10(manifestPath, "utf-8"));
+      const manifest = JSON.parse(readFileSync11(manifestPath, "utf-8"));
       const diffs = [];
       for (const entry of manifest) {
         if (opts.file && entry.path !== opts.file) continue;
-        const corpusPath = join9(corpus, entry.path);
-        if (!existsSync8(corpusPath)) {
+        const corpusPath = join10(corpus, entry.path);
+        if (!existsSync9(corpusPath)) {
           diffs.push({
             kind: "MISSING",
             path: entry.path,
@@ -2160,9 +2222,9 @@ function restoreCommand(program2) {
       }
       let restored = 0;
       for (const d of diffs) {
-        const src = join9(tmpDir, d.path);
-        const dest = join9(corpus, d.path);
-        if (!existsSync8(src)) {
+        const src = join10(tmpDir, d.path);
+        const dest = join10(corpus, d.path);
+        if (!existsSync9(src)) {
           warn(`file not in snapshot archive: ${d.path}`);
           continue;
         }
@@ -2179,11 +2241,11 @@ function restoreCommand(program2) {
 
 // src/commands/search.ts
 init_logger();
-import { readFileSync as readFileSync11 } from "fs";
-import { join as join10, relative as relative8 } from "path";
+import { readFileSync as readFileSync12 } from "fs";
+import { join as join11, relative as relative8 } from "path";
 import { spawnSync } from "child_process";
 function searchWithRipgrep(query, corpus, opts) {
-  const searchDir = opts.dir ? join10(corpus, opts.dir) : corpus;
+  const searchDir = opts.dir ? join11(corpus, opts.dir) : corpus;
   const args = ["--json", "--no-heading", "-i"];
   if (opts.type) {
     args.push("--type", opts.type);
@@ -2215,12 +2277,12 @@ function searchWithRipgrep(query, corpus, opts) {
   return results;
 }
 function searchFallback(query, corpus, opts) {
-  const searchDir = opts.dir ? join10(corpus, opts.dir) : corpus;
+  const searchDir = opts.dir ? join11(corpus, opts.dir) : corpus;
   const files = collectMdFiles(searchDir);
   const pattern = new RegExp(query, "i");
   const results = [];
   for (const filePath of files) {
-    const content = readFileSync11(filePath, "utf-8");
+    const content = readFileSync12(filePath, "utf-8");
     const lines = content.split("\n");
     for (let i = 0; i < lines.length; i++) {
       if (pattern.test(lines[i])) {
@@ -2260,8 +2322,8 @@ function searchCommand(program2) {
 // src/commands/vector.ts
 init_logger();
 import { createHash as createHash4 } from "crypto";
-import { existsSync as existsSync12, readFileSync as readFileSync15 } from "fs";
-import { join as join15, relative as relative13 } from "path";
+import { existsSync as existsSync13, readFileSync as readFileSync16 } from "fs";
+import { join as join16, relative as relative13 } from "path";
 async function runVectorSync(corpus, opts = {}) {
   const force = opts.force ?? false;
   const layered = opts.layered ?? true;
@@ -2280,7 +2342,7 @@ async function runVectorSync(corpus, opts = {}) {
     if (!force) {
       const row = db.prepare("SELECT sha256 FROM documents WHERE path = ?").get(rel);
       if (row) {
-        const sha = createHash4("sha256").update(readFileSync15(filePath)).digest("hex");
+        const sha = createHash4("sha256").update(readFileSync16(filePath)).digest("hex");
         if (row.sha256 === sha) {
           skipped++;
           continue;
@@ -2327,8 +2389,8 @@ function vectorCommand(program2) {
       const { embedSingle: embedSingle2 } = await Promise.resolve().then(() => (init_ollama(), ollama_exports));
       const { openDb: openDb2, queryFlat: queryFlat2, queryLayered: queryLayered2, queryBM25Layered: queryBM25Layered2, queryHybrid: queryHybrid2 } = await Promise.resolve().then(() => (init_vectordb(), vectordb_exports));
       let dim = 1024;
-      const dbPath = join15(corpus, ".wiki", "vector.sqlite");
-      if (existsSync12(dbPath)) {
+      const dbPath = join16(corpus, ".wiki", "vector.sqlite");
+      if (existsSync13(dbPath)) {
         const tmpDb = await openDb2(corpus);
         const row = tmpDb.prepare("SELECT value FROM meta WHERE key = 'dim'").get();
         if (row) dim = parseInt(row.value, 10);
@@ -2358,12 +2420,12 @@ function vectorCommand(program2) {
 }
 
 // src/commands/fetch.ts
-import { existsSync as existsSync14, mkdirSync as mkdirSync8 } from "fs";
-import { join as join21, relative as relative14 } from "path";
+import { existsSync as existsSync15, mkdirSync as mkdirSync8 } from "fs";
+import { join as join22, relative as relative14 } from "path";
 
 // src/lib/fetcher/index.ts
 import { mkdir as mkdir4, writeFile as writeFile4 } from "fs/promises";
-import { join as join19 } from "path";
+import { join as join20 } from "path";
 
 // src/lib/fetcher/frontmatter.ts
 function escapeDoubleQuote(s) {
@@ -2508,7 +2570,7 @@ async function fetchHtmlL2(url) {
 
 // src/lib/fetcher/images.ts
 import { mkdir, writeFile } from "fs/promises";
-import { join as join16 } from "path";
+import { join as join17 } from "path";
 var MAX_IMG_BYTES = 5 * 1024 * 1024;
 var IMG_CONCURRENCY = 5;
 var MAGIC = [
@@ -2559,7 +2621,7 @@ async function downloadOneImage(url, idx, imagesDir, headers, assetsRelPath) {
       const ext = sniffExt(data.slice(0, 16), res.headers.get("content-type") || "");
       if (!ext) continue;
       const fname = `img_${String(idx).padStart(2, "0")}${ext}`;
-      await writeFile(join16(imagesDir, fname), data);
+      await writeFile(join17(imagesDir, fname), data);
       return { originalUrl: url, localRel: `${assetsRelPath}${fname}`, status: "ok" };
     } catch {
     }
@@ -2722,7 +2784,7 @@ function parseWeixin(html, baseUrl) {
 
 // src/lib/fetcher/routes/gist.ts
 import { mkdir as mkdir2, writeFile as writeFile2 } from "fs/promises";
-import { join as join17 } from "path";
+import { join as join18 } from "path";
 import * as cheerio3 from "cheerio";
 function parseGistUrl(url) {
   try {
@@ -2811,7 +2873,7 @@ async function fetchGist(url, outRoot) {
   fmLines.push("");
   if (!hasH1) fmLines.push(`# ${title}`, "");
   fmLines.push(content.trim(), "");
-  const articlePath = join17(outRoot, `${slug}.md`);
+  const articlePath = join18(outRoot, `${slug}.md`);
   await writeFile2(articlePath, fmLines.join("\n"), "utf-8");
   return {
     status: "ok",
@@ -2831,7 +2893,7 @@ async function fetchGist(url, outRoot) {
 
 // src/lib/fetcher/routes/github.ts
 import { mkdir as mkdir3, writeFile as writeFile3 } from "fs/promises";
-import { join as join18 } from "path";
+import { join as join19 } from "path";
 function parseGithubRepoUrl(url) {
   try {
     const u = new URL(url);
@@ -2907,7 +2969,7 @@ async function fetchGithubDoc(url, outRoot) {
   if (!hasH1) fmLines.push(`# ${title}`, "");
   fmLines.push(`> Fetched from: ${chosenUrl}`, "");
   fmLines.push(content.trim(), "");
-  const articlePath = join18(outRoot, `${slug}.md`);
+  const articlePath = join19(outRoot, `${slug}.md`);
   await writeFile3(articlePath, fmLines.join("\n"), "utf-8");
   return {
     status: "ok",
@@ -2972,7 +3034,7 @@ async function fetchUrl(url, opts) {
   }
   let md = htmlToMarkdown(doc.bodyHtml);
   const slug = slugify(doc.title || "untitled");
-  const assetsDir = join19(opts.outRoot, `${slug}.assets`);
+  const assetsDir = join20(opts.outRoot, `${slug}.assets`);
   await mkdir4(opts.outRoot, { recursive: true });
   let imagesOk = 0;
   let imagesFailed = 0;
@@ -3000,7 +3062,7 @@ async function fetchUrl(url, opts) {
   fmLines.push("");
   if (doc.title) fmLines.push(`# ${doc.title}`, "");
   fmLines.push(md, "");
-  const articlePath = join19(opts.outRoot, `${slug}.md`);
+  const articlePath = join20(opts.outRoot, `${slug}.md`);
   await writeFile4(articlePath, fmLines.join("\n"), "utf-8");
   return {
     status: "ok",
@@ -3020,18 +3082,18 @@ async function fetchUrl(url, opts) {
 }
 
 // src/lib/ingest-state.ts
-import { existsSync as existsSync13, mkdirSync as mkdirSync7, readFileSync as readFileSync16, writeFileSync as writeFileSync5 } from "fs";
-import { join as join20, dirname as dirname4 } from "path";
+import { existsSync as existsSync14, mkdirSync as mkdirSync7, readFileSync as readFileSync17, writeFileSync as writeFileSync5 } from "fs";
+import { join as join21, dirname as dirname4 } from "path";
 function stateFilePath(corpus) {
-  return join20(corpus, ".wiki", "ingest-state.json");
+  return join21(corpus, ".wiki", "ingest-state.json");
 }
 function loadIngestState(corpus) {
   const p = stateFilePath(corpus);
-  if (!existsSync13(p)) {
+  if (!existsSync14(p)) {
     return { version: 1, ingests: {} };
   }
   try {
-    const raw = readFileSync16(p, "utf-8");
+    const raw = readFileSync17(p, "utf-8");
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") {
       return { version: 1, ingests: {} };
@@ -3132,9 +3194,9 @@ function fetchCommand(program2) {
       if (opts.out) {
         outRoot = opts.out;
       } else {
-        outRoot = corpus ? join21(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch") : "/tmp/lorekit-fetch";
+        outRoot = corpus ? join22(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch") : "/tmp/lorekit-fetch";
       }
-      if (!existsSync14(outRoot)) {
+      if (!existsSync15(outRoot)) {
         mkdirSync8(outRoot, { recursive: true });
       }
       let duplicate;
@@ -3227,15 +3289,15 @@ function fetchCommand(program2) {
 }
 
 // src/commands/ingest.ts
-import { existsSync as existsSync15, readFileSync as readFileSync17, writeFileSync as writeFileSync6 } from "fs";
-import { join as join22, relative as relative15 } from "path";
+import { existsSync as existsSync16, readFileSync as readFileSync18, writeFileSync as writeFileSync6 } from "fs";
+import { join as join23, relative as relative15 } from "path";
 init_logger();
 var VALID_STEPS = ["fetch", "archive", "wiki", "backlink", "lint"];
 function today() {
   return dateToYMDLocal(/* @__PURE__ */ new Date());
 }
 function appendLogEntry(corpus, record, body) {
-  const logPath = join22(corpus, "log.md");
+  const logPath = join23(corpus, "log.md");
   const title = record.title ?? "(untitled)";
   const wikiList = (record.wikiPages ?? []).map((p) => `  - ${p}`).join("\n");
   const archived = record.archivedTo ?? "(unrecorded)";
@@ -3252,7 +3314,7 @@ ${wikiList}` : "- **\u65B0\u5EFA/\u66F4\u65B0\u9875**\uFF1A\uFF08\u65E0\uFF09",
     ""
   ].join("\n");
   let existing = "";
-  if (existsSync15(logPath)) existing = readFileSync17(logPath, "utf-8");
+  if (existsSync16(logPath)) existing = readFileSync18(logPath, "utf-8");
   if (!existing) {
     const header = '# Log\n\n> \u64CD\u4F5C\u65F6\u95F4\u7EBF\uFF0Cappend-only\u3002\u6BCF\u6761\u683C\u5F0F\uFF1A`## [YYYY-MM-DD] \u64CD\u4F5C\u7C7B\u578B | \u6807\u9898`\n> \u53EF\u7528 `grep "^## \\[" log.md | tail -10` \u5FEB\u901F\u67E5\u6700\u8FD1\u64CD\u4F5C\u3002\n\n';
     writeFileSync6(logPath, header + entry, "utf-8");
@@ -3398,8 +3460,8 @@ ${summary.join("\n")}`
     const okLinks = [];
     const checked = [];
     for (const f of files) {
-      const abs = f.startsWith("/") ? f : join22(process.cwd(), f);
-      if (!existsSync15(abs)) {
+      const abs = f.startsWith("/") ? f : join23(process.cwd(), f);
+      if (!existsSync16(abs)) {
         print(`[lorekit ingest check] file not found: ${f}`);
         process.exitCode = 2;
         continue;
@@ -3408,7 +3470,7 @@ ${summary.join("\n")}`
       checked.push(rel);
       let content;
       try {
-        content = stripCode(readFileSync17(abs, "utf-8"));
+        content = stripCode(readFileSync18(abs, "utf-8"));
       } catch {
         continue;
       }
@@ -3450,8 +3512,8 @@ ${summary.join("\n")}`
   });
   group.command("reconcile").description("Back-fill state for pre-existing \u539F\u6599/ pages missing a state record").option("--dry-run", "list what would be added without writing").action((opts) => {
     const corpus = requireCorpus();
-    const sourcesRoot = join22(corpus, "\u539F\u6599");
-    if (!existsSync15(sourcesRoot)) {
+    const sourcesRoot = join23(corpus, "\u539F\u6599");
+    if (!existsSync16(sourcesRoot)) {
       print("[lorekit ingest reconcile] no \u539F\u6599/ directory");
       return;
     }
@@ -3494,8 +3556,8 @@ init_logger();
 
 // src/lib/root-index.ts
 init_logger();
-import { existsSync as existsSync16, readFileSync as readFileSync18, readdirSync as readdirSync10, writeFileSync as writeFileSync7 } from "fs";
-import { join as join23 } from "path";
+import { existsSync as existsSync17, readFileSync as readFileSync19, readdirSync as readdirSync10, writeFileSync as writeFileSync7 } from "fs";
+import { join as join24 } from "path";
 var MANAGED_SECTIONS = [
   { heading: "## \u6982\u5FF5", subdir: "\u77E5\u8BC6\u5E93/\u6982\u5FF5" },
   { heading: "## \u5B9E\u4F53", subdir: "\u77E5\u8BC6\u5E93/\u5B9E\u4F53" },
@@ -3503,14 +3565,14 @@ var MANAGED_SECTIONS = [
   { heading: "## \u4E13\u9898", subdir: "\u77E5\u8BC6\u5E93/\u4E13\u9898" }
 ];
 function listEntriesInDir(corpus, subdir) {
-  const dirPath = join23(corpus, subdir);
-  if (!existsSync16(dirPath)) return [];
+  const dirPath = join24(corpus, subdir);
+  if (!existsSync17(dirPath)) return [];
   const out2 = [];
   for (const name of readdirSync10(dirPath)) {
     if (name.startsWith(".")) continue;
     if (name === "_INDEX.md") continue;
     if (!name.endsWith(".md")) continue;
-    const file = join23(dirPath, name);
+    const file = join24(dirPath, name);
     const slug = `${subdir}/${name.replace(/\.md$/, "")}`;
     out2.push({ slug, summary: extractCompiledTruthSnippet(file) });
   }
@@ -3519,7 +3581,7 @@ function listEntriesInDir(corpus, subdir) {
 function extractCompiledTruthSnippet(filePath) {
   let content;
   try {
-    content = readFileSync18(filePath, "utf-8");
+    content = readFileSync19(filePath, "utf-8");
   } catch (e) {
     debug(`extractCompiledTruthSnippet(${filePath}) failed: ${e.message}`);
     return "\u2014";
@@ -3588,11 +3650,11 @@ function mergeSection(content, heading, onDisk) {
   };
 }
 function refreshRootIndex(corpus) {
-  const indexPath = join23(corpus, "index.md");
-  if (!existsSync16(indexPath)) {
+  const indexPath = join24(corpus, "index.md");
+  if (!existsSync17(indexPath)) {
     return { filePath: indexPath, changed: false, perSection: [] };
   }
-  const before = readFileSync18(indexPath, "utf-8");
+  const before = readFileSync19(indexPath, "utf-8");
   let content = before;
   const perSection = [];
   for (const sec of MANAGED_SECTIONS) {
@@ -3678,6 +3740,82 @@ function syncCommand(program2) {
   });
 }
 
+// src/commands/obsidian-tune.ts
+init_logger();
+import { cpSync as cpSync2, existsSync as existsSync18, mkdirSync as mkdirSync9, writeFileSync as writeFileSync8 } from "fs";
+import { join as join25 } from "path";
+function runPrint() {
+  const cfg = getRecommendedGraphConfig();
+  out(JSON.stringify(cfg, null, 2));
+}
+function runCheck(corpus) {
+  const recommended = getRecommendedFilter();
+  const cur = readCorpusFilter(corpus);
+  if (!cur.exists) {
+    warn(".obsidian/graph.json \u7F3A\u5931");
+    print("");
+    print("\u63A8\u8350 filter\uFF08\u542B _\u5F52\u6863 / \u53CD\u9988 + \u5B8C\u6574\u6839\u5143\u6570\u636E\uFF09:");
+    print(`  ${recommended}`);
+    print("");
+    print("\u5E94\u7528\uFF1Alorekit obsidian-tune --write");
+    return 1;
+  }
+  if (isFilterComplete(cur.search, recommended)) {
+    ok(".obsidian/graph.json filter \u5B8C\u6574");
+    return 0;
+  }
+  warn(".obsidian/graph.json filter \u4E0D\u5B8C\u6574");
+  print("");
+  print("\u5F53\u524D filter\uFF08\u5982\u6709\uFF09:");
+  print(`  ${cur.search ?? "(\u7A7A)"}`);
+  print("");
+  print("\u63A8\u8350 filter\uFF08\u542B _\u5F52\u6863 / \u53CD\u9988 + \u5B8C\u6574\u6839\u5143\u6570\u636E\uFF09:");
+  print(`  ${recommended}`);
+  print("");
+  print("\u7F3A\u5C11\u7684 token:");
+  for (const t of missingTokens(cur.search, recommended)) {
+    print(`  - ${t}`);
+  }
+  print("");
+  print("\u5E94\u7528\uFF1Alorekit obsidian-tune --write");
+  return 1;
+}
+function runWrite(corpus) {
+  const dest = join25(corpus, ".obsidian", "graph.json");
+  const destDir = join25(corpus, ".obsidian");
+  if (!existsSync18(destDir)) mkdirSync9(destDir, { recursive: true });
+  if (existsSync18(dest)) {
+    const backup = `${dest}.bak.${tsCompact()}`;
+    cpSync2(dest, backup);
+    ok(`\u5907\u4EFD .obsidian/graph.json \u2192 ${backup}`);
+  }
+  const cfg = getRecommendedGraphConfig();
+  writeFileSync8(dest, JSON.stringify(cfg, null, 2) + "\n", "utf-8");
+  ok("\u5199\u5165\u63A8\u8350 filter");
+  info("\u8BF7\u5173\u6389 Obsidian\u300C\u5173\u7CFB\u56FE\u8C31\u300D\u6807\u7B7E\u9875\u518D\u91CD\u5F00\u751F\u6548");
+  return 0;
+}
+function obsidianTuneCommand(program2) {
+  program2.command("obsidian-tune").description("check / apply recommended Obsidian graph filter for the corpus").option("--write", "apply recommended filter (backs up existing graph.json first)").option("--print", "print recommended graph.json to stdout (pipe-friendly)").action((opts) => {
+    if (opts.print) {
+      runPrint();
+      process.exitCode = 0;
+      return;
+    }
+    const corpus = findCorpus();
+    if (!corpus) {
+      err("not inside a corpus (no .wiki/ or CLAUDE.md found)");
+      process.exitCode = 2;
+      return;
+    }
+    if (opts.write) {
+      process.exitCode = runWrite(corpus);
+    } else {
+      process.exitCode = runCheck(corpus);
+    }
+  });
+}
+
 // src/cli.ts
 var version = readVersion();
 function showBanner() {
@@ -3693,7 +3831,7 @@ function showBanner() {
     }
     try {
       const dbPath = `${corpus}/.wiki/vector.sqlite`;
-      if (existsSync17(dbPath)) {
+      if (existsSync19(dbPath)) {
         const db = new Database(dbPath, { readonly: true });
         const cntRow = db.prepare("SELECT COUNT(*) as c FROM documents").get();
         indexed = String(cntRow?.c ?? 0);
@@ -3764,6 +3902,7 @@ vectorCommand(program);
 fetchCommand(program);
 ingestCommand(program);
 syncCommand(program);
+obsidianTuneCommand(program);
 if (process.argv.length <= 2) {
   showBanner();
 } else {

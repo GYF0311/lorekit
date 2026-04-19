@@ -22,6 +22,7 @@ import { vectorCommand } from './commands/vector.js';
 import { fetchCommand } from './commands/fetch.js';
 import { ingestCommand } from './commands/ingest.js';
 import { syncCommand } from './commands/sync.js';
+import { obsidianTuneCommand } from './commands/obsidian-tune.js';
 
 const version = readVersion();
 
@@ -131,6 +132,7 @@ vectorCommand(program);
 fetchCommand(program);
 ingestCommand(program);
 syncCommand(program);
+obsidianTuneCommand(program);
 
 // no subcommand → show banner
 if (process.argv.length <= 2) {

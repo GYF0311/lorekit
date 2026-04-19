@@ -225,3 +225,10 @@ Karpathy 的 LLM Wiki Gist 原文假设：**1 wiki = 1 domain**（专项 wiki，
 
 - 工具决定 → 内置预设（safe-write 不覆盖用户调整）
 - 用户偏好 → 不动
+
+### 老用户触达：批次 26 升级 Layer 3
+
+批次 25 的 `lorekit init` 解决新用户。老用户（v0.4.0 前 init 的 corpus）通过：
+1. **CLI** — `lorekit obsidian-tune` 检查 + `--write` 一键应用
+2. **被动触达** — `lorekit doctor` 主动提示 filter 不完整 + 修复命令
+3. **Layer 3 命令存在意义升级**：从"单条 graph filter 不值得养独立命令"变成"诊断 + 修复 .obsidian/ 配置漂移的专门命令"，未来加 colorGroups / userIgnoreFilters 等都纳入这个命令
