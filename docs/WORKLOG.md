@@ -6,6 +6,55 @@
 
 ---
 
+## 2026-04-19 — 批次 22c：抽 vectordb 向量查询 query-flat + query-layered（strangler fig 第三步 / P0-1）
+
+**做了什么**
+
+- 新建 2 个文件到 `src/lib/vectordb/`：
+  - `query-flat.ts`（76 行）：`queryFlat(db, embedding, topK, threshold): QueryResult[]` — 单层 vec_chunks ANN 召回 + threshold 过滤 + JOIN documents 拿元数据
+  - `query-layered.ts`（166 行）：`queryLayered(db, embedding, topK, threshold): QueryResult[]` — L0 (vec_dirs top-3) → L1 (vec_pages top-5) → L2 (vec_chunks topK) 三层串联 + dir_summaries.slug_list 候选收集 + slug→doc_id 映射（兼容 .md 后缀和目录包装式 article.md）
+- exports：每个文件仅 1 个公开 fn
+- 内部依赖（依赖 22a）：两文件都用 `files.ts` 的 `distanceToScore` + `float32ToBuffer` + `schema.ts` 的 type `Db` / `QueryResult`。**两文件互不依赖**，无新增 type
+- 原 vectordb.ts 一行未动；commands/*.ts 一行未动；22a/22b 抽出的文件一行未动
+- tag：`refactor-batch-22c`
+- 验证：
+  - `npm run verify` 全绿，18 tests / 17 pass / 1 skip / ~2.6s
+  - `npm run lint` src 范围 **45 不变**（query-flat.ts / query-layered.ts 自身 0 error，无 console / 无 as any）
+
+**byte-level 验证范围声明**
+
+按 22b 模式，开发机无 sqlite-vec 装无法跑实 db query。改用 `git show refactor-batch-22b:src/lib/vectordb.ts` 拿原版（**只读** git 命令，红线豁免），逐函数 diff 新文件函数体：
+
+| 段                            | 验证方式                                              | 结果 |
+| ----------------------------- | ----------------------------------------------------- | ---- |
+| `queryFlat` 函数体             | `diff legacy(L378-420) actual(query-flat.ts)`         | **0 字符差异**（仅尾部空行差，sed 切片artifact，非函数体） |
+| `queryLayered` 函数体          | `diff legacy(L421-555) actual(query-layered.ts)`      | **0 字符差异**（含三层逻辑 / parent boost / 集合融合 / slug→doc_id 映射 / score 计算全部 byte-equal） |
+| `queryFlat` / `queryLayered` 实际 db query 行为 | 不验（开发机无 sqlite-vec 装；mock vec0/fts5 虚表收益低成本高） | 降级（22f 集成测兜底） |
+
+**抄写过程发现的可疑原代码点（不修，记账留 follow-up）**
+
+按规划方"queryLayered 三层逻辑抄写时有没有发现可疑的原代码 bug"询问，记 4 条：
+
+1. **L0 cap 写死 k=3 / L1 cap 写死 5**（query-layered.ts:48 / :109）：硬编码常量不与 topK 联动。用户要 `topK=20` chunks 时，L0 仍只看 top-3 sections、L1 只 top-5 pages —— 大 topK 场景可能召回不足。原代码无注释解释为何 cap 不联动 topK。建议后续 follow-up：(a) 加注释说明 by-design；(b) 或参数化为可调 const
+2. **L0 / L1 不用 threshold**（query-layered.ts）：threshold 参数仅在 L2 最后一关 score 过滤时用。L0/L1 完全靠 ANN topK，不论 distance 多远都进候选。索引差时 L0 top-3 可能全是噪声，导致后续整层废
+3. **`searchK = Math.min(candidatePageIds.length, 50)`**（query-layered.ts:106）：vec0 不能 limit 候选范围，先 ANN top-50 再 filter。如候选页数 > 50 但 L1 最相关 page 排在 ANN 第 51+ 位会漏召。属 vec0 接口限制，不易绕开
+4. **变量命名冲突**（query-layered.ts:120-128）：`docIds`(line 120 `[{doc_id: number}]`) / `docIdArr`(:97 `number[]`) / `docIdList`(:130 `number[]`) 三个名字都指 doc_id 列表。功能正确但易读性差
+
+**这 4 点都不修**：22 严守 strangler fig "copy 不修" 原则；行为问题留 follow-up，命名问题留 22f 之后整体清理时考虑
+
+**为什么**
+
+- 严格按 22c 范围：仅向量查询路径（flat + layered），不动 BM25 / hybrid / status
+- 不上提共享 type：`QueryResult` 已在 22a schema.ts 上提；`EmbedFn` query 系列不用（query 拿现成 embedding）；无新需求
+- 抄写检查改用 `git show ... | sed | diff`：纯只读管道，符合 21g-final 教训记入的 playbook —— 看历史不动 working tree
+
+**接下来**
+
+- 进 22d：抽 query-bm25 + query-hybrid（含 RRF 融合）—— 等规划方下达指令
+- 不主动开始 22d
+
+---
+
 ## 2026-04-19 — 批次 22b：抽 vectordb 写路径 sync + build-layered-index（strangler fig 第二步 / P0-1）
 
 **做了什么**
