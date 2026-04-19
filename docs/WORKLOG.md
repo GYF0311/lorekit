@@ -6,6 +6,34 @@
 
 ---
 
+## 2026-04-19 — 批次 20：P4-1 ingest variadic 验证（修 wikiPages 去重）
+
+**做了什么**
+
+- 复现 P4-1 现象：`lorekit ingest record <url> --wiki-page A --wiki-page B` 然后 `--wiki-page B --wiki-page C` 后，`.wiki/ingest-state.json` 的 `wikiPages` 实际是 `[A, B, B, C]`，B 重复
+- `src/commands/ingest.ts:208` 修：`patch.wikiPages = [...prev, ...opts.wikiPage]` → `[...new Set([...prev, ...opts.wikiPage])]`，保留首次出现顺序去重，加注释指 LEGACY P4-1
+- 新增 `tests/smoke/ingest-record.test.mjs`：建临时 corpus，连发两次 record，断言 `wikiPages === [A, B, C]`
+- LEGACY P4-1 标 ✅（待验证 → 已修）
+- 工作 1 顺手：LEGACY 加 P4-8（Windows 路径分隔符硬编码）入档，单独 commit
+- tag：`refactor-batch-20`
+- smoke 17 tests / 16 pass / 1 skip；lint baseline 37 → 37（无变化）
+
+**为什么**
+
+- LEGACY P4-1 / B2 描述 wiki-page 多次追加的去重行为未实测；smoke 当场暴露 bug，按"修复 bug"路径走（fix + smoke 锁行为单 commit，比"先 smoke 锁错误行为再后续修"清晰）
+- 不去重的副作用：log.md 的 `- **新建/更新页**` bullet 列表里同一页可能出现多次；下游脚本若用 wikiPages 数量统计也会偏高
+- 用 `[...new Set(...)]` 保持首次顺序，对调用方友好（不会因为顺序变化而难以预测最终列表）
+
+**发现但未处理**
+
+- `src/commands/ingest.ts:195` `patch.stepsDone = [...prev, ...parsedSteps]` 同样不去重。多次 `--step archive` 或 `--step archive,wiki` 与 `--step wiki,backlink` 链式调用会产生 `[archive, archive, wiki, wiki, backlink]`。**不在 P4-1 描述范围**（P4-1 只提 wiki-page），未修，留给后续单独评估是否要加去重 + 进 LEGACY
+
+**接下来**
+
+- 主线只剩：批次 18（CI，可选推迟）+ 批次 21（拆 fetcher，高风险）+ 批次 22（拆 vectordb，极高风险）。21/22 必须每子批先生 review，不许 unattended
+
+---
+
 ## 2026-04-19 — 批次 19：P4 杂项 snapshot/restore/vector 安全收敛（B3/B4/B6）
 
 **做了什么**

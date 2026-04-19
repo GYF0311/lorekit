@@ -3134,7 +3134,7 @@ ${summary.join("\n")}`
       if (opts.wikiPage && opts.wikiPage.length > 0) {
         const existing = loadIngestState(corpus).ingests[url];
         const prev = existing?.wikiPages ?? [];
-        patch.wikiPages = [...prev, ...opts.wikiPage];
+        patch.wikiPages = [.../* @__PURE__ */ new Set([...prev, ...opts.wikiPage])];
       }
       if (opts.status) {
         const validStatuses = ["started", "completed", "failed"];

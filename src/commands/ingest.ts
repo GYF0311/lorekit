@@ -205,7 +205,10 @@ export function ingestCommand(program: Command): void {
         if (opts.wikiPage && opts.wikiPage.length > 0) {
           const existing = loadIngestState(corpus).ingests[url];
           const prev = existing?.wikiPages ?? [];
-          patch.wikiPages = [...prev, ...opts.wikiPage];
+          // 去重：保留首次出现顺序。多次 record 调用追加同一 wiki 页面时不应重复，
+          // 否则 log.md 的 `- **新建/更新页**` 块会出现重复条目。
+          // 见 LEGACY P4-1 / 批次 20 的复现 smoke。
+          patch.wikiPages = [...new Set([...prev, ...opts.wikiPage])];
         }
         if (opts.status) {
           const validStatuses: readonly IngestStatus[] = ['started', 'completed', 'failed'];
