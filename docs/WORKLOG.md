@@ -6,6 +6,41 @@
 
 ---
 
+## 2026-04-19 — 批次 21a：拆 fetcher.ts 工具层（strangler fig 第一步 / P0-2）
+
+**做了什么**
+
+- 新建 `src/lib/fetcher/` 子目录，从 `src/lib/fetcher.ts` **copy** 出 3 个工具层文件（原文件一行未动）：
+  - `helpers.ts`（约 100 行）：`slugify` / `resolveUrl` / `htmlToMarkdown` / `tsToYMD` / `todayYMD` / `normalizeDateText` + `SHANGHAI_TZ_OFFSET_MS` 常量。self-contained
+  - `http.ts`（约 130 行）：`UA_*` / `HTTP_TIMEOUT_MS` / `ANTIBOT_TRIGGERS` 常量 + `detectSite` / `buildHeaders` / `detectAntibot` / `fetchHtmlL1` / `fetchHtmlL2`。self-contained，`HTTP_TIMEOUT_MS` 导出供 images.ts 复用
+  - `images.ts`（约 170 行）：`MAGIC` / `MAX_IMG_BYTES` / `IMG_CONCURRENCY` 常量 + `ImgDownloadResult` interface + `sniffExt` / `downloadOneImage` / `downloadImages` / `rewriteMarkdownImages`。仅依赖 `http.ts` 的 `HTTP_TIMEOUT_MS`
+- import 关系：`helpers.ts` 零内部依赖；`http.ts` 零内部依赖；`images.ts → http.ts`（单向，无循环）
+- `commands/*.ts` 完全没动，仍 `import from '../lib/fetcher.js'` —— 新模块尚未被任何调用方使用，零回归风险
+- tag：`refactor-batch-21a`
+- 验证：
+  - `npm run verify` 全绿，18 tests / 17 pass / 1 skip / ~1.6s（与 20b 完全一致）
+  - `npm run lint` 37 → 39（+2 errors）—— 100% 由 copy 等价行造成（旧 fetcher.ts 已有的 `let slug` 和 `@ts-ignore` 在新 helpers.ts / http.ts 各搬过来一次），21f 删旧文件时数字会回落
+  - `madge --circular` skip：项目未装 madge（`npm error npx canceled due to missing packages`）。3 文件 import 关系简单（仅 `images → http` 一条单向边），手动确认无循环
+
+**为什么**
+
+- LEGACY P0-2 拆 fetcher.ts。规划方采用 strangler fig pattern：21a-21e 只新增旁路文件，21f 才切换 + 删旧文件。前 5 子批回归风险 = 0
+- 21a 抽工具层（不抽 routes / 主入口），是因为这 3 类是其他子批的依赖底座 —— 先有底座，21b/c 才能 import
+- 严格遵守"是 copy 不是 cut"：原 fetcher.ts 完全没动，commands/fetch.ts import 没动。规划方明确说任何超出 21a 范围的"顺手修"会被回滚
+
+**发现但未处理**（按红线 #6 记账，不动）
+
+- helpers.ts 里 `slugify` 用 `let` 但从未重赋值（旧代码原样，prefer-const 会报）—— 等 21f 删旧文件时一并改 const
+- http.ts 里 `fetchHtmlL2` 的 `// @ts-ignore` 应改 `@ts-expect-error`（旧代码原样）—— 同上
+- helpers.ts 的 `todayYMD` 与 `src/lib/date.ts` 重复（批次 9 备注早已点名）—— 留给 21 后续子批或单独 follow-up
+
+**接下来**
+
+- 进 21b：抽 routes/web.ts（含 fetchUrl 主入口 + parseGeneric）+ 可能含 weixin.ts（含 P4-4 picture/source 修）
+- 等规划方 review 21a 后下达指令
+
+---
+
 ## 2026-04-19 — 批次 20b：ingest stepsDone 同模式去重（规划方批准追加）
 
 **做了什么**
