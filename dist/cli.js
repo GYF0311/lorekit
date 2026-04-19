@@ -1814,7 +1814,7 @@ function installSkillsCommand(program2) {
         const full = join7(skillsDest, name);
         if (!isSymlink(full)) continue;
         const target = readlinkSync(full);
-        console.log(`${name} -> ${target}`);
+        out(`${name} -> ${target}`);
       }
       return;
     }
@@ -1861,9 +1861,9 @@ function installSkillsCommand(program2) {
       }
     }
     if (count === 0) {
-      console.log("No skills found to install.");
+      print("No skills found to install.");
     } else if (!opts.uninstall) {
-      console.log(`
+      print(`
 Installed ${count} skill(s). Restart Claude Code to load them.`);
     }
   });

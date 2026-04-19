@@ -10,7 +10,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { lorekitRoot } from '../utils/fs.js';
-import { ok, err } from '../utils/logger.js';
+import { ok, err, out, print } from '../utils/logger.js';
 
 function isSymlink(path: string): boolean {
   try {
@@ -40,7 +40,7 @@ export function installSkillsCommand(program: Command): void {
         const full = join(skillsDest, name);
         if (!isSymlink(full)) continue;
         const target = readlinkSync(full);
-        console.log(`${name} -> ${target}`);
+        out(`${name} -> ${target}`);
       }
       return;
     }
@@ -99,9 +99,9 @@ export function installSkillsCommand(program: Command): void {
     }
 
     if (count === 0) {
-      console.log('No skills found to install.');
+      print('No skills found to install.');
     } else if (!opts.uninstall) {
-      console.log(`\nInstalled ${count} skill(s). Restart Claude Code to load them.`);
+      print(`\nInstalled ${count} skill(s). Restart Claude Code to load them.`);
     }
   });
 }
