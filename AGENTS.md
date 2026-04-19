@@ -1,12 +1,21 @@
 # AGENTS.md — lorekit
 
-## Project Status (2026-04-19)
+## Project Status (2026-04-19, last updated: 2026-04-19 晚)
 
 - **当前版本**：v0.4.0
-- **最近完成**：21+22+23+24-fix（拆 fetcher 856 → 10 文件 / 拆 vectordb 1057 → 10 文件 / 清 8 条 follow-up / 修 BM25 L0 gate 老 bug）
+- **最近完成**：21+22+23+24-fix（拆 fetcher 856 → 10 文件 / 拆 vectordb 1057 → 10 文件 / 清 8 条 follow-up / 修 BM25 L0 gate 老 bug）+ 25/26（Obsidian graph filter 新老用户触达 + `lorekit obsidian-tune` 命令 + doctor 集成）+ docs 整理（WORKLOG/REFACTOR-PLAN/DEVLOG 归档 / LEGACY 删除迁 IDEAS / 新建 DESIGN-NOTES / §13 文档架构红线 / CHANGELOG.md 补齐 / ARCHITECTURE 过期引用修正）
+- **⚠️ 待 push**：本地 main 领先 origin/main 若干 commits（最新 `a498f1c` docs: 补 CHANGELOG + 修 ARCHITECTURE 过期引用）。上次 push 时 GitHub SSL 连接挂（网络瞬时故障），先生稍后自己 `git push origin main` 收尾，或让你帮他重试 push
 - **待决策（高）**：harness 规则补全 + Read 路径保障 —— 详见 `docs/plans/2026-04-19-route-a-cli-upgrade.md` 与 `docs/plans/2026-04-19-route-b-schema-skill-upgrade.md`
+- **待决策（中）**：综合 wiki schema 升级（按类型分目录 + domains tag + L0 改领域导览图）—— 详见 `docs/DESIGN-NOTES.md` §5.1 + `docs/IDEAS.md` 顶部"schema 升级"条目
 - **新会话接手顺序**：AGENTS.md → docs/CONVENTIONS → docs/ARCHITECTURE → docs/CODEBASE-MAP → docs/DESIGN-NOTES → docs/IDEAS → docs/plans/（~25k tok 完全对齐）
 - **历史日志**：`docs/history/`（WORKLOG / REFACTOR-PLAN / DEVLOG，默认不读）
+
+### 给新 AI 的交接提醒（必读）
+
+1. **先跑 `git status` + `git log --oneline origin/main..HEAD`** 确认是否有未 push 的 commits。有就先帮先生 push（如之前 SSL 挂过，就重试 `git push origin main`）
+2. **跨文件级改动（拆库 / 改名 / 新模块）必须同 commit 同步更新 `docs/ARCHITECTURE.md` + `docs/CODEBASE-MAP.md`**——这是 CONVENTIONS §13 维护原则 #1。之前批次 21/22/17 因漏做吃过亏（后补 `a498f1c`），别重犯
+3. **新加 / 删 / 改 docs/ 前对照 CONVENTIONS §13** 文档架构清单，违反 Do Not #13 一律退回
+4. **数据安全红线**：不许用 `rm`（用 trash）；不许改原料层（`原料/`）；破坏性命令拆开单步执行
 
 ---
 
