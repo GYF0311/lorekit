@@ -6,6 +6,42 @@
 
 ---
 
+## 2026-04-19 — 批次 21c：抽 fetcher routes/web.ts 通用 parser（strangler fig 第三步 / P0-2）
+
+**做了什么**
+
+- 新建 `src/lib/fetcher/routes/web.ts`（110 行），从 `src/lib/fetcher.ts:288-352` copy `parseGeneric` 函数体
+- exports：`parseGeneric(html: string, baseUrl: string): ParsedDoc` + `interface ParsedDoc`（inline 定义，与 fetcher.ts:175-181 字段、可选性、注释完全一致）
+- 依赖关系：`web.ts → helpers.ts`（用 `normalizeDateText` / `resolveUrl`）+ `cheerio`。不 import frontmatter/http/images
+- 原 fetcher.ts 一行未动；commands/*.ts 一行未动；21a/21b 抽出的文件一行未动
+- 写了一次性 parity 脚本 `tmp/web-parser-parity-check.mjs`（不入 git）：6 mock case 全部 byte-level 等价
+  - 案例：og+article+author+date+多种 imgs（含 data-src/data-original/data:URL）、no-og fallback titleTag、time[datetime] 属性、time 文本中文日期、无 body 标签、article/main 都缺时落 body fallback
+  - 注：脚本因 Node strip-types 不解析 `.js` 子路径 import，改用 inline 双份等价 JS 对比；web.ts 自身 TypeScript 正确性靠 `npm run verify`（tsc + tsup build）兜底
+- tag：`refactor-batch-21c`
+- 验证：
+  - `npm run verify` 全绿，18 tests / 17 pass / 1 skip / ~1.7s
+  - `npm run lint` baseline 仍 39（web.ts 自身 0 error；本地 49 全是 tmp/ 脚本累计 console.log，不入 git）
+
+**为什么**
+
+- 规划方决定 21c 仅抽 generic（不抽 weixin，不动 fetchUrl dispatcher），让 web.ts 成纯旁路 parser，零回归
+- ParsedDoc inline 不 export 自原 fetcher.ts，避免反向依赖 / 循环（21g 收尾时再决定是否上提到共享 types 模块）
+
+**发现但未处理**
+
+- generic 路由有几个潜在小坑（不在本批 scope，记账留 21g 或 follow-up）：
+  - `<time>` fallback 用 `.text()` 拿可能含子元素文本的字符串，未 trim 子元素可能有歧义
+  - `body.find('img')` 没去除 `<picture>` / `<source srcset>`（这是 P4-4，但 P4-4 仅记 weixin；generic 同样可能漏图）
+  - `dateCandidates` 数组没考虑 JSON-LD `<script type="application/ld+json">`（注释提到了但没实现）
+- 这些都是原 fetcher.ts 的 pre-existing 行为，21c 严守 copy 不修
+
+**接下来**
+
+- 进 21d：抽 routes/weixin.ts（含 P4-4 picture/source 修）—— 等规划方下达指令
+- 不主动开始 21d
+
+---
+
 ## 2026-04-19 — 批次 21b：抽 fetcher frontmatter 拼装（strangler fig 第二步 / P0-2）
 
 **做了什么**
