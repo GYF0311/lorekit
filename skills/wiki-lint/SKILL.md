@@ -83,3 +83,71 @@ corpus: <path>
 1. 只报告，不自动改
 2. 每条都有具体的修复命令 / 建议
 3. 报告写进 `系统/_CHANGELOG.md`（追加一行本次 lint 摘要）
+4. 完整报告写入 `corpus/输出/体检报告/lint-YYYY-MM-DD.md`（frontmatter 必含 `graph-excluded: true`）
+
+## 本轮新增检查项（共 6 项 + 规模哨兵）
+
+在 `lorekit lint` 默认模式里加入以下 6 项 + 规模提醒。前 4 项保障 Read 路径，后 2 项用 B2.3 新增 frontmatter 字段做质量沉淀。
+
+### 基础 4 项（Read 路径保障）
+
+1. **`_INDEX.md` 覆盖度**
+   - 扫 `原料/` / `知识库/` / `输出/` 等有内容的子目录
+   - 每个有 `.md` 内容的子目录都必须有对应 `_INDEX.md`（`lorekit index` 自动产出）
+   - 缺失 → `[WARN] _INDEX.md 缺失：<dir>`，修复建议 `lorekit sync`
+
+2. **`index.md` ↔ 实际页面一致性**（漂移检查）
+   - 比对 `corpus/index.md` 受控区登记的页面 vs 实际文件系统
+   - 漂移 1：`index.md` 登记了但文件不存在 → `[ERROR] index.md 登记的 [[xxx]] 不存在`
+   - 漂移 2：有页面但 `index.md` 没登记 → `[WARN] 页面 xxx 未登记到 index.md`
+   - 修复建议：`lorekit sync`（merge-refresh 会处理）
+
+3. **系统文件隔离（`graph-excluded: true`）**
+   - 必填清单：`index.md` / `log.md` / `QUESTIONS.md` / `overview.md` / `输出/**/*.md` / `系统/**/*.md`
+   - 缺失此字段 → `[WARN] 系统文件未隔离：<file>`，修复：frontmatter 补 `graph-excluded: true`
+
+4. **frontmatter 必填字段合规**
+   - 所有 `知识库/**/*.md` 与 `原料/**/*.md` 必含：`type` / `title` / `slug` / `created` / `updated`
+   - 缺字段 → `[ERROR] frontmatter 缺 <field>：<file>`，修复建议给出具体字段与示例值
+
+### 沉淀质量 2 项（利用 B2.3 新增字段）
+
+5. **SHA-256 完整性**
+   - 扫所有带 `raw_sha256` 字段的 source 页
+   - 根据 frontmatter 记录的原料路径 + 字段值，重算对应原料文件的 SHA-256
+   - 对比：不一致 → `[ERROR] ⚠ SOURCE MODIFIED：<wiki-page>`，原料哈希与 wiki 页记录的 `raw_sha256` 不符
+   - 修复建议：re-ingest 此来源，重写 Timeline 记录"来源更新"
+   - **老页无 `raw_sha256` 字段的**：**跳过**，不误报。老页走渐进补齐，不追溯
+
+6. **Stale 页面**（时效衰减）
+   - 扫所有带 `domain_volatility` 字段的 concept 页
+   - 按阈值判 `last_reviewed` 距今是否过期：
+     - `domain_volatility: high` → 阈值 **90 天**
+     - `domain_volatility: medium` → 阈值 **180 天**
+     - `domain_volatility: low` → 阈值 **365 天**
+   - 超阈值 → `[INFO] concept 页已 stale：<page>（last_reviewed N 天前，volatility=X）`
+   - 修复建议：review compiled truth，刷新后改 `last_reviewed: YYYY-MM-DD`
+   - **老页无 `domain_volatility` 字段的**：**跳过**，不误报
+
+### 规模哨兵（逐目录独立判，非报错只提醒）
+
+7. **`corpus/index.md` 行数**
+   - 行数 > 100 → 输出提示：`[INFO] index.md 已 X 行（>100），考虑升级到阶段 2（index 压缩 + _INDEX 承担全量列表）`
+   - **非错误**，只是提醒先生"规模到了，该想结构升级了"
+
+8. **任一 `_INDEX.md` 行数**
+   - **逐目录独立判**：扫每个 `_INDEX.md`，只看该文件本身，不看邻居
+   - 行数 > 200 → 输出提示：`[INFO] <dir>/_INDEX.md 已 X 行（>200），考虑该子目录分流`
+   - **局部触发原则**：只判该目录，邻居目录无关；对应 IDEAS 中"图书馆分形演化"思路
+   - **不自动触发任何迁移动作**——CLI 不会改文件，等先生自己决策如何拆分
+
+**注意**：规模哨兵是软提示，不进 ERROR / WARN 级别，走 INFO 级别。目的是把"何时升级结构"的决策点暴露出来，避免 corpus 悄悄膨胀到难以治理。
+
+## 延后的检查项（本轮不做）
+
+| 检查项 | 延后原因 |
+| --- | --- |
+| 近重复 concept（Jaccard > 0.7） | 规模触发（concept ≥ 50 页再做） |
+| Wikilink 格式铁律（英文 slug 强制） | 保留中文 wikilink 现状，老页不迁移 |
+| Stub 检测 | 字数方案废弃，改"纯空正文 / 必填 section 缺失"再做 |
+| aliases 重叠 | 等跨语言碎裂痛点出现再做 |

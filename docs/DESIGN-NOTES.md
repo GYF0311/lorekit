@@ -74,27 +74,7 @@ lorekit 优先支持**模型自由度** —— 用户可换 bge-m3 / e5 / 自训
 
 ## 5. 待决策（高优先级）
 
-### 5.1 综合 wiki schema 升级
-
-**问题**：先生 corpus 跨多领域（AI 现在，未来加金融 / 内容生产 / 求职 / 个人项目 / 思考），
-Karpathy 原文是"专项 wiki"（单主题），不直接适用。
-
-**推荐方案**（需先生确认后做）：
-
-- **物理目录按内容类型**（保持 Karpathy 原文风格）：
-  - `知识库/{概念,实体,摘要,专题}/` 现有，保留
-  - 新增 `知识库/思考/`（voice 区别于"概念"）
-- **逻辑领域按 frontmatter tag**：
-  - 每页加 `domains: [ai, 求职, 思考]` 多 tag
-  - 一份内容服务多领域，跨域 wikilink 自由
-- **`corpus/index.md` 改成"导览图"**：
-  - 按领域分 section（"📚 AI / 📚 求职 / ..."）
-  - 每 section 一段领域介绍（不是 wikilink 列表，书目去 `_INDEX.md`）
-  - 顺带解决 §4 (a) 的 L0 数据源问题
-- **lorekit CLI 加 `--domain <name>` 过滤**：
-  - `lorekit vector query --hybrid --text "xxx" --domain "求职"`
-
-### 5.2 wiki-query skill 的 Read L0 + 向量 L1/L2 + Read L3 路径
+### 5.1 wiki-query skill 的 Read L0 + 向量 L1/L2 + Read L3 路径
 
 对应 §1 的 4 层模型。skill 端做 L0 Read 和 L3 Read，lorekit CLI 做 L1/L2。
 需要 CLI 加 `--section <name>` 参数（给 L1/L2 一个 scope）。
@@ -104,3 +84,105 @@ Karpathy 原文是"专项 wiki"（单主题），不直接适用。
 - 不加 LLM re-ranker（先生本机跑不动小模型；但可以让主 agent 自己 rerank，属 skill 层）
 - 不加 Query expansion 到 CLI（属 skill 层，让 agent 自己改写 query 调多次 lorekit）
 - 不回归 Karpathy 纯度（删自实现向量栈换 qmd）：代价大于收益（见 §3 模型自由度论证）
+
+## 7. lorekit 产品定位：个人知识 compilation harness
+
+**一句话定位**：
+
+> lorekit = 个人知识 compilation 的 harness。通过 Schema/Skill/CLI/State 四层约束 LLM 行为；三环循环（沉淀→复用/输出→回流）让 wiki compound 增长。人类只 curate/question/think，LLM 负责 summarize/cross-ref/maintain。
+
+### 四层建构
+
+```
++-----------------------------------------------------------+
+| Schema 层                                                 |
+|   corpus/CLAUDE.md + frontmatter-spec + 目录约定          |
+|   职责：规定"数据长什么样"（type / 必填字段 / wikilink）   |
++-----------------------------------------------------------+
+| Skill 层（wiki-ingest / query / fileback / lint / ...）   |
+|   纯 markdown 指令；定义"怎么操作数据"                    |
+|   职责：规定 LLM 的工作流程与决策规则                     |
++-----------------------------------------------------------+
+| CLI 层（lorekit fetch / index / sync / lint / ...）       |
+|   thin CLI，无 LLM 调用；提供文件系统 + 向量原语           |
+|   职责：保证 Skill 能跑的确定性操作（io / 索引 / 校验）    |
++-----------------------------------------------------------+
+| State 层                                                  |
+|   .wiki/ingest-state.json + vector.sqlite + snapshots/    |
+|   职责：记录"事情做到哪一步"，防止 LLM 进程断后丢线        |
++-----------------------------------------------------------+
+```
+
+### 三环循环
+
+```
+              +--- 沉淀环 (ingest) ---+
+              |                       |
+              v                       |
+  URL/文本/日记  ──► 原料/ ──► 知识库/（wiki page）
+                                  │
+                                  │
+              +--- 复用环 (query) ---+
+              |                      |
+              v                      │
+            提问 ──► Read/向量检索 ──┘
+                                  │
+                                  ▼
+                               答案
+                                  │
+              +--- 输出环 (output) ---+
+              |                       |
+              v                       │
+  输出/问答 + 输出/文章 + 输出/幻灯片 ...
+                                  │
+                                  │ fileback 回流
+                                  ▼
+                            synthesis 页回知识库/
+```
+
+人类职责：`curate` 素材 / `question` 提问 / `think` 判断。
+LLM 职责：`summarize` 压缩 / `cross-ref` 建联 / `maintain` 巡检。
+
+### harness 视角下的 Gap 简表
+
+| 环   | 已有                         | 缺                                                                 |
+| ---- | ---------------------------- | ------------------------------------------------------------------ |
+| 沉淀 | fetch/ingest state machine   | aliases 对齐、Evolution Log、SHA-256 完整性、QUESTIONS 队列、personal 分流 |
+| 复用 | BM25/vector/RRF hybrid       | re-rank 第四环、confidence 加权、query 产物价值评估                |
+| 输出 | wiki-fileback（手动触发）    | `输出/` 目录骨架、outputs 持久化、fileback 自动化、反向检验（防回音室） |
+
+### Reference
+
+harness 规则设计参考：先生飞书《LLM Wiki 搭建教程》
+`https://hcn9zwu8a0fz.feishu.cn/wiki/AM3ewXySViopPdkE8Gic90BDnRb`
+（外部链接，不归档副本；需查阅规则设计思路时打开）
+
+## 8. Karpathy 原文 vs 多领域 corpus：为什么 wiki 不做物理分区
+
+### 背景
+
+Karpathy 的 LLM Wiki Gist 原文假设：**1 wiki = 1 domain**（专项 wiki，如一个 Python 项目 wiki / 一个论文领域 wiki）。
+先生 corpus 是**跨领域**：AI / 求职 / 金融 / 内容生产 / 个人项目 / 思考...
+
+### 图书馆心智（按领域物理分区）的证伪
+
+今日讨论曾推演过"按领域分顶层目录"方案（`知识库/ai/` / `知识库/求职/` / ...），被证伪：
+
+- **压制跨领域联想**：顶层物理分区把"AI 的思维方式用在求职"这类跨域综合**物理阻断**
+- **压制复用**：一份内容（如"第一性原理"）同时服务 AI / 思考 / 写作，物理分区逼人复制或者选一个归属
+- **新增维护负担**：领域边界模糊时（AI Agent 是 AI 还是工具？），分类纠结消耗人类 attention
+
+### 正确方向：融合是 LLM 的活，不是产品的活
+
+- **物理层按内容类型**（Karpathy 原味）：`知识库/{概念,实体,摘要,专题,思考}/`
+- **逻辑层靠 LLM 语义融合**：frontmatter tag（若需）+ 向量检索 + L0 导览图
+- **L0 `index.md` 可以按领域组织导览段落**，但**物理目录不按领域切**
+
+### 两极同事物：起点 vs 演化终态
+
+- **Karpathy 原味 = 起点**：小规模（<100 页），单目录扁平，全量 catalog 够用
+- **图书馆心智 = 演化终态**：大规模（1000+ 页），单个 `_INDEX.md` 触发阈值才分流
+- **分形演化原理**：任何一层 index 超阈值 → 本层简介化 + 下层 _INDEX 接班做目录，递归下去就是图书馆
+
+图书馆心智本身没错，错在**现在就按图书馆样子物理分区**——那是把终态结构强加给起点规模。
+详见 IDEAS.md 「演化核心原则：局部触发、局部执行」与「演化工程清单」。

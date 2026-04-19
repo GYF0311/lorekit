@@ -8,6 +8,7 @@ import {
   lintRootOnlySkipBasenames,
   lintSkipOrphanPrefixes,
   lintSkipFrontmatterPrefixes,
+  lintSkipBrokenLinkPrefixes,
 } from '../lib/paths.js';
 import { bad, ok, print } from '../utils/logger.js';
 
@@ -35,6 +36,19 @@ function shouldSkipOrphan(rel: string): boolean {
     if (rel.startsWith(prefix)) return true;
   }
   return false;
+}
+
+function shouldSkipBrokenLink(rel: string): boolean {
+  for (const prefix of lintSkipBrokenLinkPrefixes) {
+    if (rel.startsWith(prefix)) return true;
+  }
+  return false;
+}
+
+// 系统隔离：frontmatter `graph-excluded: true` 的页面不入 Obsidian 图谱，
+// 所以也不应被 orphan 检查报"无入链"。典型：QUESTIONS.md / overview.md / 输出/*
+function isGraphExcluded(fm: Record<string, unknown>): boolean {
+  return fm['graph-excluded'] === true || fm['graph_excluded'] === true;
 }
 
 // 去掉围栏代码块和行内代码，避免文档里 `[[Page]]` 这类占位符被当作真 wikilink
@@ -83,13 +97,22 @@ export function lintCommand(program: Command) {
 
       // Pass 1: frontmatter + collect wikilinks
       const fileLinks = new Map<string, string[]>();
+      const fileFrontmatter = new Map<string, Record<string, unknown>>();
 
       for (const file of files) {
         const rel = relative(corpus, file);
 
+        // 总是提取 fm 存起来（Pass 3 orphan 检查用 graph-excluded 判断）
+        let fm: Record<string, unknown> = {};
+        try {
+          fm = extractFrontmatter(file);
+        } catch {
+          /* 无 frontmatter / 读不到都按空对象处理 */
+        }
+        fileFrontmatter.set(rel, fm);
+
         // Check required frontmatter fields (skip top-level config/index files)
         if (!shouldSkipFrontmatter(rel)) {
-          const fm = extractFrontmatter(file);
           for (const field of REQUIRED_FIELDS) {
             if (!fm[field]) {
               issues.push({
@@ -120,6 +143,7 @@ export function lintCommand(program: Command) {
 
       // Pass 2: broken links
       for (const [rel, targets] of fileLinks) {
+        if (shouldSkipBrokenLink(rel)) continue; // 模板占位符不算死链
         for (const target of targets) {
           if (!stemSet.has(target) && !baseNameSet.has(target)) {
             issues.push({
@@ -135,6 +159,11 @@ export function lintCommand(program: Command) {
       for (const file of files) {
         const rel = relative(corpus, file);
         if (shouldSkipOrphan(rel)) continue;
+
+        // graph-excluded 系统文件（QUESTIONS.md / overview.md / 输出/* 等）不入 Obsidian 图谱，
+        // 天然"无入链"合理，不应报 orphan
+        const fm = fileFrontmatter.get(rel) ?? {};
+        if (isGraphExcluded(fm)) continue;
 
         const stem = rel.replace(/\.md$/, '');
         const baseName = stem.split('/').pop()!;

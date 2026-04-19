@@ -5,29 +5,83 @@
 
 ---
 
-## [2026-04-19] 综合 wiki schema 升级：按类型分目录 + domains tag + L0 改领域导览图
+## [2026-04-19] harness 规则补全路线图（31 条，按"本轮做 → 规模触发 → 远期"分组）
 
-### 背景
+> 背景：今日讨论把 lorekit 产品定位收束为 **"个人知识 compilation harness"**（详见 `docs/DESIGN-NOTES.md` §7 §8）。
+> 旧「综合 wiki schema 升级」条目（2026-04-19）已证伪（不做顶层领域物理分区）。
+> 以下条目按 ROI + 触发规模分三组：A = Plan A/B 本轮做；B = 规模触发才做；C = 远期（硬件 / 生态成熟）。
 
-lorekit 当前 schema 继承自 Karpathy 专项 wiki（单一主题），但先生 corpus 实际要服务多领域（AI / 求职 / 金融 / 内容生产 / 个人项目 / 思考...）。今日讨论确定方向：
+### A. 本轮 Plan A/B 正在做的（落地条目，完成后从 IDEAS 移除或归档）
 
-- **物理按内容类型**（保持现有）：`知识库/{概念,实体,摘要,专题}/` + 新增 `知识库/思考/`
-- **逻辑按领域**：frontmatter 加 `domains: [ai, 求职, ...]` 多 tag
-- **corpus/index.md 改成"图书馆导览图"**：按领域分 section + 每节一段领域介绍（不是 wikilink 列表）
-- **lorekit 加 `--domain <name>` 过滤**
+1. **先生 corpus 新目录骨架**：`输出/{问答,文章,幻灯片,图表,体检报告,空缺分析}/` / `原料/个人写作/` / `知识库/模板/`
+2. **新文件**：`QUESTIONS.md`（开放问题队列）/ `overview.md`（Health Dashboard 骨架）
+3. **frontmatter 选填扩展字段**：`aliases` / `confidence` / `domain_volatility` / `source_count` / `last_reviewed` / `raw_sha256` / `last_verified` / `possibly_outdated` / `confidence_at_writing` / `status` / `superseded_by`
+4. **`.assets/` 图片子目录规范**：随 markdown 并排，exclude 随父目录
+5. **aliases 对齐机制**（ingest 前扫现有 concept 的 aliases 字段，同名自动合并）
+6. **Confidence 分级 + 门控**（5+ source 候选 high 要人类明确确认）
+7. **outputs 持久化**（query 答案自动回盘到 `输出/问答/`）
+8. **fileback 自动化**（跨源 ≥3 或新综合见解主动提议建 synthesis 页）
+9. **反向检验（防回音室）**（fileback 建 synthesis 前搜反驳证据）
+10. **Marp / 对外文章 / 图表输出**（新 `wiki-output` skill）
+11. **SHA-256 完整性检查**（lint 带字段的 source 页，老页跳过）
+12. **Stale 页面检查**（lint 带 `domain_volatility` 的 concept 页，阈值 90/180/365）
+13. **规模哨兵**（lint 只提醒不动作：`index.md > 100 行` / `_INDEX.md > 200 行`）
 
-### 动因
+### B. 规模触发才做（列为 IDEAS 备案，触发条件明确）
 
-queryLayered L0 gate 失败的根因之一就是 corpus/index.md 是"L1 冒充 L0"（全 wikilink 列表），embedding 语义稀释。升级后 L0 是领域介绍（短密语义），Agent Read 和向量 MATCH 都能工作。
+14. **REFLECT Stage 3 Gap Analysis**——扫 frontmatter 识别三类空洞（孤立概念 / 隐性盲区 / 稀薄领域），产出 `输出/空缺分析/gap-YYYY-MM-DD.md`。**结构化扫描，非自由联想**。触发：concept ≥ 50 页
+15. **REFLECT Stage 1 模式扫描**——跨来源隐性关联 / 矛盾对识别。触发：concept ≥ 50 页且多个 domain
+16. **近重复 concept（Jaccard > 0.7）**——slug 名相似度检测。触发：concept ≥ 50 页（决策 2 (y)）
+17. **Stub 页面检查（字数方案废弃）**——字数 < 100 是规则主义；改为"纯空正文"或"必填 section 缺失"判定。触发：观察到建页残缺 bug
+18. **L1 `_INDEX.md` 分流方案**——单 `_INDEX.md` ≥ 200 行时，LLM 按该子目录内 concept 的 tags / 主题相似性建议类型内二级子目录（如 `知识库/概念/ai-技术/`）。**跟"不做顶层领域分区"不冲突**——这是类型内局部分流
+19. **index.md 规模化渐进演化**：
+    - 阶段 1（子目录 < 100 页）：全量 catalog（Karpathy 原味，当前）
+    - 阶段 2（子目录 100-500 页）：压缩（top 5 + → _INDEX）+ 该子目录 _INDEX 承担完整列表 + 向量兜底
+    - 阶段 3（子目录 500+ 页）：主题导览化 + 多级子目录 + `_元目录/*.md` 综述 + 向量为主
+    - 阶段 4（corpus 2000+ 页）：harness 升级为 MCP server
+20. **Harness 分形演化原理**：任何一层 index 到阈值"当前 index 简介化 → 下一层 _INDEX 接班做目录"，递归下去形成"大图书馆"终态。**图书馆心智 = 演化终态**，**Karpathy 原味 = 起点**，两者是同一事物的不同规模形态
+21. **🔑 演化核心原则：局部触发、局部执行**：
+    - 触发粒度 = 单个 `_INDEX.md` 行数（或子目录页数），**逐目录独立判**
+    - 执行粒度 = 只分流触发的那个子目录，**邻居不动**
+    - 顶层 `index.md` 只改对应 section，其他 section 保持原状
+    - ❌ 错误示例：整个 wiki 超总规模 → 全局同步分流
+    - ✅ 正确示例：`知识库/概念/_INDEX.md` 超阈值 → 只动概念，实体/摘要/专题/写作 保持原状
+    - 图书馆类比：AI 区书满了先重组 AI 区，文学区不动
+22. **演化工程清单（单目录分流动作序列）**：
+    1. LLM 仅对触发目录提建议 + 先生拍板
+    2. snapshot 全量
+    3. 物理迁移**仅该目录内**文件到新子目录
+    4. 老路径建 redirect 页（飞书 MERGE 精神）
+    5. 全 corpus wikilink replace（或 redirect 兜底；影响面 = 所有指向该目录的链接）
+    6. 级联更新：顶层 `index.md` 的对应 section + 该子目录的两层 _INDEX
+    7. 更新 `系统/schema.md` 的**该目录相关**路径说明
+    8. 向量库 path 增量同步（仅该目录）
+    9. 建 `_元目录/<主题>-overview.md` 作该子目录图谱枢纽
+    10. lint 验证该子目录无断链 + `log.md` 记录演化事件
+23. **演化 3 个决策点**（未来真触发分流时最终确定）：
+    - α 历史 wikilink 迁移：**推荐 C 用 redirect 兜底**（不迁历史但可达）
+    - β 知识图谱展示：**推荐 c 用 `_元目录/` 综述页做图谱枢纽**
+    - γ 演化 trigger：**推荐 (i) LLM 建议 + 先生拍板**（非自动分裂）
+24. **演化工程 CLI 套件**（"thin CLI + fat skill" 哲学，触发：任一子目录 `_INDEX.md` ≥ 200 行）：
+    - CLI 原语：
+      - `lorekit redirect create/delete/list` — 建/删/列 redirect 页
+      - `lorekit rewrite-wikilink --from X --to Y` — 全 corpus wikilink 替换
+      - `lorekit migrate-page --from A --to B` — 原子操作（= mv + redirect + rewrite + index 更新）
+    - LLM 业务：决定分流时机 + 子类边界 / 写 `_元目录/*-overview.md` 综述 / 级联更新 `CLAUDE.md` / 写 `log.md` 叙事
+    - 前置依赖：`.wiki/redirects.json` SSOT / schema 版本号（snapshot 兼容）/ 向量库 path 变更支持
+25. **Health Dashboard `overview.md` 渐进化**：
+    - 小规模：列总 source / high-conf concept / 开放问题 / stale 数
+    - 中规模：加趋势（过去 30 天 ingest / query / fileback 数）
+    - 大规模：按主题分 section 呈现各子图健康度
 
-### 工作量估计
+### C. 远期（硬件 / 生态成熟）
 
-见 `docs/DESIGN-NOTES.md` §5.1，分 4-5 个子批约 2.5h + 用户 30min 写领域介绍。
-
-### 为什么不立刻做
-
-- 重构刚完成 4 批（21/22/23/24-fix），该先让代码稳定
-- schema 升级涉及 corpus 迁移（现有 wiki page 都要加 domains 字段），希望先生想清楚主题域分类再动
+26. **LLM re-rank 第四环**（硬件允许后）——候选路径：Claude Haiku API / Cohere rerank / 等蒸馏小模型
+27. **向量 chunk 元数据注入**（向量栈启用前必做）——chunk 携带 `confidence / domain_volatility / last_reviewed / aliases`。**推荐方案 C**（关键字段嵌 prefix 提高 embedding 区分度 + 次要 JOIN 回查）
+28. **Wikilink 格式铁律**（英文 slug 强制 lint）——当前保留中文现状（决策 1 (i)），规模起来真痛再做
+29. **Query 产物自动 fileback**（Karpathy 原文"explorations compound"）——query 结束后 LLM 主动判断是否值得 fileback
+30. **多轮讨论产物持久化**——wiki-query skill 检测对话轮数 ≥ N 触发收束，落 `输出/讨论/`
+31. **LLM 主动联想下一步研究话题**——依赖 Gap Analysis 和 arXiv / 公众号订阅源接入
 
 ---
 

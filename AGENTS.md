@@ -4,8 +4,8 @@
 
 - **当前版本**：v0.4.0
 - **最近完成**：21+22+23+24-fix（拆 fetcher 856 → 10 文件 / 拆 vectordb 1057 → 10 文件 / 清 8 条 follow-up / 修 BM25 L0 gate 老 bug）
-- **待决策（高）**：综合 wiki schema 升级（按类型分目录 + domains tag + L0 改领域导览图）—— 详见 `docs/DESIGN-NOTES.md` §5
-- **新会话接手顺序**：AGENTS.md → docs/CONVENTIONS → docs/ARCHITECTURE → docs/CODEBASE-MAP → docs/DESIGN-NOTES → docs/IDEAS（~25k tok 完全对齐）
+- **待决策（高）**：harness 规则补全 + Read 路径保障 —— 详见 `docs/plans/2026-04-19-route-a-cli-upgrade.md` 与 `docs/plans/2026-04-19-route-b-schema-skill-upgrade.md`
+- **新会话接手顺序**：AGENTS.md → docs/CONVENTIONS → docs/ARCHITECTURE → docs/CODEBASE-MAP → docs/DESIGN-NOTES → docs/IDEAS → docs/plans/（~25k tok 完全对齐）
 - **历史日志**：`docs/history/`（WORKLOG / REFACTOR-PLAN / DEVLOG，默认不读）
 
 ---

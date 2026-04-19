@@ -26,7 +26,7 @@ function isFolderPackage(dir) {
     return false;
   }
 }
-var alwaysExcludeNames, vectorIncludeDirs, vectorExcludePrefixes, vectorExcludeNames, indexExcludeDirPrefixes, lintSkipFrontmatterBasenames, lintRootOnlySkipBasenames, lintSkipOrphanPrefixes, lintSkipFrontmatterPrefixes, snapshotExcludeNames;
+var alwaysExcludeNames, vectorIncludeDirs, vectorExcludePrefixes, vectorExcludeNames, indexExcludeDirPrefixes, lintSkipFrontmatterBasenames, lintRootOnlySkipBasenames, lintSkipOrphanPrefixes, lintSkipFrontmatterPrefixes, lintSkipBrokenLinkPrefixes, snapshotExcludeNames;
 var init_paths = __esm({
   "src/lib/paths.ts"() {
     "use strict";
@@ -51,6 +51,7 @@ var init_paths = __esm({
       "\u539F\u6599/\u526A\u85CF",
       "\u53CD\u9988",
       "\u7CFB\u7EDF",
+      "\u8F93\u51FA",
       ".wiki"
     ];
     vectorExcludeNames = /* @__PURE__ */ new Set([".gitkeep", ".DS_Store"]);
@@ -69,8 +70,14 @@ var init_paths = __esm({
       "MEMORY.md"
     ]);
     lintRootOnlySkipBasenames = /* @__PURE__ */ new Set(["index.md", "log.md"]);
-    lintSkipOrphanPrefixes = ["_\u5DE5\u4F5C\u53F0/", "_\u5F52\u6863/", "\u7CFB\u7EDF/"];
+    lintSkipOrphanPrefixes = [
+      "_\u5DE5\u4F5C\u53F0/",
+      "_\u5F52\u6863/",
+      "\u7CFB\u7EDF/",
+      "\u77E5\u8BC6\u5E93/\u6A21\u677F/"
+    ];
     lintSkipFrontmatterPrefixes = ["_\u5DE5\u4F5C\u53F0/", "_\u5F52\u6863/"];
+    lintSkipBrokenLinkPrefixes = ["\u77E5\u8BC6\u5E93/\u6A21\u677F/"];
     snapshotExcludeNames = /* @__PURE__ */ new Set([".wiki", ".git", ".DS_Store"]);
   }
 });
@@ -1399,6 +1406,15 @@ function shouldSkipOrphan(rel) {
   }
   return false;
 }
+function shouldSkipBrokenLink(rel) {
+  for (const prefix of lintSkipBrokenLinkPrefixes) {
+    if (rel.startsWith(prefix)) return true;
+  }
+  return false;
+}
+function isGraphExcluded(fm) {
+  return fm["graph-excluded"] === true || fm["graph_excluded"] === true;
+}
 function stripCodeBlocks(content) {
   content = content.replace(/```[\s\S]*?```/g, "");
   content = content.replace(/`[^`\n]+`/g, "");
@@ -1424,10 +1440,16 @@ function lintCommand(program2) {
       }
     }
     const fileLinks = /* @__PURE__ */ new Map();
+    const fileFrontmatter = /* @__PURE__ */ new Map();
     for (const file of files) {
       const rel = relative4(corpus, file);
+      let fm = {};
+      try {
+        fm = extractFrontmatter(file);
+      } catch {
+      }
+      fileFrontmatter.set(rel, fm);
       if (!shouldSkipFrontmatter(rel)) {
-        const fm = extractFrontmatter(file);
         for (const field of REQUIRED_FIELDS) {
           if (!fm[field]) {
             issues.push({
@@ -1453,6 +1475,7 @@ function lintCommand(program2) {
       }
     }
     for (const [rel, targets] of fileLinks) {
+      if (shouldSkipBrokenLink(rel)) continue;
       for (const target of targets) {
         if (!stemSet.has(target) && !baseNameSet.has(target)) {
           issues.push({
@@ -1466,6 +1489,8 @@ function lintCommand(program2) {
     for (const file of files) {
       const rel = relative4(corpus, file);
       if (shouldSkipOrphan(rel)) continue;
+      const fm = fileFrontmatter.get(rel) ?? {};
+      if (isGraphExcluded(fm)) continue;
       const stem = rel.replace(/\.md$/, "");
       const baseName = stem.split("/").pop();
       let hasInbound = inboundLinks.has(stem) || inboundLinks.has(baseName);

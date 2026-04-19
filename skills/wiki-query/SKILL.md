@@ -104,6 +104,79 @@ description: 从 corpus 检索已有内容并综合答案，按精确/模糊/图
 
 **铁律**：源页面 wikilink 必须真实存在；不要生造页面名。
 
+## 溯源铁律（answer provenance）
+
+每个核心结论必须追溯到具体的 `知识库/摘要/<slug>.md`（即 source 页），**禁止只引 concept 页**。原因：
+
+- concept 页是 compiled truth（综合产物），**不是证据**
+- source 页才是带 raw_sha256 的原始证据
+- 只引 concept 页会让读者无法反查原文，属于"二手转述"级别的信任
+
+**正确姿势**：`[[知识库/概念/RAG]] 定义了 RAG（引自 [[知识库/摘要/lewis-2020-rag]], [[知识库/摘要/rag-survey-2024]]）` — concept 页提供语义锚点，source 页提供证据。
+
+**结论：每条核心论点必须至少有 1 个 `知识库/摘要/` 引用**；只有 concept / entity 没有 source 的引用不算完整答案。
+
+## Confidence 标注（答案末尾必加）
+
+答案末尾必须列出"Confidence Notes"节，展开每条核心引用的 confidence 级别：
+
+```markdown
+---
+
+### ⚠ Confidence Notes
+
+| 引用 | Confidence | 备注 |
+| --- | --- | --- |
+| [[知识库/概念/RAG]] | high | 5+ sources，先生已确认 |
+| [[知识库/概念/HyDE]] | medium | 3 sources |
+| [[知识库/摘要/xxx]] | low | 单源，未经交叉验证 |
+```
+
+- **low / medium confidence** 的引用必须**显式出现在 Confidence Notes 节**——先生读到这里才知道"这个结论只有一个来源，慎用"
+- 答案正文里也可用视觉提示（如 `⚠`）标出 low confidence 的引用
+- 若所有引用都是 high confidence，仍要输出此节，说明"全部 high confidence"
+
+## 输出格式分流（按问题类型）
+
+根据问题类型选输出形式（先生在问题里明示或你合理推断）：
+
+| 问题类型 | 输出形式 | 说明 |
+| --- | --- | --- |
+| 普通问题 | Markdown 正文 | 默认 |
+| 比较类（"A vs B"） | Markdown 表格 | 维度 × 对象矩阵 |
+| 演示类（"给我做个分享 / 讲一下"） | Marp 幻灯片 | frontmatter 加 `marp: true` |
+| 趋势类（"过去 N 个月如何变化"） | Python matplotlib 代码块 | 可直接复制运行 |
+| 清单类（"列出所有 X"） | 结构化 bullet list | 分组 + 每条带 wikilink |
+
+**注意**：复杂输出（Marp / matplotlib）落盘规则见下方 outputs 回盘小节；不是每次都要落盘，只有先生确认"值得留存"或价值门槛达到才落。
+
+## Outputs 回盘（复用价值触发）
+
+如果答案满足以下任一**复用价值**条件，自动写入 `corpus/输出/问答/YYYY-MM-DD-<slug>.md`：
+
+- 跨多页综合的比较表 / 对比矩阵
+- 深度分析（非单源复述、有新综合见解）
+- 结构化清单（未来还会查第二遍）
+- 先生明确说"这个答案存一下"
+
+**落盘规范**：
+
+- 路径：`corpus/输出/问答/YYYY-MM-DD-<slug>.md`
+- frontmatter 必填 `graph-excluded: true`（系统文件隔离，不进图谱）
+- 同时更新 `corpus/index.md` 的 **Recent Synthesis** 列表（在对应受控区追加一行）
+
+**不落盘的情况**：单条事实查询（如"XX 的作者是谁"）、临时探索、corpus 里没找到答案。
+
+## log 追加
+
+query 结束后，在 `corpus/log.md` **末尾追加一行**：
+
+```
+## [YYYY-MM-DD HH:mm] query | <question 一句话简述>
+```
+
+用于先生回看"这个月都查了什么"，也为 `wiki-enrich` 月度复盘提供素材。
+
 ## Query → Fileback 闭环（核心 UX）
 
 **综合答案本身是新的知识产物**——它把 corpus 里分散的信息组合成了一个新的结论。这个结论

@@ -52,6 +52,11 @@ export const vectorIncludeDirs: readonly string[] = [
  *   - `_工作台` / `_archive` / `_归档`：过渡区 / 冷数据，不该污染向量空间
  *   - `原料/录音` / `原料/剪藏`：走摘要 embedding，不索引全文 chunk
  *   - `反馈` / `系统` / `.wiki`：流程 / 规范 / 元数据，跟知识检索无关
+ *   - `输出`：LLM 产物（问答 / 文章 / 幻灯片 / 图表 / 体检报告 / 空缺分析），
+ *     是二次加工产物不该回流进向量空间（否则会和原始 wiki 页形成互相加强的回音）
+ *
+ * 注：`.assets/`（各 markdown 的图片子目录）**不需要在此单独列**——它一定是
+ * 某个父目录的子目录，随父目录的 include / exclude 规则自动生效。
  */
 export const vectorExcludePrefixes: readonly string[] = [
   '_工作台',
@@ -61,6 +66,7 @@ export const vectorExcludePrefixes: readonly string[] = [
   '原料/剪藏',
   '反馈',
   '系统',
+  '输出',
   '.wiki',
 ];
 
@@ -138,15 +144,28 @@ export const lintSkipFrontmatterBasenames: ReadonlySet<string> = new Set([
 export const lintRootOnlySkipBasenames: ReadonlySet<string> = new Set(['index.md', 'log.md']);
 
 /**
- * lint 不参与 orphan 检查的目录前缀（过渡区 / 冷数据 / 系统规范）。
+ * lint 不参与 orphan 检查的目录前缀（过渡区 / 冷数据 / 系统规范 / 模板区）。
+ * `知识库/模板/` 下是页面模板，不是正式 wiki 页，天然无入链，不应报 orphan。
  */
-export const lintSkipOrphanPrefixes: readonly string[] = ['_工作台/', '_归档/', '系统/'];
+export const lintSkipOrphanPrefixes: readonly string[] = [
+  '_工作台/',
+  '_归档/',
+  '系统/',
+  '知识库/模板/',
+];
 
 /**
  * lint 不参与 frontmatter 检查的目录前缀（过渡区 / 冷数据）。
  * 注：`系统/` 故意保留 frontmatter 检查（schema 文件应规范）。
  */
 export const lintSkipFrontmatterPrefixes: readonly string[] = ['_工作台/', '_归档/'];
+
+/**
+ * lint 不参与 broken-link 检查的目录前缀。
+ * `知识库/模板/` 下模板正文含 `[[知识库/摘要/xxx]]` 这种占位符，让 LLM 建页时替换，
+ * 不是真实 wikilink 目标，不该被报 broken。
+ */
+export const lintSkipBrokenLinkPrefixes: readonly string[] = ['知识库/模板/'];
 
 // ---------------------------------------------------------------------------
 // `lorekit snapshot` 专用规则
