@@ -6,6 +6,53 @@
 
 ---
 
+## 2026-04-19 — 批次 21d：抽 fetcher routes/weixin.ts + 修 P4-4（strangler fig 第四步 / P0-2 + P4-4）
+
+**做了什么**
+
+- 新建 `src/lib/fetcher/routes/weixin.ts`（176 行），从 `src/lib/fetcher.ts:217-286` copy `parseWeixin` 函数体
+- exports：`parseWeixin(html, baseUrl): ParsedDoc` + inline `interface ParsedDoc`（与 web.ts / fetcher.ts:175-181 字段一致）
+- 依赖：`helpers.ts` 的 `normalizeDateText` / `resolveUrl` / `tsToYMD` + `cheerio`。不 import frontmatter/http/images/web
+- **P4-4 顺手修**（规划方批准，LEGACY 已标 ✅）：
+  - 新增 `firstSrcsetUrl(srcset)` 私有 helper：按 `,` 分候选 → 取首项 → 按空白分 → 取 URL token（不解析 `Nw` / `Nx`，"取首个"足够覆盖绝大多数微信文章）
+  - 在 `body.find('img').each(...)` 之前 加一段 `body.find('picture').each(...)`：picture 内有 img 且 src/data-* 都空 → 写 srcset 的第一个 url 到 `data-src`；picture 内无 img 且 srcset 有效 → append `<img data-src=...>`；最后 `replaceWith($img)` unwrap picture，整体被 img 替代
+  - 兜底 `body.find('source').remove()` 清掉 picture 之外野生的 source 节点（极少见但稳妥）
+  - 关键设计选择：**已有 `data-src` 时 srcset 不覆盖**（B3 验证），尊重原始 lazy attr 优先级；**unwrap 而非保留 picture**，让 turndown 输出干净 markdown 不夹 picture 标签
+- 原 fetcher.ts 一行未动；commands/*.ts 一行未动；21a/21b/21c 抽出的文件一行未动
+- 写了一次性 parity 脚本 `tmp/weixin-parser-parity-check.mjs`（不入 git）：
+  - **(A) byte-level parity**：3 mock case 无 picture 输入 → actual 与 legacy `JSON.stringify` 完全相等（A1 含 ct timestamp + lazy data-src/data-original/data:URL；A2 用 publish_time fallback；A3 缺 js_content）
+  - **(B) P4-4 行为断言**：5 case / 9 断言全 pass
+    - B1 `<picture><source srcset="big 2x, small 1x"><img alt=x></picture>` → imgSrcs=`['big.jpg']` + bodyHtml 不含 source/picture
+    - B2 `<picture><source srcset="only.jpg"></picture>`（无 img） → 合成 img，imgSrcs=`['only.jpg']`
+    - B3 picture 内 img 已有 `data-src=preferred.jpg`，srcset 不覆盖 → imgSrcs=`['preferred.jpg']`
+    - B4 picture 外野生 `<source>` → 兜底 remove，img 仍正确
+    - B5 picture+img+picture 混排 → imgSrcs 文档顺序 `[p1, normal, p2]` 严格保持
+- LEGACY P4-4 标 ✅，注明"旧 fetcher.ts 仍有 bug，21g 切换 dispatcher 后真正生效"
+- tag：`refactor-batch-21d`
+- 验证：
+  - `npm run verify` 全绿，18 tests / 17 pass / 1 skip / ~1.8s
+  - `npm run lint` baseline 39 → 40（**+1 error**：weixin.ts 的 `let title` prefer-const，是从原 fetcher.ts:221 copy 来的双份，21f 删旧文件时回落。本地 57 因 tmp/ 三个 parity 脚本累计 console.log，tmp/ 不入 git）
+
+**为什么**
+
+- 规划方批准在 21d 顺手修 P4-4，因为 picture 处理逻辑只在 weixin route 有意义，跟 generic / gist / github 无关 —— 抽 weixin.ts 时一次写好，比之后单独开批次便宜
+- "取第一个 srcset URL" vs "取最高质量"：前者一行实现，后者要 parse `Nw` / `Nx` 比较；微信公众号文章一般只放 1-2 个候选，第一个就是默认质量。规划方原文也写"或最高质量 URL"二选一，本批选最简
+- unwrap picture（用内层 img replaceWith）而非保留：turndown 默认对 `<picture>` 的处理不可靠，unwrap 后等价于普通 img，markdown 输出干净
+
+**发现但未处理**
+
+- weixin.ts 的 `let title` 未改 const（原 fetcher.ts 已是 `let`，copy 等价）—— 21f 删旧文件时一并改
+- `firstSrcsetUrl` 不识别 `<source media="...">` media query 候选选择，所有 picture 都按"first source 第一个 url"处理；微信几乎不用 media，可暂忽略
+- `parseWeixin` 内的 `let title` / `let publishDate` 与 web.ts 同款问题，21f 统一处理
+- 没在 LEGACY 新增条目（这些都属于 21f / 21g 收尾正常清理范围）
+
+**接下来**
+
+- 进 21e：抽 `routes/gist.ts`（fetchGist ~110 行，路由独立无依赖纠葛）—— 等规划方下达指令
+- 不主动开始 21e
+
+---
+
 ## 2026-04-19 — 批次 21c：抽 fetcher routes/web.ts 通用 parser（strangler fig 第三步 / P0-2）
 
 **做了什么**
