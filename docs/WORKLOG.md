@@ -6,6 +6,60 @@
 
 ---
 
+## 2026-04-19 — 批次 21e：抽 fetcher routes/gist.ts + 首次集成 buildFrontmatter（strangler fig 第五步 / P0-2）
+
+**做了什么**
+
+- 新建 `src/lib/fetcher/routes/gist.ts`（207 行），从 `src/lib/fetcher.ts:612-740` copy `parseGistUrl` + `fetchGist`
+- exports：`parseGistUrl(url)` + `fetchGist(url, outRoot): Promise<FetchResult>` + inline `interface FetchResult`
+- 依赖关系：
+  - `helpers.ts` 的 `normalizeDateText` / `slugify` / `todayYMD`
+  - `http.ts` 的 `buildHeaders` / `fetchHtmlL1`
+  - `frontmatter.ts` 的 `buildFrontmatter`（**21b helper 第一次"被使用"**）
+  - `cheerio` + Node `fs/promises`/`path`
+- **buildFrontmatter() 集成**：旧 fetchGist 内嵌 10 行 `fmLines.push(...)` 块完整替换为单次 `fmLines.push(...buildFrontmatter({routeKind:'gist', title, today, url, author, publishDate}))`。21b 设计的字段映射 1:1 对应，**无任何字段缺失** —— `BuildFrontmatterOpts` 的 `routeKind/title/today/url/author/publishDate` 6 个字段刚好覆盖 gist 路由全部需求
+- 原 fetcher.ts 一行未动；commands/*.ts 一行未动；21a-21d 抽出的文件一行未动
+- 写了一次性 parity 脚本 `tmp/gist-parity-check.mjs`（不入 git）：
+  - **(A) parseGistUrl byte-level**：5 case（典型 gist URL / gist usercontent / 非 gist host / 缺 id / 非 URL），全 pass
+  - **(B) fetchGist 整份文件 buffer 等价**：mock `globalThis.fetch` + 2 fixture，跑 legacy(内嵌 fmLines) vs actual(buildFrontmatter spread)，断言 `Buffer.equals(readFileSync(legacyPath), readFileSync(actualPath))` —— 2/2 pass
+    - F1 典型：含 description / og:title / `<relative-time datetime>` / .md raw 链接 / 正文已有 H1 → 269 字节完全匹配
+    - F2 边界：缺 description+og:title 落 parsed.id / 无 publishDate 触发 `if (publishDate)` 不命中分支 / 非 .md 文件名 fallback rawLinks[0] / 正文无 H1 触发 `if (!hasH1)` 添加 `# title` → 249 字节完全匹配
+- tag：`refactor-batch-21e`
+- 验证：
+  - `npm run verify` 全绿，18 tests / 17 pass / 1 skip / ~1.6s
+  - `npm run lint` baseline 仍 **40**（gist.ts 自身 0 error；本地 67 含 tmp/ 4 脚本累计，不入 git）
+
+**byte-level 验证策略 — 高保真 vs 降级**
+
+| 段                                  | 验证方式                                     | 保真度 |
+| ----------------------------------- | -------------------------------------------- | ------ |
+| `parseGistUrl` 输入输出             | 5 mock case 直接对比 JSON.stringify         | **高保真**（纯函数，无外部依赖） |
+| `fetchGist` HTML 解析（cheerio 部分） | mock fetch + fixture HTML，对比写出文件 buffer | **高保真**（用真 cheerio + 完整流程） |
+| `fetchGist` raw 二次 fetch          | mock `globalThis.fetch` 返回固定 body        | **高保真**（fetch 接口完全模拟） |
+| `buildFrontmatter` spread 拼装      | F1+F2 fixture 端到端 buffer 等价             | **高保真**（与 21b 6 mock case 互为补充） |
+| 真实 GitHub gist 实际抓取           | 不验（红线禁止真请求）                       | 降级（靠 21g 切换后人工抽查 1-2 个 gist） |
+| `gist.ts` 自身 ESM `.js` import 解析 | 不验（Node strip-types 不解析 `.js` 子路径） | 降级（靠 `npm run verify` 的 tsc + tsup build 兜底） |
+
+**为什么**
+
+- 规划方让 21e 首次集成 buildFrontmatter，本意是验证 21b helper 设计够用 —— 结果 6 字段 1:1 对应，无任何"21b 缺字段"的发现，21b 不需要回头调
+- 用 mock fetch 替代 playwright / 真请求 GitHub：(1) 红线禁止 (2) unattended 跑稳定 (3) F1+F2 已覆盖关键分支
+- byte-level buffer 等价（而非"行数组等价"）是更严的标准 —— 实际写到磁盘的字节流完全一致才算 pass
+
+**发现但未处理**
+
+- `fetchGist` 用 `globalThis.fetch` 直接请求 raw URL（不走 `fetchHtmlL1`），与其他路由不一致。原 fetcher.ts 也是这样，21f/21g 收尾时可考虑统一
+- `parseGistUrl` 的 `parts.length < 2` 不允许只有 user 没有 id，但 gist usercontent 形式 `/foo/bar/raw/...` 也命中（`parts[1]` 取的是 id 段）—— 原代码这么写就是对的，但语义上把"raw URL 也当 gist URL 解析"是个 grey area，21f/21g 不做调整
+- gist.ts 的 `let html` / `let content` / `let publishDate` 是从 fetcher.ts copy 的 `let` 风格，prefer-const 不会触发因 catch 内重赋值。无 lint warn
+- 没在 LEGACY 新增条目（这些都是 21f/21g 收尾正常清理范围）
+
+**接下来**
+
+- 进 21f：抽 `routes/github.ts`（fetchGithubDoc ~80 行，结构最简单的路由，含 parseGithubRepoUrl + fetchGithubDoc 主流程）—— 等规划方下达指令
+- 不主动开始 21f
+
+---
+
 ## 2026-04-19 — 批次 21d：抽 fetcher routes/weixin.ts + 修 P4-4（strangler fig 第四步 / P0-2 + P4-4）
 
 **做了什么**
