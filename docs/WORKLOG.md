@@ -6,6 +6,56 @@
 
 ---
 
+## 2026-04-19 — 批次 22a：抽 vectordb 工具层 schema/files（strangler fig 第一步 / P0-1）
+
+**做了什么**
+
+- 新建 `src/lib/vectordb/` 子目录，从 `src/lib/vectordb.ts` copy 出 2 个工具层文件（原文件一行未动）：
+  - `schema.ts`（251 行）：常量 `EMBEDDING_DIM` / `MODE_THRESHOLD_FILES` + 类型 `Db` / `StatusInfo` / `QueryResult` + DDL 字符串 `DDL` / `vecDdl(dim)` / `FTS_DDL` + `loadSqlite()` 动态加载 + `openDb(corpus, dim)` 一站建库 + migration
+  - `files.ts`（140 行）：字节工具 `sha256` / `float32ToBuffer` / `distanceToScore` + 文件发现 `shouldIndex` / `collectFiles` + 页摘要 `extractPageSummary`
+- 内部依赖：
+  - `schema.ts`：仅 Node `fs`/`path` + dynamic import `better-sqlite3` / `sqlite-vec`，self-contained
+  - `files.ts`：Node `crypto`/`fs`/`path` + `gray-matter` + `paths.ts` 的 3 个 vector set
+  - **互不依赖**（schema 不 import files、files 不 import schema），符合"工具层"原则
+- 原 vectordb.ts 一行未动；commands/*.ts 一行未动
+- 写一次性 parity 脚本 `tmp/vectordb-22a-parity-check.mjs`（不入 git）：
+  - **(A) vecDdl byte 等价**：4 dim（1024/768/384/1536）legacy inline vs actual inline 全 pass
+  - **(B) collectFiles + shouldIndex deep equal**：mkdtemp 临时 corpus 含混合目录（知识库/{a,b,sub/c,_INDEX}.md / 原料/d.md / 系统/e.md / _工作台/wip.md / _归档/old.md / .wiki/state.md / 顶层 README.md / .txt 干扰），**直接 import 真 paths.ts 的 set**（避免 inline 凭印象重建）；legacy 与 actual 返回完全相同的 4 文件列表（`知识库/_INDEX.md` 含因为真 `vectorExcludeNames` 不包含它，只含 `.gitkeep`/`.DS_Store`；`原料/d.md` 排除因为 `vectorIncludeDirs` 含 `'原料/文章'` 等子路径不含纯 `'原料'`；`系统/e.md` 排除因为不在 include 集），证明双份 inline 行为一致
+- tag：`refactor-batch-22a`
+- 验证：
+  - `npm run verify` 全绿，18 tests / 17 pass / 1 skip / ~3s
+  - `npm run lint` src 范围 36 → 38（**+2 errors**：schema.ts 的 `Db = any` + `new (Database as any)(dbPath)` 是从原 vectordb.ts L51 + L277 copy 来的双份，与 21a `let slug` / `@ts-ignore` 同模式；22f 删旧 vectordb.ts 时回落，且后续子批可考虑用 `import type Database` 精确类型一并消除。本地 49 含 tmp/ 1 脚本 13 violations）
+
+**byte-level 验证范围声明**
+
+| 段                              | 验证方式                              | 保真度 |
+| ------------------------------- | ------------------------------------- | ------ |
+| `vecDdl(dim)` 输出 SQL          | 4 dim mock，legacy inline vs actual inline byte 等价 | **高保真**（纯字符串模板，无外部状态） |
+| `collectFiles` + `shouldIndex` | 临时 corpus + 真 paths.ts，10 文件 fixture deep equal | **高保真**（双份 inline 用真生产 set） |
+| `sha256` / `float32ToBuffer` / `distanceToScore` | 不验（纯数学/字节函数，逻辑直白） | 降级（22f 集成测兜底） |
+| `extractPageSummary`            | 不验（纯字符串处理，frontmatter + regex） | 降级（22f 集成测兜底） |
+| `openDb` / `loadSqlite`         | 不验（涉及 sqlite WAL / migration / sqlite-vec 加载状态） | 降级（22f 集成测必跑） |
+| schema.ts 自身 ESM `.js` import 解析 | 不验 | 降级（`npm run verify` 的 tsc + tsup build 兜底） |
+
+**为什么**
+
+- 严格按 22a 范围：仅工具层（schema + files），不动 query / sync / build-layered / status
+- `Db = any` 22a 不修：原代码注释明说"由批次 22 拆 vectordb 时一并改成 import type Database 的精确类型"，但具体改在哪个子批未定，22a 严守"copy 不修"原则；改到精确类型后双份 lint 都消失（旧 vectordb.ts 也是 `Db = any`），延后 1-2 子批做更安全
+- parity 脚本第一稿 inline 凭印象重建 paths.ts set（误用 `Set.has` 在数组上 + 内容不准），中途发现后改成直接 `import { ... } from '../src/lib/paths.ts'` 走 `--experimental-strip-types`。**透明记账**：fixture 不完美 → 修正 → 验证仍 pass。教训：parity 脚本里一切来自源代码的引用都直接 import，不要 inline 重建（除非确实没法 import）
+
+**发现但未处理（记账留后续子批 / cleanup）**
+
+- `Db = any` 双份（schema.ts:56 + 旧 vectordb.ts:51）：22f 删旧时单边自动消失，剩下 schema.ts 的可在后续子批统一用 `import type Database from 'better-sqlite3'` 替换
+- `new (Database as any)(dbPath)` 双份（schema.ts:232 + 旧 vectordb.ts:277）：同上，是 `Db = any` 的下游使用，一起处理
+- `loadSqlite` 内 2 处沉默 catch（21 时 LEGACY P2-2 明确把 vectordb 的沉默 catch 留给批次 22 处理）：22 后续子批集中改
+
+**接下来**
+
+- 进 22b：抽 sync.ts + build-layered-index.ts（写路径，约 syncFile + buildLayeredIndex + 共 ~250 行）—— 等规划方下达指令
+- 不主动开始 22b
+
+---
+
 ## 2026-04-19 — 批次 21g-final：切 commands import + 删旧 fetcher.ts（P0-2 完成 / 批次 21 全图收尾）
 
 **做了什么**
