@@ -17,6 +17,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
+import * as logger from '../../utils/logger.js';
 import { collectFiles } from './files.js';
 import { EMBEDDING_DIM, MODE_THRESHOLD_FILES, openDb } from './schema.js';
 import type { StatusInfo } from './schema.js';
@@ -64,9 +65,8 @@ function computeMode(
  *   + 读 meta(last_sync/model/dim) + collectFiles 算 total_indexable_files
  *   + computeMode 决定 mode / mode_reason
  *
- * **沉默 catch**（status.ts:tryDirCount）：老 db 可能没 dir_summaries / page_summaries 表
- * （22 之前的版本），catch 后 dirCount/pageCount 留 0。原 vectordb.ts 同款，22e 严守
- * "copy 不修" 保留双份；LEGACY P2-2 范围。
+ * **23a 改动**：原沉默 catch（老 db 缺 dir_summaries / page_summaries 表的兼容兜底）
+ * 改为 `logger.warn(...)` + 明确注释。dirCount / pageCount 留 0 不阻塞 status 输出。
  */
 export async function getStatus(corpus: string): Promise<StatusInfo> {
   const dbPath = join(corpus, '.wiki', 'vector.sqlite');
@@ -102,8 +102,11 @@ export async function getStatus(corpus: string): Promise<StatusInfo> {
   try {
     dirCount = (db.prepare('SELECT COUNT(*) as n FROM dir_summaries').get() as { n: number }).n;
     pageCount = (db.prepare('SELECT COUNT(*) as n FROM page_summaries').get() as { n: number }).n;
-  } catch {
-    // tables may not exist in older DBs
+  } catch (e) {
+    // 老 db（批次 22 之前的版本）可能缺 dir_summaries / page_summaries 表，
+    // 留 dirCount/pageCount=0 不阻塞 status 输出；下次 lorekit sync 会通过 openDb
+    // 的 DDL CREATE IF NOT EXISTS 自动建表。
+    logger.warn(`getStatus: layered tables missing, treat as 0 (${(e as Error).message})`);
   }
 
   db.close();

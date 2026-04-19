@@ -12,6 +12,7 @@
  * 中英混合复合短语建议走向量或 hybrid。
  */
 
+import * as logger from '../../utils/logger.js';
 import type { Db, QueryResult } from './schema.js';
 
 // ---------------------------------------------------------------------------
@@ -52,10 +53,10 @@ function sanitizeFtsQuery(q: string): string {
  *
  * FTS5 的 rank 字段是 BM25 分数（负数，越小越相关）。返回里 score 字段归一为正数。
  *
- * **3 处沉默 catch**（L0/L1/L2 各一）：FTS5 对 sanitizeFtsQuery 后仍可能因边界 token
- * 抛错（如纯 trigram 不可分串），catch 后返回 `[]` 让上层 hybrid 优雅降级到纯向量。
- * 原 vectordb.ts 同款，22d 严守 "copy 不修" 原则保留；LEGACY P2-2 / 后续清理子批
- * 可改成 `logger.debug` + 注释。
+ * **23a 改动**：原 3 处沉默 catch（L0/L1/L2 各一）改为 `logger.warn` + 注释。
+ * FTS5 对 sanitizeFtsQuery 后仍可能因边界 token 抛错（如纯 trigram 不可分串），
+ * catch 后返回 `[]` 让上层 hybrid 优雅降级到纯向量；现在失败原因会进 stderr
+ * 便于 debug，不再静默吞错。
  */
 export function queryBM25Layered(db: Db, queryText: string, topK: number): QueryResult[] {
   const ftsQ = sanitizeFtsQuery(queryText);
@@ -69,7 +70,9 @@ export function queryBM25Layered(db: Db, queryText: string, topK: number): Query
         `SELECT rowid as id, rank FROM fts_dirs WHERE fts_dirs MATCH ? ORDER BY rank LIMIT 3`,
       )
       .all(ftsQ) as { id: number; rank: number }[];
-  } catch {
+  } catch (e) {
+    // FTS5 边界 token 失败 → BM25 整体降级为空，上层 hybrid 回退纯向量
+    logger.warn(`queryBM25Layered L0 fts5: ${(e as Error).message}`);
     return [];
   }
   if (l0Rows.length === 0) return [];
@@ -118,7 +121,9 @@ export function queryBM25Layered(db: Db, queryText: string, topK: number): Query
          ORDER BY fp.rank LIMIT 5`,
       )
       .all(ftsQ, ...candidateDocIds) as { id: number; rank: number; doc_id: number }[];
-  } catch {
+  } catch (e) {
+    // 同 L0：fts5 边界 token 失败 → 降级
+    logger.warn(`queryBM25Layered L1 fts5: ${(e as Error).message}`);
     return [];
   }
   if (l1Rows.length === 0) return [];
@@ -137,7 +142,9 @@ export function queryBM25Layered(db: Db, queryText: string, topK: number): Query
          ORDER BY fc.rank LIMIT ?`,
       )
       .all(ftsQ, ...l2DocIds, topK) as { id: number; rank: number; doc_id: number }[];
-  } catch {
+  } catch (e) {
+    // 同 L0/L1：fts5 边界 token 失败 → 降级
+    logger.warn(`queryBM25Layered L2 fts5: ${(e as Error).message}`);
     return [];
   }
   if (l2Rows.length === 0) return [];

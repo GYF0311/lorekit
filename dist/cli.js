@@ -75,6 +75,26 @@ var init_paths = __esm({
   }
 });
 
+// src/utils/logger.ts
+import chalk from "chalk";
+var DEBUG_ENABLED, ok, bad, warn, err, info, debug, print, out;
+var init_logger = __esm({
+  "src/utils/logger.ts"() {
+    "use strict";
+    DEBUG_ENABLED = process.env.LOREKIT_DEBUG === "1";
+    ok = (msg) => console.error(`${chalk.green("\u2713")} ${msg}`);
+    bad = (msg) => console.error(`${chalk.red("\u2717")} ${msg}`);
+    warn = (msg) => console.error(`${chalk.yellow("lorekit:")} ${msg}`);
+    err = (msg) => console.error(`${chalk.red("lorekit:")} ${msg}`);
+    info = (msg) => console.error(`${chalk.cyan("\u2139")} ${msg}`);
+    debug = (msg) => {
+      if (DEBUG_ENABLED) console.error(`${chalk.dim("debug:")} ${msg}`);
+    };
+    print = (msg = "") => console.error(msg);
+    out = (msg) => console.log(msg);
+  }
+});
+
 // src/lib/ollama.ts
 var ollama_exports = {};
 __export(ollama_exports, {
@@ -471,7 +491,8 @@ function findAllIndexFiles(corpus) {
     let entries;
     try {
       entries = readdirSync8(dir, { withFileTypes: true });
-    } catch {
+    } catch (e) {
+      warn(`findAllIndexFiles: skip ${dir} (${e.message})`);
       return;
     }
     for (const entry of entries) {
@@ -495,13 +516,13 @@ async function buildLayeredIndex(db, corpus, embedFn) {
   db.prepare("DELETE FROM fts_dirs").run();
   const indexPath = join13(corpus, "index.md");
   if (!existsSync10(indexPath)) {
-    console.log("  L0: corpus/index.md not found, skipped");
+    info("  L0: corpus/index.md not found, skipped");
   } else {
     const raw = readFileSync14(indexPath, "utf-8");
     const { content } = matter4(raw);
     const sections = parseIndexSections(content);
     if (sections.length === 0) {
-      console.log("  L0: no sections with entries in index.md, skipped");
+      info("  L0: no sections with entries in index.md, skipped");
     } else {
       const texts = sections.map((s) => s.text);
       const embeddings = await embedFn(texts);
@@ -520,7 +541,7 @@ async function buildLayeredIndex(db, corpus, embedFn) {
         insertFtsDir.run(dirId, sections[i].text);
       }
       const totalSlugs = sections.reduce((a, s) => a + s.slugs.length, 0);
-      console.log(
+      info(
         `  L0: indexed ${sections.length} sections from index.md (${totalSlugs} slugs tracked)`
       );
     }
@@ -530,7 +551,7 @@ async function buildLayeredIndex(db, corpus, embedFn) {
   db.prepare("DELETE FROM fts_pages").run();
   const indexFiles = findAllIndexFiles(corpus);
   if (indexFiles.length === 0) {
-    console.log("  L1: no _INDEX.md found, skipped");
+    info("  L1: no _INDEX.md found, skipped");
     return;
   }
   const allEntries = [];
@@ -539,7 +560,7 @@ async function buildLayeredIndex(db, corpus, embedFn) {
     allEntries.push(...parseIndexEntries(raw));
   }
   if (allEntries.length === 0) {
-    console.log("  L1: no entries parsed from _INDEX.md, skipped");
+    info("  L1: no entries parsed from _INDEX.md, skipped");
     return;
   }
   const docRows = db.prepare("SELECT id, path FROM documents").all();
@@ -563,7 +584,7 @@ async function buildLayeredIndex(db, corpus, embedFn) {
     matched.push({ docId, text, slug: e.slug });
   }
   if (matched.length === 0) {
-    console.log("  L1: no _INDEX.md entries matched documents, skipped");
+    info("  L1: no _INDEX.md entries matched documents, skipped");
     return;
   }
   const BATCH = 64;
@@ -587,12 +608,13 @@ async function buildLayeredIndex(db, corpus, embedFn) {
   }
   let msg = `  L1: indexed ${matched.length} entries from ${indexFiles.length} _INDEX.md`;
   if (unmatched > 0) msg += ` (${unmatched} unmatched slug, skipped)`;
-  console.log(msg);
+  info(msg);
 }
 var init_build_layered_index = __esm({
   "src/lib/vectordb/build-layered-index.ts"() {
     "use strict";
     init_paths();
+    init_logger();
     init_files();
   }
 });
@@ -743,7 +765,8 @@ function queryBM25Layered(db, queryText, topK) {
     l0Rows = db.prepare(
       `SELECT rowid as id, rank FROM fts_dirs WHERE fts_dirs MATCH ? ORDER BY rank LIMIT 3`
     ).all(ftsQ);
-  } catch {
+  } catch (e) {
+    warn(`queryBM25Layered L0 fts5: ${e.message}`);
     return [];
   }
   if (l0Rows.length === 0) return [];
@@ -779,7 +802,8 @@ function queryBM25Layered(db, queryText, topK) {
          WHERE fp.fts_pages MATCH ? AND ps.doc_id IN (${[...candidateDocIds].map(() => "?").join(",")})
          ORDER BY fp.rank LIMIT 5`
     ).all(ftsQ, ...candidateDocIds);
-  } catch {
+  } catch (e) {
+    warn(`queryBM25Layered L1 fts5: ${e.message}`);
     return [];
   }
   if (l1Rows.length === 0) return [];
@@ -793,7 +817,8 @@ function queryBM25Layered(db, queryText, topK) {
          WHERE fc.fts_chunks MATCH ? AND c.doc_id IN (${l2DocIds.map(() => "?").join(",")})
          ORDER BY fc.rank LIMIT ?`
     ).all(ftsQ, ...l2DocIds, topK);
-  } catch {
+  } catch (e) {
+    warn(`queryBM25Layered L2 fts5: ${e.message}`);
     return [];
   }
   if (l2Rows.length === 0) return [];
@@ -818,6 +843,7 @@ function queryBM25Layered(db, queryText, topK) {
 var init_query_bm25 = __esm({
   "src/lib/vectordb/query-bm25.ts"() {
     "use strict";
+    init_logger();
   }
 });
 
@@ -900,7 +926,8 @@ async function getStatus(corpus) {
   try {
     dirCount = db.prepare("SELECT COUNT(*) as n FROM dir_summaries").get().n;
     pageCount = db.prepare("SELECT COUNT(*) as n FROM page_summaries").get().n;
-  } catch {
+  } catch (e) {
+    warn(`getStatus: layered tables missing, treat as 0 (${e.message})`);
   }
   db.close();
   const rec = computeMode(true, docCount);
@@ -922,6 +949,7 @@ async function getStatus(corpus) {
 var init_status = __esm({
   "src/lib/vectordb/status.ts"() {
     "use strict";
+    init_logger();
     init_files();
     init_schema();
   }
@@ -967,24 +995,10 @@ import Database from "better-sqlite3";
 
 // src/lib/corpus.ts
 init_paths();
+init_logger();
 import { existsSync, readFileSync, readdirSync } from "fs";
 import { join, dirname } from "path";
 import matter from "gray-matter";
-
-// src/utils/logger.ts
-import chalk from "chalk";
-var DEBUG_ENABLED = process.env.LOREKIT_DEBUG === "1";
-var ok = (msg) => console.error(`${chalk.green("\u2713")} ${msg}`);
-var bad = (msg) => console.error(`${chalk.red("\u2717")} ${msg}`);
-var warn = (msg) => console.error(`${chalk.yellow("lorekit:")} ${msg}`);
-var err = (msg) => console.error(`${chalk.red("lorekit:")} ${msg}`);
-var debug = (msg) => {
-  if (DEBUG_ENABLED) console.error(`${chalk.dim("debug:")} ${msg}`);
-};
-var print = (msg = "") => console.error(msg);
-var out = (msg) => console.log(msg);
-
-// src/lib/corpus.ts
 function findCorpus(startDir) {
   let dir = startDir || process.cwd();
   while (dir !== "/" && dir) {
@@ -1048,7 +1062,11 @@ function collectMdFiles(dir, opts) {
   return results.sort();
 }
 
+// src/cli.ts
+init_logger();
+
 // src/utils/fs.ts
+init_logger();
 import { createHash } from "crypto";
 import { readFileSync as readFileSync2, statSync as statSync2 } from "fs";
 import { join as join2, dirname as dirname2 } from "path";
@@ -1071,6 +1089,7 @@ function readVersion() {
 }
 
 // src/commands/init.ts
+init_logger();
 import {
   existsSync as existsSync2,
   mkdirSync,
@@ -1190,6 +1209,7 @@ function initCommand(program2) {
 }
 
 // src/commands/doctor.ts
+init_logger();
 import { existsSync as existsSync3, lstatSync as lstatSync2, readFileSync as readFileSync4, readdirSync as readdirSync3 } from "fs";
 import { join as join4, relative as relative2 } from "path";
 import chalk3 from "chalk";
@@ -1329,6 +1349,7 @@ function doctorCommand(program2) {
 // src/commands/stats.ts
 import { readFileSync as readFileSync5, statSync as statSync4 } from "fs";
 import { relative as relative3 } from "path";
+init_logger();
 function statsCommand(program2) {
   program2.command("stats").description("output corpus statistics as JSON").action(() => {
     const corpus = requireCorpus();
@@ -1394,6 +1415,7 @@ import { readFileSync as readFileSync6 } from "fs";
 import { relative as relative4, basename as basename2 } from "path";
 import chalk4 from "chalk";
 init_paths();
+init_logger();
 var REQUIRED_FIELDS = ["type", "title", "slug", "created", "updated"];
 function isRootLevel(rel) {
   return !rel.includes("/");
@@ -1560,6 +1582,7 @@ function tsMinute(d = /* @__PURE__ */ new Date()) {
 }
 
 // src/commands/audit.ts
+init_logger();
 var SEVERITY_ORDER = { high: 3, medium: 2, low: 1 };
 function extractPreview(filePath) {
   const content = readFileSync7(filePath, "utf-8");
@@ -1677,6 +1700,7 @@ function auditCommand(program2) {
 import { existsSync as existsSync5, readdirSync as readdirSync4, readFileSync as readFileSync8, statSync as statSync5, writeFileSync as writeFileSync3, lstatSync as lstatSync3 } from "fs";
 import { join as join6, basename as basename4, relative as relative5, resolve as resolve2 } from "path";
 init_paths();
+init_logger();
 function extractSummary(filePath) {
   const content = readFileSync8(filePath, "utf-8");
   const lines = content.split("\n");
@@ -1886,6 +1910,7 @@ import {
   lstatSync as lstatSync4
 } from "fs";
 import { join as join7 } from "path";
+init_logger();
 function isSymlink(path) {
   try {
     return lstatSync4(path).isSymbolicLink();
@@ -1961,6 +1986,7 @@ Installed ${count} skill(s). Restart Claude Code to load them.`);
 }
 
 // src/commands/snapshot.ts
+init_logger();
 import {
   existsSync as existsSync7,
   mkdirSync as mkdirSync4,
@@ -2034,6 +2060,7 @@ function snapshotCommand(program2) {
 }
 
 // src/commands/restore.ts
+init_logger();
 import { existsSync as existsSync8, mkdirSync as mkdirSync5, readFileSync as readFileSync10, copyFileSync, rmSync } from "fs";
 import { join as join9, dirname as dirname3 } from "path";
 import { createInterface as createInterface2 } from "readline";
@@ -2147,6 +2174,7 @@ function restoreCommand(program2) {
 }
 
 // src/commands/search.ts
+init_logger();
 import { readFileSync as readFileSync11 } from "fs";
 import { join as join10, relative as relative8 } from "path";
 import { spawnSync } from "child_process";
@@ -2226,6 +2254,7 @@ function searchCommand(program2) {
 }
 
 // src/commands/vector.ts
+init_logger();
 import { createHash as createHash3 } from "crypto";
 import { existsSync as existsSync12, readFileSync as readFileSync15 } from "fs";
 import { join as join15, relative as relative13 } from "path";
@@ -2319,8 +2348,8 @@ function vectorCommand(program2) {
   vec.command("status").description("show vector index status").action(async () => {
     const corpus = requireCorpus();
     const { getStatus: getStatus2 } = await Promise.resolve().then(() => (init_vectordb(), vectordb_exports));
-    const info = await getStatus2(corpus);
-    out(JSON.stringify(info, null, 2));
+    const info2 = await getStatus2(corpus);
+    out(JSON.stringify(info2, null, 2));
   });
 }
 
@@ -3196,6 +3225,7 @@ function fetchCommand(program2) {
 // src/commands/ingest.ts
 import { existsSync as existsSync15, readFileSync as readFileSync17, writeFileSync as writeFileSync6 } from "fs";
 import { join as join22, relative as relative15 } from "path";
+init_logger();
 var VALID_STEPS = ["fetch", "archive", "wiki", "backlink", "lint"];
 function today() {
   return dateToYMDLocal(/* @__PURE__ */ new Date());
@@ -3456,8 +3486,10 @@ ${summary.join("\n")}`
 
 // src/commands/sync.ts
 import chalk6 from "chalk";
+init_logger();
 
 // src/lib/root-index.ts
+init_logger();
 import { existsSync as existsSync16, readFileSync as readFileSync18, readdirSync as readdirSync10, writeFileSync as writeFileSync7 } from "fs";
 import { join as join23 } from "path";
 var MANAGED_SECTIONS = [

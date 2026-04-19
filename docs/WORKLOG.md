@@ -6,6 +6,52 @@
 
 ---
 
+## 2026-04-19 — 批次 23a：vectordb CONVENTIONS 残留 sweep（P2-2 + P2-4 vectordb 部分收尾）
+
+**做了什么**
+
+22f 完成后 agent 抄写累积发现的 CONVENTIONS 残留一次清（范围限 `src/lib/vectordb/*`）：
+
+- **动作 1** — 7 处 `console.log` → `logger.info`（对应 LEGACY P2-4 vectordb 派生部分）：
+  - `build-layered-index.ts`：全部 7 处 L0/L1 进度提示（"L0: corpus/index.md not found..." / "L0: no sections..." / "L0: indexed X sections..." / "L1: no _INDEX.md..." / "L1: no entries..." / "L1: no matched..." / "L1: indexed X entries..."）
+  - 文件头加 `import * as logger from '../../utils/logger.js';`
+  - `logger.info` 写 stderr（批次 10 已落地），`lorekit sync | jq` 管道从此不再被污染
+- **动作 2** — 5 处沉默 catch → `logger.warn` + 注释（对应 LEGACY P2-2 vectordb 部分）：
+  - `build-layered-index.ts:findAllIndexFiles` — 目录读不到（权限 / 临时被删 / symlink 循环）加 logger.warn + 注释
+  - `status.ts:getStatus` — 老 db 缺 dir_summaries / page_summaries 表兼容兜底
+  - `query-bm25.ts` — L0 / L1 / L2 三处 fts5 MATCH 失败（边界 token 导致 fts5 抛错 → hybrid 降级纯向量），每处各加 logger.warn + 注释
+
+**改动统计**：3 个 src 文件（build-layered-index.ts / query-bm25.ts / status.ts）+ 2 个 dist/ 重 build 产物。`git diff --stat` 显示 +61 / -43 = 净 +18 行（logger import + error 参数 + 注释扩写）。
+
+**验证**
+
+- `npm run verify` 全绿，18 tests / 17 pass / 1 skip / ~1.6s
+- `npm run lint` src 范围 **34 → 27**（**-7**）
+  - 原 estimate -12（7 console + 5 catch）偏高：ESLint `no-empty` 规则只报**纯空** catch block，原代码都有 `return [];` / `/* skip */` / 注释，不触发 `no-empty` error
+  - 实际降幅 -7 全部来自 console 替换；catch 替换是 **CONVENTIONS #3 合规性**（禁沉默 catch）+ debug 可观测性提升，ESLint 不报但语义正确
+- tag：`refactor-batch-23a`
+
+**为什么**
+
+- 规划方把 22a-22e 累积发现的 8 条"发现但未处理"分 3 子批修完（23a sweep / 23b 真 bug / 23c 类型+设计优化）
+- 23a 只动 `src/lib/vectordb/*`，不跨模块（commands/fetch.ts 的 5 处 console 不在范围，仍在 LEGACY P2-4 待清）
+- logger 用 namespace import (`import * as logger`) 而非命名 import (`import { info, warn }`)：跟仓库其他已迁移文件保持一致；namespace 点调用 (`logger.info`) 让搜索替换更安全
+- 每个 catch 的 `logger.warn` 消息格式 `${function}: ${scenario} (${error.message})`，保持一致便于 grep 排查
+
+**发现但未处理**
+
+- `commands/fetch.ts` 5 处 `console.log` / `console.error`（line 74 / 81 / 120 / 125 / 175）不在 23a 范围，留 LEGACY P2-4 后续 commands sweep 批次
+- `files.ts:92` `readdirSync` catch 原已有注释"目录读不到就跳"，但仍是 `catch {` 无参数 / 无 logger —— 不在 23a 范围（规划方指定 5 处清单未含），留后续
+- `schema.ts:191, :202` `loadSqlite` 动态依赖缺失的两处 catch 有明确 throw 新 Error，不算沉默；lint 也不报，无需改
+- `query-bm25.ts:87` + `query-layered.ts:63` JSON.parse slug_list 的 catch 原已有 `/* skip */` 注释，是老 db 兼容（dir_summaries.slug_list 字段 22 之前可能为空串），功能上已不需改；ESLint 不报；属"可以加 logger.debug 但不急"
+
+**接下来**
+
+- 进 23b：修 rrfMerge dedup key 80 字 collision + sanitizeFtsQuery 日期 token 过滤 + 加 smoke —— 等规划方下达指令
+- 不主动开始 23b
+
+---
+
 ## 2026-04-19 — 批次 22f：切 commands + 删旧 vectordb.ts（P0-1 完成 / 批次 22 全图收尾）
 
 **做了什么**

@@ -16,10 +16,9 @@
  * （sync 阶段建立）。typical commands/vector.ts sync 流程：collectFiles → syncFile loop
  * → buildLayeredIndex。
  *
- * **注意**：本文件含 4 处 `console.log` 是从原 vectordb.ts 的 L0/L1 进度提示 copy 来
- * 的，违反 CONVENTIONS Do Not #2（应走 logger）。LEGACY P2-4 早已把 vectordb 的
- * console 留给批次 22 处理，22b 严守 "copy 不修" 原则保留双份；具体改为 logger 留
- * 给后续清理子批（建议跟 query 系列子批的同模式 console 一起做）。
+ * **23a 改动**：7 处进度提示 `console.log` → `logger.info`（stderr，不污染
+ * `lorekit sync | jq` 管道）。findAllIndexFiles 的沉默 catch → `logger.warn` +
+ * 注释说明为何可以继续。对应 LEGACY P2-2 / P2-4 vectordb 残留清零。
  */
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -28,6 +27,7 @@ import { join, relative } from 'node:path';
 import matter from 'gray-matter';
 
 import { vectorExcludePrefixes } from '../paths.js';
+import * as logger from '../../utils/logger.js';
 import { float32ToBuffer } from './files.js';
 import type { Db } from './schema.js';
 
@@ -133,8 +133,9 @@ function findAllIndexFiles(corpus: string): string[] {
     let entries;
     try {
       entries = readdirSync(dir, { withFileTypes: true });
-    } catch {
-      // 目录读不到（权限 / 临时被删）就跳，整体扫描继续。
+    } catch (e) {
+      // 目录读不到（权限 / 临时被删 / 扫到 symlink 循环）就跳，整体扫描继续。
+      logger.warn(`findAllIndexFiles: skip ${dir} (${(e as Error).message})`);
       return;
     }
     for (const entry of entries) {
@@ -166,14 +167,14 @@ export async function buildLayeredIndex(db: Db, corpus: string, embedFn: EmbedFn
 
   const indexPath = join(corpus, 'index.md');
   if (!existsSync(indexPath)) {
-    console.log('  L0: corpus/index.md not found, skipped');
+    logger.info('  L0: corpus/index.md not found, skipped');
   } else {
     const raw = readFileSync(indexPath, 'utf-8');
     const { content } = matter(raw);
     const sections = parseIndexSections(content);
 
     if (sections.length === 0) {
-      console.log('  L0: no sections with entries in index.md, skipped');
+      logger.info('  L0: no sections with entries in index.md, skipped');
     } else {
       const texts = sections.map((s) => s.text);
       const embeddings = await embedFn(texts);
@@ -193,7 +194,7 @@ export async function buildLayeredIndex(db: Db, corpus: string, embedFn: EmbedFn
         insertFtsDir.run(dirId, sections[i].text);
       }
       const totalSlugs = sections.reduce((a, s) => a + s.slugs.length, 0);
-      console.log(
+      logger.info(
         `  L0: indexed ${sections.length} sections from index.md (${totalSlugs} slugs tracked)`,
       );
     }
@@ -206,7 +207,7 @@ export async function buildLayeredIndex(db: Db, corpus: string, embedFn: EmbedFn
 
   const indexFiles = findAllIndexFiles(corpus);
   if (indexFiles.length === 0) {
-    console.log('  L1: no _INDEX.md found, skipped');
+    logger.info('  L1: no _INDEX.md found, skipped');
     return;
   }
 
@@ -217,7 +218,7 @@ export async function buildLayeredIndex(db: Db, corpus: string, embedFn: EmbedFn
   }
 
   if (allEntries.length === 0) {
-    console.log('  L1: no entries parsed from _INDEX.md, skipped');
+    logger.info('  L1: no entries parsed from _INDEX.md, skipped');
     return;
   }
 
@@ -250,7 +251,7 @@ export async function buildLayeredIndex(db: Db, corpus: string, embedFn: EmbedFn
   }
 
   if (matched.length === 0) {
-    console.log('  L1: no _INDEX.md entries matched documents, skipped');
+    logger.info('  L1: no _INDEX.md entries matched documents, skipped');
     return;
   }
 
@@ -278,5 +279,5 @@ export async function buildLayeredIndex(db: Db, corpus: string, embedFn: EmbedFn
 
   let msg = `  L1: indexed ${matched.length} entries from ${indexFiles.length} _INDEX.md`;
   if (unmatched > 0) msg += ` (${unmatched} unmatched slug, skipped)`;
-  console.log(msg);
+  logger.info(msg);
 }
