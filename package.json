@@ -23,7 +23,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "version": "node -p \"require('./package.json').version\" > VERSION && git add VERSION"
   },
   "engines": {
     "node": ">=18"
