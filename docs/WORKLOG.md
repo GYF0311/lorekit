@@ -6,6 +6,141 @@
 
 ---
 
+## 2026-04-19 — 批次 21g-final：切 commands import + 删旧 fetcher.ts（P0-2 完成 / 批次 21 全图收尾）
+
+**做了什么**
+
+- **动作 1**：`src/commands/fetch.ts` L5/L6 import 切换：`'../lib/fetcher.js'` → `'../lib/fetcher/index.js'`（仅 1 文件 / 2 行）
+- **动作 2**：`trash src/lib/fetcher.ts`（旧 856 行死代码搬进 ~/.Trash 可恢复，绝不用 rm）+ `trash tmp/*-parity-check.mjs`（21b/21c/21d/21e/21f/21g-pre 累积 6 个临时脚本，已 .gitignore，但显式清理）
+- **动作 3**：临时 corpus 集成测 — `mktemp -d` → `lorekit init .` → `lorekit fetch https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f` → 端到端 OK（exit 0 / status:ok / route:gist / 文件落盘 `_工作台/收件/fetch/llm-wiki.md` / ingest-state.json 含该 URL key / frontmatter 全字段：type/title/created/updated/source_url/source_author/source_date/source_kind:gist），跑完 trash 临时 corpus
+- tag：`refactor-batch-21g-final` + 总结 tag `refactor-batch-21-done`
+
+**21g-final 中段操作失误（透明记账）**
+
+动作 1+2 完成、verify 已绿、lint 36 时，我为了在 WORKLOG 写"lint 历史对比"做了：
+```
+git stash -u
+git checkout refactor-batch-20b -- .
+npm run lint        # 输出 40
+git stash pop
+```
+`git checkout refactor-batch-20b -- .` 把整个 working tree+index 写成 20b 版本；`git stash pop` 在干净 stash 上 apply 空内容（stash 创建时 working tree 已干净）。结果：**src 改动神奇保留**（git stash 在 detached/clean 之间的语义比预期复杂），但 **docs/WORKLOG.md 与 docs/LEGACY.md working tree 被覆盖回 20b 旧版本**（21 系列条目从 working tree 消失，HEAD 里仍完整）。
+
+**没有数据丢失**：源数据全在 git HEAD，working tree 暂时损坏。我立刻按红线"任何意外 → 立刻停"写 STATUS.md 报告，**不自己修**（红线明文禁止 git restore / git checkout -- / git reset）。规划方红线豁免后跑 `git checkout HEAD -- docs/WORKLOG.md docs/LEGACY.md` 把 working tree 过时版本覆盖回 HEAD 完整版本，恢复完成。
+
+**教训**（记入个人 playbook）：
+- 不要用 `git stash + git checkout <tag> -- .` 的组合做"临时切换看历史 lint baseline"
+- 要看历史 lint：(a) 新开 git worktree 跑 — `git worktree add /tmp/old refactor-batch-20b && cd /tmp/old && npm install && npm run lint`；(b) 或纯读 `git show <tag>:src/file.ts` 不动 working tree
+- 红线"不许 git restore / checkout -- / reset"在我犯错时反而救了我 —— 否则我会把 src 也覆盖丢失改动
+
+---
+
+## 批次 21 全图收尾（P0-2 拆 fetcher.ts 完成）
+
+**7 子批 commit hash 列表**
+
+| 子批      | commit    | 主旨                                                          |
+| --------- | --------- | ------------------------------------------------------------- |
+| 21a       | `cf51fb5` | 抽工具层 helpers/http/images（strangler fig 起步，零回归）    |
+| 21b       | `3240a33` | 抽 frontmatter 拼装（4 路由 byte-level 等价验证）             |
+| 21c       | `a354382` | 抽 routes/web.ts 通用 parser（首个 route）                    |
+| 21d       | `d03201a` | 抽 routes/weixin.ts + **修 P4-4 picture/source 处理**         |
+| 21e       | `f573f68` | 抽 routes/gist.ts + **首次集成 buildFrontmatter（端到端验证）** |
+| 21f       | `15646a2` | 抽 routes/github.ts（最后一个 route）                         |
+| 21g-pre   | `6b0fe8d` | 建主入口 + types + 抽 fetchUrl（拆两步的第一步）              |
+| 21g-final | (本 commit) | 切 commands import + 删旧 fetcher.ts + 集成测                |
+
+**文件结构对比**
+
+| 维度          | Before (refactor-batch-20b)         | After (refactor-batch-21-done)                                                                                                                                                                                                                                                                                                       |
+| ------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 单文件        | `src/lib/fetcher.ts` 856 行         | 已删除                                                                                                                                                                                                                                                                                                                               |
+| 拆分后子模块  | —                                   | `src/lib/fetcher/` 10 文件 1370 行（含大量新增注释 / docstring）：<br>• `index.ts` 180（fetchUrl 主入口 dispatcher + 4 个 public API barrel）<br>• `types.ts` 77（FetchResult/FetchOptions/ParsedDoc）<br>• `frontmatter.ts` 111（buildFrontmatter）<br>• `helpers.ts` 98（slugify/resolveUrl/htmlToMarkdown/3 个日期 helper）<br>• `http.ts` 131（detectSite/buildHeaders/detectAntibot/L1/L2 fetch）<br>• `images.ts` 172（sniffExt/downloadImages/rewriteMarkdownImages）<br>• `routes/web.ts` 98（parseGeneric）<br>• `routes/weixin.ts` 164（parseWeixin + P4-4 picture）<br>• `routes/gist.ts` 180（parseGistUrl + fetchGist）<br>• `routes/github.ts` 159（parseGithubRepoUrl + fetchGithubDoc） |
+| 单文件最大    | 856 行（**触发 CONVENTIONS Do Not #12 红线**） | 180 行（index.ts），全部 < 210，**全部 < 500 红线**，P0-2 红线消除                                                                                                                                                                                                                                                                  |
+| 4 处重复 inline | `FetchResult` × 1 + `ParsedDoc` × 1（都在 fetcher.ts 内） | 上提到 `types.ts` 单一 SSOT；4 routes import type，零重复                                                                                                                                                                                                                                                                          |
+| frontmatter 拼装 | 3 处内嵌 fmLines（generic/weixin/gist/github，约 30 行重复代码） | 1 处 `buildFrontmatter()` helper，调用方各自 `lines.push(...buildFrontmatter({routeKind,...}))` 单行                                                                                                                                                                                                                                  |
+| LEGACY P4-4 picture/source | 仍存在（微信文章 `<picture>` 包裹会丢图）       | ✅ 已修（21d 新版 weixin.ts 含 picture unwrap + source srcset 解析 + 9 mock 断言验证）                                                                                                                                                                                                                                              |
+
+**lint baseline 变化**
+
+| 节点                | src 范围 lint 总数 | 备注                                                                                                                                                |
+| ------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| refactor-batch-20b  | 37                 | 21 起点                                                                                                                                             |
+| 21a                 | 39 (+2)            | helpers.ts 的 `let slug` + http.ts 的 `@ts-ignore` 是从旧 fetcher.ts copy 来的双份                                                                  |
+| 21b                 | 39 (+0)            | frontmatter.ts 自身 0 error                                                                                                                         |
+| 21c                 | 39 (+0)            | routes/web.ts 自身 0 error                                                                                                                          |
+| 21d                 | 40 (+1)            | weixin.ts 的 `let title` 是从旧 fetcher.ts copy 来的双份                                                                                            |
+| 21e                 | 40 (+0)            | routes/gist.ts 自身 0 error                                                                                                                         |
+| 21f                 | 40 (+0)            | routes/github.ts 自身 0 error                                                                                                                       |
+| 21g-pre             | 40 (+0)            | types.ts + index.ts 自身 0 error；4 处 inline interface 删除不影响计数                                                                              |
+| **21g-final**       | **36 (-4)**        | 旧 fetcher.ts 自身 4 个 lint error（`let slug` 1 + `@ts-ignore` 1 + `let title` 1 + `extname` unused 1）随删除消失。总净效应：21 全程 lint **37 → 36**，下降 1 |
+
+**集成测结果**
+
+```
+TMPCORPUS=/var/folders/zw/_qtlnfyj3z76xkvc1zzg_rwr0000gn/T/lorekit-21g-test-.kP3uKr9gwS
+
+$ lorekit init .
+✓ corpus initialized
+
+$ lorekit fetch https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
+{"status":"ok","route":"gist","url":"...","title":"llm-wiki","author":"karpathy",
+ "publishDate":"2026-04-04","sourceKind":"gist","sourceLayer":"L1","slug":"llm-wiki",
+ "markdown":".../_工作台/收件/fetch/llm-wiki.md","imagesOk":0,"imagesFailed":0}
+exit: 0
+
+$ ls _工作台/收件/fetch/
+llm-wiki.md
+
+$ cat .wiki/ingest-state.json | jq '.ingests | keys'
+[ "https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f" ]
+
+$ head -10 _工作台/收件/fetch/llm-wiki.md
+---
+type: source
+title: "llm-wiki"
+created: 2026-04-19
+updated: 2026-04-19
+source_url: https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
+source_author: "karpathy"
+source_date: 2026-04-04
+source_kind: gist
+---
+```
+
+端到端**完美 pass**：fetchGist 真实抓取 + buildFrontmatter routeKind:gist + 文件落盘 + ingest-state 记录。新 fetcher 子模块在生产路径上行为与原 fetcher.ts 一致（lorekit 设计哲学源头 gist，最稳定的测试目标）。
+
+**真实 4 路由全集成测留先生最终验收**（决策 A 拒绝 online smoke，决策 B 限定 1 条 gist 集成测）。建议先生未来手动跑：(a) 微信公众号文章（验 P4-4 picture 修复 + ct timestamp）；(b) lorekit github repo README（验 fetchGithubDoc + candidate fallback）；(c) claude.com / Webflow 类 generic 文章（验 fetchUrl L1 + parseGeneric）。
+
+**给规划方的"21 全图 review pack 草稿"**（汇报先生时直接复用）
+
+> ## P0-2 拆 fetcher.ts 完成（批次 21，2026-04-19，7 子批 + 1 收尾）
+>
+> **目标**：把 856 行的 `src/lib/fetcher.ts` 拆成职责清晰的子模块，消除 CONVENTIONS Do Not #12（500 行红线）+ LEGACY P0-2。
+>
+> **方法**：strangler fig pattern 7 子批渐进。前 6 子批纯新增旁路文件（零回归风险），21g-pre 建主入口仍未切换，21g-final 单 commit 完成切换 + 删旧 + 集成测，回滚路径仅 1 个 commit。
+>
+> **结果**：
+> - 单文件 856 行 → 10 文件最大 180 行，全部 < 500 行
+> - 4 处 frontmatter 重复拼装 → 1 个 `buildFrontmatter()` helper（byte-level 等价验证 6+ mock case）
+> - 4 处 inline `FetchResult`/`ParsedDoc` → 1 个 `types.ts` SSOT
+> - **顺手修 LEGACY P4-4**（微信 picture/source 丢图 bug，9 mock 断言）
+> - lint baseline 37 → 36，verify 全程绿
+> - 真实 fetch karpathy gist 集成测端到端 OK
+>
+> **代价 / 教训**：
+> - 21g-final 中段我用 `git stash + git checkout <tag> -- .` 临时看历史 lint，损坏 working tree docs（HEAD 完整）。规划方红线豁免后用 `git checkout HEAD --` 恢复。已记入个人 playbook：以后用 `git worktree add` 或 `git show <tag>:file` 看历史
+> - 双份代码期间（21a-21f）lint 上浮 +3，但每条都是从旧文件 copy 的 pre-existing 问题，21g-final 删旧时全部回落
+>
+> **下一步**：批次 22 拆 vectordb.ts（1115 行 → ~10 子模块），同样 strangler fig，预计风险更高（vectordb 含三层 query + RRF + sqlite-vec 集成 + ollama embed，无现成 smoke 兜底）。
+
+**接下来**
+
+- 批次 21 完成，等规划方启动批次 22（拆 vectordb.ts）
+- 不主动开始 22
+
+---
+
 ## 2026-04-19 — 批次 21g-pre：建 fetcher 主入口 + types + 抽 fetchUrl（strangler fig 第七步 / P0-2，拆两步的第一步）
 
 **做了什么**

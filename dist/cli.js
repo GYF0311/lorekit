@@ -2235,17 +2235,86 @@ function vectorCommand(program2) {
 
 // src/commands/fetch.ts
 import { existsSync as existsSync12, mkdirSync as mkdirSync8 } from "fs";
-import { join as join15, relative as relative12 } from "path";
+import { join as join18, relative as relative12 } from "path";
 
-// src/lib/fetcher.ts
-import { mkdir, writeFile } from "fs/promises";
-import { join as join13 } from "path";
-import * as cheerio from "cheerio";
+// src/lib/fetcher/index.ts
+import { mkdir as mkdir4, writeFile as writeFile4 } from "fs/promises";
+import { join as join16 } from "path";
+
+// src/lib/fetcher/frontmatter.ts
+function escapeDoubleQuote(s) {
+  return s.replace(/"/g, '\\"');
+}
+function buildFrontmatter(opts) {
+  const { routeKind, title, today: today2, url, author, publishDate } = opts;
+  const omitPublishDate = routeKind === "github";
+  const lines = ["---"];
+  lines.push("type: source");
+  if (title) {
+    lines.push(`title: "${escapeDoubleQuote(title)}"`);
+  }
+  lines.push(`created: ${today2}`);
+  lines.push(`updated: ${today2}`);
+  lines.push(`source_url: ${url}`);
+  if (author) {
+    lines.push(`source_author: "${escapeDoubleQuote(author)}"`);
+  }
+  if (!omitPublishDate && publishDate) {
+    lines.push(`source_date: ${publishDate}`);
+  }
+  lines.push(`source_kind: ${routeKind}`);
+  lines.push("---");
+  return lines;
+}
+
+// src/lib/fetcher/helpers.ts
 import TurndownService from "turndown";
+function slugify(s) {
+  let slug = s.replace(/[^\w\u4e00-\u9fff-]+/g, "-").replace(/^-+|-+$/g, "");
+  return slug.slice(0, 50) || "untitled";
+}
+function resolveUrl(src, base) {
+  try {
+    return new URL(src, base).href;
+  } catch {
+    return src;
+  }
+}
+function htmlToMarkdown(html) {
+  const td = new TurndownService({
+    headingStyle: "atx",
+    codeBlockStyle: "fenced"
+  });
+  return td.turndown(html).trim();
+}
+var SHANGHAI_TZ_OFFSET_MS2 = 8 * 60 * 60 * 1e3;
+function tsToYMD(seconds) {
+  const d = new Date(seconds * 1e3 + SHANGHAI_TZ_OFFSET_MS2);
+  return d.toISOString().slice(0, 10);
+}
+function todayYMD() {
+  const d = new Date(Date.now() + SHANGHAI_TZ_OFFSET_MS2);
+  return d.toISOString().slice(0, 10);
+}
+function normalizeDateText(raw) {
+  const s = raw.trim();
+  if (!s) return void 0;
+  const iso = s.match(/(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if (iso) {
+    const [, y, m, d] = iso;
+    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+  const zh = s.match(/(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
+  if (zh) {
+    const [, y, m, d] = zh;
+    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+  return void 0;
+}
+
+// src/lib/fetcher/http.ts
 var UA_IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
 var UA_DESKTOP = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-var MAX_IMG_BYTES = 5 * 1024 * 1024;
-var IMG_CONCURRENCY = 5;
 var HTTP_TIMEOUT_MS = 2e4;
 var ANTIBOT_TRIGGERS = [
   "\u73AF\u5883\u5F02\u5E38",
@@ -2282,17 +2351,6 @@ function detectAntibot(html, site) {
   if (site === "weixin" && !html.includes("js_content")) return true;
   return false;
 }
-function slugify(s) {
-  let slug = s.replace(/[^\w\u4e00-\u9fff-]+/g, "-").replace(/^-+|-+$/g, "");
-  return slug.slice(0, 50) || "untitled";
-}
-function resolveUrl(src, base) {
-  try {
-    return new URL(src, base).href;
-  } catch {
-    return src;
-  }
-}
 async function fetchHtmlL1(url, headers) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS);
@@ -2323,129 +2381,12 @@ async function fetchHtmlL2(url) {
     return null;
   }
 }
-var SHANGHAI_TZ_OFFSET_MS2 = 8 * 60 * 60 * 1e3;
-function tsToYMD(seconds) {
-  const d = new Date(seconds * 1e3 + SHANGHAI_TZ_OFFSET_MS2);
-  return d.toISOString().slice(0, 10);
-}
-function todayYMD() {
-  const d = new Date(Date.now() + SHANGHAI_TZ_OFFSET_MS2);
-  return d.toISOString().slice(0, 10);
-}
-function normalizeDateText(raw) {
-  const s = raw.trim();
-  if (!s) return void 0;
-  const iso = s.match(/(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
-  if (iso) {
-    const [, y, m, d] = iso;
-    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-  }
-  const zh = s.match(/(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
-  if (zh) {
-    const [, y, m, d] = zh;
-    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-  }
-  return void 0;
-}
-function parseWeixin(html, baseUrl) {
-  const $ = cheerio.load(html);
-  let title = $("h1#activity-name").text().trim() || $("h1.rich_media_title").text().trim() || $('meta[property="og:title"]').attr("content")?.trim() || "";
-  const author = $("a#js_name").text().trim() || $("#js_author_name").text().trim() || "";
-  let publishDate;
-  const ctMatch = html.match(/var\s+ct\s*=\s*"(\d+)"/);
-  if (ctMatch) {
-    const ts = Number(ctMatch[1]);
-    if (Number.isFinite(ts) && ts > 0) publishDate = tsToYMD(ts);
-  }
-  if (!publishDate) {
-    const ptText = $("em#publish_time").text().trim();
-    if (ptText) publishDate = normalizeDateText(ptText);
-  }
-  const body = $("#js_content");
-  if (!body.length) {
-    return { title, author, publishDate, bodyHtml: "", imgSrcs: [] };
-  }
-  body.find("script, style").remove();
-  const imgSrcs = [];
-  body.find("img").each((_i, el) => {
-    const $el = $(el);
-    const real = ($el.attr("data-src") || $el.attr("data-original") || $el.attr("data-url") || $el.attr("src") || "").trim();
-    if (!real || real.startsWith("data:")) {
-      $el.remove();
-      return;
-    }
-    const abs = resolveUrl(real, baseUrl);
-    $el.attr("src", abs);
-    for (const a of [
-      "data-src",
-      "data-original",
-      "data-url",
-      "data-w",
-      "data-ratio",
-      "data-type",
-      "data-s",
-      "srcset"
-    ]) {
-      $el.removeAttr(a);
-    }
-    imgSrcs.push(abs);
-  });
-  return { title, author, publishDate, bodyHtml: body.html() || "", imgSrcs };
-}
-function parseGeneric(html, baseUrl) {
-  const $ = cheerio.load(html);
-  const ogTitle = $('meta[property="og:title"]').attr("content")?.trim();
-  const titleTag = $("title").text().trim();
-  const title = ogTitle || titleTag || "";
-  const author = $('meta[name="author"]').attr("content")?.trim() || "";
-  let publishDate;
-  const dateCandidates = [
-    $('meta[property="article:published_time"]').attr("content"),
-    $('meta[property="og:article:published_time"]').attr("content"),
-    $('meta[name="article:published_time"]').attr("content"),
-    $('meta[itemprop="datePublished"]').attr("content"),
-    $('meta[name="date"]').attr("content"),
-    $('meta[name="pubdate"]').attr("content"),
-    $('meta[name="publishdate"]').attr("content"),
-    $("time[datetime]").first().attr("datetime"),
-    $("time").first().text()
-  ];
-  for (const cand of dateCandidates) {
-    if (!cand) continue;
-    const norm = normalizeDateText(cand);
-    if (norm) {
-      publishDate = norm;
-      break;
-    }
-  }
-  let body = $("article");
-  if (!body.length) body = $("main");
-  if (!body.length) body = $("body");
-  if (!body.length) {
-    return { title, author, publishDate, bodyHtml: "", imgSrcs: [] };
-  }
-  body.find("script, style, nav, footer, header, aside").remove();
-  const imgSrcs = [];
-  body.find("img").each((_i, el) => {
-    const $el = $(el);
-    const real = ($el.attr("data-src") || $el.attr("data-original") || $el.attr("src") || "").trim();
-    if (!real || real.startsWith("data:")) {
-      $el.remove();
-      return;
-    }
-    const abs = resolveUrl(real, baseUrl);
-    $el.attr("src", abs);
-    imgSrcs.push(abs);
-  });
-  return { title, author, publishDate, bodyHtml: body.html() || "", imgSrcs };
-}
-function htmlToMarkdown(html) {
-  const td = new TurndownService({
-    headingStyle: "atx",
-    codeBlockStyle: "fenced"
-  });
-  return td.turndown(html).trim();
-}
+
+// src/lib/fetcher/images.ts
+import { mkdir, writeFile } from "fs/promises";
+import { join as join13 } from "path";
+var MAX_IMG_BYTES = 5 * 1024 * 1024;
+var IMG_CONCURRENCY = 5;
 var MAGIC = [
   [[255, 216, 255], ".jpg"],
   [[137, 80, 78, 71, 13, 10, 26, 10], ".png"],
@@ -2526,98 +2467,139 @@ function rewriteMarkdownImages(md, imgResults) {
     return local ? `![${alt}](${local})` : match;
   });
 }
-async function fetchUrl(url, opts) {
-  const site = detectSite(url);
-  const headers = buildHeaders(site);
-  let sourceLayer = "L1";
-  let html = "";
-  try {
-    html = await fetchHtmlL1(url, headers);
-    if (detectAntibot(html, site)) {
-      html = "";
-    }
-  } catch {
-    html = "";
-  }
-  if (!html) {
-    sourceLayer = "L2";
-    const l2html = await fetchHtmlL2(url);
-    if (!l2html) {
-      return {
-        status: "error",
-        route: "rich",
-        url,
-        reason: "ANTIBOT_BLOCKED",
-        suggest: "Install playwright-core + chromium, or paste content manually"
-      };
-    }
-    html = l2html;
-    if (detectAntibot(html, site)) {
-      return {
-        status: "error",
-        route: "rich",
-        url,
-        reason: "ANTIBOT_BLOCKED",
-        suggest: "Site requires login or manual intervention"
-      };
+
+// src/lib/fetcher/routes/web.ts
+import * as cheerio from "cheerio";
+function parseGeneric(html, baseUrl) {
+  const $ = cheerio.load(html);
+  const ogTitle = $('meta[property="og:title"]').attr("content")?.trim();
+  const titleTag = $("title").text().trim();
+  const title = ogTitle || titleTag || "";
+  const author = $('meta[name="author"]').attr("content")?.trim() || "";
+  let publishDate;
+  const dateCandidates = [
+    $('meta[property="article:published_time"]').attr("content"),
+    $('meta[property="og:article:published_time"]').attr("content"),
+    $('meta[name="article:published_time"]').attr("content"),
+    $('meta[itemprop="datePublished"]').attr("content"),
+    $('meta[name="date"]').attr("content"),
+    $('meta[name="pubdate"]').attr("content"),
+    $('meta[name="publishdate"]').attr("content"),
+    $("time[datetime]").first().attr("datetime"),
+    $("time").first().text()
+  ];
+  for (const cand of dateCandidates) {
+    if (!cand) continue;
+    const norm = normalizeDateText(cand);
+    if (norm) {
+      publishDate = norm;
+      break;
     }
   }
-  const doc = site === "weixin" ? parseWeixin(html, url) : parseGeneric(html, url);
-  if (!doc.bodyHtml || doc.bodyHtml.replace(/<[^>]*>/g, "").trim().length < 50) {
-    return {
-      status: "error",
-      route: "rich",
-      url,
-      reason: "empty_body"
-    };
+  let body = $("article");
+  if (!body.length) body = $("main");
+  if (!body.length) body = $("body");
+  if (!body.length) {
+    return { title, author, publishDate, bodyHtml: "", imgSrcs: [] };
   }
-  let md = htmlToMarkdown(doc.bodyHtml);
-  const slug = slugify(doc.title || "untitled");
-  const assetsDir = join13(opts.outRoot, `${slug}.assets`);
-  await mkdir(opts.outRoot, { recursive: true });
-  let imagesOk = 0;
-  let imagesFailed = 0;
-  if (!opts.noImages && doc.imgSrcs.length > 0) {
-    const imgResults = await downloadImages(doc.imgSrcs, assetsDir, headers, `./${slug}.assets/`);
-    md = rewriteMarkdownImages(md, imgResults);
-    for (const r of imgResults) {
-      if (r.status === "ok") imagesOk++;
-      else imagesFailed++;
+  body.find("script, style, nav, footer, header, aside").remove();
+  const imgSrcs = [];
+  body.find("img").each((_i, el) => {
+    const $el = $(el);
+    const real = ($el.attr("data-src") || $el.attr("data-original") || $el.attr("src") || "").trim();
+    if (!real || real.startsWith("data:")) {
+      $el.remove();
+      return;
     }
-  }
-  const sourceKind = site === "weixin" ? "clipping" : "article";
-  const today2 = todayYMD();
-  const fmLines = ["---"];
-  fmLines.push("type: source");
-  if (doc.title) fmLines.push(`title: "${doc.title.replace(/"/g, '\\"')}"`);
-  fmLines.push(`created: ${today2}`);
-  fmLines.push(`updated: ${today2}`);
-  fmLines.push(`source_url: ${url}`);
-  if (doc.author) fmLines.push(`source_author: "${doc.author.replace(/"/g, '\\"')}"`);
-  if (doc.publishDate) fmLines.push(`source_date: ${doc.publishDate}`);
-  fmLines.push(`source_kind: ${sourceKind}`);
-  fmLines.push("---");
-  fmLines.push("");
-  if (doc.title) fmLines.push(`# ${doc.title}`, "");
-  fmLines.push(md, "");
-  const articlePath = join13(opts.outRoot, `${slug}.md`);
-  await writeFile(articlePath, fmLines.join("\n"), "utf-8");
-  return {
-    status: "ok",
-    route: "rich",
-    url,
-    title: doc.title || void 0,
-    author: doc.author || void 0,
-    publishDate: doc.publishDate,
-    sourceKind,
-    sourceLayer,
-    slug,
-    markdown: articlePath,
-    assetsDir,
-    imagesOk,
-    imagesFailed
-  };
+    const abs = resolveUrl(real, baseUrl);
+    $el.attr("src", abs);
+    imgSrcs.push(abs);
+  });
+  return { title, author, publishDate, bodyHtml: body.html() || "", imgSrcs };
 }
+
+// src/lib/fetcher/routes/weixin.ts
+import * as cheerio2 from "cheerio";
+function firstSrcsetUrl(srcset) {
+  const s = srcset.trim();
+  if (!s) return "";
+  const firstCandidate = s.split(",")[0].trim();
+  if (!firstCandidate) return "";
+  const url = firstCandidate.split(/\s+/)[0].trim();
+  return url;
+}
+function parseWeixin(html, baseUrl) {
+  const $ = cheerio2.load(html);
+  let title = $("h1#activity-name").text().trim() || $("h1.rich_media_title").text().trim() || $('meta[property="og:title"]').attr("content")?.trim() || "";
+  const author = $("a#js_name").text().trim() || $("#js_author_name").text().trim() || "";
+  let publishDate;
+  const ctMatch = html.match(/var\s+ct\s*=\s*"(\d+)"/);
+  if (ctMatch) {
+    const ts = Number(ctMatch[1]);
+    if (Number.isFinite(ts) && ts > 0) publishDate = tsToYMD(ts);
+  }
+  if (!publishDate) {
+    const ptText = $("em#publish_time").text().trim();
+    if (ptText) publishDate = normalizeDateText(ptText);
+  }
+  const body = $("#js_content");
+  if (!body.length) {
+    return { title, author, publishDate, bodyHtml: "", imgSrcs: [] };
+  }
+  body.find("script, style").remove();
+  body.find("picture").each((_i, el) => {
+    const $picture = $(el);
+    const $firstSource = $picture.find("source[srcset]").first();
+    const srcsetRaw = $firstSource.attr("srcset") || "";
+    const pickedUrl = firstSrcsetUrl(srcsetRaw);
+    let $img = $picture.find("img").first();
+    if ($img.length) {
+      const existing = ($img.attr("data-src") || $img.attr("data-original") || $img.attr("data-url") || $img.attr("src") || "").trim();
+      if (!existing && pickedUrl) {
+        $img.attr("data-src", pickedUrl);
+      }
+    } else if (pickedUrl) {
+      $picture.append(`<img data-src="${pickedUrl}">`);
+      $img = $picture.find("img").first();
+    }
+    if ($img.length) {
+      $picture.replaceWith($img);
+    } else {
+      $picture.remove();
+    }
+  });
+  body.find("source").remove();
+  const imgSrcs = [];
+  body.find("img").each((_i, el) => {
+    const $el = $(el);
+    const real = ($el.attr("data-src") || $el.attr("data-original") || $el.attr("data-url") || $el.attr("src") || "").trim();
+    if (!real || real.startsWith("data:")) {
+      $el.remove();
+      return;
+    }
+    const abs = resolveUrl(real, baseUrl);
+    $el.attr("src", abs);
+    for (const a of [
+      "data-src",
+      "data-original",
+      "data-url",
+      "data-w",
+      "data-ratio",
+      "data-type",
+      "data-s",
+      "srcset"
+    ]) {
+      $el.removeAttr(a);
+    }
+    imgSrcs.push(abs);
+  });
+  return { title, author, publishDate, bodyHtml: body.html() || "", imgSrcs };
+}
+
+// src/lib/fetcher/routes/gist.ts
+import { mkdir as mkdir2, writeFile as writeFile2 } from "fs/promises";
+import { join as join14 } from "path";
+import * as cheerio3 from "cheerio";
 function parseGistUrl(url) {
   try {
     const u = new URL(url);
@@ -2648,7 +2630,7 @@ async function fetchGist(url, outRoot) {
       reason: `fetch_failed: ${e.message}`
     };
   }
-  const $ = cheerio.load(html);
+  const $ = cheerio3.load(html);
   const description = $('[itemprop="about"]').first().text().trim();
   const ogTitle = $('meta[property="og:title"]').attr("content")?.trim();
   const title = description || ogTitle || parsed.id;
@@ -2688,24 +2670,25 @@ async function fetchGist(url, outRoot) {
     };
   }
   const slug = slugify(title);
-  await mkdir(outRoot, { recursive: true });
+  await mkdir2(outRoot, { recursive: true });
   const today2 = todayYMD();
   const hasH1 = /^#\s+/m.test(content);
-  const fmLines = ["---"];
-  fmLines.push("type: source");
-  fmLines.push(`title: "${title.replace(/"/g, '\\"')}"`);
-  fmLines.push(`created: ${today2}`);
-  fmLines.push(`updated: ${today2}`);
-  fmLines.push(`source_url: ${url}`);
-  fmLines.push(`source_author: "${author.replace(/"/g, '\\"')}"`);
-  if (publishDate) fmLines.push(`source_date: ${publishDate}`);
-  fmLines.push("source_kind: gist");
-  fmLines.push("---");
+  const fmLines = [];
+  fmLines.push(
+    ...buildFrontmatter({
+      routeKind: "gist",
+      title,
+      today: today2,
+      url,
+      author,
+      publishDate
+    })
+  );
   fmLines.push("");
   if (!hasH1) fmLines.push(`# ${title}`, "");
   fmLines.push(content.trim(), "");
-  const articlePath = join13(outRoot, `${slug}.md`);
-  await writeFile(articlePath, fmLines.join("\n"), "utf-8");
+  const articlePath = join14(outRoot, `${slug}.md`);
+  await writeFile2(articlePath, fmLines.join("\n"), "utf-8");
   return {
     status: "ok",
     route: "gist",
@@ -2721,6 +2704,10 @@ async function fetchGist(url, outRoot) {
     imagesFailed: 0
   };
 }
+
+// src/lib/fetcher/routes/github.ts
+import { mkdir as mkdir3, writeFile as writeFile3 } from "fs/promises";
+import { join as join15 } from "path";
 function parseGithubRepoUrl(url) {
   try {
     const u = new URL(url);
@@ -2779,24 +2766,25 @@ async function fetchGithubDoc(url, outRoot) {
   const fileName = subpath ? subpath.split("/").pop() : "README.md";
   const title = subpath ? fileName.replace(/\.(md|markdown)$/i, "") : `${owner}/${repo}`;
   const slug = slugify(subpath ? `${owner}-${repo}-${fileName}` : `${owner}-${repo}`);
-  await mkdir(outRoot, { recursive: true });
+  await mkdir3(outRoot, { recursive: true });
   const today2 = todayYMD();
   const hasH1 = /^#\s+/m.test(content);
-  const fmLines = ["---"];
-  fmLines.push("type: source");
-  fmLines.push(`title: "${title.replace(/"/g, '\\"')}"`);
-  fmLines.push(`created: ${today2}`);
-  fmLines.push(`updated: ${today2}`);
-  fmLines.push(`source_url: ${url}`);
-  fmLines.push(`source_author: "${owner.replace(/"/g, '\\"')}"`);
-  fmLines.push("source_kind: github");
-  fmLines.push("---");
+  const fmLines = [];
+  fmLines.push(
+    ...buildFrontmatter({
+      routeKind: "github",
+      title,
+      today: today2,
+      url,
+      author: owner
+    })
+  );
   fmLines.push("");
   if (!hasH1) fmLines.push(`# ${title}`, "");
   fmLines.push(`> Fetched from: ${chosenUrl}`, "");
   fmLines.push(content.trim(), "");
-  const articlePath = join13(outRoot, `${slug}.md`);
-  await writeFile(articlePath, fmLines.join("\n"), "utf-8");
+  const articlePath = join15(outRoot, `${slug}.md`);
+  await writeFile3(articlePath, fmLines.join("\n"), "utf-8");
   return {
     status: "ok",
     route: "github",
@@ -2812,11 +2800,106 @@ async function fetchGithubDoc(url, outRoot) {
   };
 }
 
+// src/lib/fetcher/index.ts
+async function fetchUrl(url, opts) {
+  const site = detectSite(url);
+  const headers = buildHeaders(site);
+  let sourceLayer = "L1";
+  let html = "";
+  try {
+    html = await fetchHtmlL1(url, headers);
+    if (detectAntibot(html, site)) {
+      html = "";
+    }
+  } catch {
+    html = "";
+  }
+  if (!html) {
+    sourceLayer = "L2";
+    const l2html = await fetchHtmlL2(url);
+    if (!l2html) {
+      return {
+        status: "error",
+        route: "rich",
+        url,
+        reason: "ANTIBOT_BLOCKED",
+        suggest: "Install playwright-core + chromium, or paste content manually"
+      };
+    }
+    html = l2html;
+    if (detectAntibot(html, site)) {
+      return {
+        status: "error",
+        route: "rich",
+        url,
+        reason: "ANTIBOT_BLOCKED",
+        suggest: "Site requires login or manual intervention"
+      };
+    }
+  }
+  const doc = site === "weixin" ? parseWeixin(html, url) : parseGeneric(html, url);
+  if (!doc.bodyHtml || doc.bodyHtml.replace(/<[^>]*>/g, "").trim().length < 50) {
+    return {
+      status: "error",
+      route: "rich",
+      url,
+      reason: "empty_body"
+    };
+  }
+  let md = htmlToMarkdown(doc.bodyHtml);
+  const slug = slugify(doc.title || "untitled");
+  const assetsDir = join16(opts.outRoot, `${slug}.assets`);
+  await mkdir4(opts.outRoot, { recursive: true });
+  let imagesOk = 0;
+  let imagesFailed = 0;
+  if (!opts.noImages && doc.imgSrcs.length > 0) {
+    const imgResults = await downloadImages(doc.imgSrcs, assetsDir, headers, `./${slug}.assets/`);
+    md = rewriteMarkdownImages(md, imgResults);
+    for (const r of imgResults) {
+      if (r.status === "ok") imagesOk++;
+      else imagesFailed++;
+    }
+  }
+  const sourceKind = site === "weixin" ? "clipping" : "article";
+  const today2 = todayYMD();
+  const fmLines = [];
+  fmLines.push(
+    ...buildFrontmatter({
+      routeKind: sourceKind,
+      title: doc.title,
+      today: today2,
+      url,
+      author: doc.author,
+      publishDate: doc.publishDate
+    })
+  );
+  fmLines.push("");
+  if (doc.title) fmLines.push(`# ${doc.title}`, "");
+  fmLines.push(md, "");
+  const articlePath = join16(opts.outRoot, `${slug}.md`);
+  await writeFile4(articlePath, fmLines.join("\n"), "utf-8");
+  return {
+    status: "ok",
+    route: "rich",
+    url,
+    title: doc.title || void 0,
+    author: doc.author || void 0,
+    publishDate: doc.publishDate,
+    sourceKind,
+    sourceLayer,
+    slug,
+    markdown: articlePath,
+    assetsDir,
+    imagesOk,
+    imagesFailed
+  };
+}
+
 // src/lib/ingest-state.ts
 import { existsSync as existsSync11, mkdirSync as mkdirSync7, readFileSync as readFileSync15, writeFileSync as writeFileSync5 } from "fs";
-import { join as join14, dirname as dirname4 } from "path";
+import { join as join17, dirname as dirname4 } from "path";
 function stateFilePath(corpus) {
-  return join14(corpus, ".wiki", "ingest-state.json");
+  return join17(corpus, ".wiki", "ingest-state.json");
 }
 function loadIngestState(corpus) {
   const p = stateFilePath(corpus);
@@ -2925,7 +3008,7 @@ function fetchCommand(program2) {
       if (opts.out) {
         outRoot = opts.out;
       } else {
-        outRoot = corpus ? join15(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch") : "/tmp/lorekit-fetch";
+        outRoot = corpus ? join18(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch") : "/tmp/lorekit-fetch";
       }
       if (!existsSync12(outRoot)) {
         mkdirSync8(outRoot, { recursive: true });
@@ -3021,13 +3104,13 @@ function fetchCommand(program2) {
 
 // src/commands/ingest.ts
 import { existsSync as existsSync13, readFileSync as readFileSync16, writeFileSync as writeFileSync6 } from "fs";
-import { join as join16, relative as relative13 } from "path";
+import { join as join19, relative as relative13 } from "path";
 var VALID_STEPS = ["fetch", "archive", "wiki", "backlink", "lint"];
 function today() {
   return dateToYMDLocal(/* @__PURE__ */ new Date());
 }
 function appendLogEntry(corpus, record, body) {
-  const logPath = join16(corpus, "log.md");
+  const logPath = join19(corpus, "log.md");
   const title = record.title ?? "(untitled)";
   const wikiList = (record.wikiPages ?? []).map((p) => `  - ${p}`).join("\n");
   const archived = record.archivedTo ?? "(unrecorded)";
@@ -3190,7 +3273,7 @@ ${summary.join("\n")}`
     const okLinks = [];
     const checked = [];
     for (const f of files) {
-      const abs = f.startsWith("/") ? f : join16(process.cwd(), f);
+      const abs = f.startsWith("/") ? f : join19(process.cwd(), f);
       if (!existsSync13(abs)) {
         print(`[lorekit ingest check] file not found: ${f}`);
         process.exitCode = 2;
@@ -3242,7 +3325,7 @@ ${summary.join("\n")}`
   });
   group.command("reconcile").description("Back-fill state for pre-existing \u539F\u6599/ pages missing a state record").option("--dry-run", "list what would be added without writing").action((opts) => {
     const corpus = requireCorpus();
-    const sourcesRoot = join16(corpus, "\u539F\u6599");
+    const sourcesRoot = join19(corpus, "\u539F\u6599");
     if (!existsSync13(sourcesRoot)) {
       print("[lorekit ingest reconcile] no \u539F\u6599/ directory");
       return;
@@ -3285,7 +3368,7 @@ import chalk6 from "chalk";
 
 // src/lib/root-index.ts
 import { existsSync as existsSync14, readFileSync as readFileSync17, readdirSync as readdirSync9, writeFileSync as writeFileSync7 } from "fs";
-import { join as join17 } from "path";
+import { join as join20 } from "path";
 var MANAGED_SECTIONS = [
   { heading: "## \u6982\u5FF5", subdir: "\u77E5\u8BC6\u5E93/\u6982\u5FF5" },
   { heading: "## \u5B9E\u4F53", subdir: "\u77E5\u8BC6\u5E93/\u5B9E\u4F53" },
@@ -3293,14 +3376,14 @@ var MANAGED_SECTIONS = [
   { heading: "## \u4E13\u9898", subdir: "\u77E5\u8BC6\u5E93/\u4E13\u9898" }
 ];
 function listEntriesInDir(corpus, subdir) {
-  const dirPath = join17(corpus, subdir);
+  const dirPath = join20(corpus, subdir);
   if (!existsSync14(dirPath)) return [];
   const out2 = [];
   for (const name of readdirSync9(dirPath)) {
     if (name.startsWith(".")) continue;
     if (name === "_INDEX.md") continue;
     if (!name.endsWith(".md")) continue;
-    const file = join17(dirPath, name);
+    const file = join20(dirPath, name);
     const slug = `${subdir}/${name.replace(/\.md$/, "")}`;
     out2.push({ slug, summary: extractCompiledTruthSnippet(file) });
   }
@@ -3378,7 +3461,7 @@ function mergeSection(content, heading, onDisk) {
   };
 }
 function refreshRootIndex(corpus) {
-  const indexPath = join17(corpus, "index.md");
+  const indexPath = join20(corpus, "index.md");
   if (!existsSync14(indexPath)) {
     return { filePath: indexPath, changed: false, perSection: [] };
   }

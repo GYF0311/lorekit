@@ -2,8 +2,8 @@ import type { Command } from 'commander';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { findCorpus, findSourceByUrl, extractFrontmatter } from '../lib/corpus.js';
-import { fetchUrl, fetchGist, fetchGithubDoc } from '../lib/fetcher.js';
-import type { FetchResult } from '../lib/fetcher.js';
+import { fetchUrl, fetchGist, fetchGithubDoc } from '../lib/fetcher/index.js';
+import type { FetchResult } from '../lib/fetcher/index.js';
 import { getIngestRecord, upsertIngestRecord, nextStepHint } from '../lib/ingest-state.js';
 
 // ---------------------------------------------------------------------------
