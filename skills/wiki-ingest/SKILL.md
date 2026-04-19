@@ -115,6 +115,21 @@ mv _工作台/收件/fetch/<slug>.md 原料/剪藏/<slug>.md
 - **`.md` 和 `.assets/` 必须同名同级**——不要拆开，否则 Obsidian 里图片引用断
 - 不值得入档的低质量片段 → 用 `trash` 扔回收站，**绝不用 `rm`**
 
+**铁律：保持 fetcher slug，禁止 LLM 自作主张 rename / 缩写**
+
+fetcher 已用 `slugify(title)` 生成的 slug 是先生希望的"文件名 = 真实标题"。
+LLM 在 mv 时**不许**改名（即使觉得短英文 slug 更专业）。
+
+❌ 错误示例（早期吃过的亏，2026-04-19 修复）：
+- title: "Web Access：一个Skill，拉满Agent联网和浏览器能力"
+- fetcher slug: `Web-Access-一个Skill-拉满Agent联网和浏览器能力`
+- LLM 自作主张改成: `web-access-skill-yize`  ← **错**，先生看图谱时无法直观知道是哪篇
+
+✅ 正确：
+- mv `_工作台/收件/fetch/Web-Access-一个Skill-拉满Agent联网和浏览器能力.md` `原料/剪藏/Web-Access-一个Skill-拉满Agent联网和浏览器能力.md`
+
+  保持 fetcher 给的 slug 一字不改。
+
 ### 3.5 aliases 对齐检查（提取概念前必做，防碎裂）
 
 对每个要建 concept / entity 页的主语，**先扫已有页的 aliases，避免同物异名建重复页**：
