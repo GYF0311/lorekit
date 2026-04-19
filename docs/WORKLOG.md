@@ -6,6 +6,55 @@
 
 ---
 
+## 2026-04-19 — 批次 19：P4 杂项 snapshot/restore/vector 安全收敛（B3/B4/B6）
+
+**做了什么**
+
+- `src/commands/snapshot.ts`（P4-2/B3）：manifest 写入后用 try/finally 包 tar.create 调用链，任何抛错都会清掉 `.wiki/snapshots/manifest.json`，不再残留
+- `src/commands/restore.ts`（P4-3/B4）：`rmDirRecursive` 上加一整块注释明确锁定 `os.tmpdir()` 子目录，对齐先生全局 CLAUDE.md 的数据安全红线（rm-guard 精神，源码侧的文档性约束）
+- `src/commands/vector.ts`（P4-5/B6）：`runVectorSync` 内 `filePath.replace(corpus + '/', '')` → `path.relative(corpus, filePath)`，顶部 import 加 `relative`
+- `tests/smoke/corpus.test.mjs`：snapshot 测试追加 "`.wiki/snapshots/` 不应残留 manifest.json" 断言（try/finally 后置条件的可验证覆盖）
+- 手动验：`init . && snapshot` 后目录只剩 `.tar.gz`，无 manifest
+- tag：`refactor-batch-19`
+- smoke 16 tests / 15 pass / 1 skip；lint baseline 38 → 37
+
+**为什么**
+
+- LEGACY P4-2 / P4-3 / P4-5：三个 P4 小项一起做，低风险可并批
+- P4-4（fetcher 微信 `<picture>`/`<source>`）按原计划留给批次 21 拆 fetcher 时一起修，**本批不碰 fetcher**
+- restore.ts 的 `rmSync` 本就锁在 tmpdir，注释化是"道德约束"，等于把不可改动的前置条件写进代码里给后续动这段的人看
+
+**接下来**
+
+- 批次 20（P4-1 ingest variadic 待验证）：需要先写 smoke 复现 `--wiki-page a --wiki-page b --step archive,wiki` 的实际行为是否如预期（去重 / 列表 append），再决定是否改 src
+- 批次 21 / 22：P0 拆库，**必须每子批一 review**，不可 unattended
+
+---
+
+## 2026-04-19 — 批次 14b：install-skills.ts console sweep（P2-4 补）
+
+**做了什么**
+
+- `src/commands/install-skills.ts` 3 处 console → logger 分流：
+  - `--list` 输出 `name -> target` symlink 列表 → `out` (stdout, 机器可读；下游可 `awk` / `wc` 统计)
+  - "No skills found to install." → `print` (stderr)
+  - "\nInstalled N skill(s). Restart Claude Code..." → `print` (stderr，保留 `\n` 空行)
+- 手动验：`node dist/cli.js install-skills --list > /tmp/out 2> /tmp/err` → stdout 6 行 / stderr 0 行，分流正确
+- tag：`refactor-batch-14b`
+- smoke 16 tests / 15 pass / 1 skip；lint baseline 41 → 38
+
+**为什么**
+
+- 批次 14 sweep 时 unattended 没敢碰：`--list` 是给脚本读的 stdout 还是给人看的 stderr，需要判断，不适合无人值守批量替换
+- 先生前台 review 下定了：`out` 走 stdout（machine-readable），`print` 走 stderr（human-readable）；install-skills 的 `--list` 明显是后者可以管道 `| wc -l` 统计的
+- `src/commands/fetch.ts` 5 处 console 按 LEGACY 备注**留给批次 21 拆 fetcher 时一并做**
+
+**接下来**
+
+- 进 Commit C 批次 19（P4 小项）
+
+---
+
 ## 2026-04-19 — 批次 17：P3 commands/index.ts rename + NaN 守卫（**单批合并**）
 
 **做了什么**
