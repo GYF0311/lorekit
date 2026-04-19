@@ -1,5 +1,15 @@
 # AGENTS.md — lorekit
 
+## Project Status (2026-04-19)
+
+- **当前版本**：v0.4.0
+- **最近完成**：21+22+23+24-fix（拆 fetcher 856 → 10 文件 / 拆 vectordb 1057 → 10 文件 / 清 8 条 follow-up / 修 BM25 L0 gate 老 bug）
+- **待决策（高）**：综合 wiki schema 升级（按类型分目录 + domains tag + L0 改领域导览图）—— 详见 `docs/DESIGN-NOTES.md` §5
+- **新会话接手顺序**：AGENTS.md → docs/CONVENTIONS → docs/ARCHITECTURE → docs/CODEBASE-MAP → docs/DESIGN-NOTES → docs/IDEAS（~25k tok 完全对齐）
+- **历史日志**：`docs/history/`（WORKLOG / REFACTOR-PLAN / DEVLOG，默认不读）
+
+---
+
 > 给 AI Coding Agent（Claude Code / Codex / Cursor / Aider / Windsurf / Kimi CLI ...）的项目入口。
 > 用户把 GitHub 链接丢给你，说"帮我装这个"或"帮我改这个"——你按本文操作。
 
