@@ -6,6 +6,59 @@
 
 ---
 
+## 2026-04-19 — 批次 22d：抽 vectordb BM25 + hybrid 融合（strangler fig 第四步 / P0-1）
+
+**做了什么**
+
+- 新建 2 个文件到 `src/lib/vectordb/`：
+  - `query-bm25.ts`（164 行）：私有 `sanitizeFtsQuery(q): string` + 公开 `queryBM25Layered(db, queryText, topK): QueryResult[]` — FTS5 三层 BM25 召回（fts_dirs → fts_pages → fts_chunks），镜像 query-layered 过滤逻辑
+  - `query-hybrid.ts`（75 行）：公开 `rrfMerge(lists, topK, k=60): QueryResult[]` 纯算法 + 公开 `queryHybrid(db, embedding, queryText, topK, threshold): QueryResult[]` dispatcher
+- 依赖链（**关键**）：
+  - query-bm25.ts → schema.ts (Db, QueryResult)，**无 vector helper**
+  - query-hybrid.ts → schema.ts (Db, QueryResult) + **`./query-layered.js` (22c)** + **`./query-bm25.js` (本批)** — dispatcher 调下游 2 路实现 + rrfMerge 融合
+- 原 vectordb.ts 一行未动；commands/*.ts 一行未动；22a/22b/22c 抽出的文件一行未动
+- 写一次性 parity 脚本 `tmp/vectordb-22d-parity-check.mjs`（不入 git）
+- tag：`refactor-batch-22d`
+- 验证：
+  - `npm run verify` 全绿，18 tests / 17 pass / 1 skip / ~2.6s
+  - `npm run lint` src 范围 **45 不变**（query-bm25.ts / query-hybrid.ts 自身 0 error，无 console / 无 as any；3 处沉默 catch 是从原 vectordb.ts copy 的双份在已统计内）
+
+**byte-level 验证范围声明**
+
+| 段                  | 验证方式                                                                  | 结果 |
+| ------------------- | ------------------------------------------------------------------------- | ---- |
+| `sanitizeFtsQuery`  | git show + diff 函数体 (legacy 572-581 vs actual)                        | **0 字符差异** |
+| `queryBM25Layered`  | git show + diff 函数体 (legacy 591-695 vs actual)                        | **0 字符差异** |
+| `rrfMerge`          | git show + diff 函数体 (legacy 702-724 vs actual)                        | **0 字符差异** |
+| `queryHybrid`       | git show + diff 函数体 (legacy 731-743 vs actual)                        | **0 字符差异** |
+| `sanitizeFtsQuery` 行为 | 10 mock case（精确实体 / OR/AND/NEAR 关键字 / < 3 字符过滤 / FTS5 运算符 / 日期 - 拆 token / 空 / 空白 / CamelCase / 中英混合 / 嵌套 NEAR()），legacy inline vs actual inline 全等 | **高保真** |
+| `rrfMerge` 行为     | 6 mock case（单路透传 / 两路 rank1 累加 / topK 截断 / 空 / 文件名+chunk 前缀 dedup / 80 字 collision），legacy vs actual 全等 | **高保真** |
+| `queryBM25Layered` 实际 db query | 不验（fts5 MATCH，开发机无 sqlite-vec 装） | 降级（22f 集成测兜底） |
+| `queryHybrid` 整体 | 不验（dispatcher，下游各自 byte-equal 即整体 byte-equal） | 推论（无独立验证需要） |
+
+**抄写过程发现的可疑原代码点（不修，记 follow-up）**
+
+1. **`rrfMerge` 用前 80 字做 dedup key**（query-hybrid.ts:32 `${item.file}::${item.chunk.slice(0, 80)}`）：B6 mock case 复现——两个 chunk 前 80 字相同（如同文档同段开头）会被错误合并为 1 个 item。中文长文档常见"段首固定开场白"场景下可能丢正确召回。原代码注释只说"防 chunk 内容重复"，未说明 80 字是经验值还是估算。建议 follow-up：(a) 用 chunk 全文 hash 做 key；(b) 或拼上 chunk 长度 / index 去重
+2. **3 处 fts5 沉默 catch**（query-bm25.ts:64-66 / 113-115 / 145-147）：L0/L1/L2 各一，catch 后返回 `[]`。原代码无 logger.warn 记录，导致 query 静默失败时上层只看到空结果不知是 fts 抛错。LEGACY P2-2 范围（22a 也提过同款 issue），后续清理子批集中改 `logger.debug(...)` + 注释
+3. **`sanitizeFtsQuery` 把内部 `-` 也拆 token**（query-bm25.ts:38 `[..., \-, ...]`）：`日期-2026-04-15` → `日期 2026 15`（`04` < 3 字符被过滤）。原代码注释明说 by-design（"内部的 - 也会让日期类 query 失效"），但语义上 `2026-04-15` 这种完整日期串是常见 query 模式。建议 follow-up：保留作为整 token 的日期 pattern 识别（`\d{4}-\d{2}-\d{2}`）后再过滤其他 `-`
+4. **`queryHybrid` 不暴露 `k` 调参**（query-hybrid.ts:64-78）：调用 `rrfMerge([vec, bm25], topK)` 时 k 走默认 60。先生若想调 RRF 平滑度需要改源码。属设计取舍（保持 hybrid 入口简洁），可考虑加可选参数
+
+**这 4 点都不修**：22 严守 strangler fig "copy 不修"；行为问题留 follow-up
+
+**为什么**
+
+- 严格按 22d 范围：仅 BM25 + hybrid，不动 status / 主入口
+- query-hybrid.ts 是 22 至今**第一个跨子批 import 链**：依赖 22c 的 query-layered.js + 22d 自批的 query-bm25.js。不暴露 queryFlat 给 hybrid 是 by-design（原代码 hybrid 只组合 layered + bm25，flat 仅作 baseline 给 vector query --flat 用）
+- sanitizeFtsQuery / rrfMerge 用 mock case 高保真验证：纯函数无 db 状态，验证成本低；规划方明示"必须高保真"
+- queryBM25Layered 整体降级到 22f：fts5 MATCH 与 sqlite-vec 同样需开发机装 sqlite-vec extension（fts5 是 better-sqlite3 内置但同库需 sqlite-vec 同时加载，与 schema.openDb 流程绑定），mock 收益低成本高
+
+**接下来**
+
+- 进 22e：抽 status (computeMode + getStatus) + index.ts 主入口 + 决定 EmbedFn 是否上提到 schema.ts —— 等规划方下达指令
+- 不主动开始 22e
+
+---
+
 ## 2026-04-19 — 批次 22c：抽 vectordb 向量查询 query-flat + query-layered（strangler fig 第三步 / P0-1）
 
 **做了什么**
