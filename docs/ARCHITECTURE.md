@@ -111,12 +111,12 @@ flowchart LR
 | Corpus      | `lib/corpus.ts`                | 给一个目录，判定它是不是 corpus（看 `.wiki/` 或 `CLAUDE.md`），向上递归找根   |
 | Frontmatter | `lib/corpus.ts`                | gray-matter 包装：`extractFrontmatter` / `hasFrontmatter` / `findSourceByUrl` |
 | IngestState | `lib/ingest-state.ts`          | `.wiki/ingest-state.json` 单一事实源；3 个 status × N 个 stepsDone            |
-| Fetcher     | `lib/fetcher.ts`               | URL → 本地 markdown + 图片；L1 native fetch，L2 playwright fallback           |
+| Fetcher     | `lib/fetcher/`                 | URL → 本地 markdown + 图片；L1 native fetch，L2 playwright fallback（10 文件子模块，v0.4.0 / 批次 21 拆分） |
 | Chunker     | `lib/chunker.ts`               | markdown 按 `## heading` 切，加 `[title][type]` prefix                        |
 | Ollama      | `lib/ollama.ts`                | 调本地 ollama `/api/embed`                                                    |
-| VectorDB    | `lib/vectordb.ts`              | sqlite-vec + FTS5；queryFlat / queryLayered / queryBM25Layered / queryHybrid  |
+| VectorDB    | `lib/vectordb/`                | sqlite-vec + FTS5；queryFlat / queryLayered / queryBM25Layered / queryHybrid（10 文件子模块，v0.4.0 / 批次 22 拆分；批次 24-fix 后 BM25 走 chunk 直查） |
 | RootIndex   | `lib/root-index.ts`            | `corpus/index.md` 的受控区合并刷新（保留人类摘要）                            |
-| DirIndex    | `commands/index.ts → runIndex` | 所有子目录 `_INDEX.md` 自动生成                                               |
+| DirIndex    | `commands/dir-index.ts → runIndex` | 所有子目录 `_INDEX.md` 自动生成（v0.4.0 / 批次 17 从 `commands/index.ts` 改名消歧义） |
 | Logger      | `utils/logger.ts`              | 全仓库输出唯一通道（CONVENTIONS 强制）                                        |
 
 ## Schema 约束
