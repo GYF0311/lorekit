@@ -33,7 +33,7 @@ export async function runVectorSync(
   const model = opts.model ?? 'bge-m3';
 
   const { embed, embedSingle } = await import('../lib/ollama.js');
-  const { openDb, syncFile, buildLayeredIndex, collectFiles } = await import('../lib/vectordb.js');
+  const { openDb, syncFile, buildLayeredIndex, collectFiles } = await import('../lib/vectordb/index.js');
 
   const testEmb = await embedSingle('test', model);
   const dim = testEmb.length;
@@ -140,7 +140,7 @@ export function vectorCommand(program: Command) {
 
         const { embedSingle } = await import('../lib/ollama.js');
         const { openDb, queryFlat, queryLayered, queryBM25Layered, queryHybrid } =
-          await import('../lib/vectordb.js');
+          await import('../lib/vectordb/index.js');
 
         // Probe dim from existing db or model
         let dim = 1024;
@@ -181,7 +181,7 @@ export function vectorCommand(program: Command) {
     .description('show vector index status')
     .action(async () => {
       const corpus = requireCorpus();
-      const { getStatus } = await import('../lib/vectordb.js');
+      const { getStatus } = await import('../lib/vectordb/index.js');
       const info = await getStatus(corpus);
       out(JSON.stringify(info, null, 2));
     });

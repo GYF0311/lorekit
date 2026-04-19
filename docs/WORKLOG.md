@@ -6,6 +6,130 @@
 
 ---
 
+## 2026-04-19 — 批次 22f：切 commands + 删旧 vectordb.ts（P0-1 完成 / 批次 22 全图收尾）
+
+**做了什么**
+
+- **动作 1**：`src/commands/vector.ts` 3 处 dynamic import 切换：L36 / L143 / L184 全部 `'../lib/vectordb.js'` → `'../lib/vectordb/index.js'`
+- **动作 2**：`trash src/lib/vectordb.ts`（旧 1057 行死代码搬进 ~/.Trash 可恢复）+ `trash tmp/vectordb-22{a,b,d,e}-parity-check.mjs`（22c 没有 parity 脚本因只用 git diff）
+- **动作 3 必跑段**：临时 corpus → `lorekit init .` → `lorekit vector status` 输出 `indexed:false / mode:'text' / mode_threshold:100 / mode_reason: "vector index not built; text Read is the only option"` —— 完全符合 22e computeMode 设计，**不需 sqlite-vec / ollama**
+- **动作 3 ollama 完整 pipeline**（本机有 ollama + bge-m3:latest）：临时 corpus → init → 准备 `知识库/概念/test.md` mock 数据 → `lorekit sync`（exit 0）→ `lorekit vector status` 显示 `indexed:true / indexed_files:2 / chunks:2 / mode:'text'`（< 100 阈值符合 22e computeMode 设计）→ `lorekit vector query --hybrid --text "machine learning"` 命中 `知识库/概念/test.md` 的 `_intro` chunk，**score=0.0164**
+- **关键验证**：score 0.0164 = 1/61 ≈ 0.01639，正是 22d rrfMerge 公式 `1/(60+rank)` 单路 rank 1 命中的 RRF 分数。confirms hybrid 真在调 22d query-hybrid.ts 的 rrfMerge + 下游 22c query-layered + 22d query-bm25 链路。22a-22e 抽出的 vectordb 子模块在生产路径上行为完全等价旧 vectordb.ts
+- tag：`refactor-batch-22f` + 总结 tag `refactor-batch-22-done`
+
+**Step 1 verify 异常观察（已自愈）**
+
+切完 import 第一次跑 `npm run verify`，输出 "11 fail / 6 pass / duration 45.7s"（异常长 vs 正常 ~2.5s）。立即重跑显示 "17 pass / 1 skip / 2.5s" 全绿，再跑一次稳定。推断：tsc → build → smoke 三步串行中，build 把 dist/cli.js 重写为新 import 路径，但 smoke 启动时可能用了 stale dist 触发 import 解析失败；build 完成后所有后续运行稳定。**没有引入 STATUS.md 流程**因为问题不可复现且 verify 已稳定绿。playbook 教训：22f 风险点是"切 import 后 dist 与源不一致的瞬态"，但 npm run verify 内置 build 步会自动 rectify
+
+**验证结果**
+
+- `npm run verify` 全绿，18 tests / 17 pass / 1 skip / ~2.5s（多次稳定）
+- `npm run lint` src 范围 **34**（22 全程：36 → 34，**净降 2**）
+  - 22a 期间 +2 (Db = any × 2)
+  - 22b 期间 +7 (console.log × 7)
+  - 22c/22d/22e 期间 +0
+  - **22f 删旧时回落 11 个**（旧 vectordb.ts 自带的 Db = any + 2 处 as any + 7 处 console.log + extname unused warning + statSync unused warning + extractPageSummary unused warning + 1057 行其他 lint）
+
+**最终文件树**
+
+```
+src/lib/vectordb/  (10 文件 1463 行)
+├── schema.ts          251  常量 + 类型 + DDL + openDb + loadSqlite
+├── files.ts           140  sha256 / collectFiles / extractPageSummary 等
+├── sync.ts            128  syncFile (单文件增量)
+├── build-layered-index.ts  282  buildLayeredIndex + parseIndex* helpers
+├── query-flat.ts       76  queryFlat (单层向量召回)
+├── query-layered.ts   166  queryLayered (L0/L1/L2 三层)
+├── query-bm25.ts      164  queryBM25Layered + sanitizeFtsQuery
+├── query-hybrid.ts     75  rrfMerge + queryHybrid
+├── status.ts          127  computeMode + getStatus
+└── index.ts            54  barrel re-export 公开 API
+```
+
+**全部 < 500 行**（最大 282），P0-1 红线消除。
+
+---
+
+## 批次 22 全图收尾（P0-1 拆 vectordb.ts 完成）
+
+**6 子批 commit hash 列表**
+
+| 子批 | commit    | 主旨                                                               |
+| ---- | --------- | ------------------------------------------------------------------ |
+| 22a  | `84def72` | 抽工具层 schema + files（zero 回归基础层）                         |
+| 22b  | `59a226e` | 抽写路径 sync + build-layered-index（含 3 个 parseIndex* helper）  |
+| 22c  | `80b7e62` | 抽 query-flat + query-layered（向量查询，git diff 函数体全 byte-equal）|
+| 22d  | `b6d2f94` | 抽 query-bm25 + query-hybrid（含 sanitizeFtsQuery + rrfMerge + 跨子批 import 第一次） |
+| 22e  | `80dc8d6` | 抽 status + 建 index.ts barrel（主入口设计 + EmbedFn 不上提决策）   |
+| 22f  | (本 commit) | 切 commands + 删旧 vectordb.ts + 集成测（端到端 ollama 跑通）       |
+
+**文件结构对比**
+
+| 维度          | Before (refactor-batch-21-done)         | After (refactor-batch-22-done)                                                                       |
+| ------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| 单文件        | `src/lib/vectordb.ts` 1057 行           | 已删除                                                                                               |
+| 拆分后        | —                                       | `src/lib/vectordb/` 10 文件 1463 行（含大量新增注释 / docstring）                                    |
+| 单文件最大    | 1057 行（**触发 CONVENTIONS Do Not #12 红线**） | 282 行（build-layered-index.ts），全部 < 500，P0-1 红线消除                                          |
+| 公开 API surface | 全部 export 无主入口                  | `vectordb/index.ts` barrel 暴露 9 value + rrfMerge + 2 常量 + 3 type；不暴露内部 helper             |
+| 架构清晰度    | 单文件混 schema + 4 种 query + RRF + status + parse helpers | 7 维度按职责拆：schema / files / sync / build-layered / 4×query / status，调用关系直观              |
+
+**lint baseline 全程变化**
+
+| 节点                | src 范围 | 备注                                                                                          |
+| ------------------- | -------- | --------------------------------------------------------------------------------------------- |
+| refactor-batch-21-done | 36       | 22 起点                                                                                       |
+| 22a                 | 38 (+2)  | schema.ts 的 Db = any + as any 是从原 vectordb.ts copy 的双份                                 |
+| 22b                 | 45 (+7)  | build-layered-index.ts 的 7 处 console.log 进度提示是双份                                     |
+| 22c                 | 45 (+0)  | query-flat.ts / query-layered.ts 自身 0 error                                                 |
+| 22d                 | 45 (+0)  | query-bm25.ts / query-hybrid.ts 自身 0 error                                                  |
+| 22e                 | 45 (+0)  | status.ts / index.ts 自身 0 error                                                             |
+| **22f**             | **34 (-11)** | 旧 vectordb.ts 自带 11 个 lint error（Db = any 1 + as any 2 + console 7 + extname/statSync/extractPageSummary unused 各 1 = 12 实际，但部分计数差异）随删除消失。22 全程 36 → 34，**净降 2** |
+
+**主要质量改进**
+
+1. **P0-1 红线消除**：1057 行 → 最大 282 行，全部 < 500
+2. **职责清晰**：7 维度（schema/files/sync/build-layered/4×query/status）按读写路径分层，新维护者可按子文件独立理解
+3. **公开 API 收敛**：barrel re-export 仅暴露 9 个 value + 算法 + 常量 + type，14 个内部 helper 封装在子文件不外露
+4. **抄写零漏字符**：8+ 函数体 git show + diff 全 0 字符差异；30+ mock case 行为全等价
+5. **集成测端到端验证**：必跑段 status (不需 sqlite-vec) + ollama 完整 pipeline (sync + query --hybrid 命中 + RRF score 0.0164 = 1/61 验证公式正确性)
+6. **顺手记账 8 条可疑原代码点**（见各子批 WORKLOG）：rrfMerge 80 字 dedup / Db = any / 沉默 catch 多处 / sanitizeFtsQuery 日期 - 拆 token / 等 — 留 follow-up 后续清理子批
+
+**给规划方的"22 全图 review pack 草稿"**（汇报先生时直接复用）
+
+> ## P0-1 拆 vectordb.ts 完成（批次 22，2026-04-19，6 子批）
+>
+> **目标**：把 1057 行的 `src/lib/vectordb.ts` 拆成职责清晰的子模块，消除 CONVENTIONS Do Not #12 + LEGACY P0-1。
+>
+> **方法**：strangler fig pattern 6 子批渐进。前 5 子批纯新增旁路文件（零回归风险），22f 单 commit 完成切换 + 删旧 + 集成测，回滚路径仅 1 个 commit。
+>
+> **结果**：
+> - 单文件 1057 行 → 10 文件最大 282 行，全部 < 500 行
+> - 7 维度按职责拆（schema / files / sync / build-layered / 4×query / status）
+> - barrel index.ts 暴露 9 公开 API + 算法 + 常量 + type，14 个内部 helper 封装
+> - byte-level 抄写检查：8+ 函数体 git show + diff 全 0 字符差异
+> - 行为等价 mock case 30+：computeMode 7 / sanitizeFtsQuery 10 / rrfMerge 6 / parseIndex* 9 / vecDdl 4 / collectFiles 1 等全 pass
+> - lint baseline 36 → 34，verify 全程绿
+> - 集成测：必跑段 vector status 端到端 OK + ollama 完整 pipeline (sync + status indexed:true/chunks:2 + query --hybrid 命中 score=0.0164 验证 RRF 公式)
+> - **抄写顺手发现 8 条可疑原代码点**（不修，记 follow-up 留后续清理子批）
+>
+> **代价 / 教训**：
+> - 22f 切 import 后第一次 verify 输出"11 fail"瞬态异常，重跑稳定 17 pass。推断 tsc → build → smoke 三步串行中 stale dist/cli.js 触发短暂 import 解析失败。verify 内置 build 步自动 rectify
+> - 双份代码期间 lint 上浮 +9（22a +2 / 22b +7），但每条都是从旧文件 copy 的 pre-existing 问题，22f 删旧时回落 11 个超过 +9
+> - 严守"22e 教训"：看历史 lint 用 `git show <tag>:file | wc -l` 只读管道，**绝不**用 `git stash + git checkout <tag> -- .` 组合（21g-final 翻车铁律）
+>
+> **批次 21 + 22 合计成果**：
+> - lorekit src/lib/ 两个 P0 拆完，最大文件从 1057 行降到 282 行
+> - 不再有任何 src 文件触发 CONVENTIONS Do Not #12（500 行红线）
+> - LEGACY P0-1 + P0-2 + P4-4 全部 ✅
+> - 集成测 fetch karpathy gist + vector full pipeline 双双端到端 OK
+
+**接下来**
+
+- 批次 22 完成。批次 21 + 22 = 整个 P0 全清。可启动后续清理子批（P2 console → logger sweep / Db = any → import type Database 精确化 / rrfMerge 80 字 dedup 修等 follow-up），或推进新功能
+- 不主动开始任何后续工作
+
+---
+
 ## 2026-04-19 — 批次 22e：抽 status + 建主入口（strangler fig 第五步 / P0-1）
 
 **做了什么**

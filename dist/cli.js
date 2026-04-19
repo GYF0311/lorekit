@@ -120,22 +120,198 @@ var init_ollama = __esm({
   }
 });
 
+// src/lib/vectordb/schema.ts
+import { existsSync as existsSync9, mkdirSync as mkdirSync6 } from "fs";
+import { join as join11 } from "path";
+function vecDdl(dim) {
+  return `
+CREATE VIRTUAL TABLE IF NOT EXISTS vec_chunks USING vec0(
+    embedding float[${dim}] distance_metric=cosine
+);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS vec_dirs USING vec0(
+    embedding float[${dim}] distance_metric=cosine
+);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS vec_pages USING vec0(
+    embedding float[${dim}] distance_metric=cosine
+);
+`;
+}
+async function loadSqlite() {
+  let Database2;
+  try {
+    Database2 = (await import("better-sqlite3")).default;
+  } catch {
+    throw new Error(
+      "better-sqlite3 is required for the vector engine.\n  Install it: npm install better-sqlite3"
+    );
+  }
+  let sqliteVec;
+  try {
+    const vecMod = await import("sqlite-vec");
+    sqliteVec = vecMod;
+  } catch {
+    throw new Error(
+      "sqlite-vec is required for the vector engine.\n  Install it: npm install sqlite-vec"
+    );
+  }
+  return { Database: Database2, sqliteVec };
+}
+async function openDb(corpus, dim = EMBEDDING_DIM) {
+  const { Database: Database2, sqliteVec } = await loadSqlite();
+  const wikiDir = join11(corpus, ".wiki");
+  if (!existsSync9(wikiDir)) mkdirSync6(wikiDir, { recursive: true });
+  const dbPath = join11(wikiDir, "vector.sqlite");
+  const db = new Database2(dbPath);
+  sqliteVec.load(db);
+  db.pragma("journal_mode = WAL");
+  db.pragma("foreign_keys = ON");
+  db.exec(DDL);
+  db.exec(vecDdl(dim));
+  db.exec(FTS_DDL);
+  const dirCols = db.prepare("PRAGMA table_info(dir_summaries)").all();
+  if (!dirCols.some((c) => c.name === "slug_list")) {
+    db.exec(`ALTER TABLE dir_summaries ADD COLUMN slug_list TEXT NOT NULL DEFAULT '[]'`);
+  }
+  return db;
+}
+var EMBEDDING_DIM, MODE_THRESHOLD_FILES, DDL, FTS_DDL;
+var init_schema = __esm({
+  "src/lib/vectordb/schema.ts"() {
+    "use strict";
+    EMBEDDING_DIM = 1024;
+    MODE_THRESHOLD_FILES = 100;
+    DDL = `
+CREATE TABLE IF NOT EXISTS documents (
+    id INTEGER PRIMARY KEY,
+    path TEXT UNIQUE NOT NULL,
+    sha256 TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS chunks (
+    id INTEGER PRIMARY KEY,
+    doc_id INTEGER NOT NULL,
+    section TEXT,
+    content TEXT NOT NULL,
+    embedding BLOB NOT NULL,
+    FOREIGN KEY (doc_id) REFERENCES documents(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS meta (
+    key TEXT PRIMARY KEY,
+    value TEXT
+);
+
+CREATE TABLE IF NOT EXISTS dir_summaries (
+    id INTEGER PRIMARY KEY,
+    dir_path TEXT UNIQUE NOT NULL,
+    summary TEXT NOT NULL,
+    embedding BLOB NOT NULL,
+    slug_list TEXT NOT NULL DEFAULT '[]'
+);
+
+CREATE TABLE IF NOT EXISTS page_summaries (
+    id INTEGER PRIMARY KEY,
+    doc_id INTEGER NOT NULL REFERENCES documents(id),
+    summary TEXT NOT NULL,
+    embedding BLOB NOT NULL
+);
+`;
+    FTS_DDL = `
+CREATE VIRTUAL TABLE IF NOT EXISTS fts_chunks USING fts5(
+    content,
+    tokenize='trigram'
+);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS fts_dirs USING fts5(
+    summary,
+    tokenize='trigram'
+);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS fts_pages USING fts5(
+    summary,
+    tokenize='trigram'
+);
+`;
+  }
+});
+
+// src/lib/vectordb/files.ts
+import { createHash as createHash2 } from "crypto";
+import { readFileSync as readFileSync12, readdirSync as readdirSync7 } from "fs";
+import { basename as basename5, join as join12, relative as relative9 } from "path";
+import matter2 from "gray-matter";
+function sha2562(filePath) {
+  const data = readFileSync12(filePath);
+  return createHash2("sha256").update(data).digest("hex");
+}
+function float32ToBuffer(arr) {
+  return Buffer.from(arr.buffer, arr.byteOffset, arr.byteLength);
+}
+function distanceToScore(distance) {
+  return 1 - distance * distance / 2;
+}
+function shouldIndex(rel) {
+  const parts = rel.split("/");
+  if (vectorExcludeNames.has(parts[parts.length - 1])) return false;
+  if (!rel.endsWith(".md")) return false;
+  for (const prefix of vectorExcludePrefixes) {
+    if (rel === prefix || rel.startsWith(prefix + "/")) return false;
+  }
+  for (const inc of vectorIncludeDirs) {
+    if (rel === inc || rel.startsWith(inc + "/")) return true;
+  }
+  return false;
+}
+function collectFiles(corpus) {
+  const results = [];
+  function walk(dir) {
+    let entries;
+    try {
+      entries = readdirSync7(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const full = join12(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+      } else if (entry.name.endsWith(".md")) {
+        const rel = relative9(corpus, full);
+        if (shouldIndex(rel)) {
+          results.push(full);
+        }
+      }
+    }
+  }
+  walk(corpus);
+  return results.sort();
+}
+var init_files = __esm({
+  "src/lib/vectordb/files.ts"() {
+    "use strict";
+    init_paths();
+  }
+});
+
 // src/lib/chunker.ts
 var chunker_exports = {};
 __export(chunker_exports, {
   chunkFile: () => chunkFile
 });
-import { readFileSync as readFileSync12 } from "fs";
-import { basename as basename5 } from "path";
-import matter2 from "gray-matter";
+import { readFileSync as readFileSync13 } from "fs";
+import { basename as basename6 } from "path";
+import matter3 from "gray-matter";
 function chunkFile(filePath, corpusRoot) {
-  const raw = readFileSync12(filePath, "utf-8");
-  const { data: fm, content: body } = matter2(raw);
+  const raw = readFileSync13(filePath, "utf-8");
+  const { data: fm, content: body } = matter3(raw);
   let title = fm.title || "";
   const type = fm.type || "";
   if (!title) {
     const m = body.match(/^#\s+(.+)/m);
-    title = m ? m[1].trim() : basename5(filePath, ".md");
+    title = m ? m[1].trim() : basename6(filePath, ".md");
   }
   const parts = body.split(/^(## .+)$/m);
   const sections = [];
@@ -183,127 +359,11 @@ var init_chunker = __esm({
   }
 });
 
-// src/lib/vectordb.ts
-var vectordb_exports = {};
-__export(vectordb_exports, {
-  MODE_THRESHOLD_FILES: () => MODE_THRESHOLD_FILES,
-  buildLayeredIndex: () => buildLayeredIndex,
-  collectFiles: () => collectFiles,
-  getStatus: () => getStatus,
-  openDb: () => openDb,
-  queryBM25Layered: () => queryBM25Layered,
-  queryFlat: () => queryFlat,
-  queryHybrid: () => queryHybrid,
-  queryLayered: () => queryLayered,
-  rrfMerge: () => rrfMerge,
-  syncFile: () => syncFile
-});
-import { createHash as createHash2 } from "crypto";
-import { existsSync as existsSync9, mkdirSync as mkdirSync6, readFileSync as readFileSync13, readdirSync as readdirSync7 } from "fs";
-import { basename as basename6, join as join11, relative as relative10 } from "path";
-import matter3 from "gray-matter";
-function vecDdl(dim) {
-  return `
-CREATE VIRTUAL TABLE IF NOT EXISTS vec_chunks USING vec0(
-    embedding float[${dim}] distance_metric=cosine
-);
-
-CREATE VIRTUAL TABLE IF NOT EXISTS vec_dirs USING vec0(
-    embedding float[${dim}] distance_metric=cosine
-);
-
-CREATE VIRTUAL TABLE IF NOT EXISTS vec_pages USING vec0(
-    embedding float[${dim}] distance_metric=cosine
-);
-`;
-}
-function sha2562(filePath) {
-  const data = readFileSync13(filePath);
-  return createHash2("sha256").update(data).digest("hex");
-}
-function float32ToBuffer(arr) {
-  return Buffer.from(arr.buffer, arr.byteOffset, arr.byteLength);
-}
-function distanceToScore(distance) {
-  return 1 - distance * distance / 2;
-}
-function shouldIndex(rel) {
-  const parts = rel.split("/");
-  if (vectorExcludeNames.has(parts[parts.length - 1])) return false;
-  if (!rel.endsWith(".md")) return false;
-  for (const prefix of vectorExcludePrefixes) {
-    if (rel === prefix || rel.startsWith(prefix + "/")) return false;
-  }
-  for (const inc of vectorIncludeDirs) {
-    if (rel === inc || rel.startsWith(inc + "/")) return true;
-  }
-  return false;
-}
-function collectFiles(corpus) {
-  const results = [];
-  function walk(dir) {
-    let entries;
-    try {
-      entries = readdirSync7(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      const full = join11(dir, entry.name);
-      if (entry.isDirectory()) {
-        walk(full);
-      } else if (entry.name.endsWith(".md")) {
-        const rel = relative10(corpus, full);
-        if (shouldIndex(rel)) {
-          results.push(full);
-        }
-      }
-    }
-  }
-  walk(corpus);
-  return results.sort();
-}
-async function loadSqlite() {
-  let Database2;
-  try {
-    Database2 = (await import("better-sqlite3")).default;
-  } catch {
-    throw new Error(
-      "better-sqlite3 is required for the vector engine.\n  Install it: npm install better-sqlite3"
-    );
-  }
-  let sqliteVec;
-  try {
-    const vecMod = await import("sqlite-vec");
-    sqliteVec = vecMod;
-  } catch {
-    throw new Error(
-      "sqlite-vec is required for the vector engine.\n  Install it: npm install sqlite-vec"
-    );
-  }
-  return { Database: Database2, sqliteVec };
-}
-async function openDb(corpus, dim = EMBEDDING_DIM) {
-  const { Database: Database2, sqliteVec } = await loadSqlite();
-  const wikiDir = join11(corpus, ".wiki");
-  if (!existsSync9(wikiDir)) mkdirSync6(wikiDir, { recursive: true });
-  const dbPath = join11(wikiDir, "vector.sqlite");
-  const db = new Database2(dbPath);
-  sqliteVec.load(db);
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
-  db.exec(DDL);
-  db.exec(vecDdl(dim));
-  db.exec(FTS_DDL);
-  const dirCols = db.prepare("PRAGMA table_info(dir_summaries)").all();
-  if (!dirCols.some((c) => c.name === "slug_list")) {
-    db.exec(`ALTER TABLE dir_summaries ADD COLUMN slug_list TEXT NOT NULL DEFAULT '[]'`);
-  }
-  return db;
-}
+// src/lib/vectordb/sync.ts
+import { relative as relative11 } from "path";
 async function syncFile(db, filePath, corpus, embedFn) {
   const { chunkFile: chunkFile2 } = await Promise.resolve().then(() => (init_chunker(), chunker_exports));
-  const rel = relative10(corpus, filePath);
+  const rel = relative11(corpus, filePath);
   const sha = sha2562(filePath);
   const old = db.prepare("SELECT id FROM documents WHERE path = ?").get(rel);
   if (old) {
@@ -352,6 +412,192 @@ async function syncFile(db, filePath, corpus, embedFn) {
   }
   return { chunks: chunks.length };
 }
+var init_sync = __esm({
+  "src/lib/vectordb/sync.ts"() {
+    "use strict";
+    init_files();
+  }
+});
+
+// src/lib/vectordb/build-layered-index.ts
+import { existsSync as existsSync10, readFileSync as readFileSync14, readdirSync as readdirSync8 } from "fs";
+import { join as join13, relative as relative12 } from "path";
+import matter4 from "gray-matter";
+function parseIndexSections(content) {
+  const lines = content.split("\n");
+  const sections = [];
+  let current = null;
+  for (const line of lines) {
+    const m = line.match(/^##\s+(.+?)\s*$/);
+    if (m) {
+      if (current) sections.push(current);
+      current = { name: m[1].trim(), lines: [line] };
+    } else if (current) {
+      current.lines.push(line);
+    }
+  }
+  if (current) sections.push(current);
+  const entrySlugRe = /^\s*[-*]\s*\[\[([^\]|#]+?)\]\]/;
+  return sections.filter((s) => /^\s*[-*]\s/m.test(s.lines.slice(1).join("\n"))).map((s) => {
+    const slugs = [];
+    for (const line of s.lines.slice(1)) {
+      const m = line.match(entrySlugRe);
+      if (m) slugs.push(m[1].trim());
+    }
+    return {
+      name: s.name,
+      text: s.lines.join("\n").trim(),
+      slugs: [...new Set(slugs)]
+    };
+  });
+}
+function parseIndexEntries(content) {
+  const lines = content.split("\n");
+  const entries = [];
+  for (const line of lines) {
+    if (/^\|\s*条目\s*\|/.test(line)) continue;
+    if (/^\|[\s\-|]+\|?\s*$/.test(line)) continue;
+    const m = line.match(/^\|\s*\[\[([^\]|#]+?)\]\]\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|/);
+    if (!m) continue;
+    const slug = m[1].trim();
+    const summary = m[2].replace(/\\\|/g, "|").trim();
+    entries.push({ slug, summary });
+  }
+  return entries;
+}
+function findAllIndexFiles(corpus) {
+  const results = [];
+  function walk(dir) {
+    let entries;
+    try {
+      entries = readdirSync8(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (entry.name.startsWith(".")) continue;
+      const full = join13(dir, entry.name);
+      const rel = relative12(corpus, full);
+      if (vectorExcludePrefixes.some((p) => rel === p || rel.startsWith(p + "/"))) continue;
+      if (entry.isDirectory()) {
+        walk(full);
+      } else if (entry.name === "_INDEX.md") {
+        results.push(full);
+      }
+    }
+  }
+  walk(corpus);
+  return results.sort();
+}
+async function buildLayeredIndex(db, corpus, embedFn) {
+  db.prepare("DELETE FROM dir_summaries").run();
+  db.prepare("DELETE FROM vec_dirs").run();
+  db.prepare("DELETE FROM fts_dirs").run();
+  const indexPath = join13(corpus, "index.md");
+  if (!existsSync10(indexPath)) {
+    console.log("  L0: corpus/index.md not found, skipped");
+  } else {
+    const raw = readFileSync14(indexPath, "utf-8");
+    const { content } = matter4(raw);
+    const sections = parseIndexSections(content);
+    if (sections.length === 0) {
+      console.log("  L0: no sections with entries in index.md, skipped");
+    } else {
+      const texts = sections.map((s) => s.text);
+      const embeddings = await embedFn(texts);
+      const insertDir = db.prepare(
+        "INSERT INTO dir_summaries (dir_path, summary, embedding, slug_list) VALUES (?, ?, ?, ?)"
+      );
+      const insertFtsDir = db.prepare("INSERT INTO fts_dirs(rowid, summary) VALUES (?, ?)");
+      for (let i = 0; i < sections.length; i++) {
+        const blob = float32ToBuffer(embeddings[i]);
+        const slugListJson = JSON.stringify(sections[i].slugs);
+        insertDir.run(sections[i].name, sections[i].text, blob, slugListJson);
+        const dirId = Number(
+          db.prepare("SELECT last_insert_rowid() as id").get().id
+        );
+        db.prepare(`INSERT INTO vec_dirs (rowid, embedding) VALUES (${dirId}, ?)`).run(blob);
+        insertFtsDir.run(dirId, sections[i].text);
+      }
+      const totalSlugs = sections.reduce((a, s) => a + s.slugs.length, 0);
+      console.log(
+        `  L0: indexed ${sections.length} sections from index.md (${totalSlugs} slugs tracked)`
+      );
+    }
+  }
+  db.prepare("DELETE FROM page_summaries").run();
+  db.prepare("DELETE FROM vec_pages").run();
+  db.prepare("DELETE FROM fts_pages").run();
+  const indexFiles = findAllIndexFiles(corpus);
+  if (indexFiles.length === 0) {
+    console.log("  L1: no _INDEX.md found, skipped");
+    return;
+  }
+  const allEntries = [];
+  for (const f of indexFiles) {
+    const raw = readFileSync14(f, "utf-8");
+    allEntries.push(...parseIndexEntries(raw));
+  }
+  if (allEntries.length === 0) {
+    console.log("  L1: no entries parsed from _INDEX.md, skipped");
+    return;
+  }
+  const docRows = db.prepare("SELECT id, path FROM documents").all();
+  const slugToDocId = /* @__PURE__ */ new Map();
+  for (const { id, path } of docRows) {
+    slugToDocId.set(path, id);
+    slugToDocId.set(path.replace(/\.md$/, ""), id);
+    if (path.endsWith("/article.md")) {
+      slugToDocId.set(path.replace(/\/article\.md$/, ""), id);
+    }
+  }
+  const matched = [];
+  let unmatched = 0;
+  for (const e of allEntries) {
+    const docId = slugToDocId.get(e.slug);
+    if (docId === void 0) {
+      unmatched++;
+      continue;
+    }
+    const text = e.summary && e.summary !== "\u2014" && e.summary !== "\uFF08\u7F3A\u5C11 frontmatter\uFF09" ? e.summary : e.slug;
+    matched.push({ docId, text, slug: e.slug });
+  }
+  if (matched.length === 0) {
+    console.log("  L1: no _INDEX.md entries matched documents, skipped");
+    return;
+  }
+  const BATCH = 64;
+  const insertPage = db.prepare(
+    "INSERT INTO page_summaries (doc_id, summary, embedding) VALUES (?, ?, ?)"
+  );
+  const insertFtsPage = db.prepare("INSERT INTO fts_pages(rowid, summary) VALUES (?, ?)");
+  for (let i = 0; i < matched.length; i += BATCH) {
+    const batch = matched.slice(i, i + BATCH);
+    const texts = batch.map((m) => m.text);
+    const embeddings = await embedFn(texts);
+    for (let j = 0; j < batch.length; j++) {
+      const blob = float32ToBuffer(embeddings[j]);
+      insertPage.run(batch[j].docId, batch[j].text, blob);
+      const pageId = Number(
+        db.prepare("SELECT last_insert_rowid() as id").get().id
+      );
+      db.prepare(`INSERT INTO vec_pages (rowid, embedding) VALUES (${pageId}, ?)`).run(blob);
+      insertFtsPage.run(pageId, `${batch[j].slug} ${batch[j].text}`);
+    }
+  }
+  let msg = `  L1: indexed ${matched.length} entries from ${indexFiles.length} _INDEX.md`;
+  if (unmatched > 0) msg += ` (${unmatched} unmatched slug, skipped)`;
+  console.log(msg);
+}
+var init_build_layered_index = __esm({
+  "src/lib/vectordb/build-layered-index.ts"() {
+    "use strict";
+    init_paths();
+    init_files();
+  }
+});
+
+// src/lib/vectordb/query-flat.ts
 function queryFlat(db, embedding, topK, threshold) {
   const blob = float32ToBuffer(embedding);
   const rows = db.prepare(
@@ -381,6 +627,14 @@ function queryFlat(db, embedding, topK, threshold) {
   }
   return results;
 }
+var init_query_flat = __esm({
+  "src/lib/vectordb/query-flat.ts"() {
+    "use strict";
+    init_files();
+  }
+});
+
+// src/lib/vectordb/query-layered.ts
 function queryLayered(db, embedding, topK, threshold) {
   const blob = float32ToBuffer(embedding);
   const l0Rows = db.prepare(
@@ -464,6 +718,14 @@ function queryLayered(db, embedding, topK, threshold) {
   }
   return results;
 }
+var init_query_layered = __esm({
+  "src/lib/vectordb/query-layered.ts"() {
+    "use strict";
+    init_files();
+  }
+});
+
+// src/lib/vectordb/query-bm25.ts
 function sanitizeFtsQuery(q) {
   let s = q.replace(/["*:^()\-+]/g, " ");
   s = s.replace(/\b(OR|AND|NOT|NEAR)\b/gi, " ");
@@ -553,6 +815,13 @@ function queryBM25Layered(db, queryText, topK) {
   }
   return results;
 }
+var init_query_bm25 = __esm({
+  "src/lib/vectordb/query-bm25.ts"() {
+    "use strict";
+  }
+});
+
+// src/lib/vectordb/query-hybrid.ts
 function rrfMerge(lists, topK, k = 60) {
   const merged = /* @__PURE__ */ new Map();
   for (const list of lists) {
@@ -578,172 +847,17 @@ function queryHybrid(db, embedding, queryText, topK, threshold) {
   const bm25Results = queryBM25Layered(db, queryText, candN);
   return rrfMerge([vecResults, bm25Results], topK);
 }
-function parseIndexSections(content) {
-  const lines = content.split("\n");
-  const sections = [];
-  let current = null;
-  for (const line of lines) {
-    const m = line.match(/^##\s+(.+?)\s*$/);
-    if (m) {
-      if (current) sections.push(current);
-      current = { name: m[1].trim(), lines: [line] };
-    } else if (current) {
-      current.lines.push(line);
-    }
+var init_query_hybrid = __esm({
+  "src/lib/vectordb/query-hybrid.ts"() {
+    "use strict";
+    init_query_bm25();
+    init_query_layered();
   }
-  if (current) sections.push(current);
-  const entrySlugRe = /^\s*[-*]\s*\[\[([^\]|#]+?)\]\]/;
-  return sections.filter((s) => /^\s*[-*]\s/m.test(s.lines.slice(1).join("\n"))).map((s) => {
-    const slugs = [];
-    for (const line of s.lines.slice(1)) {
-      const m = line.match(entrySlugRe);
-      if (m) slugs.push(m[1].trim());
-    }
-    return {
-      name: s.name,
-      text: s.lines.join("\n").trim(),
-      slugs: [...new Set(slugs)]
-    };
-  });
-}
-function parseIndexEntries(content) {
-  const lines = content.split("\n");
-  const entries = [];
-  for (const line of lines) {
-    if (/^\|\s*条目\s*\|/.test(line)) continue;
-    if (/^\|[\s\-|]+\|?\s*$/.test(line)) continue;
-    const m = line.match(/^\|\s*\[\[([^\]|#]+?)\]\]\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|/);
-    if (!m) continue;
-    const slug = m[1].trim();
-    const summary = m[2].replace(/\\\|/g, "|").trim();
-    entries.push({ slug, summary });
-  }
-  return entries;
-}
-function findAllIndexFiles(corpus) {
-  const results = [];
-  function walk(dir) {
-    let entries;
-    try {
-      entries = readdirSync7(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      if (entry.name.startsWith(".")) continue;
-      const full = join11(dir, entry.name);
-      const rel = relative10(corpus, full);
-      if (vectorExcludePrefixes.some((p) => rel === p || rel.startsWith(p + "/"))) continue;
-      if (entry.isDirectory()) {
-        walk(full);
-      } else if (entry.name === "_INDEX.md") {
-        results.push(full);
-      }
-    }
-  }
-  walk(corpus);
-  return results.sort();
-}
-async function buildLayeredIndex(db, corpus, embedFn) {
-  db.prepare("DELETE FROM dir_summaries").run();
-  db.prepare("DELETE FROM vec_dirs").run();
-  db.prepare("DELETE FROM fts_dirs").run();
-  const indexPath = join11(corpus, "index.md");
-  if (!existsSync9(indexPath)) {
-    console.log("  L0: corpus/index.md not found, skipped");
-  } else {
-    const raw = readFileSync13(indexPath, "utf-8");
-    const { content } = matter3(raw);
-    const sections = parseIndexSections(content);
-    if (sections.length === 0) {
-      console.log("  L0: no sections with entries in index.md, skipped");
-    } else {
-      const texts = sections.map((s) => s.text);
-      const embeddings = await embedFn(texts);
-      const insertDir = db.prepare(
-        "INSERT INTO dir_summaries (dir_path, summary, embedding, slug_list) VALUES (?, ?, ?, ?)"
-      );
-      const insertFtsDir = db.prepare("INSERT INTO fts_dirs(rowid, summary) VALUES (?, ?)");
-      for (let i = 0; i < sections.length; i++) {
-        const blob = float32ToBuffer(embeddings[i]);
-        const slugListJson = JSON.stringify(sections[i].slugs);
-        insertDir.run(sections[i].name, sections[i].text, blob, slugListJson);
-        const dirId = Number(
-          db.prepare("SELECT last_insert_rowid() as id").get().id
-        );
-        db.prepare(`INSERT INTO vec_dirs (rowid, embedding) VALUES (${dirId}, ?)`).run(blob);
-        insertFtsDir.run(dirId, sections[i].text);
-      }
-      const totalSlugs = sections.reduce((a, s) => a + s.slugs.length, 0);
-      console.log(
-        `  L0: indexed ${sections.length} sections from index.md (${totalSlugs} slugs tracked)`
-      );
-    }
-  }
-  db.prepare("DELETE FROM page_summaries").run();
-  db.prepare("DELETE FROM vec_pages").run();
-  db.prepare("DELETE FROM fts_pages").run();
-  const indexFiles = findAllIndexFiles(corpus);
-  if (indexFiles.length === 0) {
-    console.log("  L1: no _INDEX.md found, skipped");
-    return;
-  }
-  const allEntries = [];
-  for (const f of indexFiles) {
-    const raw = readFileSync13(f, "utf-8");
-    allEntries.push(...parseIndexEntries(raw));
-  }
-  if (allEntries.length === 0) {
-    console.log("  L1: no entries parsed from _INDEX.md, skipped");
-    return;
-  }
-  const docRows = db.prepare("SELECT id, path FROM documents").all();
-  const slugToDocId = /* @__PURE__ */ new Map();
-  for (const { id, path } of docRows) {
-    slugToDocId.set(path, id);
-    slugToDocId.set(path.replace(/\.md$/, ""), id);
-    if (path.endsWith("/article.md")) {
-      slugToDocId.set(path.replace(/\/article\.md$/, ""), id);
-    }
-  }
-  const matched = [];
-  let unmatched = 0;
-  for (const e of allEntries) {
-    const docId = slugToDocId.get(e.slug);
-    if (docId === void 0) {
-      unmatched++;
-      continue;
-    }
-    const text = e.summary && e.summary !== "\u2014" && e.summary !== "\uFF08\u7F3A\u5C11 frontmatter\uFF09" ? e.summary : e.slug;
-    matched.push({ docId, text, slug: e.slug });
-  }
-  if (matched.length === 0) {
-    console.log("  L1: no _INDEX.md entries matched documents, skipped");
-    return;
-  }
-  const BATCH = 64;
-  const insertPage = db.prepare(
-    "INSERT INTO page_summaries (doc_id, summary, embedding) VALUES (?, ?, ?)"
-  );
-  const insertFtsPage = db.prepare("INSERT INTO fts_pages(rowid, summary) VALUES (?, ?)");
-  for (let i = 0; i < matched.length; i += BATCH) {
-    const batch = matched.slice(i, i + BATCH);
-    const texts = batch.map((m) => m.text);
-    const embeddings = await embedFn(texts);
-    for (let j = 0; j < batch.length; j++) {
-      const blob = float32ToBuffer(embeddings[j]);
-      insertPage.run(batch[j].docId, batch[j].text, blob);
-      const pageId = Number(
-        db.prepare("SELECT last_insert_rowid() as id").get().id
-      );
-      db.prepare(`INSERT INTO vec_pages (rowid, embedding) VALUES (${pageId}, ?)`).run(blob);
-      insertFtsPage.run(pageId, `${batch[j].slug} ${batch[j].text}`);
-    }
-  }
-  let msg = `  L1: indexed ${matched.length} entries from ${indexFiles.length} _INDEX.md`;
-  if (unmatched > 0) msg += ` (${unmatched} unmatched slug, skipped)`;
-  console.log(msg);
-}
+});
+
+// src/lib/vectordb/status.ts
+import { existsSync as existsSync11 } from "fs";
+import { join as join14 } from "path";
 function computeMode(indexed, indexedFiles) {
   if (!indexed) {
     return {
@@ -763,8 +877,8 @@ function computeMode(indexed, indexedFiles) {
   };
 }
 async function getStatus(corpus) {
-  const dbPath = join11(corpus, ".wiki", "vector.sqlite");
-  if (!existsSync9(dbPath)) {
+  const dbPath = join14(corpus, ".wiki", "vector.sqlite");
+  if (!existsSync11(dbPath)) {
     const rec2 = computeMode(false, 0);
     return {
       indexed: false,
@@ -805,71 +919,48 @@ async function getStatus(corpus) {
     mode_reason: rec.reason
   };
 }
-var EMBEDDING_DIM, MODE_THRESHOLD_FILES, DDL, FTS_DDL;
-var init_vectordb = __esm({
-  "src/lib/vectordb.ts"() {
+var init_status = __esm({
+  "src/lib/vectordb/status.ts"() {
     "use strict";
-    init_paths();
-    EMBEDDING_DIM = 1024;
-    MODE_THRESHOLD_FILES = 100;
-    DDL = `
-CREATE TABLE IF NOT EXISTS documents (
-    id INTEGER PRIMARY KEY,
-    path TEXT UNIQUE NOT NULL,
-    sha256 TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-);
+    init_files();
+    init_schema();
+  }
+});
 
-CREATE TABLE IF NOT EXISTS chunks (
-    id INTEGER PRIMARY KEY,
-    doc_id INTEGER NOT NULL,
-    section TEXT,
-    content TEXT NOT NULL,
-    embedding BLOB NOT NULL,
-    FOREIGN KEY (doc_id) REFERENCES documents(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS meta (
-    key TEXT PRIMARY KEY,
-    value TEXT
-);
-
-CREATE TABLE IF NOT EXISTS dir_summaries (
-    id INTEGER PRIMARY KEY,
-    dir_path TEXT UNIQUE NOT NULL,
-    summary TEXT NOT NULL,
-    embedding BLOB NOT NULL,
-    slug_list TEXT NOT NULL DEFAULT '[]'
-);
-
-CREATE TABLE IF NOT EXISTS page_summaries (
-    id INTEGER PRIMARY KEY,
-    doc_id INTEGER NOT NULL REFERENCES documents(id),
-    summary TEXT NOT NULL,
-    embedding BLOB NOT NULL
-);
-`;
-    FTS_DDL = `
-CREATE VIRTUAL TABLE IF NOT EXISTS fts_chunks USING fts5(
-    content,
-    tokenize='trigram'
-);
-
-CREATE VIRTUAL TABLE IF NOT EXISTS fts_dirs USING fts5(
-    summary,
-    tokenize='trigram'
-);
-
-CREATE VIRTUAL TABLE IF NOT EXISTS fts_pages USING fts5(
-    summary,
-    tokenize='trigram'
-);
-`;
+// src/lib/vectordb/index.ts
+var vectordb_exports = {};
+__export(vectordb_exports, {
+  EMBEDDING_DIM: () => EMBEDDING_DIM,
+  MODE_THRESHOLD_FILES: () => MODE_THRESHOLD_FILES,
+  buildLayeredIndex: () => buildLayeredIndex,
+  collectFiles: () => collectFiles,
+  getStatus: () => getStatus,
+  openDb: () => openDb,
+  queryBM25Layered: () => queryBM25Layered,
+  queryFlat: () => queryFlat,
+  queryHybrid: () => queryHybrid,
+  queryLayered: () => queryLayered,
+  rrfMerge: () => rrfMerge,
+  syncFile: () => syncFile
+});
+var init_vectordb = __esm({
+  "src/lib/vectordb/index.ts"() {
+    "use strict";
+    init_schema();
+    init_sync();
+    init_build_layered_index();
+    init_query_flat();
+    init_query_layered();
+    init_query_bm25();
+    init_query_hybrid();
+    init_status();
+    init_files();
+    init_schema();
   }
 });
 
 // src/cli.ts
-import { existsSync as existsSync15 } from "fs";
+import { existsSync as existsSync17 } from "fs";
 import { Command } from "commander";
 import chalk7 from "chalk";
 import Database from "better-sqlite3";
@@ -2136,8 +2227,8 @@ function searchCommand(program2) {
 
 // src/commands/vector.ts
 import { createHash as createHash3 } from "crypto";
-import { existsSync as existsSync10, readFileSync as readFileSync14 } from "fs";
-import { join as join12, relative as relative11 } from "path";
+import { existsSync as existsSync12, readFileSync as readFileSync15 } from "fs";
+import { join as join15, relative as relative13 } from "path";
 async function runVectorSync(corpus, opts = {}) {
   const force = opts.force ?? false;
   const layered = opts.layered ?? true;
@@ -2152,11 +2243,11 @@ async function runVectorSync(corpus, opts = {}) {
   let skipped = 0;
   let totalChunks = 0;
   for (const filePath of files) {
-    const rel = relative11(corpus, filePath);
+    const rel = relative13(corpus, filePath);
     if (!force) {
       const row = db.prepare("SELECT sha256 FROM documents WHERE path = ?").get(rel);
       if (row) {
-        const sha = createHash3("sha256").update(readFileSync14(filePath)).digest("hex");
+        const sha = createHash3("sha256").update(readFileSync15(filePath)).digest("hex");
         if (row.sha256 === sha) {
           skipped++;
           continue;
@@ -2203,8 +2294,8 @@ function vectorCommand(program2) {
       const { embedSingle: embedSingle2 } = await Promise.resolve().then(() => (init_ollama(), ollama_exports));
       const { openDb: openDb2, queryFlat: queryFlat2, queryLayered: queryLayered2, queryBM25Layered: queryBM25Layered2, queryHybrid: queryHybrid2 } = await Promise.resolve().then(() => (init_vectordb(), vectordb_exports));
       let dim = 1024;
-      const dbPath = join12(corpus, ".wiki", "vector.sqlite");
-      if (existsSync10(dbPath)) {
+      const dbPath = join15(corpus, ".wiki", "vector.sqlite");
+      if (existsSync12(dbPath)) {
         const tmpDb = await openDb2(corpus);
         const row = tmpDb.prepare("SELECT value FROM meta WHERE key = 'dim'").get();
         if (row) dim = parseInt(row.value, 10);
@@ -2234,12 +2325,12 @@ function vectorCommand(program2) {
 }
 
 // src/commands/fetch.ts
-import { existsSync as existsSync12, mkdirSync as mkdirSync8 } from "fs";
-import { join as join18, relative as relative12 } from "path";
+import { existsSync as existsSync14, mkdirSync as mkdirSync8 } from "fs";
+import { join as join21, relative as relative14 } from "path";
 
 // src/lib/fetcher/index.ts
 import { mkdir as mkdir4, writeFile as writeFile4 } from "fs/promises";
-import { join as join16 } from "path";
+import { join as join19 } from "path";
 
 // src/lib/fetcher/frontmatter.ts
 function escapeDoubleQuote(s) {
@@ -2384,7 +2475,7 @@ async function fetchHtmlL2(url) {
 
 // src/lib/fetcher/images.ts
 import { mkdir, writeFile } from "fs/promises";
-import { join as join13 } from "path";
+import { join as join16 } from "path";
 var MAX_IMG_BYTES = 5 * 1024 * 1024;
 var IMG_CONCURRENCY = 5;
 var MAGIC = [
@@ -2435,7 +2526,7 @@ async function downloadOneImage(url, idx, imagesDir, headers, assetsRelPath) {
       const ext = sniffExt(data.slice(0, 16), res.headers.get("content-type") || "");
       if (!ext) continue;
       const fname = `img_${String(idx).padStart(2, "0")}${ext}`;
-      await writeFile(join13(imagesDir, fname), data);
+      await writeFile(join16(imagesDir, fname), data);
       return { originalUrl: url, localRel: `${assetsRelPath}${fname}`, status: "ok" };
     } catch {
     }
@@ -2598,7 +2689,7 @@ function parseWeixin(html, baseUrl) {
 
 // src/lib/fetcher/routes/gist.ts
 import { mkdir as mkdir2, writeFile as writeFile2 } from "fs/promises";
-import { join as join14 } from "path";
+import { join as join17 } from "path";
 import * as cheerio3 from "cheerio";
 function parseGistUrl(url) {
   try {
@@ -2687,7 +2778,7 @@ async function fetchGist(url, outRoot) {
   fmLines.push("");
   if (!hasH1) fmLines.push(`# ${title}`, "");
   fmLines.push(content.trim(), "");
-  const articlePath = join14(outRoot, `${slug}.md`);
+  const articlePath = join17(outRoot, `${slug}.md`);
   await writeFile2(articlePath, fmLines.join("\n"), "utf-8");
   return {
     status: "ok",
@@ -2707,7 +2798,7 @@ async function fetchGist(url, outRoot) {
 
 // src/lib/fetcher/routes/github.ts
 import { mkdir as mkdir3, writeFile as writeFile3 } from "fs/promises";
-import { join as join15 } from "path";
+import { join as join18 } from "path";
 function parseGithubRepoUrl(url) {
   try {
     const u = new URL(url);
@@ -2783,7 +2874,7 @@ async function fetchGithubDoc(url, outRoot) {
   if (!hasH1) fmLines.push(`# ${title}`, "");
   fmLines.push(`> Fetched from: ${chosenUrl}`, "");
   fmLines.push(content.trim(), "");
-  const articlePath = join15(outRoot, `${slug}.md`);
+  const articlePath = join18(outRoot, `${slug}.md`);
   await writeFile3(articlePath, fmLines.join("\n"), "utf-8");
   return {
     status: "ok",
@@ -2848,7 +2939,7 @@ async function fetchUrl(url, opts) {
   }
   let md = htmlToMarkdown(doc.bodyHtml);
   const slug = slugify(doc.title || "untitled");
-  const assetsDir = join16(opts.outRoot, `${slug}.assets`);
+  const assetsDir = join19(opts.outRoot, `${slug}.assets`);
   await mkdir4(opts.outRoot, { recursive: true });
   let imagesOk = 0;
   let imagesFailed = 0;
@@ -2876,7 +2967,7 @@ async function fetchUrl(url, opts) {
   fmLines.push("");
   if (doc.title) fmLines.push(`# ${doc.title}`, "");
   fmLines.push(md, "");
-  const articlePath = join16(opts.outRoot, `${slug}.md`);
+  const articlePath = join19(opts.outRoot, `${slug}.md`);
   await writeFile4(articlePath, fmLines.join("\n"), "utf-8");
   return {
     status: "ok",
@@ -2896,18 +2987,18 @@ async function fetchUrl(url, opts) {
 }
 
 // src/lib/ingest-state.ts
-import { existsSync as existsSync11, mkdirSync as mkdirSync7, readFileSync as readFileSync15, writeFileSync as writeFileSync5 } from "fs";
-import { join as join17, dirname as dirname4 } from "path";
+import { existsSync as existsSync13, mkdirSync as mkdirSync7, readFileSync as readFileSync16, writeFileSync as writeFileSync5 } from "fs";
+import { join as join20, dirname as dirname4 } from "path";
 function stateFilePath(corpus) {
-  return join17(corpus, ".wiki", "ingest-state.json");
+  return join20(corpus, ".wiki", "ingest-state.json");
 }
 function loadIngestState(corpus) {
   const p = stateFilePath(corpus);
-  if (!existsSync11(p)) {
+  if (!existsSync13(p)) {
     return { version: 1, ingests: {} };
   }
   try {
-    const raw = readFileSync15(p, "utf-8");
+    const raw = readFileSync16(p, "utf-8");
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") {
       return { version: 1, ingests: {} };
@@ -3008,9 +3099,9 @@ function fetchCommand(program2) {
       if (opts.out) {
         outRoot = opts.out;
       } else {
-        outRoot = corpus ? join18(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch") : "/tmp/lorekit-fetch";
+        outRoot = corpus ? join21(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch") : "/tmp/lorekit-fetch";
       }
-      if (!existsSync12(outRoot)) {
+      if (!existsSync14(outRoot)) {
         mkdirSync8(outRoot, { recursive: true });
       }
       let duplicate;
@@ -3049,7 +3140,7 @@ function fetchCommand(program2) {
             const sdRaw = fm.source_date;
             const sourceDate = typeof sdRaw === "string" ? sdRaw : sdRaw instanceof Date ? sdRaw.toISOString().slice(0, 10) : void 0;
             duplicate = {
-              path: relative12(corpus, existing),
+              path: relative14(corpus, existing),
               sourceDate,
               title: typeof fm.title === "string" ? fm.title : void 0
             };
@@ -3103,14 +3194,14 @@ function fetchCommand(program2) {
 }
 
 // src/commands/ingest.ts
-import { existsSync as existsSync13, readFileSync as readFileSync16, writeFileSync as writeFileSync6 } from "fs";
-import { join as join19, relative as relative13 } from "path";
+import { existsSync as existsSync15, readFileSync as readFileSync17, writeFileSync as writeFileSync6 } from "fs";
+import { join as join22, relative as relative15 } from "path";
 var VALID_STEPS = ["fetch", "archive", "wiki", "backlink", "lint"];
 function today() {
   return dateToYMDLocal(/* @__PURE__ */ new Date());
 }
 function appendLogEntry(corpus, record, body) {
-  const logPath = join19(corpus, "log.md");
+  const logPath = join22(corpus, "log.md");
   const title = record.title ?? "(untitled)";
   const wikiList = (record.wikiPages ?? []).map((p) => `  - ${p}`).join("\n");
   const archived = record.archivedTo ?? "(unrecorded)";
@@ -3127,7 +3218,7 @@ ${wikiList}` : "- **\u65B0\u5EFA/\u66F4\u65B0\u9875**\uFF1A\uFF08\u65E0\uFF09",
     ""
   ].join("\n");
   let existing = "";
-  if (existsSync13(logPath)) existing = readFileSync16(logPath, "utf-8");
+  if (existsSync15(logPath)) existing = readFileSync17(logPath, "utf-8");
   if (!existing) {
     const header = '# Log\n\n> \u64CD\u4F5C\u65F6\u95F4\u7EBF\uFF0Cappend-only\u3002\u6BCF\u6761\u683C\u5F0F\uFF1A`## [YYYY-MM-DD] \u64CD\u4F5C\u7C7B\u578B | \u6807\u9898`\n> \u53EF\u7528 `grep "^## \\[" log.md | tail -10` \u5FEB\u901F\u67E5\u6700\u8FD1\u64CD\u4F5C\u3002\n\n';
     writeFileSync6(logPath, header + entry, "utf-8");
@@ -3258,7 +3349,7 @@ ${summary.join("\n")}`
     const stemSet = /* @__PURE__ */ new Set();
     const baseNameSet = /* @__PURE__ */ new Set();
     for (const file of allMd) {
-      const rel = relative13(corpus, file);
+      const rel = relative15(corpus, file);
       const stem = rel.replace(/\.md$/, "");
       stemSet.add(stem);
       baseNameSet.add(stem.split("/").pop());
@@ -3273,17 +3364,17 @@ ${summary.join("\n")}`
     const okLinks = [];
     const checked = [];
     for (const f of files) {
-      const abs = f.startsWith("/") ? f : join19(process.cwd(), f);
-      if (!existsSync13(abs)) {
+      const abs = f.startsWith("/") ? f : join22(process.cwd(), f);
+      if (!existsSync15(abs)) {
         print(`[lorekit ingest check] file not found: ${f}`);
         process.exitCode = 2;
         continue;
       }
-      const rel = relative13(corpus, abs);
+      const rel = relative15(corpus, abs);
       checked.push(rel);
       let content;
       try {
-        content = stripCode(readFileSync16(abs, "utf-8"));
+        content = stripCode(readFileSync17(abs, "utf-8"));
       } catch {
         continue;
       }
@@ -3325,8 +3416,8 @@ ${summary.join("\n")}`
   });
   group.command("reconcile").description("Back-fill state for pre-existing \u539F\u6599/ pages missing a state record").option("--dry-run", "list what would be added without writing").action((opts) => {
     const corpus = requireCorpus();
-    const sourcesRoot = join19(corpus, "\u539F\u6599");
-    if (!existsSync13(sourcesRoot)) {
+    const sourcesRoot = join22(corpus, "\u539F\u6599");
+    if (!existsSync15(sourcesRoot)) {
       print("[lorekit ingest reconcile] no \u539F\u6599/ directory");
       return;
     }
@@ -3337,7 +3428,7 @@ ${summary.join("\n")}`
       const url = typeof fm.source_url === "string" && fm.source_url || typeof fm.url === "string" && fm.url || "";
       if (!url) continue;
       if (state.ingests[url]) continue;
-      const rel = relative13(corpus, mdPath);
+      const rel = relative15(corpus, mdPath);
       const archivedTo = rel.replace(/\/article\.md$/, "");
       const sdRaw = fm.source_date;
       const sourceDate = typeof sdRaw === "string" ? sdRaw : sdRaw instanceof Date ? sdRaw.toISOString().slice(0, 10) : void 0;
@@ -3367,8 +3458,8 @@ ${summary.join("\n")}`
 import chalk6 from "chalk";
 
 // src/lib/root-index.ts
-import { existsSync as existsSync14, readFileSync as readFileSync17, readdirSync as readdirSync9, writeFileSync as writeFileSync7 } from "fs";
-import { join as join20 } from "path";
+import { existsSync as existsSync16, readFileSync as readFileSync18, readdirSync as readdirSync10, writeFileSync as writeFileSync7 } from "fs";
+import { join as join23 } from "path";
 var MANAGED_SECTIONS = [
   { heading: "## \u6982\u5FF5", subdir: "\u77E5\u8BC6\u5E93/\u6982\u5FF5" },
   { heading: "## \u5B9E\u4F53", subdir: "\u77E5\u8BC6\u5E93/\u5B9E\u4F53" },
@@ -3376,14 +3467,14 @@ var MANAGED_SECTIONS = [
   { heading: "## \u4E13\u9898", subdir: "\u77E5\u8BC6\u5E93/\u4E13\u9898" }
 ];
 function listEntriesInDir(corpus, subdir) {
-  const dirPath = join20(corpus, subdir);
-  if (!existsSync14(dirPath)) return [];
+  const dirPath = join23(corpus, subdir);
+  if (!existsSync16(dirPath)) return [];
   const out2 = [];
-  for (const name of readdirSync9(dirPath)) {
+  for (const name of readdirSync10(dirPath)) {
     if (name.startsWith(".")) continue;
     if (name === "_INDEX.md") continue;
     if (!name.endsWith(".md")) continue;
-    const file = join20(dirPath, name);
+    const file = join23(dirPath, name);
     const slug = `${subdir}/${name.replace(/\.md$/, "")}`;
     out2.push({ slug, summary: extractCompiledTruthSnippet(file) });
   }
@@ -3392,7 +3483,7 @@ function listEntriesInDir(corpus, subdir) {
 function extractCompiledTruthSnippet(filePath) {
   let content;
   try {
-    content = readFileSync17(filePath, "utf-8");
+    content = readFileSync18(filePath, "utf-8");
   } catch (e) {
     debug(`extractCompiledTruthSnippet(${filePath}) failed: ${e.message}`);
     return "\u2014";
@@ -3461,11 +3552,11 @@ function mergeSection(content, heading, onDisk) {
   };
 }
 function refreshRootIndex(corpus) {
-  const indexPath = join20(corpus, "index.md");
-  if (!existsSync14(indexPath)) {
+  const indexPath = join23(corpus, "index.md");
+  if (!existsSync16(indexPath)) {
     return { filePath: indexPath, changed: false, perSection: [] };
   }
-  const before = readFileSync17(indexPath, "utf-8");
+  const before = readFileSync18(indexPath, "utf-8");
   let content = before;
   const perSection = [];
   for (const sec of MANAGED_SECTIONS) {
@@ -3566,7 +3657,7 @@ function showBanner() {
     }
     try {
       const dbPath = `${corpus}/.wiki/vector.sqlite`;
-      if (existsSync15(dbPath)) {
+      if (existsSync17(dbPath)) {
         const db = new Database(dbPath, { readonly: true });
         const cntRow = db.prepare("SELECT COUNT(*) as c FROM documents").get();
         indexed = String(cntRow?.c ?? 0);
