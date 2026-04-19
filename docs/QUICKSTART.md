@@ -215,6 +215,24 @@ updated: 2026-04-17
 
 ---
 
+## 8.5 Obsidian graph filter (recommended)
+
+If you plan to browse the corpus in Obsidian, `lorekit init` has already dropped a recommended filter into `.obsidian/graph.json`. It hides non-knowledge nodes so the graph actually looks like your knowledge, not your scaffolding:
+
+- **excluded dirs**: `_工作台/` `_归档/` `反馈/` `系统/`
+- **excluded files**: `_INDEX` `index` `log` `MEMORY` `README` `AGENTS` `CLAUDE`
+- **kept**: `知识库/` (wiki) `原料/` (raw, heavily back-linked) `每日/` (daily notes) `写作/` (outgoing drafts)
+
+If you initialized into a directory that already had `.obsidian/graph.json`, `lorekit init` left it untouched (to preserve your custom `colorGroups` / `forceGravity` / etc.). Copy this filter into **Graph view → Filters** manually:
+
+```
+-path:"_工作台" -path:"_归档" -path:"反馈" -path:"系统" -file:"_INDEX" -file:"index" -file:"log" -file:"MEMORY" -file:"README" -file:"AGENTS" -file:"CLAUDE"
+```
+
+Toggle the graph tab off/on after editing `graph.json` so Obsidian re-reads the file.
+
+---
+
 ## 9. FAQ
 
 **Skill didn't trigger?**

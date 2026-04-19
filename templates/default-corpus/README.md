@@ -41,6 +41,18 @@
 
 见 `系统/schema.md`。
 
+## Obsidian 图谱过滤建议
+
+`lorekit init` 已写入 `.obsidian/graph.json` 推荐 filter（若你原本就有 `.obsidian/graph.json`，init 会跳过避免覆盖）。推荐 filter：
+
+```
+-path:"_工作台" -path:"_归档" -path:"反馈" -path:"系统" -file:"_INDEX" -file:"index" -file:"log" -file:"MEMORY" -file:"README" -file:"AGENTS" -file:"CLAUDE"
+```
+
+排除 `_工作台/_归档/反馈/系统/` 与 `_INDEX / index / log / MEMORY / README / AGENTS / CLAUDE` 这些非知识 / 元数据文件；保留 `知识库/`（主体）`原料/`（溯源）`每日/`（日记）`写作/`（对外作品）。
+
+手动复制到 Obsidian「关系图谱 → 筛选」并保存为默认即可。改完 graph.json 后关掉「关系图谱」标签页再重开才生效。
+
 ## 版本
 
 当前 lorekit 版本记在 `.wiki/version`。

@@ -1083,13 +1083,14 @@ function isDirEmpty(dir) {
   const entries = readdirSync2(dir).filter((n) => n !== ".DS_Store" && n !== ".git");
   return entries.length === 0;
 }
-function copyTemplateFiles(src, dest) {
+function copyTemplateFiles(src, dest, isRoot = true) {
   if (!existsSync2(dest)) mkdirSync(dest, { recursive: true });
   for (const entry of readdirSync2(src, { withFileTypes: true })) {
+    if (isRoot && entry.isDirectory() && entry.name === ".obsidian") continue;
     const srcPath = join3(src, entry.name);
     const destPath = join3(dest, entry.name);
     if (entry.isDirectory()) {
-      copyTemplateFiles(srcPath, destPath);
+      copyTemplateFiles(srcPath, destPath, false);
     } else {
       if (!existsSync2(destPath)) {
         mkdirSync(join3(destPath, ".."), { recursive: true });
@@ -1110,6 +1111,22 @@ function deployObsidianPlugin(corpusPath) {
     cpSync(join3(pluginSrc, file), join3(pluginDest, file));
   }
   ok("deployed obsidian-audit plugin \u2192 .obsidian/plugins/lorekit-audit/");
+}
+function deployObsidianGraphConfig(corpusPath) {
+  const src = join3(lorekitRoot(), "templates", "default-corpus", ".obsidian", "graph.json");
+  if (!existsSync2(src)) {
+    warn("templates/default-corpus/.obsidian/graph.json not found, skipping graph config");
+    return;
+  }
+  const destDir = join3(corpusPath, ".obsidian");
+  const dest = join3(destDir, "graph.json");
+  if (existsSync2(dest)) {
+    warn(".obsidian/graph.json \u5DF2\u5B58\u5728\uFF0C\u8DF3\u8FC7\u5199\u5165\u3002\u63A8\u8350 filter \u89C1 docs/QUICKSTART.md");
+    return;
+  }
+  if (!existsSync2(destDir)) mkdirSync(destDir, { recursive: true });
+  cpSync(src, dest);
+  ok("deployed Obsidian graph filter \u2192 .obsidian/graph.json");
 }
 function createWikiMeta(corpusPath) {
   const wikiDir = join3(corpusPath, ".wiki");
@@ -1170,6 +1187,7 @@ function initCommand(program2) {
       }
     }
     createWikiMeta(resolved);
+    deployObsidianGraphConfig(resolved);
     deployObsidianPlugin(resolved);
     print();
     ok(chalk2.bold(`corpus initialized at ${resolved}`));

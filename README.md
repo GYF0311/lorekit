@@ -364,6 +364,18 @@ lorekit audit --list --open       # open items only
 
 Or in Claude Code say "process the feedback" → the agent triggers `wiki-audit`: read `反馈/待处理/` entries → fix by severity → move to `反馈/已处理/` with a resolution note.
 
+### Graph filter (recommended)
+
+`lorekit init` writes a recommended graph filter to `<corpus>/.obsidian/graph.json` that excludes non-knowledge nodes (workbench / archive / feedback / schema dirs + auto-generated indexes + root metadata files like `AGENTS.md` / `CLAUDE.md`). If the corpus already has `.obsidian/graph.json`, init leaves it untouched — copy the filter below into Obsidian's "Graph view → Filters" manually:
+
+```
+-path:"_工作台" -path:"_归档" -path:"反馈" -path:"系统" -file:"_INDEX" -file:"index" -file:"log" -file:"MEMORY" -file:"README" -file:"AGENTS" -file:"CLAUDE"
+```
+
+What stays visible: `知识库/` (compiled wiki), `原料/` (raw sources, heavily back-linked), `每日/` (daily notes — Karpathy keeps these in the graph too), `写作/` (outgoing drafts).
+
+Toggle the graph tab off and on after editing `graph.json` for Obsidian to re-read it.
+
 ### Other niceties
 
 - `[[wikilinks]]` are clickable in Obsidian

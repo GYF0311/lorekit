@@ -78,6 +78,20 @@ lorekit init <用户选择的路径>
 
 如果用户已有笔记 / 知识库目录，`lorekit init` 会自动检测并提供备份选项。
 
+### Step 4.5: Obsidian 图谱配置（可选但推荐）
+
+如果用户打算用 Obsidian 做可视化：
+
+1. `lorekit init` 已自动写入 `.obsidian/graph.json` 推荐 filter（排除 `_工作台/_归档/反馈/系统/` + 索引 + 根元数据）
+2. 若用户原 corpus 已有 `.obsidian/`，init 会自动跳过避免覆盖；
+   提醒用户手动把以下 filter 复制到「关系图谱 → 筛选」并保存为默认：
+
+   ```
+   -path:"_工作台" -path:"_归档" -path:"反馈" -path:"系统" -file:"_INDEX" -file:"index" -file:"log" -file:"MEMORY" -file:"README" -file:"AGENTS" -file:"CLAUDE"
+   ```
+
+3. 改完 graph.json 后关掉「关系图谱」标签页再重开才生效
+
 ### Step 5: 安装 Agent Skills
 
 ```bash

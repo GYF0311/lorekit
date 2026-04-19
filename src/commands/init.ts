@@ -32,16 +32,24 @@ function isDirEmpty(dir: string): boolean {
   return entries.length === 0;
 }
 
-/** Recursively copy files from src to dest, skipping files that already exist. */
-function copyTemplateFiles(src: string, dest: string) {
+/**
+ * Recursively copy files from src to dest, skipping files that already exist.
+ *
+ * 顶层目录 `.obsidian/` 由 `deployObsidianGraphConfig` 与 `deployObsidianPlugin`
+ * 单独处理（safe-write + 用户提示），这里跳过避免重复/越权覆盖。
+ */
+function copyTemplateFiles(src: string, dest: string, isRoot = true) {
   if (!existsSync(dest)) mkdirSync(dest, { recursive: true });
 
   for (const entry of readdirSync(src, { withFileTypes: true })) {
+    // 顶层 `.obsidian/` 单独由 deployObsidian* 处理
+    if (isRoot && entry.isDirectory() && entry.name === '.obsidian') continue;
+
     const srcPath = join(src, entry.name);
     const destPath = join(dest, entry.name);
 
     if (entry.isDirectory()) {
-      copyTemplateFiles(srcPath, destPath);
+      copyTemplateFiles(srcPath, destPath, false);
     } else {
       if (!existsSync(destPath)) {
         mkdirSync(join(destPath, '..'), { recursive: true });
@@ -65,6 +73,37 @@ function deployObsidianPlugin(corpusPath: string) {
     cpSync(join(pluginSrc, file), join(pluginDest, file));
   }
   ok('deployed obsidian-audit plugin → .obsidian/plugins/lorekit-audit/');
+}
+
+/**
+ * safe-write `.obsidian/graph.json`：
+ * - 已存在 → 跳过 + stderr 警告（保留用户自定义的 colorGroups / forceGravity 等）
+ * - 目标已有 `.obsidian/` 但缺 graph.json → 只写 graph.json
+ * - 目标完全没 `.obsidian/` → 建目录 + 写 graph.json
+ *
+ * 批次 25 引入：把"lorekit 决定的结构（_工作台 / _INDEX / 系统 ...）"
+ * 对应的 Obsidian graph filter 作为预设内置，用户无需自己发明一遍。
+ */
+function deployObsidianGraphConfig(corpusPath: string) {
+  const src = join(lorekitRoot(), 'templates', 'default-corpus', '.obsidian', 'graph.json');
+  if (!existsSync(src)) {
+    // 模板缺失不阻塞 init；warn 即可
+    warn('templates/default-corpus/.obsidian/graph.json not found, skipping graph config');
+    return;
+  }
+
+  const destDir = join(corpusPath, '.obsidian');
+  const dest = join(destDir, 'graph.json');
+
+  if (existsSync(dest)) {
+    // 绝对不许覆盖用户已有的 graph.json（可能含 colorGroups / forceGravity 等个性化字段）
+    warn('.obsidian/graph.json 已存在，跳过写入。推荐 filter 见 docs/QUICKSTART.md');
+    return;
+  }
+
+  if (!existsSync(destDir)) mkdirSync(destDir, { recursive: true });
+  cpSync(src, dest);
+  ok('deployed Obsidian graph filter → .obsidian/graph.json');
 }
 
 function createWikiMeta(corpusPath: string) {
@@ -141,6 +180,7 @@ export function initCommand(program: Command) {
       }
 
       createWikiMeta(resolved);
+      deployObsidianGraphConfig(resolved);
       deployObsidianPlugin(resolved);
 
       print();

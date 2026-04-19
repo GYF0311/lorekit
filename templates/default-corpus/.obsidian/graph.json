@@ -1,0 +1,7 @@
+{
+  "search": "-path:\"_工作台\" -path:\"_归档\" -path:\"反馈\" -path:\"系统\" -file:\"_INDEX\" -file:\"index\" -file:\"log\" -file:\"MEMORY\" -file:\"README\" -file:\"AGENTS\" -file:\"CLAUDE\"",
+  "showTags": true,
+  "showAttachments": false,
+  "hideUnresolved": false,
+  "showOrphans": true
+}
