@@ -6,6 +6,54 @@
 
 ---
 
+## 2026-04-19 — 批次 21b：抽 fetcher frontmatter 拼装（strangler fig 第二步 / P0-2）
+
+**做了什么**
+
+- 新建 `src/lib/fetcher/frontmatter.ts`（111 行），导出 `buildFrontmatter(opts)` 与 `RouteKind` / `BuildFrontmatterOpts` type
+- 函数签名：`buildFrontmatter(opts: BuildFrontmatterOpts): string[]` —— 返回 frontmatter YAML 行数组（含外层 `---` 起止），调用方 `lines.push(...buildFrontmatter(...))` 拼到自家 fmLines
+- 原 fetcher.ts 一行未动；commands/*.ts 一行未动；21a 抽出的 helpers/http/images 一行未动
+- 写了一次性 parity 脚本 `tmp/frontmatter-parity-check.mjs`（不入 git，`tmp/` 已在 .gitignore）：6 mock case 全部 byte-level 等价（`JSON.stringify(legacy) === JSON.stringify(actual)`）
+- tag：`refactor-batch-21b`
+- 验证：
+  - `npm run verify` 全绿，18 tests / 17 pass / 1 skip / ~1.6s
+  - `npm run lint` baseline 仍是 39（frontmatter.ts 自身 0 error；本地 lint 跑出 44 是因 `tmp/` 脚本里有 console.log，但脚本不入 git，CI / 干净 checkout 仍 39）
+
+**4 处拼装的差异点摘要**（给规划方 review 用）
+
+通读 fetcher.ts 后实际只有 3 个代码块覆盖 4 种 sourceKind：
+
+| 字段                   | generic/weixin (568-583) | gist (709-718)      | github (826-834) |
+| ---------------------- | ------------------------ | ------------------- | ---------------- |
+| `type: source`         | 总有                     | 总有                | 总有             |
+| `title: "..."`         | **条件** if doc.title    | 总有                | 总有             |
+| `created: <today>`     | 总有                     | 总有                | 总有             |
+| `updated: <today>`     | 总有                     | 总有                | 总有             |
+| `source_url: <url>`    | 总有                     | 总有                | 总有             |
+| `source_author: "..."` | **条件** if doc.author   | 总有                | 总有             |
+| `source_date: <YMD>`   | 条件 if publishDate      | 条件 if publishDate | **从不输出**     |
+| `source_kind: <kind>`  | article / clipping       | gist                | github           |
+
+字段顺序完全一致，引号风格完全一致（string 字段双引号 + `\"` 转义；其他裸值）。helper 用 truthy `if (title)` / `if (author)` 统一覆盖 3 种行为：generic/weixin 条件输出、gist/github 调用方保证非空（分支同样命中）。github 路由强制忽略 `publishDate`（即使调用方传入也不输出 —— parity 脚本特意验证了）。
+
+**为什么**
+
+- 规划方调整子批顺序：原计划 21b 抽 web 路由，改为先抽 frontmatter（routes 共用底座），让 21c+ 各 route 子批能共用同一个 helper
+- "byte-level 一致"是先生硬要求 —— 任何 YAML 差异（哪怕只是字段顺序）都会让 lint / Obsidian / 下游脚本不可预期。用 6 mock case 的 JSON.stringify 对比是最便宜的等价证明
+
+**发现但未处理**
+
+- `slug` 留空注释只在 generic/weixin 路由有；gist/github 路由没注释但行为一致（fetcher 不写 slug 字段）。helper 内统一注释代表所有路由
+- LEGACY P4-6 (publishDate 抽取) / P4-7 (slug 生成) 留给 21c-21f 各 route 子批，21b 不动
+- `tmp/frontmatter-parity-check.mjs` 用 `node --experimental-strip-types` 跑 .ts import；Node 22.22.2 直接支持。脚本一次性跑完即可丢弃（已在 tmp/ 不入 git）
+
+**接下来**
+
+- 进 21c：抽 routes/web.ts（含 fetchUrl 主入口 + parseGeneric / parseWeixin）—— 等规划方下达指令
+- 不主动开始 21c
+
+---
+
 ## 2026-04-19 — 批次 21a：拆 fetcher.ts 工具层（strangler fig 第一步 / P0-2）
 
 **做了什么**
