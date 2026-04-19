@@ -1,7 +1,7 @@
 import type { Command } from 'commander';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { ok, warn, err, out, print } from '../utils/logger.js';
 import { requireCorpus } from '../lib/corpus.js';
 
@@ -46,7 +46,9 @@ export async function runVectorSync(
   let totalChunks = 0;
 
   for (const filePath of files) {
-    const rel = filePath.replace(corpus + '/', '');
+    // LEGACY P4-5：原先 `filePath.replace(corpus + '/', '')` 字符串替换，
+    // 若 corpus 路径在 filePath 内出现多次（罕见）会替换错位；用 path.relative 更稳。
+    const rel = relative(corpus, filePath);
 
     if (!force) {
       const row = db.prepare('SELECT sha256 FROM documents WHERE path = ?').get(rel) as

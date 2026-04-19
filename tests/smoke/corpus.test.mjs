@@ -95,6 +95,10 @@ test('snapshot 产出 .tar.gz', () => {
   const snapDir = join(corpus, '.wiki', 'snapshots');
   const tarballs = readdirSync(snapDir).filter((n) => n.endsWith('.tar.gz'));
   assert.ok(tarballs.length > 0, fmtRun(r, args, `${snapDir} 应有 .tar.gz`));
+  // LEGACY P4-2：tar.create 包完后 manifest.json 必须被 finally 清掉，
+  // 不能残留在 .wiki/snapshots/ 下。
+  const leftovers = readdirSync(snapDir).filter((n) => n === 'manifest.json');
+  assert.equal(leftovers.length, 0, fmtRun(r, args, '.wiki/snapshots 不应残留 manifest.json'));
 });
 
 test('restore --from <tarball> 在无变更时退出码 0', () => {

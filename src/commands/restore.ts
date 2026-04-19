@@ -35,6 +35,14 @@ function ask(question: string): Promise<string> {
   });
 }
 
+/**
+ * 仅限 os.tmpdir() 子目录，不许扩展到任何用户数据路径。
+ *
+ * LEGACY P4-3 / 先生全局 CLAUDE.md 数据安全红线：lorekit 源码里的任何
+ * `rm -rf` 等价操作都必须锁定在 tmpdir 下。本函数的唯一调用方 restore
+ * action 中，`tmpDir` 由 `join(tmpdir(), 'lorekit-restore-' + Date.now())`
+ * 构造——禁止把 user corpus 路径传进来。
+ */
 function rmDirRecursive(dir: string) {
   rmSync(dir, { recursive: true, force: true });
 }

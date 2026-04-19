@@ -1871,6 +1871,7 @@ Installed ${count} skill(s). Restart Claude Code to load them.`);
 
 // src/commands/snapshot.ts
 import {
+  existsSync as existsSync7,
   mkdirSync as mkdirSync4,
   writeFileSync as writeFileSync4,
   unlinkSync as unlinkSync2,
@@ -1918,23 +1919,26 @@ function snapshotCommand(program2) {
     });
     const manifestPath = join8(snapshotsDir, "manifest.json");
     writeFileSync4(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
-    const tag = opts.tag ? `-${opts.tag}` : "";
-    const tarName = `${tsCompact()}${tag}.tar.gz`;
-    const tarPath = join8(snapshotsDir, tarName);
-    const allEntries = [...files, relative6(corpus, manifestPath)];
-    await tar.create(
-      {
-        gzip: true,
-        file: tarPath,
-        cwd: corpus,
-        prefix: ""
-      },
-      allEntries
-    );
-    unlinkSync2(manifestPath);
-    const tarStat = statSync6(tarPath);
-    const sizeMB = (tarStat.size / 1024 / 1024).toFixed(1);
-    ok(`snapshot saved: ${tarPath} (${files.length} files, ${sizeMB} MB)`);
+    try {
+      const tag = opts.tag ? `-${opts.tag}` : "";
+      const tarName = `${tsCompact()}${tag}.tar.gz`;
+      const tarPath = join8(snapshotsDir, tarName);
+      const allEntries = [...files, relative6(corpus, manifestPath)];
+      await tar.create(
+        {
+          gzip: true,
+          file: tarPath,
+          cwd: corpus,
+          prefix: ""
+        },
+        allEntries
+      );
+      const tarStat = statSync6(tarPath);
+      const sizeMB = (tarStat.size / 1024 / 1024).toFixed(1);
+      ok(`snapshot saved: ${tarPath} (${files.length} files, ${sizeMB} MB)`);
+    } finally {
+      if (existsSync7(manifestPath)) unlinkSync2(manifestPath);
+    }
   });
 }
 
@@ -2133,7 +2137,7 @@ function searchCommand(program2) {
 // src/commands/vector.ts
 import { createHash as createHash3 } from "crypto";
 import { existsSync as existsSync10, readFileSync as readFileSync14 } from "fs";
-import { join as join12 } from "path";
+import { join as join12, relative as relative11 } from "path";
 async function runVectorSync(corpus, opts = {}) {
   const force = opts.force ?? false;
   const layered = opts.layered ?? true;
@@ -2148,7 +2152,7 @@ async function runVectorSync(corpus, opts = {}) {
   let skipped = 0;
   let totalChunks = 0;
   for (const filePath of files) {
-    const rel = filePath.replace(corpus + "/", "");
+    const rel = relative11(corpus, filePath);
     if (!force) {
       const row = db.prepare("SELECT sha256 FROM documents WHERE path = ?").get(rel);
       if (row) {
@@ -2231,7 +2235,7 @@ function vectorCommand(program2) {
 
 // src/commands/fetch.ts
 import { existsSync as existsSync12, mkdirSync as mkdirSync8 } from "fs";
-import { join as join15, relative as relative11 } from "path";
+import { join as join15, relative as relative12 } from "path";
 
 // src/lib/fetcher.ts
 import { mkdir, writeFile } from "fs/promises";
@@ -2962,7 +2966,7 @@ function fetchCommand(program2) {
             const sdRaw = fm.source_date;
             const sourceDate = typeof sdRaw === "string" ? sdRaw : sdRaw instanceof Date ? sdRaw.toISOString().slice(0, 10) : void 0;
             duplicate = {
-              path: relative11(corpus, existing),
+              path: relative12(corpus, existing),
               sourceDate,
               title: typeof fm.title === "string" ? fm.title : void 0
             };
@@ -3017,7 +3021,7 @@ function fetchCommand(program2) {
 
 // src/commands/ingest.ts
 import { existsSync as existsSync13, readFileSync as readFileSync16, writeFileSync as writeFileSync6 } from "fs";
-import { join as join16, relative as relative12 } from "path";
+import { join as join16, relative as relative13 } from "path";
 var VALID_STEPS = ["fetch", "archive", "wiki", "backlink", "lint"];
 function today() {
   return dateToYMDLocal(/* @__PURE__ */ new Date());
@@ -3171,7 +3175,7 @@ ${summary.join("\n")}`
     const stemSet = /* @__PURE__ */ new Set();
     const baseNameSet = /* @__PURE__ */ new Set();
     for (const file of allMd) {
-      const rel = relative12(corpus, file);
+      const rel = relative13(corpus, file);
       const stem = rel.replace(/\.md$/, "");
       stemSet.add(stem);
       baseNameSet.add(stem.split("/").pop());
@@ -3192,7 +3196,7 @@ ${summary.join("\n")}`
         process.exitCode = 2;
         continue;
       }
-      const rel = relative12(corpus, abs);
+      const rel = relative13(corpus, abs);
       checked.push(rel);
       let content;
       try {
@@ -3250,7 +3254,7 @@ ${summary.join("\n")}`
       const url = typeof fm.source_url === "string" && fm.source_url || typeof fm.url === "string" && fm.url || "";
       if (!url) continue;
       if (state.ingests[url]) continue;
-      const rel = relative12(corpus, mdPath);
+      const rel = relative13(corpus, mdPath);
       const archivedTo = rel.replace(/\/article\.md$/, "");
       const sdRaw = fm.source_date;
       const sourceDate = typeof sdRaw === "string" ? sdRaw : sdRaw instanceof Date ? sdRaw.toISOString().slice(0, 10) : void 0;

@@ -75,31 +75,34 @@ export function snapshotCommand(program: Command) {
       const manifestPath = join(snapshotsDir, 'manifest.json');
       writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
 
-      // Build filename: YYYYMMDD-HHMMSS[-tag].tar.gz
-      const tag = opts.tag ? `-${opts.tag}` : '';
-      const tarName = `${tsCompact()}${tag}.tar.gz`;
-      const tarPath = join(snapshotsDir, tarName);
+      try {
+        // Build filename: YYYYMMDD-HHMMSS[-tag].tar.gz
+        const tag = opts.tag ? `-${opts.tag}` : '';
+        const tarName = `${tsCompact()}${tag}.tar.gz`;
+        const tarPath = join(snapshotsDir, tarName);
 
-      // Create tarball
-      // Include all corpus files + the manifest
-      const allEntries = [...files, relative(corpus, manifestPath)];
+        // Create tarball
+        // Include all corpus files + the manifest
+        const allEntries = [...files, relative(corpus, manifestPath)];
 
-      await tar.create(
-        {
-          gzip: true,
-          file: tarPath,
-          cwd: corpus,
-          prefix: '',
-        },
-        allEntries,
-      );
+        await tar.create(
+          {
+            gzip: true,
+            file: tarPath,
+            cwd: corpus,
+            prefix: '',
+          },
+          allEntries,
+        );
 
-      // Remove temporary manifest
-      unlinkSync(manifestPath);
-
-      // Report
-      const tarStat = statSync(tarPath);
-      const sizeMB = (tarStat.size / 1024 / 1024).toFixed(1);
-      ok(`snapshot saved: ${tarPath} (${files.length} files, ${sizeMB} MB)`);
+        // Report
+        const tarStat = statSync(tarPath);
+        const sizeMB = (tarStat.size / 1024 / 1024).toFixed(1);
+        ok(`snapshot saved: ${tarPath} (${files.length} files, ${sizeMB} MB)`);
+      } finally {
+        // LEGACY P4-2：tar.create 若抛错，manifest 原先会残留在 .wiki/snapshots/；
+        // 放 finally 保证无论成功 / 失败都清掉。
+        if (existsSync(manifestPath)) unlinkSync(manifestPath);
+      }
     });
 }
