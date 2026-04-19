@@ -6,6 +6,74 @@
 
 ---
 
+## 2026-04-19 — 批次 21f：抽 fetcher routes/github.ts（strangler fig 第六步 / P0-2）
+
+**做了什么**
+
+- 新建 `src/lib/fetcher/routes/github.ts`（186 行），从 `src/lib/fetcher.ts:746-855` copy `parseGithubRepoUrl` + `fetchGithubDoc` + 内部 `interface GithubRepoRef`
+- exports：`parseGithubRepoUrl(url): GithubRepoRef | null` + `fetchGithubDoc(url, outRoot): Promise<FetchResult>` + inline `interface FetchResult`（按 21c/21d/21e 同款 inline）
+- 依赖关系：
+  - `helpers.ts` 的 `slugify` / `todayYMD`
+  - `http.ts` 的 `buildHeaders`（**注意：fetchGithubDoc 不用 fetchHtmlL1，直接 globalThis.fetch；与 fetchGist 有同样的不一致，记账留 21g/21h 收尾决定**）
+  - `frontmatter.ts` 的 `buildFrontmatter` routeKind='github'
+  - Node `fs/promises`/`path`
+- **buildFrontmatter github routeKind 集成**：fetchGithubDoc 不抽 publishDate，调用时不传该字段。21b 还多一道保险——`omitPublishDate = routeKind === 'github'` 即使传入也强制忽略（21b parity case 6 已验证）。集成完全丝滑，无任何 21b 字段缺失
+- 原 fetcher.ts 一行未动；commands/*.ts 一行未动；21a-21e 抽出的文件一行未动
+- 写了一次性 parity 脚本 `tmp/github-parity-check.mjs`（不入 git）：
+  - **(A) parseGithubRepoUrl byte-level**：10 case，全 pass。覆盖：repo 根 / `.git` 后缀 / www 子域 / blob+subpath（深路径） / blob+tag ref / tree+ref / 未识别路径段（issues）落 HEAD / 缺 repo / 非 github 主机（gist） / 非 URL
+  - **(B) fetchGithubDoc 整份文件 buffer 等价**：mock `globalThis.fetch` + 3 fixture，跑 legacy(内嵌 fmLines) vs actual(buildFrontmatter spread)，`Buffer.equals` 全 pass
+    - F1 典型 repo 根 README.md 第一候选命中 → 337 字节匹配
+    - F2 candidate 数组循环 fallback：README.md 404 → README.MD 200 → 315 字节匹配
+    - F3 blob 子路径模式（直接拼 raw URL，无 candidate 循环） → 308 字节匹配
+- tag：`refactor-batch-21f`
+- 验证：
+  - `npm run verify` 全绿，18 tests / 17 pass / 1 skip / ~1.8s
+  - `npm run lint` baseline 仍 **40**（github.ts 自身 0 error；本地 77 含 tmp/ 5 脚本累计，不入 git）
+- **修了一个我自己引入的 typo**：第一稿 inline FetchResult 把 `imagesFailed` 写成 `imagsFailed`，Read 自查时立刻改了，verify 当时未触发（fetcher.ts 内的 FetchResult 是 source of truth，commands/fetch.ts import 的是 fetcher.ts 的版本，不是 github.ts 的 inline 版本，所以 typo 在 21f 没人用 github.ts 的阶段不暴露 —— 21g 切换 import 后才会暴露。提早修掉避免给 21g 留坑）
+
+**为什么**
+
+- 21f 是 4 路由里**最简单**的：无图片下载、无二次 fetch raw 流程的复杂性、无 `<picture>`、frontmatter 字段最少（无 publishDate）
+- buildFrontmatter github routeKind 的"强制忽略 publishDate"在 21b 设计时是防御性写法（即使将来 github route 抽出 publishDate，frontmatter 也保持当前行为），21f 集成验证此设计无副作用
+
+**21g 风险点调研（给规划方下达 21g prompt 时参考）**
+
+`src/commands/fetch.ts` import 现状：
+```ts
+import { fetchUrl, fetchGist, fetchGithubDoc } from '../lib/fetcher.js';
+import type { FetchResult } from '../lib/fetcher.js';
+```
+**只 1 个文件 + 1 个 value import + 1 个 type import**。grep 全仓 `from.*lib/fetcher` 无其他命中（21a-21f 抽出的 src/lib/fetcher/* 子文件都是从原 fetcher.ts copy 而来，不互相 import；commands/*.ts 全部经 fetch.ts 间接调用）。
+
+原 fetcher.ts 的 5 个 export：
+- `interface FetchResult`（被 fetch.ts type-import）
+- `interface FetchOptions`（**未被 commands/*.ts 直接使用**，但 fetcher.ts 内部 fetchUrl 签名用到；21g 切换后 routes/web.ts 暴露的 fetchUrl 必须用同款 signature）
+- `fetchUrl` (value)
+- `fetchGist` (value)
+- `fetchGithubDoc` (value)
+
+**21g 切换的最小 surface**：只动 fetch.ts 一个文件 import 一行。但 21g 复杂度集中在：
+1. **routes/web.ts 当前只有 parseGeneric**，**未抽 fetchUrl 主入口**（21c 故意没抽）。21g 必须把 fetchUrl + parseWeixin 引用 + L1/L2 fetch + 图片下载流程也搬到 routes/web.ts（或拆 routes/index.ts dispatcher 处理 site 三元逻辑）
+2. **fetchUrl 内 `site === 'weixin' ? parseWeixin : parseGeneric`** 三元逻辑：21d weixin.ts 已存在 parseWeixin，21g 需要让 fetchUrl 同时 import routes/web 和 routes/weixin
+3. **fetchUrl 用 frontmatter.ts**：当前 fetchUrl 内嵌 fmLines 拼装（routeKind=`article`/`clipping` 二元），21g 切换时要替换为 buildFrontmatter
+4. **routes/* 中的 inline FetchResult**：3 处 inline 定义（gist/github/web 都没用 FetchResult，weixin 也没用，只有抽 fetchUrl 时才会用到）。21g 创建主入口 dispatcher 时要做出选择：(a) routes 各自 inline 保留，dispatcher 自己定义一份并把 routes return 收敛；(b) 上提到 `src/lib/fetcher/types.ts` 共用模块。建议 (b) 省维护
+5. **删旧 fetcher.ts**：本身简单，但要确认 dist/ 重 build 一份
+6. **commands/fetch.ts 改 import 路径**：从 `'../lib/fetcher.js'` 改到 `'../lib/fetcher/index.js'`（如果 21g 用 barrel）或直接到具体子模块。需要 1 行改动
+
+**风险评估**：
+- 风险 = 5 (高)。这是 21 唯一一个会改 commands/*.ts 的子批，回归风险陡增
+- 建议拆 21g 为两步：
+  - 21g-pre：建 `src/lib/fetcher/types.ts`（FetchResult / FetchOptions / ParsedDoc 共享）+ 抽 fetchUrl 到 routes/web.ts（仍不切 import）→ 旁路完整
+  - 21g-final：切 commands/fetch.ts import + 删旧 fetcher.ts → 真正切换
+- 或者 21g 单批一次完成，但必须有"灰度回滚"路径：保留旧 fetcher.ts 一段时间，靠 git revert 一个 commit 即可全恢复
+
+**接下来**
+
+- 进 21g：完成主入口切换 + 删旧 fetcher.ts —— 等规划方加强版 prompt
+- 不主动开始 21g
+
+---
+
 ## 2026-04-19 — 批次 21e：抽 fetcher routes/gist.ts + 首次集成 buildFrontmatter（strangler fig 第五步 / P0-2）
 
 **做了什么**
