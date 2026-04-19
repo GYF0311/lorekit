@@ -3124,7 +3124,7 @@ ${summary.join("\n")}`
         }
         const existing = loadIngestState(corpus).ingests[url];
         const prev = existing?.stepsDone ?? [];
-        patch.stepsDone = [...prev, ...parsedSteps];
+        patch.stepsDone = [.../* @__PURE__ */ new Set([...prev, ...parsedSteps])];
         if (!opts.status && !opts.complete && !opts.fail) {
           if (parsedSteps.includes("lint")) patch.status = "completed";
           else patch.status = "started";

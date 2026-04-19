@@ -192,7 +192,11 @@ export function ingestCommand(program: Command): void {
 
           const existing = loadIngestState(corpus).ingests[url];
           const prev = existing?.stepsDone ?? [];
-          patch.stepsDone = [...prev, ...parsedSteps];
+          // 去重：保留首次出现顺序。多次 record 链式调用追加同一 step 时不应重复，
+          // 否则 ingest-state.json 的 stepsDone 会出现 `[archive, archive, wiki, wiki, backlink]`
+          // 这种噪声，nextStepHint / pending 推断也会受影响。
+          // 见批次 20b / P4-1 同模式（与 wikiPages 同步修）。
+          patch.stepsDone = [...new Set([...prev, ...parsedSteps])];
 
           // status precedence: explicit flags win; otherwise, if the chain
           // includes 'lint' it implies completion.

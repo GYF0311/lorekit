@@ -7,7 +7,9 @@
 // 修复后：
 //   record --wiki-page B --wiki-page C   → wikiPages: [A, B, C]      // 保持首次顺序去重
 //
-// 注意：本 smoke 不验 `stepsDone` 的去重（同一 bug 模式仍存在），见 WORKLOG 2026-04-19。
+// 批次 20b 追加：`stepsDone` 同模式去重（同文件下另起一条 smoke 锁定）。
+//   record --step archive,wiki     → stepsDone: [archive, wiki]
+//   record --step wiki,backlink    → stepsDone: [archive, wiki, backlink]   // wiki 不重复
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -49,5 +51,30 @@ test('ingest record 多次 --wiki-page 调用对 wikiPages 去重 (P4-1)', () =>
     record.wikiPages,
     ['A.md', 'B.md', 'C.md'],
     `expected wikiPages [A,B,C] (deduped, first-seen order), got ${JSON.stringify(record.wikiPages)}`,
+  );
+});
+
+test('ingest record 多次 --step 链式调用对 stepsDone 去重 (批次 20b / P4-1 同模式)', () => {
+  // 用独立 URL 隔离前一条 smoke 的状态
+  const url = 'https://example.com/batch-20b-stepsdone';
+
+  // 第一次：stepsDone = [archive, wiki]
+  const args1 = ['ingest', 'record', url, '--step', 'archive,wiki'];
+  const r1 = runLorekit(args1, { cwd: corpus });
+  assert.equal(r1.status, 0, fmtRun(r1, args1, 'first record exit 0'));
+
+  // 第二次：wiki 重复，backlink 新加 → 期望 stepsDone = [archive, wiki, backlink]
+  const args2 = ['ingest', 'record', url, '--step', 'wiki,backlink'];
+  const r2 = runLorekit(args2, { cwd: corpus });
+  assert.equal(r2.status, 0, fmtRun(r2, args2, 'second record exit 0'));
+
+  const statePath = join(corpus, '.wiki', 'ingest-state.json');
+  const state = JSON.parse(readFileSync(statePath, 'utf-8'));
+  const record = state.ingests[url];
+  assert.ok(record, 'ingest record should exist for ' + url);
+  assert.deepEqual(
+    record.stepsDone,
+    ['archive', 'wiki', 'backlink'],
+    `expected stepsDone [archive,wiki,backlink] (deduped, first-seen order), got ${JSON.stringify(record.stepsDone)}`,
   );
 });

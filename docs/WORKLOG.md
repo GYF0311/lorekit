@@ -6,6 +6,27 @@
 
 ---
 
+## 2026-04-19 — 批次 20b：ingest stepsDone 同模式去重（规划方批准追加）
+
+**做了什么**
+
+- 批次 20 提交后，规划方拍板把"发现但未处理"里的 stepsDone 同模式 bug 也一并修
+- `src/commands/ingest.ts:195` `[...prev, ...parsedSteps]` → `[...new Set([...prev, ...parsedSteps])]`，注释引用"批次 20b / P4-1 同模式"
+- `tests/smoke/ingest-record.test.mjs` 加 1 条 smoke：用独立 URL（避开前一条 smoke 状态污染），`record --step archive,wiki` 然后 `record --step wiki,backlink`，断言 `stepsDone === [archive, wiki, backlink]`
+- tag：`refactor-batch-20b`
+- smoke 18 tests / 17 pass / 1 skip；lint baseline 37 → 37（无变化）
+
+**为什么**
+
+- 规划方判断 stepsDone 同模式 bug 与 P4-1 同质，没必要拖到下个批次；同 5 分钟工作量一次清掉
+- 不去重的副作用：`stepsDone` 出现 `[archive, archive, wiki, wiki, backlink]` 这种噪声，`nextStepHint` / `pending` 推断逻辑虽然现在用 `includes` 看似不受影响，但任何未来用 `.length` 或 frequency 推断的地方都会被误导
+
+**接下来**
+
+- 主线只剩：批次 18（CI，可选推迟）+ 批次 21（拆 fetcher，高风险）+ 批次 22（拆 vectordb，极高风险）
+
+---
+
 ## 2026-04-19 — 批次 20：P4-1 ingest variadic 验证（修 wikiPages 去重）
 
 **做了什么**
