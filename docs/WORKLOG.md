@@ -6,6 +6,123 @@
 
 ---
 
+## 2026-04-19 — 批次 22e：抽 status + 建主入口（strangler fig 第五步 / P0-1）
+
+**做了什么**
+
+- 新建 2 个文件到 `src/lib/vectordb/`：
+  - `status.ts`（127 行）：私有 `computeMode(indexed, indexedFiles): {mode, reason}` + 公开 `getStatus(corpus): Promise<StatusInfo>` — 读全库元数据 + 调 computeMode 拼推荐
+  - `index.ts`（54 行）：纯 barrel re-export（无 runtime 代码），暴露 9 value + 1 算法 + 2 常量 + 3 type
+- 依赖：status.ts → schema.ts (Db, StatusInfo, EMBEDDING_DIM, MODE_THRESHOLD_FILES, openDb) + files.ts (collectFiles)
+- 原 vectordb.ts 一行未动；commands/*.ts 一行未动；22a-22d 抽出的文件一行未动
+- 写一次性 parity 脚本 `tmp/vectordb-22e-parity-check.mjs`（不入 git）
+- tag：`refactor-batch-22e`
+- 验证：
+  - `npm run verify` 全绿，18 tests / 17 pass / 1 skip / ~2.9s
+  - `npm run lint` src 范围 **45 不变**（status.ts + index.ts 自身 0 error；status.ts 有 1 处沉默 catch 但是从原 vectordb.ts copy 的双份在已统计内）
+
+**EmbedFn 决策（22e 拍板，记入 index.ts 文件头注释）**
+
+**保持双 inline 不上提**到 schema.ts。理由：
+- (a) commands 不用 EmbedFn type（commands 自定义 `embedFn` 实现喂给 syncFile / buildLayeredIndex）—— 上提对 commands 无收益
+- (b) 上提引入 sync/build-layered → schema.ts 的额外耦合，违反 22a 时的"schema/files 互不依赖"原则
+- (c) 仅 2 处 inline，type 定义 1 行 + 注释 2 行，复制成本极小
+- (d) 22e/22f 收尾时若 query 系列有新需求再考虑上提（grep 确认目前不需要）
+
+**index.ts barrel 设计 + commands 实际用 API 对照**
+
+`grep -n "from.*lib/vectordb" src/commands/` 实际命中（3 处 dynamic import）：
+
+| commands 用到 | index.ts 是否 export | 备注 |
+| ------------ | ------------------- | ---- |
+| `openDb`             | ✓ from schema.js | sync L36 + query L142 |
+| `syncFile`           | ✓ from sync.js   | sync L36 |
+| `buildLayeredIndex`  | ✓ from build-layered-index.js | sync L36 |
+| `collectFiles`       | ✓ from files.js | sync L36 |
+| `queryFlat`          | ✓ from query-flat.js | query L142 |
+| `queryLayered`       | ✓ from query-layered.js | query L142 |
+| `queryBM25Layered`   | ✓ from query-bm25.js | query L142 |
+| `queryHybrid`        | ✓ from query-hybrid.js | query L142 |
+| `getStatus`          | ✓ from status.js | status L184 |
+
+**100% 覆盖**，9/9 commands 实际用的 API 全部 re-export。
+
+额外暴露：`rrfMerge`（commands 暂未用，但作为 hybrid 配套算法暴露——规划方明示包含），常量 `EMBEDDING_DIM` / `MODE_THRESHOLD_FILES`，type `Db` / `StatusInfo` / `QueryResult`。
+
+**不**暴露的内部 helper（保持封装）：
+- `sha256` / `float32ToBuffer` / `distanceToScore` / `shouldIndex` / `extractPageSummary`（files.ts）
+- `sanitizeFtsQuery`（query-bm25.ts 私有）
+- `parseIndexSections` / `parseIndexEntries` / `findAllIndexFiles`（build-layered-index.ts 私有）
+- `DDL` / `FTS_DDL` / `vecDdl` / `loadSqlite`（schema.ts 仅 openDb 内部用）
+- `EmbedFn` type（双 inline）
+
+**byte-level 验证范围声明**
+
+| 段                | 验证方式                                                                  | 结果 |
+| ----------------- | ------------------------------------------------------------------------- | ---- |
+| `computeMode` 函数体 | git show + diff (legacy 979-999 vs actual)                              | **0 字符差异** |
+| `getStatus` 函数体  | git show + diff (legacy 1001-1057 vs actual)                            | **0 字符差异** |
+| `computeMode` 行为  | 7 mock case（未 indexed / 未 indexed 但 files=999 / indexed 0 / 99（边界下）/ 100（=阈值）/ 101（边界上）/ 5000），legacy inline vs actual inline 全等 | **高保真** |
+| `getStatus` db 段   | 不验（涉 sqlite-vec extension / openDb 流程） | 降级（22f 集成测兜底） |
+| `index.ts` barrel re-export | 不验（ESM `export { x } from 'y'` 是符号绑定，行为不可能改变）   | 推论 |
+
+**为什么**
+
+- 22e 是 22 唯一一个含主入口设计决策的子批，按 21g-pre 经验提早建好 barrel + 决定 EmbedFn 归属，22f 单 commit 切 commands import 风险才小
+- 严格按规划方建议的 export 列表（9 value + 1 算法 + 2 常量 + 3 type），完全覆盖 commands 实际使用
+- index.ts 文件头注释明确写出"不 re-export 的内部 helper 列表"和"EmbedFn 决策"，给将来 22 后续清理子批 / 维护者一个 reference
+
+**22f checklist（给规划方下达 22f prompt 时参考）**
+
+```
+[ ] 1. src/commands/vector.ts 改 import：3 处 dynamic import 路径
+       L36:  from '../lib/vectordb.js'  →  from '../lib/vectordb/index.js'
+       L143: from '../lib/vectordb.js'  →  from '../lib/vectordb/index.js'
+       L184: from '../lib/vectordb.js'  →  from '../lib/vectordb/index.js'
+       （只动 1 个文件 / 3 行 / 0 函数调用 — surface 极小，比 21g-final 多 1 行）
+
+[ ] 2. trash src/lib/vectordb.ts（旧 1057 行死代码搬进 ~/.Trash 可恢复，绝不用 rm）
+
+[ ] 3. trash tmp/vectordb-22*-parity-check.mjs（22a/22b/22d/22e 累积 4 个临时脚本，
+       22c 没有 parity 脚本因为只用 git diff）
+
+[ ] 4. npm run build 重 build dist/cli.js + 提交 dist/
+
+[ ] 5. npm run verify 全绿确认
+
+[ ] 6. lint baseline 预期回落：
+       - 当前 src 范围 45
+       - 旧 vectordb.ts 自身 lint errors（`Db = any` 1 + `as any` 2 + `let title` 等可能 1-2 个 + 7 处 `console.log` 双份模式 + 沉默 catch 双份）
+       - 估计回落到 33-36 区间（22a 期间 +2 / 22b +7 双份消失，剩余少量 const / etc）
+
+[ ] 7. 集成测（决策 B 同 21g-final，临时 corpus）：
+       a. mktemp -d → lorekit init . → 准备 mock 数据：
+          mkdir -p 知识库 && echo -e '---\ntype: page\ntitle: hello\n---\n# Hello\n## Compiled Truth\nworld' > 知识库/hello.md
+       b. **lorekit vector status** — 验证 indexed:false / mode:'text' / mode_threshold:100 输出（不需 sqlite-vec）
+       c. **lorekit vector sync**（如本机有 ollama + bge-m3） — 端到端 syncFile + buildLayeredIndex
+       d. **lorekit vector status**（再跑） — 验证 indexed:true / chunks > 0 / mode 视 docCount 决定
+       e. **lorekit vector query --hybrid --text "hello"** — 验证 hybrid query 端到端
+       f. trash 临时 corpus
+       
+       如本机无 ollama + bge-m3：跳 c/d/e，仅验 b（status 不需 vector）+ 报告"完整 vector pipeline 留先生最终验收"
+
+[ ] 8. WORKLOG 收尾批次 22 全图（6 子批 commit 表 + 文件 before/after + lint baseline 全程变化 + 集成测结果 + 给规划方的 review pack 草稿）
+
+[ ] 9. LEGACY P0-1 标 ✅
+```
+
+**22f 风险点**：
+- 风险 = 5（高）。22 唯一改 commands 的子批，回归风险陡增。比 21g-final 风险**更高**：vector pipeline 涉及 sqlite-vec + ollama 外部依赖，集成测能验的范围比 fetch karpathy gist 窄
+- 缓解：22a-22e 已用 git diff + mock case 证明 6 个 byte-equal 函数（vecDdl / parse* / queryFlat / queryLayered / sanitize / rrfMerge / queryHybrid / computeMode / getStatus）+ 1 行为等价（collectFiles）；22f 一旦红 git revert 1 commit 即恢复
+- **绝不重蹈 21g-final 覆辙**：21g-final 中段操作失误用 `git stash + git checkout <tag> -- .` 损坏 working tree。22f 看历史 lint 必须用 `git show <tag>:src/lib/vectordb.ts | wc -l` 这种**只读管道**
+
+**接下来**
+
+- 进 22f：commands/vector.ts 切 import + trash 旧 vectordb.ts + 集成测 + 批次 22 全图收尾 —— 等规划方加强版 prompt
+- 不主动开始 22f
+
+---
+
 ## 2026-04-19 — 批次 22d：抽 vectordb BM25 + hybrid 融合（strangler fig 第四步 / P0-1）
 
 **做了什么**
