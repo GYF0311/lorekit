@@ -6,6 +6,57 @@
 
 ---
 
+## 2026-04-19 — 批次 22b：抽 vectordb 写路径 sync + build-layered-index（strangler fig 第二步 / P0-1）
+
+**做了什么**
+
+- 新建 2 个文件到 `src/lib/vectordb/`：
+  - `sync.ts`（128 行）：`syncFile(db, filePath, corpus, embedFn): Promise<{chunks: number}>` — 单文件全量重建（级联清旧 → INSERT documents → chunkFile → embed → 写 chunks/vec_chunks/fts_chunks）
+  - `build-layered-index.ts`（282 行）：`buildLayeredIndex(db, corpus, embedFn): Promise<void>` 公开 + 3 个内部 helper `parseIndexSections` / `parseIndexEntries` / `findAllIndexFiles`
+- exports：sync.ts 仅 `syncFile`；build-layered-index.ts 仅 `buildLayeredIndex`（3 个 helper 私有）
+- 内部依赖（依赖 22a）：
+  - sync.ts → 22a `files.ts` 的 `sha256` / `float32ToBuffer` + 22a `schema.ts` 的 `Db` type；外部 `chunker.ts`（动态 import 保持原样）+ Node `path`
+  - build-layered-index.ts → 22a `files.ts` 的 `float32ToBuffer` + 22a `schema.ts` 的 `Db` type + `paths.ts` 的 `vectorExcludePrefixes` + `gray-matter` + Node `fs`/`path`
+  - **sync.ts 与 build-layered-index.ts 互不依赖**
+- `EmbedFn` type **inline 定义在两个文件各自顶部**（同款签名 `(texts: string[]) => Promise<Float32Array[]>`），未上提到 schema.ts —— grep 确认 EmbedFn 只在 sync 和 build-layered 用到，query 系列子批不用，22e/22f 收尾时再决定是否上提
+- 原 vectordb.ts 一行未动；commands/*.ts 一行未动；22a 抽出的 schema/files 一行未动
+- 写一次性 parity 脚本 `tmp/vectordb-22b-parity-check.mjs`（不入 git，用 `--experimental-strip-types` 直接 import 真 paths.ts）
+- tag：`refactor-batch-22b`
+- 验证：
+  - `npm run verify` 全绿，18 tests / 17 pass / 1 skip / ~2.6s
+  - `npm run lint` src 范围 38 → 45（**+7 errors**：build-layered-index.ts 的 7 处 `console.log` 是从原 vectordb.ts 进度提示 copy 来的双份，违反 CONVENTIONS Do Not #2 / LEGACY P2-4，22b 严守 "copy 不修" 原则保留双份；22f 删旧时回落，且后续清理子批应集中改 logger.info）
+
+**byte-level 验证范围声明**
+
+| 段                              | 验证方式                              | 保真度 |
+| ------------------------------- | ------------------------------------- | ------ |
+| `parseIndexSections`            | 5 mock case（典型 2 段 / 无 entry 段被滤 / 重复 slug 去重 / 空 / 无 section），legacy inline vs actual inline JSON.stringify 等价 | **高保真** |
+| `parseIndexEntries`             | 4 mock case（典型表格 / 转义 \\| / 无表格 / 混合脏行），legacy vs actual JSON.stringify 等价 | **高保真** |
+| `findAllIndexFiles`             | 临时 corpus + **真 paths.ts** import（`--experimental-strip-types`），含 7 个 _INDEX.md 散布在 知识库/ / 知识库/sub/ / 原料/文章/ / _工作台/（应排）/ _归档/（应排）/ .wiki/（隐藏目录跳）+ 1 个非 _INDEX.md 干扰，legacy 与 actual 返回完全相同的 3 文件列表 | **高保真**（用真生产 set） |
+| `syncFile`                      | **不验**（级联 DELETE + INSERT 多张 vec0/fts5 虚表，需要 sqlite-vec 装且 in-memory load 配置；vec0 内部存储不透明 raw bytes 对比无意义） | 降级（22f 集成测必跑） |
+| `buildLayeredIndex` 主流程       | **不验**（同上，全量重建 6 张表，依赖 syncFile 已先建立 documents 表的 doc_id 映射） | 降级（22f 集成测必跑） |
+| sync.ts / build-layered-index.ts 自身 ESM `.js` 解析 | 不验 | 降级（`npm run verify` 的 tsc + tsup build 兜底） |
+
+**为什么**
+
+- 严格按 22b 范围：仅写路径（sync + buildLayered），不动 query / status / 主入口
+- 3 个解析 helper 必须高保真验证（规划方明示）：它们是 buildLayeredIndex 的关键解析层，纯字符串/文件系统逻辑无 db 状态，验证成本低收益高；剩下的 db 写入 SQL 字符串与原代码 byte-equal（无可调字段），抄写无漏字符即整体行为等价
+- syncFile / buildLayeredIndex 整体降级到 22f 集成测：sqlite-vec 是 optionalDep，开发机未装；mock db 跳过 vec 表又证不出关键路径正确，不如等 22f 端到端跑一遍
+
+**发现但未处理（记账留后续清理子批）**
+
+- build-layered-index.ts 7 处 `console.log` 进度提示（旧 vectordb.ts 同款）违反 CONVENTIONS #2 / LEGACY P2-4 — 22f 删旧时单边消失，剩余 7 处建议在后续清理子批集中改 `logger.info`（连同 query 系列子批可能的同模式 console 一起做）
+- `EmbedFn` type 双份 inline（sync.ts + build-layered-index.ts）— 22e/22f 收尾时若 query 子批不用就保留双 inline，用就上提到 schema.ts
+- `loadSqlite` 内 2 处沉默 catch（22a 已记 / LEGACY P2-2）+ build-layered-index.ts 内 `findAllIndexFiles` 的 `try { ... } catch { return; }`（同模式但已加注释说明）— 都是 LEGACY P2-2 范围，等后续 sweep
+- syncFile 内 vec0 写入用字符串拼接 `INSERT INTO vec_chunks (rowid, embedding) VALUES (${chunkId}, ?)` 因 vec0 不支持 rowid 绑定参数 — 这是 sqlite-vec 已知限制，不是 lint 问题（chunkId 来自 `last_insert_rowid()` 是数值，无 SQL 注入风险），但代码风格上属"可疑"。原代码注释明说"vec0 doesn't support bound params for rowid — must inline"，22b 保留
+
+**接下来**
+
+- 进 22c：抽 query-flat + query-layered（向量查询 read 路径）—— 等规划方下达指令
+- 不主动开始 22c
+
+---
+
 ## 2026-04-19 — 批次 22a：抽 vectordb 工具层 schema/files（strangler fig 第一步 / P0-1）
 
 **做了什么**
