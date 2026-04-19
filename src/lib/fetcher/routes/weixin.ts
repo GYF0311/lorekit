@@ -24,22 +24,10 @@
 import * as cheerio from 'cheerio';
 
 import { normalizeDateText, resolveUrl, tsToYMD } from '../helpers.js';
+import type { ParsedDoc } from '../types.js';
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-/**
- * inline 定义，与 fetcher.ts:175-181 ParsedDoc 字段、可选性、注释含义完全一致。
- * 与 routes/web.ts 同款 inline，21g 收尾时再决定是否上提到共享 types 模块。
- */
-export interface ParsedDoc {
-  title: string;
-  author: string;
-  publishDate?: string; // YYYY-MM-DD Asia/Shanghai, optional
-  bodyHtml: string;
-  imgSrcs: string[]; // absolute URLs in document order
-}
+// ParsedDoc 21g-pre 上提到 fetcher/types.ts，本文件 21d 内的 inline 定义已删除。
+// 字段、可选性、注释完全一致，纯类型替换。
 
 // ---------------------------------------------------------------------------
 // P4-4 helper: srcset → 第一个 URL

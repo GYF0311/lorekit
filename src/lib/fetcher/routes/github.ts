@@ -15,37 +15,10 @@ import { join } from 'node:path';
 import { buildFrontmatter } from '../frontmatter.js';
 import { slugify, todayYMD } from '../helpers.js';
 import { buildHeaders } from '../http.js';
+import type { FetchResult } from '../types.js';
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-/**
- * inline 定义，与 fetcher.ts:16-46 FetchResult 字段、可选性、注释完全一致。
- * 21g 收尾时再决定是否上提到共享 types 模块。
- */
-export interface FetchResult {
-  status: 'ok' | 'error' | 'unsupported' | 'duplicate';
-  route: string;
-  url: string;
-  title?: string;
-  author?: string;
-  publishDate?: string; // YYYY-MM-DD, Asia/Shanghai
-  sourceKind?: string; // clipping | article | ...
-  sourceLayer?: string;
-  slug?: string;
-  markdown?: string;
-  assetsDir?: string;
-  imagesOk?: number;
-  imagesFailed?: number;
-  suggest?: string;
-  reason?: string;
-  duplicate?: {
-    path: string;
-    sourceDate?: string;
-    title?: string;
-  };
-}
+// FetchResult 21g-pre 上提到 fetcher/types.ts，本文件 21f 内的 inline 定义已删除。
+// 字段、可选性、注释完全一致，纯类型替换。
 
 interface GithubRepoRef {
   owner: string;

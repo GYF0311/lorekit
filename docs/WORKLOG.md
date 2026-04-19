@@ -6,6 +6,105 @@
 
 ---
 
+## 2026-04-19 — 批次 21g-pre：建 fetcher 主入口 + types + 抽 fetchUrl（strangler fig 第七步 / P0-2，拆两步的第一步）
+
+**做了什么**
+
+3 个动作 + byte-level 验证 + verify：
+
+**动作 1**：建 `src/lib/fetcher/types.ts`（77 行）
+- exports：`FetchResult` / `FetchOptions` / `ParsedDoc`（3 个 interface 全 type-only）
+- 字段定义与 fetcher.ts:16-52 + :175-181 byte 等价（字段、可选性、注释一致）
+- 纯类型模块，无 runtime 代码
+
+**动作 2**：4 个 routes 切 import 自 types.ts
+- `routes/web.ts`：删 inline `interface ParsedDoc`，加 `import type { ParsedDoc } from '../types.js';`
+- `routes/weixin.ts`：同上
+- `routes/gist.ts`：删 inline `interface FetchResult`，加 `import type { FetchResult } from '../types.js';`
+- `routes/github.ts`：同上 + 顺手验证 21f 修过的 `imagesFailed` typo 现在以 types.ts 为 SSOT，typo 风险归零
+- 切完后 `npm run verify` 全绿（grep 确认无人 import `ParsedDoc` from web.ts 或 `FetchResult` from gist.ts，所以删 inline export 安全）
+
+**动作 3**：建 `src/lib/fetcher/index.ts`（180 行，含 fetchUrl ~117 行）
+- exports：`fetchUrl(url, opts): Promise<FetchResult>` 主入口 + re-export `fetchGist` from routes/gist + re-export `fetchGithubDoc` from routes/github + type re-export `FetchResult` / `FetchOptions` from types
+- **不 re-export** parsers / helpers / http / images / frontmatter（保持封装）
+- fetchUrl 函数体从 fetcher.ts:493-606 copy，dispatcher `site === 'weixin' ? parseWeixin : parseGeneric`
+- **frontmatter 拼装替换**：原 fetcher.ts:572-583 内嵌 fmLines 块替换为 `fmLines.push(...buildFrontmatter({routeKind: site === 'weixin' ? 'clipping' : 'article', ...}))` 单次 spread。**完全丝滑**，21b 设计的 routeKind 二元（article/clipping）正好覆盖 generic+weixin 两路由
+
+**byte-level 验证（fetchUrl 主入口）**
+
+`tmp/fetchurl-parity-check.mjs`（不入 git）：
+- mock `globalThis.fetch` 返回 generic / weixin 各一份 fixture HTML
+- legacy(内嵌 fmLines) vs actual(buildFrontmatter spread + 子模块 parser dispatcher) 各跑一次，用 `Buffer.equals` 对比写出文件
+- **结果**：generic 398 字节 / weixin 412 字节 byte-level 完全匹配，2/2 pass
+
+**降级声明**：
+- `htmlToMarkdown` 用 stub 替代真 turndown（turndown ESM 入口 `ERR_AMBIGUOUS_MODULE_SYNTAX`，mjs 上下文加载困难；stub 只需"两边一致"就能验证 buildFrontmatter spread 等价性，不影响 parity 核心目标）
+- `downloadImages` mock 返回空（noImages=true 路径，避开图片下载验证；下载图功能在 21a/21d 已经各自验过）
+- `fetchGist` / `fetchGithubDoc` re-export 不重新验：ESM `export { x } from 'y'` 是符号绑定，行为不可能改变；21e/21f 各自的 parity 已验过
+
+**验证结果**
+
+- `npm run verify` 全绿，18 tests / 17 pass / 1 skip / ~1.6s
+- `npm run lint` src 范围内 baseline 仍 **40**（types.ts 0 / index.ts 0 / 4 处 inline interface 删除不影响计数；本地 84 含 tmp/ 6 脚本累计 44 个 violations）
+- tag：`refactor-batch-21g-pre`
+
+**为什么**
+
+- 规划方决策 B：fetchUrl 是 dispatcher（site 检测 → 选 parser），归 fetcher/index.ts 主入口职责更合适，routes/web.ts 保持纯 parser 角色
+- 规划方决策 C：fetchGist/fetchGithubDoc 用 globalThis.fetch 不走 fetchHtmlL1 是行为改进不是结构拆分，本批不做（已写进发现但未处理）
+- 上提 types.ts 一次性消除 4 处 inline 重复；将来字段调整（如加 `assetsDir` 注释优化）只需改一处
+- "21g-pre 建主入口但不切换"是 strangler fig 的关键：即使 21g-final 出问题 git revert 一个 commit，21g-pre 留下的旁路代码不影响主流程
+
+**21g-final checklist（给规划方下达 21g-final prompt 时参考）**
+
+```
+[ ] 1. src/commands/fetch.ts 改 import：
+       L5: from '../lib/fetcher.js'  →  from '../lib/fetcher/index.js'
+       L6: from '../lib/fetcher.js'  →  from '../lib/fetcher/index.js'
+       （只动 1 个文件 / 2 行 / 0 函数调用 — surface 极小）
+
+[ ] 2. trash src/lib/fetcher.ts（用 trash 不用 rm，红线）
+
+[ ] 3. npm run build 重 build dist/cli.js + 提交 dist/
+
+[ ] 4. npm run verify 全绿确认
+
+[ ] 5. lint baseline 预期回落：40 → 38 左右
+       - 旧 fetcher.ts 自身 lint errors（`let slug` / `@ts-ignore` / `let title` 等）随删除消失
+       - 各子模块本来就 0 lint，无新增
+
+[ ] 6. 真实集成测（先生 LEGACY P0-2 验证清单的"必须跑"）：
+       手动跑 `LOREKIT_SMOKE_ONLINE=1` 在线测 4 个 URL fixtures：
+       - 微信公众号文章（验 ct timestamp + parseWeixin + P4-4 picture）
+       - karpathy 的 LLM Wiki gist（验 fetchGist + buildFrontmatter）
+       - lorekit github repo README（验 fetchGithubDoc + candidate fallback）
+       - claude.com / Webflow blog 类 generic 文章（验 fetchUrl L1 + parseGeneric）
+
+[ ] 7. 加 tests/smoke/fetcher.test.mjs online-only：LOREKIT_SMOKE_ONLINE=1
+       时跑 4 条断言（status === 'ok' + frontmatter 关键字段非空）
+
+[ ] 8. WORKLOG 收尾批次 21 全图（7 子批 + total LoC delta + lint baseline 终态）
+
+[ ] 9. 删 tmp/*-parity-check.mjs（已 .gitignore，但显式 trash 清理）
+```
+
+**风险评估**：
+- 21g-final 风险点 = 改 commands/fetch.ts 后回归（smoke 不覆盖 fetch 网络流程）
+- 缓解：21g-pre 已用 mock fetch parity 证明 fetchUrl byte 等价；21g-final 一旦验真实集成测红，git revert 1 个 commit 即可全回滚（21g-pre 留下的旁路代码不动）
+
+**发现但未处理（记 LEGACY 留 21h / 后续 follow-up）**
+
+- fetchGist 与 fetchGithubDoc 用 `globalThis.fetch` 直接请求 raw URL 不走 `fetchHtmlL1`（无 timeout）—— 决策 C 已说不在 21 范围。建议规划方在 LEGACY P3 加一条
+- index.ts 的 fetchUrl 内 `try { ... } catch { html = ''; }` 沉默 catch（旧 fetcher.ts 同款）—— P2-2 sweep 在批次 11 故意把 fetcher 留到此处，应在 21g-final 或独立 cleanup 批次扫
+- weixin.ts / web.ts 内 `let title` / `let publishDate` 等 `let` 风格未改 const —— prefer-const lint 报，21f-final 删旧 fetcher.ts 后才有意义统一改
+
+**接下来**
+
+- 进 21g-final：commands/fetch.ts 切 import + trash 旧 fetcher.ts + 真实集成测 —— 等规划方加强版 prompt（先生在 21 全部完成后才看）
+- 不主动开始 21g-final
+
+---
+
 ## 2026-04-19 — 批次 21f：抽 fetcher routes/github.ts（strangler fig 第六步 / P0-2）
 
 **做了什么**
