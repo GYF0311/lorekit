@@ -37,8 +37,8 @@ lorekit/
 
 | 文件                  | LoC | 职责                                                                                |
 | --------------------- | --- | ----------------------------------------------------------------------------------- |
-| `init.ts`             | 149 | 初始化 corpus，部署 Obsidian 插件                                                   |
-| `doctor.ts`           | 171 | 健康检查（目录、frontmatter 覆盖率、_INDEX.md）                                     |
+| `init.ts`             | 189 | 初始化 corpus，部署 Obsidian 插件 + 批次 25 safe-write `.obsidian/graph.json`        |
+| `doctor.ts`           | 203 | 健康检查（目录、frontmatter、_INDEX.md）+ 批次 26 Obsidian filter 检测              |
 | `stats.ts`            | 85  | 输出 corpus 统计 JSON                                                               |
 | `search.ts`           | 117 | ripgrep 包装（有内置 fallback）                                                     |
 | `fetch.ts`            | 183 | URL 路由 → 调 fetcher 子模块，duplicate / in-progress 检测                          |
@@ -51,6 +51,7 @@ lorekit/
 | `snapshot.ts`         | 108 | tarball 备份                                                                        |
 | `restore.ts`          | 170 | 从 tarball 恢复                                                                     |
 | `install-skills.ts`   | 107 | 把 skills 软链到 `~/.claude/skills`                                                 |
+| `obsidian-tune.ts`    | 120 | 批次 26：老用户升级一键应用 `.obsidian/graph.json` filter（默认检查 / `--write` 备份后写 / `--print` 管道用）|
 
 ## src/lib/ 详单
 
@@ -65,6 +66,7 @@ lorekit/
 | `chunker.ts`      | 72  | markdown 按 `## heading` 切 chunk                                 |
 | `date.ts`         | 56  | 日期 helper：`pad2` / `dateToYMDUtc` / `tsCompact` 等             |
 | `ollama.ts`       | 41  | ollama embed API 客户端                                           |
+| `obsidian.ts`     | 86  | 批次 26：graph.json 读写 helper（`getRecommendedFilter` / `readCorpusFilter` / `isFilterComplete`），`templates/default-corpus/.obsidian/graph.json` 是 filter 字符串 SSOT |
 
 ### `src/lib/fetcher/`（10 文件 1473 行，最大 180 行 — 批次 21 拆分产物）
 
