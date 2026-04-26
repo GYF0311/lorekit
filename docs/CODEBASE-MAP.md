@@ -2,7 +2,7 @@
 
 > 仓库根：`/Users/gaoyifan/code/lorekit`
 > GitHub：https://github.com/GYF0311/lorekit
-> 当前版本：`0.3.0`（v0.4.0 准备发版中，见 `VERSION`）
+> 当前版本：`0.4.0`（见 `VERSION`）
 
 ## 顶层布局
 
@@ -10,12 +10,12 @@
 lorekit/
 ├── src/                    TypeScript 源码（约 6270 LoC，含 fetcher/vectordb 子模块）
 │   ├── cli.ts              CLI 入口 + 启动 banner + 命令注册
-│   ├── commands/           14 个子命令实现
+│   ├── commands/           15 个子命令实现
 │   ├── lib/                7 个核心库 + fetcher/ + vectordb/ 两个子模块目录
 │   └── utils/              通用 helper（fs / logger）
 ├── bin/                    npm bin shim（lorekit.js）
 ├── dist/                   tsup 构建产物（提交进 git，给免构建用户用）
-├── skills/                 6 个 wiki-* SKILL.md（Agent skill）
+├── skills/                 7 个 wiki-* SKILL.md（Agent skill）
 ├── plugins/obsidian-audit/ Obsidian 反馈插件
 ├── templates/default-corpus/ corpus 骨架（lorekit init 拷贝）
 ├── integrations/           thin shim 转发到 `lorekit install-skills`
@@ -52,6 +52,7 @@ lorekit/
 | `restore.ts`          | 170 | 从 tarball 恢复                                                                     |
 | `install-skills.ts`   | 107 | 把 skills 软链到 `~/.claude/skills`                                                 |
 | `obsidian-tune.ts`    | 120 | 批次 26：老用户升级一键应用 `.obsidian/graph.json` filter（默认检查 / `--write` 备份后写 / `--print` 管道用）|
+| `remove.ts`           | 438 | 安全移除 URL/路径：dry-run 影响报告，`--apply` snapshot → OS Trash → provenance 清理 → sync/lint |
 
 ## src/lib/ 详单
 
@@ -83,7 +84,7 @@ lorekit/
 | `routes/gist.ts`           | 180 | `fetchGist` GitHub gist                                           |
 | `routes/github.ts`         | 159 | `fetchGithubDoc` GitHub repo doc                                  |
 
-### `src/lib/vectordb/`（10 文件 1477 行，最大 283 行 — 批次 22 拆分产物）
+### `src/lib/vectordb/`（11 文件 — 批次 22 拆分产物）
 
 | 文件                        | LoC | 职责                                                            |
 | --------------------------- | --- | --------------------------------------------------------------- |
@@ -97,6 +98,7 @@ lorekit/
 | `query-bm25.ts`             | 136 | `queryBM25Layered` BM25 chunk 直查（24-fix 改 flat）+ sanitize  |
 | `query-hybrid.ts`           | 94  | `rrfMerge` + `queryHybrid` BM25/向量 RRF 融合                   |
 | `status.ts`                 | 130 | `computeMode` + `getStatus` 检索模式推荐                        |
+| `prune.ts`                  | 49  | 清理 vector.sqlite 里磁盘已不存在的 documents/chunks/page summaries/vec/FTS 记录 |
 
 ## src/utils/ 详单
 
@@ -118,7 +120,8 @@ lorekit/
 7. `src/lib/vectordb/schema.ts` — DDL + `openDb`，所有 vectordb 子模块靠它的 `Db` 类型
 8. `src/commands/ingest.ts` — state machine 对外 surface，最大单文件
 9. `src/commands/sync.ts` — 把索引 / 向量 / 体检串起来，复用 `runIndex` + `vector sync` + `doctor`
-10. `src/utils/logger.ts` — 全仓库输出统一入口（CONVENTIONS 强制，stdout/stderr 分流）
+10. `src/commands/remove.ts` — 删除路径最敏感：只做来源归因级联，先 snapshot，再 OS Trash
+11. `src/utils/logger.ts` — 全仓库输出统一入口（CONVENTIONS 强制，stdout/stderr 分流）
 
 ## 配置文件
 
@@ -142,6 +145,7 @@ lorekit/
 | `turndown`        | runtime    | HTML → markdown                               |
 | `gray-matter`     | runtime    | frontmatter 解析                              |
 | `tar`             | runtime    | snapshot / restore                            |
+| `trash`           | runtime    | 跨平台移动到 OS Trash / Recycle Bin；remove 不调用系统 `rm` |
 | `better-sqlite3`  | runtime    | 向量库底座                                    |
 | `sqlite-vec`      | optional   | 向量虚表扩展                                  |
 | `playwright-core` | （未声明） | fetcher L2 fallback；动态 import，缺了就降级  |

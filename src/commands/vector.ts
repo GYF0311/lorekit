@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { ok, warn, err, out, print } from '../utils/logger.js';
 import { requireCorpus } from '../lib/corpus.js';
+import { pruneMissingDocuments } from '../lib/vectordb/prune.js';
 
 export interface VectorSyncOptions {
   force?: boolean;
@@ -16,6 +17,7 @@ export interface VectorSyncResult {
   skipped: number;
   totalChunks: number;
   layered: boolean;
+  pruned: number;
 }
 
 /**
@@ -40,6 +42,9 @@ export async function runVectorSync(
 
   const db = await openDb(corpus, dim);
   const files = collectFiles(corpus);
+  const existingRelPaths = new Set(files.map((filePath) => relative(corpus, filePath)));
+  const pruned = pruneMissingDocuments(db, existingRelPaths);
+  if (pruned > 0) warn(`vector sync pruned ${pruned} missing file(s)`);
 
   let synced = 0;
   let skipped = 0;
@@ -82,7 +87,7 @@ export async function runVectorSync(
 
   db.close();
 
-  return { synced, skipped, totalChunks, layered: layered || force };
+  return { synced, skipped, totalChunks, layered: layered || force, pruned };
 }
 
 export function vectorCommand(program: Command) {

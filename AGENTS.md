@@ -13,9 +13,10 @@
 ### 给新 AI 的交接提醒（必读）
 
 1. **先跑 `git status` + `git log --oneline origin/main..HEAD`** 确认是否有未 push 的 commits。有就先帮先生 push（如之前 SSL 挂过，就重试 `git push origin main`）
-2. **跨文件级改动（拆库 / 改名 / 新模块）必须同 commit 同步更新 `docs/ARCHITECTURE.md` + `docs/CODEBASE-MAP.md`**——这是 CONVENTIONS §13 维护原则 #1。之前批次 21/22/17 因漏做吃过亏（后补 `a498f1c`），别重犯
-3. **新加 / 删 / 改 docs/ 前对照 CONVENTIONS §13** 文档架构清单，违反 Do Not #13 一律退回
-4. **数据安全红线**：不许用 `rm`（用 trash）；不许改原料层（`原料/`）；破坏性命令拆开单步执行
+2. **功能完成 Definition of Done**：任何新命令 / 新 skill / 跨文件行为改动，必须同 commit 更新 docs。至少检查并按需更新 `docs/ARCHITECTURE.md`、`docs/CODEBASE-MAP.md`、`docs/DESIGN-NOTES.md`、`docs/QUICKSTART.md`；用户可见能力还要更新 `README.md`。下一个 AI 要靠这些文档接手和排 bug。
+3. **跨文件级改动（拆库 / 改名 / 新模块）必须同步更新 `docs/ARCHITECTURE.md` + `docs/CODEBASE-MAP.md`**——这是 CONVENTIONS §13 维护原则 #1。之前批次 21/22/17 因漏做吃过亏（后补 `a498f1c`），别重犯
+4. **新加 / 删 / 改 docs/ 前对照 CONVENTIONS §13** 文档架构清单，违反 Do Not #13 一律退回
+5. **数据安全红线**：不许用 `rm`（用 trash）；不许改原料层（`原料/`）；破坏性命令拆开单步执行
 
 ---
 

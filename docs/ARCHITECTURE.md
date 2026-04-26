@@ -104,6 +104,31 @@ flowchart LR
 
 模式切换由 `lorekit vector status` 的 `mode` 字段决定，阈值 `MODE_THRESHOLD_FILES = 100`（按 indexed_files 计数，不按 chunks，跟随 Karpathy 原文 "moderate scale" 定义）。
 
+### Remove 流（来源/页面 → 安全移除）
+
+```mermaid
+sequenceDiagram
+  participant Agent as wiki-remove skill
+  participant Remove as lorekit remove
+  participant Snapshot as snapshot
+  participant Disk as corpus files
+  participant Trash as OS Trash / Recycle Bin
+  participant Vec as vector.sqlite
+  participant Sync as lorekit sync
+
+  Agent->>Remove: lorekit remove <url-or-path>
+  Remove->>Disk: 解析 URL / 摘要页 / 原料页 / 普通 wiki 页
+  Remove-->>Agent: dry-run 影响报告（回收站目标 / 页面修改 / 复核段落）
+  Agent->>Remove: lorekit remove <target> --apply
+  Remove->>Snapshot: createSnapshot(tag=remove)
+  Remove->>Disk: 只清理明确指向目标来源的 Timeline 行 / sources / source_count
+  Remove->>Trash: 移动目标摘要/原料/页面到系统回收站
+  Remove->>Vec: pruneMissingDocuments（清理已失踪文件的 documents/chunks/FTS/vec）
+  Remove->>Sync: 刷 _INDEX.md / index.md / doctor（如有向量库则同步）
+```
+
+Remove 的边界是 **provenance-aware**：只按明确来源引用删除，不按关键词删除。例：删除一篇 harness 文章，只移除这篇文章贡献的登记；`知识库/概念/harness.md` 若仍有其他 harness 来源支撑，必须保留。`## Compiled Truth` 不自动改写，只列入人工复核报告。
+
 ## 核心抽象
 
 | 抽象        | 文件                           | 责任边界                                                                      |
@@ -115,6 +140,8 @@ flowchart LR
 | Chunker     | `lib/chunker.ts`               | markdown 按 `## heading` 切，加 `[title][type]` prefix                        |
 | Ollama      | `lib/ollama.ts`                | 调本地 ollama `/api/embed`                                                    |
 | VectorDB    | `lib/vectordb/`                | sqlite-vec + FTS5；queryFlat / queryLayered / queryBM25Layered / queryHybrid（10 文件子模块，v0.4.0 / 批次 22 拆分；批次 24-fix 后 BM25 走 chunk 直查） |
+| VectorPrune | `lib/vectordb/prune.ts`        | 删除后清理 vector.sqlite 中磁盘已不存在的 documents 及其 chunks/page summaries/vec/FTS 记录 |
+| Remove      | `commands/remove.ts`           | URL/路径解析、dry-run 影响报告、snapshot、OS Trash、来源归因级联清理                    |
 | RootIndex   | `lib/root-index.ts`            | `corpus/index.md` 的受控区合并刷新（保留人类摘要）                            |
 | DirIndex    | `commands/dir-index.ts → runIndex` | 所有子目录 `_INDEX.md` 自动生成（v0.4.0 / 批次 17 从 `commands/index.ts` 改名消歧义） |
 | Logger      | `utils/logger.ts`              | 全仓库输出唯一通道（CONVENTIONS 强制）                                        |
@@ -138,6 +165,7 @@ flowchart LR
 | ripgrep         | `spawnSync('rg', ...)`           | fallback 到内置正则扫描                                |
 | playwright-core | dynamic import                   | 缺了 antibot 站点 fetch 失败并提示装 playwright        |
 | tar             | runtime dep                      | snapshot/restore 必需，无 fallback                     |
+| trash           | npm package                      | remove 必需；跨平台移动到 OS Trash / Recycle Bin，不走 `rm` |
 
 ## 渐进披露的 token 预算
 

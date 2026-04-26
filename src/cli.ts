@@ -23,6 +23,7 @@ import { fetchCommand } from './commands/fetch.js';
 import { ingestCommand } from './commands/ingest.js';
 import { syncCommand } from './commands/sync.js';
 import { obsidianTuneCommand } from './commands/obsidian-tune.js';
+import { removeCommand } from './commands/remove.js';
 
 const version = readVersion();
 
@@ -133,6 +134,7 @@ fetchCommand(program);
 ingestCommand(program);
 syncCommand(program);
 obsidianTuneCommand(program);
+removeCommand(program);
 
 // no subcommand → show banner
 if (process.argv.length <= 2) {

@@ -147,6 +147,24 @@ Triggers `wiki-query`: read `lorekit vector status` → if `mode: text` walk `in
 
 > Back up the corpus.
 
+**Remove an outdated source:**
+
+> Delete this article from the knowledge base.
+
+The agent triggers `wiki-remove`. It must first run a dry-run:
+
+```bash
+lorekit remove "知识库/摘要/<slug>.md"
+```
+
+Review the impact report. If it looks right, apply:
+
+```bash
+lorekit remove "知识库/摘要/<slug>.md" --apply
+```
+
+`remove` creates a snapshot, moves the selected files to OS Trash / Recycle Bin, cleans only provenance-linked references, refreshes indexes, prunes stale vector records, and runs lint. It does **not** delete other pages just because they share the same topic keyword.
+
 ---
 
 ## 7. Ingest pipeline cheat sheet

@@ -36,6 +36,7 @@ Three layers:
 | Lint            | `lorekit lint`          | Broken wikilinks, orphan pages, duplicate detection                                                                                                                   |
 | Snapshot        | `lorekit snapshot`      | Full-corpus tarball + manifest                                                                                                                                        |
 | Restore         | `lorekit restore`       | Recover missing / changed files from a snapshot                                                                                                                       |
+| Remove          | `lorekit remove`        | Dry-run impact report, then safely move selected sources/pages to OS Trash with provenance-aware cleanup                                                              |
 | Audit           | `lorekit audit`         | Create / list / resolve human feedback on wiki pages                                                                                                                  |
 | Vector sync     | `lorekit vector sync`   | Incrementally embed the corpus into sqlite-vec + FTS5                                                                                                                 |
 | Vector query    | `lorekit vector query`  | Search modes: `--layered` (vector), `--bm25` (FTS5), `--hybrid` (both + RRF)                                                                                          |

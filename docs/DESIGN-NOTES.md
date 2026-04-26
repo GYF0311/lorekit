@@ -79,6 +79,25 @@ lorekit 优先支持**模型自由度** —— 用户可换 bge-m3 / e5 / 自训
 对应 §1 的 4 层模型。skill 端做 L0 Read 和 L3 Read，lorekit CLI 做 L1/L2。
 需要 CLI 加 `--section <name>` 参数（给 L1/L2 一个 scope）。
 
+## 5.2 remove 为什么只做来源归因级联
+
+`lorekit remove` 的删除边界是 provenance，不是 topic keyword。
+
+反例：三篇文章都讨论 `harness`。删除其中一篇时，如果按关键词级联，会误删其他来源共同支撑的 `知识库/概念/harness.md`，等于把"主题相同"错当成"来源相同"。
+
+当前决策：
+
+- 自动删除：目标摘要页、对应原料页/目录、明确包含目标来源 wikilink 的列表行
+- 自动修改：frontmatter `sources` 移除目标 source，`source_count` 递减到不小于 0
+- 只报告不改：`## Compiled Truth` 中疑似依赖该来源的段落
+- 永不做：按 `harness` 这类关键词删除同主题页面
+
+bug 修复线索：
+
+1. 如果删除后 query 仍召回旧内容，优先查 `src/lib/vectordb/prune.ts` 是否被调用，以及 `documents.path` 是否还保留已失踪文件。
+2. 如果误删了其他来源，检查 `commands/remove.ts` 的 alias 集合是否把普通关键词加入了 provenance aliases；aliases 只能来自被移入回收站的实际路径 slug。
+3. 如果 `Compiled Truth` 没被更新，这是设计行为；应由 `wiki-audit` 或人工 review 处理，不要让 remove 自动改写事实综述。
+
 ## 6. 暂不做的事
 
 - 不加 LLM re-ranker（先生本机跑不动小模型；但可以让主 agent 自己 rerank，属 skill 层）

@@ -51,6 +51,7 @@
     "commander": "^12.0.0",
     "gray-matter": "^4.0.3",
     "tar": "^7.0.0",
+    "trash": "^10.1.1",
     "turndown": "^7.2.0"
   },
   "optionalDependencies": {

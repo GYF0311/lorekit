@@ -102,54 +102,67 @@ var init_logger = __esm({
   }
 });
 
-// src/lib/ollama.ts
-var ollama_exports = {};
-__export(ollama_exports, {
-  embed: () => embed,
-  embedSingle: () => embedSingle
-});
-async function embed(texts, model = DEFAULT_MODEL) {
-  const payload = JSON.stringify({ model, input: texts });
-  let resp;
-  try {
-    resp = await fetch(OLLAMA_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: payload,
-      signal: AbortSignal.timeout(12e4)
-    });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    throw new Error(
-      `Cannot connect to ollama at ${OLLAMA_URL}: ${msg}
-  Make sure ollama is running: ollama serve
-  And the model is pulled: ollama pull ${model}`
-    );
-  }
-  if (!resp.ok) {
-    const body = await resp.text().catch(() => "");
-    throw new Error(`ollama returned ${resp.status}: ${body}`);
-  }
-  const data = await resp.json();
-  const embeddings = data.embeddings ?? [];
-  return embeddings.map((e) => new Float32Array(e));
+// src/lib/vectordb/files.ts
+import { createHash as createHash2 } from "crypto";
+import { readFileSync as readFileSync12, readdirSync as readdirSync7 } from "fs";
+import { basename as basename5, join as join12, relative as relative9 } from "path";
+import matter2 from "gray-matter";
+function sha2562(filePath) {
+  const data = readFileSync12(filePath);
+  return createHash2("sha256").update(data).digest("hex");
 }
-async function embedSingle(text, model = DEFAULT_MODEL) {
-  const results = await embed([text], model);
-  return results[0];
+function float32ToBuffer(arr) {
+  return Buffer.from(arr.buffer, arr.byteOffset, arr.byteLength);
 }
-var OLLAMA_URL, DEFAULT_MODEL;
-var init_ollama = __esm({
-  "src/lib/ollama.ts"() {
+function distanceToScore(distance) {
+  return 1 - distance * distance / 2;
+}
+function shouldIndex(rel) {
+  const parts = rel.split("/");
+  if (vectorExcludeNames.has(parts[parts.length - 1])) return false;
+  if (!rel.endsWith(".md")) return false;
+  for (const prefix of vectorExcludePrefixes) {
+    if (rel === prefix || rel.startsWith(prefix + "/")) return false;
+  }
+  for (const inc of vectorIncludeDirs) {
+    if (rel === inc || rel.startsWith(inc + "/")) return true;
+  }
+  return false;
+}
+function collectFiles(corpus) {
+  const results = [];
+  function walk(dir) {
+    let entries;
+    try {
+      entries = readdirSync7(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const full = join12(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+      } else if (entry.name.endsWith(".md")) {
+        const rel = relative9(corpus, full);
+        if (shouldIndex(rel)) {
+          results.push(full);
+        }
+      }
+    }
+  }
+  walk(corpus);
+  return results.sort();
+}
+var init_files = __esm({
+  "src/lib/vectordb/files.ts"() {
     "use strict";
-    OLLAMA_URL = "http://localhost:11434/api/embed";
-    DEFAULT_MODEL = "bge-m3";
+    init_paths();
   }
 });
 
 // src/lib/vectordb/schema.ts
 import { existsSync as existsSync10, mkdirSync as mkdirSync6 } from "fs";
-import { join as join12 } from "path";
+import { join as join13 } from "path";
 function vecDdl(dim) {
   return `
 CREATE VIRTUAL TABLE IF NOT EXISTS vec_chunks USING vec0(
@@ -187,9 +200,9 @@ async function loadSqlite() {
 }
 async function openDb(corpus, dim = EMBEDDING_DIM) {
   const { Database: Database2, sqliteVec } = await loadSqlite();
-  const wikiDir = join12(corpus, ".wiki");
+  const wikiDir = join13(corpus, ".wiki");
   if (!existsSync10(wikiDir)) mkdirSync6(wikiDir, { recursive: true });
-  const dbPath = join12(wikiDir, "vector.sqlite");
+  const dbPath = join13(wikiDir, "vector.sqlite");
   const db = new Database2(dbPath);
   sqliteVec.load(db);
   db.pragma("journal_mode = WAL");
@@ -265,61 +278,48 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fts_pages USING fts5(
   }
 });
 
-// src/lib/vectordb/files.ts
-import { createHash as createHash2 } from "crypto";
-import { readFileSync as readFileSync13, readdirSync as readdirSync7 } from "fs";
-import { basename as basename5, join as join13, relative as relative9 } from "path";
-import matter2 from "gray-matter";
-function sha2562(filePath) {
-  const data = readFileSync13(filePath);
-  return createHash2("sha256").update(data).digest("hex");
-}
-function float32ToBuffer(arr) {
-  return Buffer.from(arr.buffer, arr.byteOffset, arr.byteLength);
-}
-function distanceToScore(distance) {
-  return 1 - distance * distance / 2;
-}
-function shouldIndex(rel) {
-  const parts = rel.split("/");
-  if (vectorExcludeNames.has(parts[parts.length - 1])) return false;
-  if (!rel.endsWith(".md")) return false;
-  for (const prefix of vectorExcludePrefixes) {
-    if (rel === prefix || rel.startsWith(prefix + "/")) return false;
+// src/lib/ollama.ts
+var ollama_exports = {};
+__export(ollama_exports, {
+  embed: () => embed,
+  embedSingle: () => embedSingle
+});
+async function embed(texts, model = DEFAULT_MODEL) {
+  const payload = JSON.stringify({ model, input: texts });
+  let resp;
+  try {
+    resp = await fetch(OLLAMA_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: payload,
+      signal: AbortSignal.timeout(12e4)
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new Error(
+      `Cannot connect to ollama at ${OLLAMA_URL}: ${msg}
+  Make sure ollama is running: ollama serve
+  And the model is pulled: ollama pull ${model}`
+    );
   }
-  for (const inc of vectorIncludeDirs) {
-    if (rel === inc || rel.startsWith(inc + "/")) return true;
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => "");
+    throw new Error(`ollama returned ${resp.status}: ${body}`);
   }
-  return false;
+  const data = await resp.json();
+  const embeddings = data.embeddings ?? [];
+  return embeddings.map((e) => new Float32Array(e));
 }
-function collectFiles(corpus) {
-  const results = [];
-  function walk(dir) {
-    let entries;
-    try {
-      entries = readdirSync7(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      const full = join13(dir, entry.name);
-      if (entry.isDirectory()) {
-        walk(full);
-      } else if (entry.name.endsWith(".md")) {
-        const rel = relative9(corpus, full);
-        if (shouldIndex(rel)) {
-          results.push(full);
-        }
-      }
-    }
-  }
-  walk(corpus);
-  return results.sort();
+async function embedSingle(text, model = DEFAULT_MODEL) {
+  const results = await embed([text], model);
+  return results[0];
 }
-var init_files = __esm({
-  "src/lib/vectordb/files.ts"() {
+var OLLAMA_URL, DEFAULT_MODEL;
+var init_ollama = __esm({
+  "src/lib/ollama.ts"() {
     "use strict";
-    init_paths();
+    OLLAMA_URL = "http://localhost:11434/api/embed";
+    DEFAULT_MODEL = "bge-m3";
   }
 });
 
@@ -328,11 +328,11 @@ var chunker_exports = {};
 __export(chunker_exports, {
   chunkFile: () => chunkFile
 });
-import { readFileSync as readFileSync14 } from "fs";
+import { readFileSync as readFileSync13 } from "fs";
 import { basename as basename6 } from "path";
 import matter3 from "gray-matter";
 function chunkFile(filePath, corpusRoot) {
-  const raw = readFileSync14(filePath, "utf-8");
+  const raw = readFileSync13(filePath, "utf-8");
   const { data: fm, content: body } = matter3(raw);
   let title = fm.title || "";
   const type = fm.type || "";
@@ -387,10 +387,10 @@ var init_chunker = __esm({
 });
 
 // src/lib/vectordb/sync.ts
-import { relative as relative11 } from "path";
+import { relative as relative12 } from "path";
 async function syncFile(db, filePath, corpus, embedFn) {
   const { chunkFile: chunkFile2 } = await Promise.resolve().then(() => (init_chunker(), chunker_exports));
-  const rel = relative11(corpus, filePath);
+  const rel = relative12(corpus, filePath);
   const sha = sha2562(filePath);
   const old = db.prepare("SELECT id FROM documents WHERE path = ?").get(rel);
   if (old) {
@@ -447,8 +447,8 @@ var init_sync = __esm({
 });
 
 // src/lib/vectordb/build-layered-index.ts
-import { existsSync as existsSync11, readFileSync as readFileSync15, readdirSync as readdirSync8 } from "fs";
-import { join as join14, relative as relative12 } from "path";
+import { existsSync as existsSync11, readFileSync as readFileSync14, readdirSync as readdirSync8 } from "fs";
+import { join as join14, relative as relative13 } from "path";
 import matter4 from "gray-matter";
 function parseIndexSections(content) {
   const lines = content.split("\n");
@@ -505,7 +505,7 @@ function findAllIndexFiles(corpus) {
     for (const entry of entries) {
       if (entry.name.startsWith(".")) continue;
       const full = join14(dir, entry.name);
-      const rel = relative12(corpus, full);
+      const rel = relative13(corpus, full);
       if (vectorExcludePrefixes.some((p) => rel === p || rel.startsWith(p + "/"))) continue;
       if (entry.isDirectory()) {
         walk(full);
@@ -525,7 +525,7 @@ async function buildLayeredIndex(db, corpus, embedFn) {
   if (!existsSync11(indexPath)) {
     info("  L0: corpus/index.md not found, skipped");
   } else {
-    const raw = readFileSync15(indexPath, "utf-8");
+    const raw = readFileSync14(indexPath, "utf-8");
     const { content } = matter4(raw);
     const sections = parseIndexSections(content);
     if (sections.length === 0) {
@@ -563,7 +563,7 @@ async function buildLayeredIndex(db, corpus, embedFn) {
   }
   const allEntries = [];
   for (const f of indexFiles) {
-    const raw = readFileSync15(f, "utf-8");
+    const raw = readFileSync14(f, "utf-8");
     allEntries.push(...parseIndexEntries(raw));
   }
   if (allEntries.length === 0) {
@@ -956,7 +956,7 @@ var init_vectordb = __esm({
 });
 
 // src/cli.ts
-import { existsSync as existsSync19 } from "fs";
+import { existsSync as existsSync20 } from "fs";
 import { Command } from "commander";
 import chalk7 from "chalk";
 import Database from "better-sqlite3";
@@ -1071,10 +1071,10 @@ import chalk2 from "chalk";
 var MINIMAL_DIRS = ["\u539F\u6599", "\u77E5\u8BC6\u5E93/\u6982\u5FF5", "\u77E5\u8BC6\u5E93/\u5B9E\u4F53", "\u77E5\u8BC6\u5E93/\u6458\u8981", "\u6BCF\u65E5", "\u7CFB\u7EDF", ".wiki"];
 function ask(question) {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve3) => {
+  return new Promise((resolve4) => {
     rl.question(question, (answer) => {
       rl.close();
-      resolve3(answer.trim());
+      resolve4(answer.trim());
     });
   });
 }
@@ -1500,120 +1500,127 @@ function stripCodeBlocks(content) {
   content = content.replace(/`[^`\n]+`/g, "");
   return content;
 }
-function lintCommand(program2) {
-  program2.command("lint").description("check frontmatter, broken wikilinks, and orphan pages").action(() => {
-    const corpus = requireCorpus();
-    const files = collectMdFiles(corpus);
-    const issues = [];
-    const stemSet = /* @__PURE__ */ new Set();
-    const baseNameSet = /* @__PURE__ */ new Set();
-    const inboundLinks = /* @__PURE__ */ new Set();
-    for (const file of files) {
-      const rel = relative4(corpus, file);
-      const stem = rel.replace(/\.md$/, "");
-      stemSet.add(stem);
-      baseNameSet.add(stem.split("/").pop());
-      if (stem.endsWith("/article")) {
-        const folderStem = stem.replace(/\/article$/, "");
-        stemSet.add(folderStem);
-        baseNameSet.add(folderStem.split("/").pop());
-      }
+function runLint(corpus) {
+  const files = collectMdFiles(corpus);
+  const issues = [];
+  const stemSet = /* @__PURE__ */ new Set();
+  const baseNameSet = /* @__PURE__ */ new Set();
+  const inboundLinks = /* @__PURE__ */ new Set();
+  for (const file of files) {
+    const rel = relative4(corpus, file);
+    const stem = rel.replace(/\.md$/, "");
+    stemSet.add(stem);
+    baseNameSet.add(stem.split("/").pop());
+    if (stem.endsWith("/article")) {
+      const folderStem = stem.replace(/\/article$/, "");
+      stemSet.add(folderStem);
+      baseNameSet.add(folderStem.split("/").pop());
     }
-    const fileLinks = /* @__PURE__ */ new Map();
-    const fileFrontmatter = /* @__PURE__ */ new Map();
-    for (const file of files) {
-      const rel = relative4(corpus, file);
-      let fm = {};
-      try {
-        fm = extractFrontmatter(file);
-      } catch {
-      }
-      fileFrontmatter.set(rel, fm);
-      if (!shouldSkipFrontmatter(rel)) {
-        for (const field of REQUIRED_FIELDS) {
-          if (!fm[field]) {
-            issues.push({
-              file: rel,
-              kind: "missing-field",
-              detail: `missing frontmatter field: ${field}`
-            });
-          }
-        }
-      }
-      try {
-        const content = stripCodeBlocks(readFileSync7(file, "utf-8"));
-        const linkRe = /\[\[([^\]|#]+)[^\]]*\]\]/g;
-        const targets = [];
-        let m;
-        while ((m = linkRe.exec(content)) !== null) {
-          const target = m[1].trim();
-          targets.push(target);
-          inboundLinks.add(target);
-        }
-        fileLinks.set(rel, targets);
-      } catch {
-      }
+  }
+  const fileLinks = /* @__PURE__ */ new Map();
+  const fileFrontmatter = /* @__PURE__ */ new Map();
+  for (const file of files) {
+    const rel = relative4(corpus, file);
+    let fm = {};
+    try {
+      fm = extractFrontmatter(file);
+    } catch {
     }
-    for (const [rel, targets] of fileLinks) {
-      if (shouldSkipBrokenLink(rel)) continue;
-      for (const target of targets) {
-        if (!stemSet.has(target) && !baseNameSet.has(target)) {
+    fileFrontmatter.set(rel, fm);
+    if (!shouldSkipFrontmatter(rel)) {
+      for (const field of REQUIRED_FIELDS) {
+        if (!fm[field]) {
           issues.push({
             file: rel,
-            kind: "broken-link",
-            detail: `broken link: [[${target}]]`
+            kind: "missing-field",
+            detail: `missing frontmatter field: ${field}`
           });
         }
       }
     }
-    for (const file of files) {
-      const rel = relative4(corpus, file);
-      if (shouldSkipOrphan(rel)) continue;
-      const fm = fileFrontmatter.get(rel) ?? {};
-      if (isGraphExcluded(fm)) continue;
-      const stem = rel.replace(/\.md$/, "");
-      const baseName = stem.split("/").pop();
-      let hasInbound = inboundLinks.has(stem) || inboundLinks.has(baseName);
-      if (!hasInbound && stem.endsWith("/article")) {
-        const folderStem = stem.replace(/\/article$/, "");
-        const folderName = folderStem.split("/").pop();
-        hasInbound = inboundLinks.has(folderStem) || inboundLinks.has(folderName);
+    try {
+      const content = stripCodeBlocks(readFileSync7(file, "utf-8"));
+      const linkRe = /\[\[([^\]|#]+)[^\]]*\]\]/g;
+      const targets = [];
+      let m;
+      while ((m = linkRe.exec(content)) !== null) {
+        const target = m[1].trim();
+        targets.push(target);
+        inboundLinks.add(target);
       }
-      if (!hasInbound) {
+      fileLinks.set(rel, targets);
+    } catch {
+    }
+  }
+  for (const [rel, targets] of fileLinks) {
+    if (shouldSkipBrokenLink(rel)) continue;
+    for (const target of targets) {
+      if (!stemSet.has(target) && !baseNameSet.has(target)) {
         issues.push({
           file: rel,
-          kind: "orphan",
-          detail: "orphan page (no inbound links)"
+          kind: "broken-link",
+          detail: `broken link: [[${target}]]`
         });
       }
     }
-    print(chalk4.bold(`
+  }
+  for (const file of files) {
+    const rel = relative4(corpus, file);
+    if (shouldSkipOrphan(rel)) continue;
+    const fm = fileFrontmatter.get(rel) ?? {};
+    if (isGraphExcluded(fm)) continue;
+    const stem = rel.replace(/\.md$/, "");
+    const baseName = stem.split("/").pop();
+    let hasInbound = inboundLinks.has(stem) || inboundLinks.has(baseName);
+    if (!hasInbound && stem.endsWith("/article")) {
+      const folderStem = stem.replace(/\/article$/, "");
+      const folderName = folderStem.split("/").pop();
+      hasInbound = inboundLinks.has(folderStem) || inboundLinks.has(folderName);
+    }
+    if (!hasInbound) {
+      issues.push({
+        file: rel,
+        kind: "orphan",
+        detail: "orphan page (no inbound links)"
+      });
+    }
+  }
+  return issues;
+}
+function printLintReport(corpus, issues) {
+  print(chalk4.bold(`
 lorekit lint \u2014 ${corpus}
 `));
-    if (issues.length === 0) {
-      ok("no issues found");
-      print();
-      return;
+  if (issues.length === 0) {
+    ok("no issues found");
+    print();
+    return;
+  }
+  const grouped = {};
+  for (const issue of issues) {
+    (grouped[issue.kind] ??= []).push(issue);
+  }
+  const kindLabels = {
+    "missing-field": "frontmatter",
+    "broken-link": "broken links",
+    orphan: "orphan pages"
+  };
+  for (const [kind, items] of Object.entries(grouped)) {
+    print(chalk4.cyan(`\u2500\u2500 ${kindLabels[kind] ?? kind} (${items.length}) \u2500\u2500`));
+    for (const item of items) {
+      bad(`${item.file}: ${item.detail}`);
     }
-    const grouped = {};
-    for (const issue of issues) {
-      (grouped[issue.kind] ??= []).push(issue);
-    }
-    const kindLabels = {
-      "missing-field": "frontmatter",
-      "broken-link": "broken links",
-      orphan: "orphan pages"
-    };
-    for (const [kind, items] of Object.entries(grouped)) {
-      print(chalk4.cyan(`\u2500\u2500 ${kindLabels[kind] ?? kind} (${items.length}) \u2500\u2500`));
-      for (const item of items) {
-        bad(`${item.file}: ${item.detail}`);
-      }
-      print();
-    }
-    print(chalk4.yellow(`${issues.length} issue(s) total
+    print();
+  }
+  print(chalk4.yellow(`${issues.length} issue(s) total
 `));
-    process.exitCode = 1;
+}
+function lintCommand(program2) {
+  program2.command("lint").description("check frontmatter, broken wikilinks, and orphan pages").action(() => {
+    const corpus = requireCorpus();
+    const issues = runLint(corpus);
+    printLintReport(corpus, issues);
+    if (issues.length > 0) process.exitCode = 1;
   });
 }
 
@@ -1625,6 +1632,10 @@ import { join as join6, basename as basename3 } from "path";
 var SHANGHAI_TZ_OFFSET_MS = 8 * 60 * 60 * 1e3;
 function pad2(n) {
   return String(n).padStart(2, "0");
+}
+function todayYMDShanghai() {
+  const d = new Date(Date.now() + SHANGHAI_TZ_OFFSET_MS);
+  return d.toISOString().slice(0, 10);
 }
 function dateToYMDUtc(d) {
   return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
@@ -2080,54 +2091,69 @@ function collectAllFiles(dir, base) {
   walk(dir);
   return results.sort();
 }
+async function createSnapshot(corpus, opts = {}) {
+  const snapshotsDir = join9(corpus, ".wiki", "snapshots");
+  mkdirSync4(snapshotsDir, { recursive: true });
+  const files = collectAllFiles(corpus, corpus);
+  if (files.length === 0) {
+    throw new Error("no files found in corpus");
+  }
+  const manifest = files.map((relPath) => {
+    const full = join9(corpus, relPath);
+    const st = statSync6(full);
+    return {
+      path: relPath,
+      sha256: sha256(full),
+      bytes: st.size,
+      mtime: st.mtime.toISOString()
+    };
+  });
+  const manifestPath = join9(snapshotsDir, "manifest.json");
+  writeFileSync4(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+  try {
+    const tag = opts.tag ? `-${opts.tag}` : "";
+    const tarName = `${tsCompact()}${tag}.tar.gz`;
+    const tarPath = join9(snapshotsDir, tarName);
+    const allEntries = [...files, relative6(corpus, manifestPath)];
+    await tar.create(
+      {
+        gzip: true,
+        file: tarPath,
+        cwd: corpus,
+        prefix: ""
+      },
+      allEntries
+    );
+    return tarPath;
+  } finally {
+    if (existsSync8(manifestPath)) unlinkSync2(manifestPath);
+  }
+}
 function snapshotCommand(program2) {
   program2.command("snapshot").option("--tag <name>", "optional tag appended to filename").description("create a tarball snapshot of the corpus").action(async (opts) => {
     const corpus = requireCorpus();
-    const snapshotsDir = join9(corpus, ".wiki", "snapshots");
-    mkdirSync4(snapshotsDir, { recursive: true });
-    const files = collectAllFiles(corpus, corpus);
-    if (files.length === 0) {
-      bad("no files found in corpus");
-      return;
-    }
-    const manifest = files.map((relPath) => {
-      const full = join9(corpus, relPath);
-      const st = statSync6(full);
-      return {
-        path: relPath,
-        sha256: sha256(full),
-        bytes: st.size,
-        mtime: st.mtime.toISOString()
-      };
-    });
-    const manifestPath = join9(snapshotsDir, "manifest.json");
-    writeFileSync4(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
     try {
-      const tag = opts.tag ? `-${opts.tag}` : "";
-      const tarName = `${tsCompact()}${tag}.tar.gz`;
-      const tarPath = join9(snapshotsDir, tarName);
-      const allEntries = [...files, relative6(corpus, manifestPath)];
-      await tar.create(
-        {
-          gzip: true,
-          file: tarPath,
-          cwd: corpus,
-          prefix: ""
-        },
-        allEntries
-      );
+      const tarPath = await createSnapshot(corpus, opts);
       const tarStat = statSync6(tarPath);
       const sizeMB = (tarStat.size / 1024 / 1024).toFixed(1);
-      ok(`snapshot saved: ${tarPath} (${files.length} files, ${sizeMB} MB)`);
-    } finally {
-      if (existsSync8(manifestPath)) unlinkSync2(manifestPath);
+      const count = collectAllFiles(corpus, corpus).length;
+      ok(`snapshot saved: ${tarPath} (${count} files, ${sizeMB} MB)`);
+    } catch (e) {
+      const message = e.message;
+      if (message === "no files found in corpus") {
+        bad(message);
+      } else {
+        err(message);
+        process.exitCode = 1;
+      }
+      return;
     }
   });
 }
 
 // src/commands/restore.ts
 init_logger();
-import { existsSync as existsSync9, mkdirSync as mkdirSync5, readFileSync as readFileSync11, copyFileSync, rmSync } from "fs";
+import { existsSync as existsSync9, mkdirSync as mkdirSync5, readFileSync as readFileSync10, copyFileSync, rmSync } from "fs";
 import { join as join10, dirname as dirname3 } from "path";
 import { createInterface as createInterface2 } from "readline";
 import { tmpdir } from "os";
@@ -2135,10 +2161,10 @@ import * as tar2 from "tar";
 import chalk5 from "chalk";
 function ask2(question) {
   const rl = createInterface2({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve3) => {
+  return new Promise((resolve4) => {
     rl.question(question, (answer) => {
       rl.close();
-      resolve3(answer.trim());
+      resolve4(answer.trim());
     });
   });
 }
@@ -2166,7 +2192,7 @@ function restoreCommand(program2) {
         process.exitCode = 1;
         return;
       }
-      const manifest = JSON.parse(readFileSync11(manifestPath, "utf-8"));
+      const manifest = JSON.parse(readFileSync10(manifestPath, "utf-8"));
       const diffs = [];
       for (const entry of manifest) {
         if (opts.file && entry.path !== opts.file) continue;
@@ -2241,7 +2267,7 @@ function restoreCommand(program2) {
 
 // src/commands/search.ts
 init_logger();
-import { readFileSync as readFileSync12 } from "fs";
+import { readFileSync as readFileSync11 } from "fs";
 import { join as join11, relative as relative8 } from "path";
 import { spawnSync } from "child_process";
 function searchWithRipgrep(query, corpus, opts) {
@@ -2282,7 +2308,7 @@ function searchFallback(query, corpus, opts) {
   const pattern = new RegExp(query, "i");
   const results = [];
   for (const filePath of files) {
-    const content = readFileSync12(filePath, "utf-8");
+    const content = readFileSync11(filePath, "utf-8");
     const lines = content.split("\n");
     for (let i = 0; i < lines.length; i++) {
       if (pattern.test(lines[i])) {
@@ -2322,8 +2348,58 @@ function searchCommand(program2) {
 // src/commands/vector.ts
 init_logger();
 import { createHash as createHash4 } from "crypto";
-import { existsSync as existsSync13, readFileSync as readFileSync16 } from "fs";
-import { join as join16, relative as relative13 } from "path";
+import { existsSync as existsSync13, readFileSync as readFileSync15 } from "fs";
+import { join as join16, relative as relative14 } from "path";
+
+// src/lib/vectordb/prune.ts
+init_files();
+init_schema();
+import { relative as relative10 } from "path";
+function pruneMissingDocuments(db, existingRelPaths) {
+  const rows = db.prepare("SELECT id, path FROM documents").all();
+  const missing = rows.filter((row) => !existingRelPaths.has(row.path));
+  if (missing.length === 0) return 0;
+  const delVecChunk = db.prepare("DELETE FROM vec_chunks WHERE rowid = ?");
+  const delFtsChunk = db.prepare("DELETE FROM fts_chunks WHERE rowid = ?");
+  const delVecPage = db.prepare("DELETE FROM vec_pages WHERE rowid = ?");
+  const delFtsPage = db.prepare("DELETE FROM fts_pages WHERE rowid = ?");
+  const getChunkIds = db.prepare("SELECT id FROM chunks WHERE doc_id = ?");
+  const getPageIds = db.prepare("SELECT id FROM page_summaries WHERE doc_id = ?");
+  const deleteChunks = db.prepare("DELETE FROM chunks WHERE doc_id = ?");
+  const deletePages = db.prepare("DELETE FROM page_summaries WHERE doc_id = ?");
+  const deleteDoc = db.prepare("DELETE FROM documents WHERE id = ?");
+  const tx = db.transaction((docs) => {
+    for (const doc of docs) {
+      const chunkIds = getChunkIds.all(doc.id);
+      for (const { id } of chunkIds) {
+        delVecChunk.run(id);
+        delFtsChunk.run(id);
+      }
+      deleteChunks.run(doc.id);
+      const pageIds = getPageIds.all(doc.id);
+      for (const { id } of pageIds) {
+        delVecPage.run(id);
+        delFtsPage.run(id);
+      }
+      deletePages.run(doc.id);
+      deleteDoc.run(doc.id);
+    }
+  });
+  tx(missing);
+  return missing.length;
+}
+async function pruneVectorDbMissingFiles(corpus) {
+  const db = await openDb(corpus);
+  try {
+    const files = collectFiles(corpus);
+    const existingRelPaths = new Set(files.map((filePath) => relative10(corpus, filePath)));
+    return pruneMissingDocuments(db, existingRelPaths);
+  } finally {
+    db.close();
+  }
+}
+
+// src/commands/vector.ts
 async function runVectorSync(corpus, opts = {}) {
   const force = opts.force ?? false;
   const layered = opts.layered ?? true;
@@ -2334,15 +2410,18 @@ async function runVectorSync(corpus, opts = {}) {
   const dim = testEmb.length;
   const db = await openDb2(corpus, dim);
   const files = collectFiles2(corpus);
+  const existingRelPaths = new Set(files.map((filePath) => relative14(corpus, filePath)));
+  const pruned = pruneMissingDocuments(db, existingRelPaths);
+  if (pruned > 0) warn(`vector sync pruned ${pruned} missing file(s)`);
   let synced = 0;
   let skipped = 0;
   let totalChunks = 0;
   for (const filePath of files) {
-    const rel = relative13(corpus, filePath);
+    const rel = relative14(corpus, filePath);
     if (!force) {
       const row = db.prepare("SELECT sha256 FROM documents WHERE path = ?").get(rel);
       if (row) {
-        const sha = createHash4("sha256").update(readFileSync16(filePath)).digest("hex");
+        const sha = createHash4("sha256").update(readFileSync15(filePath)).digest("hex");
         if (row.sha256 === sha) {
           skipped++;
           continue;
@@ -2364,7 +2443,7 @@ async function runVectorSync(corpus, opts = {}) {
     await buildLayeredIndex2(db, corpus, embedBatch);
   }
   db.close();
-  return { synced, skipped, totalChunks, layered: layered || force };
+  return { synced, skipped, totalChunks, layered: layered || force, pruned };
 }
 function vectorCommand(program2) {
   const vec = program2.command("vector").description("vector search engine \u2014 embed & search via ollama + sqlite-vec");
@@ -2421,7 +2500,7 @@ function vectorCommand(program2) {
 
 // src/commands/fetch.ts
 import { existsSync as existsSync15, mkdirSync as mkdirSync8 } from "fs";
-import { join as join22, relative as relative14 } from "path";
+import { join as join22, relative as relative15 } from "path";
 
 // src/lib/fetcher/index.ts
 import { mkdir as mkdir4, writeFile as writeFile4 } from "fs/promises";
@@ -2846,13 +2925,13 @@ async function fetchGist(url, outRoot) {
     if (!res.ok) throw new Error(`HTTP ${res.status} on ${mdLink.rawUrl}`);
     content = await res.text();
   } catch (e) {
-    const err4 = e;
-    const cause = err4.cause?.message ? ` (${err4.cause.message})` : "";
+    const err3 = e;
+    const cause = err3.cause?.message ? ` (${err3.cause.message})` : "";
     return {
       status: "error",
       route: "gist",
       url,
-      reason: `raw_fetch_failed: ${err4.message}${cause} [raw_url=${mdLink.rawUrl}]`
+      reason: `raw_fetch_failed: ${err3.message}${cause} [raw_url=${mdLink.rawUrl}]`
     };
   }
   const slug = slugify(title);
@@ -3082,7 +3161,7 @@ async function fetchUrl(url, opts) {
 }
 
 // src/lib/ingest-state.ts
-import { existsSync as existsSync14, mkdirSync as mkdirSync7, readFileSync as readFileSync17, writeFileSync as writeFileSync5 } from "fs";
+import { existsSync as existsSync14, mkdirSync as mkdirSync7, readFileSync as readFileSync16, writeFileSync as writeFileSync5 } from "fs";
 import { join as join21, dirname as dirname4 } from "path";
 function stateFilePath(corpus) {
   return join21(corpus, ".wiki", "ingest-state.json");
@@ -3093,7 +3172,7 @@ function loadIngestState(corpus) {
     return { version: 1, ingests: {} };
   }
   try {
-    const raw = readFileSync17(p, "utf-8");
+    const raw = readFileSync16(p, "utf-8");
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") {
       return { version: 1, ingests: {} };
@@ -3235,7 +3314,7 @@ function fetchCommand(program2) {
             const sdRaw = fm.source_date;
             const sourceDate = typeof sdRaw === "string" ? sdRaw : sdRaw instanceof Date ? sdRaw.toISOString().slice(0, 10) : void 0;
             duplicate = {
-              path: relative14(corpus, existing),
+              path: relative15(corpus, existing),
               sourceDate,
               title: typeof fm.title === "string" ? fm.title : void 0
             };
@@ -3289,8 +3368,8 @@ function fetchCommand(program2) {
 }
 
 // src/commands/ingest.ts
-import { existsSync as existsSync16, readFileSync as readFileSync18, writeFileSync as writeFileSync6 } from "fs";
-import { join as join23, relative as relative15 } from "path";
+import { existsSync as existsSync16, readFileSync as readFileSync17, writeFileSync as writeFileSync6 } from "fs";
+import { join as join23, relative as relative16 } from "path";
 init_logger();
 var VALID_STEPS = ["fetch", "archive", "wiki", "backlink", "lint"];
 function today() {
@@ -3314,7 +3393,7 @@ ${wikiList}` : "- **\u65B0\u5EFA/\u66F4\u65B0\u9875**\uFF1A\uFF08\u65E0\uFF09",
     ""
   ].join("\n");
   let existing = "";
-  if (existsSync16(logPath)) existing = readFileSync18(logPath, "utf-8");
+  if (existsSync16(logPath)) existing = readFileSync17(logPath, "utf-8");
   if (!existing) {
     const header = '# Log\n\n> \u64CD\u4F5C\u65F6\u95F4\u7EBF\uFF0Cappend-only\u3002\u6BCF\u6761\u683C\u5F0F\uFF1A`## [YYYY-MM-DD] \u64CD\u4F5C\u7C7B\u578B | \u6807\u9898`\n> \u53EF\u7528 `grep "^## \\[" log.md | tail -10` \u5FEB\u901F\u67E5\u6700\u8FD1\u64CD\u4F5C\u3002\n\n';
     writeFileSync6(logPath, header + entry, "utf-8");
@@ -3322,8 +3401,8 @@ ${wikiList}` : "- **\u65B0\u5EFA/\u66F4\u65B0\u9875**\uFF1A\uFF08\u65E0\uFF09",
   }
   const firstSection = existing.search(/^## \[/m);
   if (firstSection === -1) {
-    const sep = existing.endsWith("\n") ? "" : "\n";
-    writeFileSync6(logPath, existing + sep + entry, "utf-8");
+    const sep2 = existing.endsWith("\n") ? "" : "\n";
+    writeFileSync6(logPath, existing + sep2 + entry, "utf-8");
   } else {
     const before = existing.slice(0, firstSection);
     const after = existing.slice(firstSection);
@@ -3445,7 +3524,7 @@ ${summary.join("\n")}`
     const stemSet = /* @__PURE__ */ new Set();
     const baseNameSet = /* @__PURE__ */ new Set();
     for (const file of allMd) {
-      const rel = relative15(corpus, file);
+      const rel = relative16(corpus, file);
       const stem = rel.replace(/\.md$/, "");
       stemSet.add(stem);
       baseNameSet.add(stem.split("/").pop());
@@ -3466,11 +3545,11 @@ ${summary.join("\n")}`
         process.exitCode = 2;
         continue;
       }
-      const rel = relative15(corpus, abs);
+      const rel = relative16(corpus, abs);
       checked.push(rel);
       let content;
       try {
-        content = stripCode(readFileSync18(abs, "utf-8"));
+        content = stripCode(readFileSync17(abs, "utf-8"));
       } catch {
         continue;
       }
@@ -3524,7 +3603,7 @@ ${summary.join("\n")}`
       const url = typeof fm.source_url === "string" && fm.source_url || typeof fm.url === "string" && fm.url || "";
       if (!url) continue;
       if (state.ingests[url]) continue;
-      const rel = relative15(corpus, mdPath);
+      const rel = relative16(corpus, mdPath);
       const archivedTo = rel.replace(/\/article\.md$/, "");
       const sdRaw = fm.source_date;
       const sourceDate = typeof sdRaw === "string" ? sdRaw : sdRaw instanceof Date ? sdRaw.toISOString().slice(0, 10) : void 0;
@@ -3556,7 +3635,7 @@ init_logger();
 
 // src/lib/root-index.ts
 init_logger();
-import { existsSync as existsSync17, readFileSync as readFileSync19, readdirSync as readdirSync10, writeFileSync as writeFileSync7 } from "fs";
+import { existsSync as existsSync17, readFileSync as readFileSync18, readdirSync as readdirSync10, writeFileSync as writeFileSync7 } from "fs";
 import { join as join24 } from "path";
 var MANAGED_SECTIONS = [
   { heading: "## \u6982\u5FF5", subdir: "\u77E5\u8BC6\u5E93/\u6982\u5FF5" },
@@ -3581,7 +3660,7 @@ function listEntriesInDir(corpus, subdir) {
 function extractCompiledTruthSnippet(filePath) {
   let content;
   try {
-    content = readFileSync19(filePath, "utf-8");
+    content = readFileSync18(filePath, "utf-8");
   } catch (e) {
     debug(`extractCompiledTruthSnippet(${filePath}) failed: ${e.message}`);
     return "\u2014";
@@ -3654,7 +3733,7 @@ function refreshRootIndex(corpus) {
   if (!existsSync17(indexPath)) {
     return { filePath: indexPath, changed: false, perSection: [] };
   }
-  const before = readFileSync19(indexPath, "utf-8");
+  const before = readFileSync18(indexPath, "utf-8");
   let content = before;
   const perSection = [];
   for (const sec of MANAGED_SECTIONS) {
@@ -3816,6 +3895,359 @@ function obsidianTuneCommand(program2) {
   });
 }
 
+// src/commands/remove.ts
+import { existsSync as existsSync19, mkdirSync as mkdirSync10, readFileSync as readFileSync19, renameSync, writeFileSync as writeFileSync9 } from "fs";
+import { basename as basename7, dirname as dirname5, isAbsolute, join as join26, relative as relative17, resolve as resolve3, sep } from "path";
+import matter5 from "gray-matter";
+import trash from "trash";
+init_logger();
+function isUrl(input) {
+  return /^https?:\/\//i.test(input);
+}
+function toSlash(p) {
+  return p.split(sep).join("/");
+}
+function stripMd(rel) {
+  return rel.replace(/\.md$/, "");
+}
+function normalizeRel(rel) {
+  return toSlash(rel).replace(/^\.\//, "").replace(/\/+/g, "/");
+}
+function withinCorpus(corpus, abs) {
+  const rel = relative17(corpus, abs);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute(rel);
+}
+function resolveInputPath(corpus, input) {
+  const candidates = [];
+  const rawAbs = isAbsolute(input) ? input : join26(corpus, input);
+  candidates.push(rawAbs);
+  if (!input.endsWith(".md")) candidates.push(`${rawAbs}.md`);
+  for (const candidate of candidates) {
+    const abs = resolve3(candidate);
+    if (withinCorpus(corpus, abs) && existsSync19(abs)) return abs;
+  }
+  return null;
+}
+function relFromAbs(corpus, abs) {
+  return normalizeRel(relative17(corpus, abs));
+}
+function aliasesForRel(rel) {
+  const aliases = /* @__PURE__ */ new Set();
+  const normalized = normalizeRel(rel);
+  aliases.add(stripMd(normalized));
+  if (normalized.endsWith("/article.md")) {
+    aliases.add(stripMd(normalized).replace(/\/article$/, ""));
+  }
+  return [...aliases];
+}
+function readText(abs) {
+  return readFileSync19(abs, "utf-8");
+}
+function extractWikilinks(content) {
+  const links = [];
+  const linkRe = /\[\[([^\]|#]+)[^\]]*\]\]/g;
+  let m;
+  while ((m = linkRe.exec(content)) !== null) links.push(m[1].trim());
+  return links;
+}
+function addExistingTarget(corpus, targets, relOrAbs, reason) {
+  const abs = isAbsolute(relOrAbs) ? relOrAbs : join26(corpus, relOrAbs);
+  if (!existsSync19(abs)) return;
+  const rel = relFromAbs(corpus, abs);
+  targets.set(rel, { rel, abs, reason });
+}
+function addSourceTarget(corpus, targets, relOrAbs) {
+  const abs = isAbsolute(relOrAbs) ? relOrAbs : join26(corpus, relOrAbs);
+  if (!existsSync19(abs)) return;
+  const rel = relFromAbs(corpus, abs);
+  if (rel.endsWith("/article.md")) {
+    addExistingTarget(corpus, targets, dirname5(abs), "source");
+    return;
+  }
+  addExistingTarget(corpus, targets, abs, "source");
+  if (rel.endsWith(".md")) {
+    const assetsDir = abs.replace(/\.md$/, ".assets");
+    addExistingTarget(corpus, targets, assetsDir, "source");
+  }
+}
+function sourceCandidatesForSlug(corpus, slug) {
+  return [
+    join26(corpus, slug),
+    join26(corpus, `${slug}.md`),
+    join26(corpus, slug, "article.md")
+  ];
+}
+function collectSourceUrls(corpus, targets) {
+  const urls = /* @__PURE__ */ new Set();
+  for (const target of targets.values()) {
+    const files = existsSync19(target.abs) && target.rel.endsWith(".md") ? [target.abs] : collectMdFiles(target.abs);
+    for (const file of files) {
+      const fm = extractFrontmatter(file);
+      if (typeof fm.source_url === "string") urls.add(fm.source_url);
+      if (typeof fm.url === "string") urls.add(fm.url);
+    }
+  }
+  return [...urls];
+}
+function addSourcesFromSummary(corpus, targets, summaryAbs) {
+  const parsed = matter5(readText(summaryAbs));
+  const sources = Array.isArray(parsed.data.sources) ? parsed.data.sources : [];
+  for (const source of sources) {
+    if (typeof source !== "string") continue;
+    for (const candidate of sourceCandidatesForSlug(corpus, source)) {
+      if (existsSync19(candidate)) addSourceTarget(corpus, targets, candidate);
+    }
+  }
+  for (const link of extractWikilinks(parsed.content)) {
+    if (!link.startsWith("\u539F\u6599/")) continue;
+    for (const candidate of sourceCandidatesForSlug(corpus, link)) {
+      if (existsSync19(candidate)) addSourceTarget(corpus, targets, candidate);
+    }
+  }
+}
+function addSummariesReferencingSources(corpus, targets, aliases) {
+  for (const file of collectMdFiles(join26(corpus, "\u77E5\u8BC6\u5E93", "\u6458\u8981"))) {
+    const rel = relFromAbs(corpus, file);
+    if (targets.has(rel)) continue;
+    const content = readText(file);
+    if ([...aliases].some((alias) => content.includes(`[[${alias}`))) {
+      addExistingTarget(corpus, targets, file, "summary");
+      addSourcesFromSummary(corpus, targets, file);
+    }
+  }
+}
+function compiledTruthSnippets(content, aliases, input) {
+  const body = content.replace(/^---\n[\s\S]*?\n---\n/, "");
+  const match = body.match(/##\s*Compiled Truth\s*\n+([\s\S]*?)(?=\n##\s|$)/);
+  if (!match) return [];
+  return match[1].split(/\n{2,}/).map((p) => p.trim()).filter((p) => {
+    if (!p) return false;
+    if (isUrl(input) && p.includes(input)) return true;
+    return [...aliases].some((alias) => p.includes(`[[${alias}`));
+  });
+}
+function rewritePageForRemoval(corpus, file, aliases) {
+  const rel = relFromAbs(corpus, file);
+  const parsed = matter5(readText(file));
+  const removedSources = [];
+  let sourceCountBefore;
+  let sourceCountAfter;
+  if (Array.isArray(parsed.data.sources)) {
+    const nextSources = parsed.data.sources.filter((source) => {
+      if (typeof source !== "string") return true;
+      const remove = aliases.has(stripMd(normalizeRel(source)));
+      if (remove) removedSources.push(source);
+      return !remove;
+    });
+    if (removedSources.length > 0) {
+      parsed.data.sources = nextSources;
+      const rawCount = parsed.data.source_count;
+      const numeric = typeof rawCount === "number" ? rawCount : typeof rawCount === "string" ? Number.parseInt(rawCount, 10) : Number.NaN;
+      if (Number.isFinite(numeric)) {
+        sourceCountBefore = numeric;
+        sourceCountAfter = Math.max(0, numeric - new Set(removedSources).size);
+        parsed.data.source_count = sourceCountAfter;
+      }
+      parsed.data.updated = todayYMDShanghai();
+    }
+  }
+  const removedLines = [];
+  const nextLines = parsed.content.split("\n").filter((line) => {
+    const trimmed = line.trim();
+    const hasTargetLink = [...aliases].some((alias) => line.includes(`[[${alias}`));
+    const removable = hasTargetLink && /^[-*]\s+/.test(trimmed);
+    if (removable) {
+      removedLines.push(line);
+      return false;
+    }
+    return true;
+  });
+  if (removedLines.length > 0) parsed.data.updated = todayYMDShanghai();
+  const changed = removedLines.length > 0 || removedSources.length > 0;
+  const nextContent = changed ? matter5.stringify(nextLines.join("\n"), parsed.data) : readText(file);
+  return {
+    nextContent,
+    change: changed ? {
+      file: rel,
+      removedLines,
+      removedSources,
+      sourceCountBefore,
+      sourceCountAfter
+    } : null
+  };
+}
+function buildRemovalPlan(corpus, input, apply) {
+  const targets = /* @__PURE__ */ new Map();
+  const ingestRecords = /* @__PURE__ */ new Set();
+  if (isUrl(input)) {
+    const state = loadIngestState(corpus);
+    const record = state.ingests[input];
+    ingestRecords.add(input);
+    if (record?.archivedTo) addSourceTarget(corpus, targets, record.archivedTo);
+    for (const page of record?.wikiPages ?? []) {
+      if (normalizeRel(page).startsWith("\u77E5\u8BC6\u5E93/\u6458\u8981/")) {
+        const pageAbs = join26(corpus, page);
+        addExistingTarget(corpus, targets, pageAbs, "summary");
+        if (existsSync19(pageAbs)) addSourcesFromSummary(corpus, targets, pageAbs);
+      }
+    }
+    const source = findSourceByUrl(corpus, input);
+    if (source) addSourceTarget(corpus, targets, source);
+  } else {
+    const abs = resolveInputPath(corpus, input);
+    if (!abs) throw new Error(`target not found inside corpus: ${input}`);
+    const rel = relFromAbs(corpus, abs);
+    if (rel.startsWith("\u539F\u6599/")) {
+      addSourceTarget(corpus, targets, abs);
+    } else if (rel.startsWith("\u77E5\u8BC6\u5E93/\u6458\u8981/")) {
+      addExistingTarget(corpus, targets, abs, "summary");
+      addSourcesFromSummary(corpus, targets, abs);
+    } else {
+      addExistingTarget(corpus, targets, abs, "target");
+    }
+  }
+  let aliases = new Set([...targets.keys()].flatMap((rel) => aliasesForRel(rel)));
+  addSummariesReferencingSources(corpus, targets, aliases);
+  aliases = new Set([...targets.keys()].flatMap((rel) => aliasesForRel(rel)));
+  for (const url of collectSourceUrls(corpus, targets)) ingestRecords.add(url);
+  const trashedRels = new Set(targets.keys());
+  const pageChanges = [];
+  const reviewItems = [];
+  for (const file of collectMdFiles(corpus)) {
+    const rel = relFromAbs(corpus, file);
+    if (trashedRels.has(rel)) continue;
+    if ([...trashedRels].some((targetRel) => rel.startsWith(`${targetRel}/`))) continue;
+    const { change } = rewritePageForRemoval(corpus, file, aliases);
+    if (change) pageChanges.push(change);
+    for (const text of compiledTruthSnippets(readText(file), aliases, input)) {
+      reviewItems.push({ file: rel, section: "Compiled Truth", text });
+    }
+  }
+  return {
+    input,
+    apply,
+    trashTargets: [...targets.values()].sort((a, b) => a.rel.localeCompare(b.rel)),
+    pageChanges,
+    reviewItems,
+    ingestRecords: [...ingestRecords],
+    aliases: [...aliases].sort()
+  };
+}
+async function moveToTrash(paths) {
+  const testTrashDir = process.env.LOREKIT_TEST_TRASH_DIR;
+  if (testTrashDir) {
+    mkdirSync10(testTrashDir, { recursive: true });
+    for (const p of paths) {
+      if (!existsSync19(p)) continue;
+      const dest = join26(testTrashDir, `${tsCompact()}-${basename7(p)}`);
+      renameSync(p, dest);
+    }
+    return;
+  }
+  await trash(paths, { glob: false });
+}
+function applyPageChanges(corpus, plan) {
+  const aliases = new Set(plan.aliases);
+  for (const change of plan.pageChanges) {
+    const file = join26(corpus, change.file);
+    const { nextContent } = rewritePageForRemoval(corpus, file, aliases);
+    writeFileSync9(file, nextContent, "utf-8");
+  }
+}
+function forgetIngestRecords(corpus, urls) {
+  if (urls.length === 0) return;
+  const state = loadIngestState(corpus);
+  let changed = false;
+  for (const url of urls) {
+    if (state.ingests[url]) {
+      delete state.ingests[url];
+      changed = true;
+    }
+  }
+  if (changed) saveIngestState(corpus, state);
+}
+function printPlan(plan) {
+  print(`lorekit remove \u2014 ${plan.apply ? "apply" : "dry-run"}
+`);
+  print(`\u5C06\u79FB\u52A8\u5230\u7CFB\u7EDF\u56DE\u6536\u7AD9 (${plan.trashTargets.length})`);
+  for (const target of plan.trashTargets) {
+    print(`  - ${target.rel} (${target.reason})`);
+  }
+  if (plan.trashTargets.length === 0) print("  - \uFF08\u65E0\uFF09");
+  print();
+  print(`\u5C06\u4FEE\u6539\u9875\u9762 (${plan.pageChanges.length})`);
+  for (const change of plan.pageChanges) {
+    print(`  - ${change.file}`);
+    if (change.removedSources.length > 0) {
+      print(`    sources: -${change.removedSources.length}`);
+    }
+    if (change.sourceCountBefore !== void 0 && change.sourceCountAfter !== void 0) {
+      print(`    source_count: ${change.sourceCountBefore} -> ${change.sourceCountAfter}`);
+    }
+    if (change.removedLines.length > 0) {
+      print(`    lines: -${change.removedLines.length}`);
+    }
+  }
+  if (plan.pageChanges.length === 0) print("  - \uFF08\u65E0\uFF09");
+  print();
+  if (plan.reviewItems.length > 0) {
+    print(`\u9700\u4EBA\u5DE5\u590D\u6838 Compiled Truth (${plan.reviewItems.length})`);
+    for (const item of plan.reviewItems) {
+      print(`  - ${item.file}: ${item.text.slice(0, 120)}`);
+    }
+    print();
+  }
+  if (!plan.apply) {
+    print("dry-run only. Run again with --apply to move files to OS Trash.");
+  }
+}
+function removeCommand(program2) {
+  program2.command("remove").argument("<target>", "URL or corpus-relative path to remove").option("--apply", "execute the removal; default is dry-run", false).option("--json", "emit a machine-readable JSON report", false).description("safely remove a source/wiki page and provenance-linked references").action(async (target, opts) => {
+    const corpus = requireCorpus();
+    let plan;
+    try {
+      plan = buildRemovalPlan(corpus, target, !!opts.apply);
+    } catch (e) {
+      err(e.message);
+      process.exitCode = 2;
+      return;
+    }
+    if (!opts.json) printPlan(plan);
+    if (opts.json && !opts.apply) out(JSON.stringify(plan));
+    if (!opts.apply) return;
+    if (plan.trashTargets.length === 0 && plan.pageChanges.length === 0) {
+      bad("nothing to remove");
+      process.exitCode = 1;
+      if (opts.json) out(JSON.stringify(plan));
+      return;
+    }
+    try {
+      const snapshot = await createSnapshot(corpus, { tag: "remove" });
+      plan.snapshot = snapshot;
+      ok(`snapshot saved: ${snapshot}`);
+      applyPageChanges(corpus, plan);
+      forgetIngestRecords(corpus, plan.ingestRecords);
+      await moveToTrash(plan.trashTargets.map((t) => t.abs));
+      ok(`moved ${plan.trashTargets.length} item(s) to OS Trash`);
+      const hasVectorDb = existsSync19(join26(corpus, ".wiki", "vector.sqlite"));
+      if (hasVectorDb) {
+        plan.vectorPruned = await pruneVectorDbMissingFiles(corpus);
+        if (plan.vectorPruned > 0) ok(`vector pruned ${plan.vectorPruned} missing file(s)`);
+      }
+      const skipVector = !hasVectorDb || process.env.LOREKIT_TEST_SKIP_VECTOR_SYNC === "1";
+      plan.syncSkippedVector = skipVector;
+      await runSync(corpus, { skipVector });
+      const issues = runLint(corpus);
+      plan.lintIssues = issues.length;
+      printLintReport(corpus, issues);
+    } catch (e) {
+      err(e.message);
+      process.exitCode = 1;
+    }
+    if (opts.json) out(JSON.stringify(plan));
+  });
+}
+
 // src/cli.ts
 var version = readVersion();
 function showBanner() {
@@ -3831,7 +4263,7 @@ function showBanner() {
     }
     try {
       const dbPath = `${corpus}/.wiki/vector.sqlite`;
-      if (existsSync19(dbPath)) {
+      if (existsSync20(dbPath)) {
         const db = new Database(dbPath, { readonly: true });
         const cntRow = db.prepare("SELECT COUNT(*) as c FROM documents").get();
         indexed = String(cntRow?.c ?? 0);
@@ -3903,6 +4335,7 @@ fetchCommand(program);
 ingestCommand(program);
 syncCommand(program);
 obsidianTuneCommand(program);
+removeCommand(program);
 if (process.argv.length <= 2) {
   showBanner();
 } else {
