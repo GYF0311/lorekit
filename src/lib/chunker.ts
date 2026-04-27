@@ -3,7 +3,7 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { basename, relative } from 'node:path';
+import { basename } from 'node:path';
 import matter from 'gray-matter';
 
 const MAX_CHUNK_CHARS = 800;
@@ -14,7 +14,7 @@ export interface Chunk {
   content: string;
 }
 
-export function chunkFile(filePath: string, corpusRoot: string): Chunk[] {
+export function chunkFile(filePath: string, _corpusRoot: string): Chunk[] {
   const raw = readFileSync(filePath, 'utf-8');
   const { data: fm, content: body } = matter(raw);
 

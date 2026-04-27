@@ -7,7 +7,7 @@
  * `lorekit ingest-check`.
  */
 import type { Command } from 'commander';
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { requireCorpus, collectMdFiles, extractFrontmatter } from '../lib/corpus.js';
 import {
@@ -88,6 +88,35 @@ function appendLogEntry(corpus: string, record: IngestRecord, body: string): voi
   }
 }
 
+function ymdValue(value: unknown): string | undefined {
+  if (typeof value === 'string') return value;
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return undefined;
+}
+
+function archivedSourceMetadata(
+  corpus: string,
+  archivedTo?: string,
+): { title?: string; sourceDate?: string; sourceKind?: string } {
+  if (!archivedTo) return {};
+  const candidate = join(corpus, archivedTo);
+  let filePath = candidate;
+  if (existsSync(candidate)) {
+    try {
+      if (lstatSync(candidate).isDirectory()) filePath = join(candidate, 'article.md');
+    } catch {
+      return {};
+    }
+  }
+  if (!existsSync(filePath)) return {};
+  const fm = extractFrontmatter(filePath);
+  return {
+    title: typeof fm.title === 'string' ? fm.title : undefined,
+    sourceDate: ymdValue(fm.source_date),
+    sourceKind: typeof fm.source_kind === 'string' ? fm.source_kind : undefined,
+  };
+}
+
 export function ingestCommand(program: Command): void {
   const group = program
     .command('ingest')
@@ -147,6 +176,9 @@ export function ingestCommand(program: Command): void {
     )
     .option('--archived-to <path>', 'relative path where the source was moved (e.g. 原料/剪藏/xxx)')
     .option('--wiki-page <path...>', 'relative path of a wiki page created (can be repeated)')
+    .option('--title <title>', 'human-readable source title for state/log')
+    .option('--source-date <date>', 'source date (YYYY-MM-DD)')
+    .option('--source-kind <kind>', 'source kind (article|recording|...)')
     .option(
       '--log <body>',
       'append a one-paragraph summary to corpus/log.md (CLI auto-fills url/archive/pages)',
@@ -161,6 +193,9 @@ export function ingestCommand(program: Command): void {
           step?: string;
           archivedTo?: string;
           wikiPage?: string[];
+          title?: string;
+          sourceDate?: string;
+          sourceKind?: string;
           log?: string;
           status?: string;
           complete?: boolean;
@@ -206,6 +241,14 @@ export function ingestCommand(program: Command): void {
           }
         }
         if (opts.archivedTo) patch.archivedTo = opts.archivedTo;
+        const existingRecord = loadIngestState(corpus).ingests[url];
+        const meta = archivedSourceMetadata(corpus, opts.archivedTo);
+        const title = opts.title ?? existingRecord?.title ?? meta.title;
+        const sourceDate = opts.sourceDate ?? existingRecord?.sourceDate ?? meta.sourceDate;
+        const sourceKind = opts.sourceKind ?? existingRecord?.sourceKind ?? meta.sourceKind;
+        if (title) patch.title = title;
+        if (sourceDate) patch.sourceDate = sourceDate;
+        if (sourceKind) patch.sourceKind = sourceKind;
         if (opts.wikiPage && opts.wikiPage.length > 0) {
           const existing = loadIngestState(corpus).ingests[url];
           const prev = existing?.wikiPages ?? [];

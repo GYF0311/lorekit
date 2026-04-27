@@ -24,6 +24,8 @@ import { ingestCommand } from './commands/ingest.js';
 import { syncCommand } from './commands/sync.js';
 import { obsidianTuneCommand } from './commands/obsidian-tune.js';
 import { removeCommand } from './commands/remove.js';
+import { sourceCommand } from './commands/source.js';
+import { linksCommand } from './commands/links.js';
 
 const version = readVersion();
 
@@ -135,6 +137,8 @@ ingestCommand(program);
 syncCommand(program);
 obsidianTuneCommand(program);
 removeCommand(program);
+sourceCommand(program);
+linksCommand(program);
 
 // no subcommand → show banner
 if (process.argv.length <= 2) {

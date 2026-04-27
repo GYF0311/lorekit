@@ -5,6 +5,7 @@ import { findCorpus, findSourceByUrl, extractFrontmatter } from '../lib/corpus.j
 import { fetchUrl, fetchGist, fetchGithubDoc } from '../lib/fetcher/index.js';
 import type { FetchResult } from '../lib/fetcher/index.js';
 import { getIngestRecord, upsertIngestRecord, nextStepHint } from '../lib/ingest-state.js';
+import { err, out } from '../utils/logger.js';
 
 // ---------------------------------------------------------------------------
 // URL routing helpers
@@ -71,14 +72,14 @@ export function fetchCommand(program: Command) {
           if (state && state.status !== 'completed') {
             // Interrupted ingest — surface resume hint, do not re-fetch
             const hint = nextStepHint(state);
-            console.error(
+            err(
               `[lorekit fetch] in-progress ingest detected for ${url}\n` +
                 `  status: ${state.status}  steps done: ${state.stepsDone.join(', ') || '(none)'}\n` +
                 `  started: ${state.startedAt}\n` +
                 `  next step → ${hint}\n` +
                 `  use --force to restart from scratch`,
             );
-            console.log(
+            out(
               JSON.stringify({
                 status: 'in_progress',
                 route: 'rich',
@@ -117,12 +118,12 @@ export function fetchCommand(program: Command) {
           }
 
           if (duplicate) {
-            console.error(
+            err(
               `[lorekit fetch] duplicate url: ${url} already ingested at ${duplicate.path}` +
                 (duplicate.sourceDate ? ` (source_date: ${duplicate.sourceDate})` : '') +
                 `. Use --force to re-fetch anyway.`,
             );
-            console.log(JSON.stringify({ status: 'duplicate', route: 'rich', url, duplicate }));
+            out(JSON.stringify({ status: 'duplicate', route: 'rich', url, duplicate }));
             return;
           }
         }
@@ -172,7 +173,7 @@ export function fetchCommand(program: Command) {
         }
 
         // Output single-line JSON
-        console.log(JSON.stringify(result));
+        out(JSON.stringify(result));
 
         // Exit with non-zero on error
         if (result.status === 'error') {

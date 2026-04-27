@@ -10,12 +10,12 @@
 lorekit/
 ├── src/                    TypeScript 源码（约 6270 LoC，含 fetcher/vectordb 子模块）
 │   ├── cli.ts              CLI 入口 + 启动 banner + 命令注册
-│   ├── commands/           15 个子命令实现
+│   ├── commands/           17 个子命令实现（含 source / links）
 │   ├── lib/                7 个核心库 + fetcher/ + vectordb/ 两个子模块目录
 │   └── utils/              通用 helper（fs / logger）
 ├── bin/                    npm bin shim（lorekit.js）
 ├── dist/                   tsup 构建产物（提交进 git，给免构建用户用）
-├── skills/                 7 个 wiki-* SKILL.md（Agent skill）
+├── skills/                 9 个 wiki-* SKILL.md（Agent skill）
 ├── plugins/obsidian-audit/ Obsidian 反馈插件
 ├── templates/default-corpus/ corpus 骨架（lorekit init 拷贝）
 ├── integrations/           thin shim 转发到 `lorekit install-skills`
@@ -38,15 +38,17 @@ lorekit/
 | 文件                  | LoC | 职责                                                                                |
 | --------------------- | --- | ----------------------------------------------------------------------------------- |
 | `init.ts`             | 189 | 初始化 corpus，部署 Obsidian 插件 + 批次 25 safe-write `.obsidian/graph.json`        |
-| `doctor.ts`           | 203 | 健康检查（目录、frontmatter、_INDEX.md）+ 批次 26 Obsidian filter 检测              |
+| `doctor.ts`           | 203 | 健康检查（目录、frontmatter、_INDEX.md）+ 批次 26 Obsidian filter 检测；`--json --strict` 作为机器门禁 |
 | `stats.ts`            | 85  | 输出 corpus 统计 JSON                                                               |
 | `search.ts`           | 117 | ripgrep 包装（有内置 fallback）                                                     |
 | `fetch.ts`            | 183 | URL 路由 → 调 fetcher 子模块，duplicate / in-progress 检测                          |
 | `ingest.ts`           | 407 | ingest pipeline state machine：list / pending / record / check / forget / reconcile |
+| `source.ts`           | —   | source finalize：给 `原料/` 下 source 补 `slug` / `raw_sha256` / verified 字段 |
 | `dir-index.ts`        | 273 | 递归生成 `_INDEX.md`（原 `commands/index.ts`，批次 17 改名消除歧义）                |
-| `sync.ts`             | 117 | 一键链：dir-index → vector sync → doctor                                            |
+| `sync.ts`             | 117 | 一键链：dir-index → vector sync（环境缺失时跳过）→ doctor，默认 text mode 可用     |
 | `vector.ts`           | 188 | 向量子命令：sync / query（flat / layered / bm25 / hybrid）/ status                  |
-| `lint.ts`             | 192 | frontmatter / 死链 / 孤岛页扫描                                                     |
+| `lint.ts`             | 192 | frontmatter / 死链 / 孤岛页扫描；`--json` / `plan` / `fix --safe`                   |
+| `links.ts`            | —   | wikilink closure：suggest / fix / stub / backlog / plain                            |
 | `audit.ts`            | 162 | 反馈条目 CRUD                                                                       |
 | `snapshot.ts`         | 108 | tarball 备份                                                                        |
 | `restore.ts`          | 170 | 从 tarball 恢复                                                                     |
@@ -119,7 +121,7 @@ lorekit/
 6. `src/lib/vectordb/index.ts` — 检索栈 barrel，commands/vector.ts 走它的 9 个 API
 7. `src/lib/vectordb/schema.ts` — DDL + `openDb`，所有 vectordb 子模块靠它的 `Db` 类型
 8. `src/commands/ingest.ts` — state machine 对外 surface，最大单文件
-9. `src/commands/sync.ts` — 把索引 / 向量 / 体检串起来，复用 `runIndex` + `vector sync` + `doctor`
+9. `src/commands/sync.ts` — 把索引 / 向量 / 体检串起来；无 vector 环境时跳过向量保持 text mode
 10. `src/commands/remove.ts` — 删除路径最敏感：只做来源归因级联，先 snapshot，再 OS Trash
 11. `src/utils/logger.ts` — 全仓库输出统一入口（CONVENTIONS 强制，stdout/stderr 分流）
 

@@ -28,6 +28,7 @@ export interface IngestRecord {
   url: string;
   title?: string;
   sourceDate?: string; // YYYY-MM-DD
+  sourceKind?: string;
   startedAt: string; // ISO timestamp
   updatedAt: string; // ISO timestamp
   status: IngestStatus;

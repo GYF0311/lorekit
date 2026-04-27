@@ -104,6 +104,19 @@ bug 修复线索：
 - 不加 Query expansion 到 CLI（属 skill 层，让 agent 自己改写 query 调多次 lorekit）
 - 不回归 Karpathy 纯度（删自实现向量栈换 qmd）：代价大于收益（见 §3 模型自由度论证）
 
+## 6.1 P0+links MVP 决策
+
+本轮目标不是做完整图数据库，而是补上 agent 关账前最容易漏的确定性护栏：
+
+- `lorekit sync` 默认 text-safe：先保证 `index.md` / `_INDEX.md` / doctor 可用；无 vector 依赖或 ollama 时跳过向量，不阻断小 corpus 日常使用。
+- `doctor --json --strict` 给 CI / agent gate 用；普通 doctor 继续做人类可读体检。
+- `lint --json` 给机器读，`lint plan` 给人审，`lint fix --safe` 只做无争议修复；复杂语义合并仍交给 agent / 人。
+- `source finalize` 把“原料归档后的 slug/hash/verified 字段补齐”从 skill 手工步骤下沉到 CLI。
+- `links suggest/fix/stub/backlog/plain` 把 wikilink closure 做成独立 surface：ingest 关账用 `suggest --file` 限定本次页面，能安全修的用 `fix --file` 修，真有价值的建 stub，暂不建的进 `系统/missing-nodes.md`，一次性提及转纯文本。
+- `wiki-ingest` 在 `record --step lint` 前必须完成 links closure，避免“完成态 ingest”留下 P0 死链。
+
+刻意不做：自动判断所有缺失节点的语义价值、自动合并近义概念、自动改写 Compiled Truth。这些仍属于 LLM / 人类判断层。
+
 ## 7. lorekit 产品定位：个人知识 compilation harness
 
 **一句话定位**：

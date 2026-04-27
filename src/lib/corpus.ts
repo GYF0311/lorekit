@@ -1,5 +1,5 @@
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, dirname, basename } from 'node:path';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { join, dirname } from 'node:path';
 import matter from 'gray-matter';
 import { alwaysExcludeNames } from './paths.js';
 import { debug } from '../utils/logger.js';
@@ -76,7 +76,7 @@ export function findSourceByUrl(corpus: string, url: string): string | null {
   return null;
 }
 
-export function collectMdFiles(dir: string, opts?: { excludeIndex?: boolean }): string[] {
+export function collectMdFiles(dir: string, _opts?: { excludeIndex?: boolean }): string[] {
   const results: string[] = [];
   if (!existsSync(dir)) return results;
 

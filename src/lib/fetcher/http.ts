@@ -114,7 +114,7 @@ export async function fetchHtmlL1(url: string, headers: Record<string, string>):
 export async function fetchHtmlL2(url: string): Promise<string | null> {
   try {
     // Dynamic import — playwright-core is optional
-    // @ts-ignore — playwright-core may not be installed
+    // @ts-expect-error — playwright-core may not be installed
     const pw = await import('playwright-core');
     const browser = await pw.chromium.launch({ headless: true });
     try {

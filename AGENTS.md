@@ -110,6 +110,7 @@ lorekit install-skills --target claude-code
 
 # 其他 Agent（Codex / Cursor / Aider）
 # skills 在 ~/code/lorekit/skills/ 下，按各 agent 的 skill 注册方式配置
+# Codex skill sync 后续补齐；当前可直接读取 skills/wiki-* markdown
 # 每个 skill 是纯 markdown（SKILL.md），任何支持 markdown 指令的 agent 都能用
 ```
 
@@ -133,10 +134,10 @@ ollama serve   # 如果没自动启动
 ollama pull bge-m3
 
 cd <corpus-path>
-lorekit sync   # 一条命令：刷 _INDEX.md → 向量嵌入 → 建 FTS5 → doctor 体检
+lorekit sync   # 一条命令：刷 _INDEX.md → 有 vector 环境则嵌入 → doctor 体检
 ```
 
-不装 ollama 也能用——AI 通过 `index.md` → `_INDEX.md` → 具体文件三层 Read 定位内容，< 100 文档时完全够用。
+不装 ollama 也能用——`lorekit sync` 默认 text mode：没有 vector 依赖 / ollama 时跳过向量同步，只刷新文本索引并跑 doctor。AI 通过 `index.md` → `_INDEX.md` → 具体文件三层 Read 定位内容，< 100 文档时完全够用。
 `lorekit vector status` 返回的 `mode` 字段会按 `MODE_THRESHOLD_FILES`（默认 100）自动推荐 text 还是 vector 模式，skill 读这个字段决定检索路径，不用手工记阈值。
 
 ---
@@ -156,6 +157,7 @@ lorekit sync   # 一条命令：刷 _INDEX.md → 向量嵌入 → 建 FTS5 → 
 
 ```bash
 lorekit doctor                              # 健康检查
+lorekit doctor --json --strict             # 机器可读 + 严格退出码（CI / agent gate）
 lorekit stats                               # 统计
 lorekit search <text>                       # ripgrep 文本搜索
 lorekit fetch <url>                         # 网页抓取
@@ -163,9 +165,18 @@ lorekit snapshot                            # 备份快照
 lorekit restore                             # 从快照恢复
 lorekit audit --list                        # 查看反馈
 lorekit lint                                # frontmatter / 死链 / 孤岛扫描
+lorekit lint --json                         # 机器可读 diagnostics
+lorekit lint plan                           # 只生成修复计划，不改文件
+lorekit lint fix --safe                     # 仅应用安全修复
+lorekit links suggest --file <file> --json --write-state # 推荐本页 wikilink 修复/建 stub/转纯文本
+lorekit links fix "Claude Code" --to "知识库/实体/Claude-Code" --alias "Claude Code" --file <file>
+lorekit links stub "MCP" --type concept --source <file>
+lorekit links backlog "MCP" --type concept --source <file>
+lorekit links plain "一次性词" --file <file>
+lorekit source finalize 原料/文章/<source>.md # 原料归档收尾，补 slug/hash/verified
 
 lorekit index                               # 递归生成所有 _INDEX.md（L1 书架）
-lorekit sync                                # 一条命令：index → vector sync --layered → doctor
+lorekit sync                                # 一条命令：index → vector sync（可跳过）→ doctor
 lorekit vector sync [--layered]             # 仅向量同步（需要 ollama bge-m3）
 lorekit vector status                       # 看 mode 推荐（text|vector）+ indexed_files
 lorekit vector query --hybrid --text "<q>"  # 混合检索（BM25+向量+RRF）

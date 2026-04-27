@@ -73,7 +73,7 @@ corpus/
 先读 `index.md` 定位相关页，再钻入具体文件综合回答。好的回答应该 **file back** 成 `知识库/` 的新页面——探索的成果不该消失在聊天记录里。
 
 ### Lint（健康检查）
-定期检查：死链、孤岛页、提到但没建页的概念、矛盾、过期工作台文件。`lorekit doctor` 执行。
+定期检查：死链、孤岛页、提到但没建页的概念、矛盾、过期工作台文件。`lorekit doctor` 执行；需要机器门禁时用 `lorekit doctor --json --strict`。
 
 ## 三层读取策略
 
@@ -136,13 +136,14 @@ Agent system prompt 是稀缺资源，永远用指针风格而不是全量注入
 
 - `系统/filing-rules.md` — 完整归档路由表
 - `系统/frontmatter-spec.md` — frontmatter 字段规范
+- `系统/missing-nodes.md` — links closure backlog
 - `系统/schema.md` — 目录结构详解 + 向量索引规则
 
 ---
 
 ## Harness 规则（LLM 行为契约）
 
-> 下列 9 项规则是 lorekit 当前版本的 **harness 契约**，与 `skills/wiki-*` 的行为约定配套。
+> 下列 10 项规则是 lorekit 当前版本的 **harness 契约**，与 `skills/wiki-*` 的行为约定配套。
 > 新 corpus 一建好就带这些规则；老 corpus 不追溯，但新建页要按新规则。
 
 ### 1. Personal-writing 分流规则
@@ -239,3 +240,17 @@ Counter-evidence 节**即使为空也必须写**——"没反驳"是一个信号
 - `corpus/系统/**/*.md`（所有 schema 规范文档）
 
 **不在上述清单里的文件**（`知识库/**` / `原料/**` / `每日/**` 等）不加 `graph-excluded`——它们是知识资产，需要进索引。
+
+### 10. Links closure 规则
+
+ingest / fileback 新写页面后，完成关账前必须处理新页面里的 wikilink：
+
+1. 先跑 `lorekit links suggest --file "<file>" --json --write-state`。
+2. 明显别名 / 路径漂移 → `lorekit links fix "<label>" --to "<canonical-slug>" --alias "<label>" --file "<file>"`。
+3. 确实值得存在但还没内容的节点 → `lorekit links stub "<label>" --type concept|entity --source "<file>"` 建最小 stub。
+4. 暂不值得建页但以后可能要补 → `lorekit links backlog "<label>" --type concept|entity --source "<file>"` 写入 `系统/missing-nodes.md`。
+5. 一次性提及、不应成为知识节点 → `lorekit links plain "<label>" --file "<file>"` 转纯文本。
+
+只有 links closure 完成后，才能 `lorekit ingest record ... --step lint` 把 ingest 标为 completed。
+
+`lorekit sync` 默认 text mode 可用：没有 vector 依赖 / ollama 时跳过向量同步，只刷新 `index.md` / `_INDEX.md` 并跑 doctor。

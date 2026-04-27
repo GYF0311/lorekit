@@ -104,11 +104,11 @@ var init_logger = __esm({
 
 // src/lib/vectordb/files.ts
 import { createHash as createHash2 } from "crypto";
-import { readFileSync as readFileSync12, readdirSync as readdirSync7 } from "fs";
-import { basename as basename5, join as join12, relative as relative9 } from "path";
-import matter2 from "gray-matter";
+import { readFileSync as readFileSync13, readdirSync as readdirSync7 } from "fs";
+import { basename as basename5, join as join14, relative as relative8 } from "path";
+import matter3 from "gray-matter";
 function sha2562(filePath) {
-  const data = readFileSync12(filePath);
+  const data = readFileSync13(filePath);
   return createHash2("sha256").update(data).digest("hex");
 }
 function float32ToBuffer(arr) {
@@ -139,11 +139,11 @@ function collectFiles(corpus) {
       return;
     }
     for (const entry of entries) {
-      const full = join12(dir, entry.name);
+      const full = join14(dir, entry.name);
       if (entry.isDirectory()) {
         walk(full);
       } else if (entry.name.endsWith(".md")) {
-        const rel = relative9(corpus, full);
+        const rel = relative8(corpus, full);
         if (shouldIndex(rel)) {
           results.push(full);
         }
@@ -161,8 +161,8 @@ var init_files = __esm({
 });
 
 // src/lib/vectordb/schema.ts
-import { existsSync as existsSync10, mkdirSync as mkdirSync6 } from "fs";
-import { join as join13 } from "path";
+import { existsSync as existsSync11, mkdirSync as mkdirSync6 } from "fs";
+import { join as join15 } from "path";
 function vecDdl(dim) {
   return `
 CREATE VIRTUAL TABLE IF NOT EXISTS vec_chunks USING vec0(
@@ -200,9 +200,9 @@ async function loadSqlite() {
 }
 async function openDb(corpus, dim = EMBEDDING_DIM) {
   const { Database: Database2, sqliteVec } = await loadSqlite();
-  const wikiDir = join13(corpus, ".wiki");
-  if (!existsSync10(wikiDir)) mkdirSync6(wikiDir, { recursive: true });
-  const dbPath = join13(wikiDir, "vector.sqlite");
+  const wikiDir = join15(corpus, ".wiki");
+  if (!existsSync11(wikiDir)) mkdirSync6(wikiDir, { recursive: true });
+  const dbPath = join15(wikiDir, "vector.sqlite");
   const db = new Database2(dbPath);
   sqliteVec.load(db);
   db.pragma("journal_mode = WAL");
@@ -328,12 +328,12 @@ var chunker_exports = {};
 __export(chunker_exports, {
   chunkFile: () => chunkFile
 });
-import { readFileSync as readFileSync13 } from "fs";
+import { readFileSync as readFileSync14 } from "fs";
 import { basename as basename6 } from "path";
-import matter3 from "gray-matter";
-function chunkFile(filePath, corpusRoot) {
-  const raw = readFileSync13(filePath, "utf-8");
-  const { data: fm, content: body } = matter3(raw);
+import matter4 from "gray-matter";
+function chunkFile(filePath, _corpusRoot) {
+  const raw = readFileSync14(filePath, "utf-8");
+  const { data: fm, content: body } = matter4(raw);
   let title = fm.title || "";
   const type = fm.type || "";
   if (!title) {
@@ -387,10 +387,10 @@ var init_chunker = __esm({
 });
 
 // src/lib/vectordb/sync.ts
-import { relative as relative12 } from "path";
+import { relative as relative10 } from "path";
 async function syncFile(db, filePath, corpus, embedFn) {
   const { chunkFile: chunkFile2 } = await Promise.resolve().then(() => (init_chunker(), chunker_exports));
-  const rel = relative12(corpus, filePath);
+  const rel = relative10(corpus, filePath);
   const sha = sha2562(filePath);
   const old = db.prepare("SELECT id FROM documents WHERE path = ?").get(rel);
   if (old) {
@@ -447,9 +447,9 @@ var init_sync = __esm({
 });
 
 // src/lib/vectordb/build-layered-index.ts
-import { existsSync as existsSync11, readFileSync as readFileSync14, readdirSync as readdirSync8 } from "fs";
-import { join as join14, relative as relative13 } from "path";
-import matter4 from "gray-matter";
+import { existsSync as existsSync12, readFileSync as readFileSync15, readdirSync as readdirSync8 } from "fs";
+import { join as join16, relative as relative11 } from "path";
+import matter5 from "gray-matter";
 function parseIndexSections(content) {
   const lines = content.split("\n");
   const sections = [];
@@ -504,8 +504,8 @@ function findAllIndexFiles(corpus) {
     }
     for (const entry of entries) {
       if (entry.name.startsWith(".")) continue;
-      const full = join14(dir, entry.name);
-      const rel = relative13(corpus, full);
+      const full = join16(dir, entry.name);
+      const rel = relative11(corpus, full);
       if (vectorExcludePrefixes.some((p) => rel === p || rel.startsWith(p + "/"))) continue;
       if (entry.isDirectory()) {
         walk(full);
@@ -521,12 +521,12 @@ async function buildLayeredIndex(db, corpus, embedFn) {
   db.prepare("DELETE FROM dir_summaries").run();
   db.prepare("DELETE FROM vec_dirs").run();
   db.prepare("DELETE FROM fts_dirs").run();
-  const indexPath = join14(corpus, "index.md");
-  if (!existsSync11(indexPath)) {
+  const indexPath = join16(corpus, "index.md");
+  if (!existsSync12(indexPath)) {
     info("  L0: corpus/index.md not found, skipped");
   } else {
-    const raw = readFileSync14(indexPath, "utf-8");
-    const { content } = matter4(raw);
+    const raw = readFileSync15(indexPath, "utf-8");
+    const { content } = matter5(raw);
     const sections = parseIndexSections(content);
     if (sections.length === 0) {
       info("  L0: no sections with entries in index.md, skipped");
@@ -563,7 +563,7 @@ async function buildLayeredIndex(db, corpus, embedFn) {
   }
   const allEntries = [];
   for (const f of indexFiles) {
-    const raw = readFileSync14(f, "utf-8");
+    const raw = readFileSync15(f, "utf-8");
     allEntries.push(...parseIndexEntries(raw));
   }
   if (allEntries.length === 0) {
@@ -850,8 +850,12 @@ var init_query_hybrid = __esm({
 });
 
 // src/lib/vectordb/status.ts
-import { existsSync as existsSync12 } from "fs";
-import { join as join15 } from "path";
+var status_exports = {};
+__export(status_exports, {
+  getStatus: () => getStatus
+});
+import { existsSync as existsSync13 } from "fs";
+import { join as join17 } from "path";
 function computeMode(indexed, indexedFiles) {
   if (!indexed) {
     return {
@@ -871,8 +875,8 @@ function computeMode(indexed, indexedFiles) {
   };
 }
 async function getStatus(corpus) {
-  const dbPath = join15(corpus, ".wiki", "vector.sqlite");
-  if (!existsSync12(dbPath)) {
+  const dbPath = join17(corpus, ".wiki", "vector.sqlite");
+  if (!existsSync13(dbPath)) {
     const rec2 = computeMode(false, 0);
     return {
       indexed: false,
@@ -956,7 +960,7 @@ var init_vectordb = __esm({
 });
 
 // src/cli.ts
-import { existsSync as existsSync20 } from "fs";
+import { existsSync as existsSync23 } from "fs";
 import { Command } from "commander";
 import chalk7 from "chalk";
 import Database from "better-sqlite3";
@@ -1012,7 +1016,7 @@ function findSourceByUrl(corpus, url) {
   }
   return null;
 }
-function collectMdFiles(dir, opts) {
+function collectMdFiles(dir, _opts) {
   const results = [];
   if (!existsSync(dir)) return results;
   function walk(d) {
@@ -1036,7 +1040,7 @@ init_logger();
 // src/utils/fs.ts
 init_logger();
 import { createHash } from "crypto";
-import { readFileSync as readFileSync2, statSync as statSync2 } from "fs";
+import { readFileSync as readFileSync2, statSync } from "fs";
 import { join as join2, dirname as dirname2 } from "path";
 import { fileURLToPath } from "url";
 function sha256(filePath) {
@@ -1071,10 +1075,10 @@ import chalk2 from "chalk";
 var MINIMAL_DIRS = ["\u539F\u6599", "\u77E5\u8BC6\u5E93/\u6982\u5FF5", "\u77E5\u8BC6\u5E93/\u5B9E\u4F53", "\u77E5\u8BC6\u5E93/\u6458\u8981", "\u6BCF\u65E5", "\u7CFB\u7EDF", ".wiki"];
 function ask(question) {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve4) => {
+  return new Promise((resolve5) => {
     rl.question(question, (answer) => {
       rl.close();
-      resolve4(answer.trim());
+      resolve5(answer.trim());
     });
   });
 }
@@ -1196,17 +1200,17 @@ function initCommand(program2) {
 
 // src/commands/doctor.ts
 init_logger();
-import { existsSync as existsSync4, lstatSync as lstatSync2, readFileSync as readFileSync5, readdirSync as readdirSync3 } from "fs";
-import { join as join5, relative as relative2 } from "path";
+import { existsSync as existsSync4, lstatSync as lstatSync2, readFileSync as readFileSync4, readdirSync as readdirSync3 } from "fs";
+import { join as join5, relative } from "path";
 import chalk3 from "chalk";
 init_paths();
 
 // src/lib/obsidian.ts
-import { existsSync as existsSync3, readFileSync as readFileSync4 } from "fs";
+import { existsSync as existsSync3, readFileSync as readFileSync3 } from "fs";
 import { join as join4 } from "path";
 function getRecommendedGraphConfig() {
   const tpl = join4(lorekitRoot(), "templates", "default-corpus", ".obsidian", "graph.json");
-  const raw = readFileSync4(tpl, "utf-8");
+  const raw = readFileSync3(tpl, "utf-8");
   return JSON.parse(raw);
 }
 function getRecommendedFilter() {
@@ -1217,7 +1221,7 @@ function readCorpusFilter(corpus) {
   const dest = join4(corpus, ".obsidian", "graph.json");
   if (!existsSync3(dest)) return { exists: false };
   try {
-    const raw = readFileSync4(dest, "utf-8");
+    const raw = readFileSync3(dest, "utf-8");
     const parsed = JSON.parse(raw);
     return { exists: true, search: parsed.search, raw: parsed };
   } catch {
@@ -1253,47 +1257,70 @@ var EXPECTED_DIRS = [
   "\u7CFB\u7EDF",
   "_\u5DE5\u4F5C\u53F0"
 ];
-function checkDirs(corpus) {
-  let issues = 0;
+function isRootLevel(rel) {
+  return !rel.includes("/");
+}
+function shouldCountForFrontmatterCoverage(rel) {
+  const base = rel.split("/").pop() ?? rel;
+  if (lintSkipFrontmatterBasenames.has(base)) return false;
+  if (isRootLevel(rel) && lintRootOnlySkipBasenames.has(base)) return false;
+  for (const prefix of lintSkipFrontmatterPrefixes) {
+    if (rel.startsWith(prefix)) return false;
+  }
+  return true;
+}
+function checkDirs(corpus, quiet = false) {
+  const findings = [];
   for (const dir of EXPECTED_DIRS) {
     const full = join5(corpus, dir);
     if (existsSync4(full)) {
-      ok(`${dir}/`);
+      if (!quiet) ok(`${dir}/`);
     } else {
-      bad(`${dir}/ ${chalk3.dim("missing")}`);
-      issues++;
+      const message = `${dir}/ missing`;
+      if (!quiet) bad(`${dir}/ ${chalk3.dim("missing")}`);
+      findings.push({ id: "missing-dir", severity: "issue", message });
     }
   }
-  return issues;
+  return findings;
 }
-function checkWikiVersion(corpus) {
+function checkWikiVersion(corpus, quiet = false) {
   const versionFile = join5(corpus, ".wiki", "version");
   if (existsSync4(versionFile)) {
-    const ver = readFileSync5(versionFile, "utf-8").trim();
-    ok(`.wiki/version \u2192 ${ver}`);
-    return 0;
+    const ver = readFileSync4(versionFile, "utf-8").trim();
+    if (!quiet) ok(`.wiki/version \u2192 ${ver}`);
+    return [];
   }
-  bad(".wiki/version missing");
-  return 1;
+  if (!quiet) bad(".wiki/version missing");
+  return [{ id: "missing-wiki-version", severity: "issue", message: ".wiki/version missing" }];
 }
-function checkFrontmatterCoverage(corpus) {
-  const files = collectMdFiles(corpus);
+function checkFrontmatterCoverage(corpus, quiet = false) {
+  const files = collectMdFiles(corpus).filter(
+    (f) => shouldCountForFrontmatterCoverage(relative(corpus, f))
+  );
   const withFm = files.filter((f) => hasFrontmatter(f)).length;
   const total = files.length;
   const pct = total === 0 ? 100 : Math.round(withFm / total * 100);
   const color = pct >= 90 ? chalk3.green : pct >= 60 ? chalk3.yellow : chalk3.red;
   const icon = pct >= 90 ? "\u2713" : pct >= 60 ? "\u26A0" : "\u2717";
-  print(`${color(icon)} frontmatter coverage: ${withFm}/${total} (${pct}%)`);
+  if (!quiet) print(`${color(icon)} frontmatter coverage: ${withFm}/${total} (${pct}%)`);
+  if (pct >= 90) return [];
+  return [
+    {
+      id: "frontmatter-coverage",
+      severity: "warning",
+      message: `frontmatter coverage: ${withFm}/${total} (${pct}%)`
+    }
+  ];
 }
-function checkIndexFiles(corpus) {
-  let missing = 0;
+function checkIndexFiles(corpus, quiet = false) {
+  const findings = [];
   function walk(dir) {
     if (!existsSync4(dir)) return;
     for (const entry of readdirSync3(dir, { withFileTypes: true })) {
       if (entry.name.startsWith(".")) continue;
       if (!entry.isDirectory()) continue;
       const full = join5(dir, entry.name);
-      const rel = relative2(corpus, full);
+      const rel = relative(corpus, full);
       if (isIndexExcluded(rel)) continue;
       if (isFolderPackage(full)) continue;
       let shouldHaveIndex = false;
@@ -1317,86 +1344,151 @@ function checkIndexFiles(corpus) {
         }
       }
       if (shouldHaveIndex && !existsSync4(join5(full, "_INDEX.md"))) {
-        warn(`_INDEX.md missing in ${rel}/`);
-        missing++;
+        if (!quiet) warn(`_INDEX.md missing in ${rel}/`);
+        findings.push({
+          id: "missing-dir-index",
+          severity: "issue",
+          message: `_INDEX.md missing in ${rel}/`
+        });
       }
       walk(full);
     }
   }
   walk(corpus);
-  if (missing === 0) {
-    ok("all directories with .md files have _INDEX.md");
+  if (findings.length === 0) {
+    if (!quiet) ok("all directories with .md files have _INDEX.md");
   }
-  return missing;
+  return findings;
 }
-function checkObsidianGraph(corpus) {
+function checkObsidianGraph(corpus, quiet = false) {
   try {
     const recommended = getRecommendedFilter();
     const cur = readCorpusFilter(corpus);
     if (!cur.exists) {
-      warn("obsidian: graph filter \u4E0D\u5B8C\u6574\uFF0C\u8FD0\u884C lorekit obsidian-tune \u67E5\u770B\u8BE6\u60C5");
-      return;
+      if (!quiet) warn("obsidian: graph filter \u4E0D\u5B8C\u6574\uFF0C\u8FD0\u884C lorekit obsidian-tune \u67E5\u770B\u8BE6\u60C5");
+      return [
+        {
+          id: "obsidian-filter",
+          severity: "warning",
+          message: "obsidian graph filter missing or incomplete"
+        }
+      ];
     }
     if (isFilterComplete(cur.search, recommended)) {
-      ok("obsidian: graph filter \u5B8C\u6574");
+      if (!quiet) ok("obsidian: graph filter \u5B8C\u6574");
+      return [];
     } else {
-      warn("obsidian: graph filter \u4E0D\u5B8C\u6574\uFF0C\u8FD0\u884C lorekit obsidian-tune \u67E5\u770B\u8BE6\u60C5");
+      if (!quiet) warn("obsidian: graph filter \u4E0D\u5B8C\u6574\uFF0C\u8FD0\u884C lorekit obsidian-tune \u67E5\u770B\u8BE6\u60C5");
+      return [
+        {
+          id: "obsidian-filter",
+          severity: "warning",
+          message: "obsidian graph filter missing recommended excludes"
+        }
+      ];
     }
   } catch (e) {
-    warn(`obsidian: \u68C0\u67E5 graph filter \u5931\u8D25: ${e.message}`);
+    if (!quiet) warn(`obsidian: \u68C0\u67E5 graph filter \u5931\u8D25: ${e.message}`);
+    return [
+      {
+        id: "obsidian-filter-error",
+        severity: "warning",
+        message: `obsidian graph check failed: ${e.message}`
+      }
+    ];
   }
 }
-function checkArchive(corpus) {
+function checkArchive(corpus, quiet = false) {
   const archiveDir = join5(corpus, "_\u5F52\u6863");
   if (existsSync4(archiveDir)) {
-    ok("_\u5F52\u6863/ exists");
-    return 0;
+    if (!quiet) ok("_\u5F52\u6863/ exists");
+    return [];
   }
-  warn("_\u5F52\u6863/ not found (optional)");
-  return 0;
+  if (!quiet) warn("_\u5F52\u6863/ not found (optional)");
+  return [
+    { id: "archive-dir", severity: "warning", message: "_\u5F52\u6863/ not found (optional)" }
+  ];
 }
-function runDoctor(corpus) {
-  print(chalk3.bold(`
+function summarize(corpus, findings) {
+  const issues = findings.filter((f) => f.severity === "issue");
+  const warnings = findings.filter((f) => f.severity === "warning");
+  return {
+    corpus,
+    issues,
+    warnings,
+    summary: {
+      issues: issues.length,
+      warnings: warnings.length,
+      status: issues.length > 0 ? "issue" : warnings.length > 0 ? "warning" : "ok"
+    }
+  };
+}
+function runDoctor(corpus, opts = {}) {
+  const quiet = opts.quiet ?? false;
+  if (!quiet) print(chalk3.bold(`
 lorekit doctor \u2014 ${corpus}
 `));
-  let issues = 0;
-  print(chalk3.cyan("\u2500\u2500 directories \u2500\u2500"));
-  issues += checkDirs(corpus);
-  print();
-  print(chalk3.cyan("\u2500\u2500 wiki metadata \u2500\u2500"));
-  issues += checkWikiVersion(corpus);
-  print();
-  print(chalk3.cyan("\u2500\u2500 frontmatter \u2500\u2500"));
-  checkFrontmatterCoverage(corpus);
-  print();
-  print(chalk3.cyan("\u2500\u2500 index files \u2500\u2500"));
-  issues += checkIndexFiles(corpus);
-  print();
-  print(chalk3.cyan("\u2500\u2500 archive \u2500\u2500"));
-  checkArchive(corpus);
-  print();
-  print(chalk3.cyan("\u2500\u2500 obsidian \u2500\u2500"));
-  checkObsidianGraph(corpus);
-  print();
-  if (issues === 0) {
-    print(chalk3.green.bold("all checks passed \u2713"));
-  } else {
-    print(chalk3.yellow(`${issues} issue(s) found`));
+  const findings = [];
+  if (!quiet) print(chalk3.cyan("\u2500\u2500 directories \u2500\u2500"));
+  findings.push(...checkDirs(corpus, quiet));
+  if (!quiet) print();
+  if (!quiet) print(chalk3.cyan("\u2500\u2500 wiki metadata \u2500\u2500"));
+  findings.push(...checkWikiVersion(corpus, quiet));
+  if (!quiet) print();
+  if (!quiet) print(chalk3.cyan("\u2500\u2500 frontmatter \u2500\u2500"));
+  findings.push(...checkFrontmatterCoverage(corpus, quiet));
+  if (!quiet) print();
+  if (!quiet) print(chalk3.cyan("\u2500\u2500 index files \u2500\u2500"));
+  findings.push(...checkIndexFiles(corpus, quiet));
+  if (!quiet) print();
+  if (!quiet) print(chalk3.cyan("\u2500\u2500 archive \u2500\u2500"));
+  findings.push(...checkArchive(corpus, quiet));
+  if (!quiet) print();
+  if (!quiet) print(chalk3.cyan("\u2500\u2500 obsidian \u2500\u2500"));
+  findings.push(...checkObsidianGraph(corpus, quiet));
+  if (!quiet) print();
+  const report = summarize(corpus, findings);
+  if (!quiet) {
+    if (report.summary.status === "ok") {
+      print(chalk3.green.bold("all checks passed \u2713"));
+    } else if (report.summary.status === "warning") {
+      print(chalk3.yellow(`${report.summary.warnings} warning(s) found`));
+    } else {
+      print(chalk3.yellow(`${report.summary.issues} issue(s) found`));
+    }
+    print();
   }
-  print();
-  return issues;
+  return report.summary.issues;
+}
+function collectDoctorReport(corpus) {
+  const findings = [
+    ...checkDirs(corpus, true),
+    ...checkWikiVersion(corpus, true),
+    ...checkFrontmatterCoverage(corpus, true),
+    ...checkIndexFiles(corpus, true),
+    ...checkArchive(corpus, true),
+    ...checkObsidianGraph(corpus, true)
+  ];
+  return summarize(corpus, findings);
 }
 function doctorCommand(program2) {
-  program2.command("doctor").description("run health checks on the corpus").action(() => {
+  program2.command("doctor").description("run health checks on the corpus").option("--json", "print machine-readable report to stdout", false).option("--strict", "treat warnings as failures", false).action((opts) => {
     const corpus = requireCorpus();
+    const report = opts.json ? collectDoctorReport(corpus) : null;
+    if (opts.json && report) {
+      out(JSON.stringify(report, null, 2));
+      process.exitCode = report.summary.issues > 0 || opts.strict && report.summary.warnings > 0 ? 1 : 0;
+      return;
+    }
     const issues = runDoctor(corpus);
-    process.exitCode = issues > 0 ? 1 : 0;
+    const warnings = collectDoctorReport(corpus).summary.warnings;
+    process.exitCode = issues > 0 || opts.strict && warnings > 0 ? 1 : 0;
   });
 }
 
 // src/commands/stats.ts
-import { readFileSync as readFileSync6, statSync as statSync4 } from "fs";
-import { relative as relative3 } from "path";
+import { readFileSync as readFileSync5, statSync as statSync2 } from "fs";
+import { relative as relative2 } from "path";
 init_logger();
 function statsCommand(program2) {
   program2.command("stats").description("output corpus statistics as JSON").action(() => {
@@ -1413,11 +1505,11 @@ function statsCommand(program2) {
       const fm = extractFrontmatter(file);
       const type = fm.type || "unknown";
       byType[type] = (byType[type] || 0) + 1;
-      const rel = relative3(corpus, file);
+      const rel = relative2(corpus, file);
       const topDir = rel.split("/")[0] || ".";
       byDir[topDir] = (byDir[topDir] || 0) + 1;
       try {
-        const mtime = statSync4(file).mtime;
+        const mtime = statSync2(file).mtime;
         if (now - mtime.getTime() < sevenDays) {
           recentActive7d++;
         }
@@ -1427,7 +1519,7 @@ function statsCommand(program2) {
         debug(`stats: stat(${file}) failed: ${e.message}`);
       }
       try {
-        const content = readFileSync6(file, "utf-8");
+        const content = readFileSync5(file, "utf-8");
         const linkRe = /\[\[([^\]|#]+)[^\]]*\]\]/g;
         let m;
         while ((m = linkRe.exec(content)) !== null) {
@@ -1439,7 +1531,7 @@ function statsCommand(program2) {
     }
     const orphans = [];
     for (const file of files) {
-      const rel = relative3(corpus, file);
+      const rel = relative2(corpus, file);
       const stem = rel.replace(/\.md$/, "");
       const baseName = stem.split("/").pop();
       if (!inboundLinks.has(stem) && !inboundLinks.has(baseName)) {
@@ -1459,174 +1551,13 @@ function statsCommand(program2) {
 }
 
 // src/commands/lint.ts
-import { readFileSync as readFileSync7 } from "fs";
-import { relative as relative4, basename as basename2 } from "path";
+import { readFileSync as readFileSync8 } from "fs";
+import { relative as relative5, basename as basename2, join as join8 } from "path";
 import chalk4 from "chalk";
-init_paths();
-init_logger();
-var REQUIRED_FIELDS = ["type", "title", "slug", "created", "updated"];
-function isRootLevel(rel) {
-  return !rel.includes("/");
-}
-function shouldSkipFrontmatter(rel) {
-  const base = basename2(rel);
-  if (lintSkipFrontmatterBasenames.has(base)) return true;
-  if (isRootLevel(rel) && lintRootOnlySkipBasenames.has(base)) return true;
-  for (const prefix of lintSkipFrontmatterPrefixes) {
-    if (rel.startsWith(prefix)) return true;
-  }
-  return false;
-}
-function shouldSkipOrphan(rel) {
-  const base = basename2(rel);
-  if (lintSkipFrontmatterBasenames.has(base)) return true;
-  if (isRootLevel(rel) && lintRootOnlySkipBasenames.has(base)) return true;
-  for (const prefix of lintSkipOrphanPrefixes) {
-    if (rel.startsWith(prefix)) return true;
-  }
-  return false;
-}
-function shouldSkipBrokenLink(rel) {
-  for (const prefix of lintSkipBrokenLinkPrefixes) {
-    if (rel.startsWith(prefix)) return true;
-  }
-  return false;
-}
-function isGraphExcluded(fm) {
-  return fm["graph-excluded"] === true || fm["graph_excluded"] === true;
-}
-function stripCodeBlocks(content) {
-  content = content.replace(/```[\s\S]*?```/g, "");
-  content = content.replace(/`[^`\n]+`/g, "");
-  return content;
-}
-function runLint(corpus) {
-  const files = collectMdFiles(corpus);
-  const issues = [];
-  const stemSet = /* @__PURE__ */ new Set();
-  const baseNameSet = /* @__PURE__ */ new Set();
-  const inboundLinks = /* @__PURE__ */ new Set();
-  for (const file of files) {
-    const rel = relative4(corpus, file);
-    const stem = rel.replace(/\.md$/, "");
-    stemSet.add(stem);
-    baseNameSet.add(stem.split("/").pop());
-    if (stem.endsWith("/article")) {
-      const folderStem = stem.replace(/\/article$/, "");
-      stemSet.add(folderStem);
-      baseNameSet.add(folderStem.split("/").pop());
-    }
-  }
-  const fileLinks = /* @__PURE__ */ new Map();
-  const fileFrontmatter = /* @__PURE__ */ new Map();
-  for (const file of files) {
-    const rel = relative4(corpus, file);
-    let fm = {};
-    try {
-      fm = extractFrontmatter(file);
-    } catch {
-    }
-    fileFrontmatter.set(rel, fm);
-    if (!shouldSkipFrontmatter(rel)) {
-      for (const field of REQUIRED_FIELDS) {
-        if (!fm[field]) {
-          issues.push({
-            file: rel,
-            kind: "missing-field",
-            detail: `missing frontmatter field: ${field}`
-          });
-        }
-      }
-    }
-    try {
-      const content = stripCodeBlocks(readFileSync7(file, "utf-8"));
-      const linkRe = /\[\[([^\]|#]+)[^\]]*\]\]/g;
-      const targets = [];
-      let m;
-      while ((m = linkRe.exec(content)) !== null) {
-        const target = m[1].trim();
-        targets.push(target);
-        inboundLinks.add(target);
-      }
-      fileLinks.set(rel, targets);
-    } catch {
-    }
-  }
-  for (const [rel, targets] of fileLinks) {
-    if (shouldSkipBrokenLink(rel)) continue;
-    for (const target of targets) {
-      if (!stemSet.has(target) && !baseNameSet.has(target)) {
-        issues.push({
-          file: rel,
-          kind: "broken-link",
-          detail: `broken link: [[${target}]]`
-        });
-      }
-    }
-  }
-  for (const file of files) {
-    const rel = relative4(corpus, file);
-    if (shouldSkipOrphan(rel)) continue;
-    const fm = fileFrontmatter.get(rel) ?? {};
-    if (isGraphExcluded(fm)) continue;
-    const stem = rel.replace(/\.md$/, "");
-    const baseName = stem.split("/").pop();
-    let hasInbound = inboundLinks.has(stem) || inboundLinks.has(baseName);
-    if (!hasInbound && stem.endsWith("/article")) {
-      const folderStem = stem.replace(/\/article$/, "");
-      const folderName = folderStem.split("/").pop();
-      hasInbound = inboundLinks.has(folderStem) || inboundLinks.has(folderName);
-    }
-    if (!hasInbound) {
-      issues.push({
-        file: rel,
-        kind: "orphan",
-        detail: "orphan page (no inbound links)"
-      });
-    }
-  }
-  return issues;
-}
-function printLintReport(corpus, issues) {
-  print(chalk4.bold(`
-lorekit lint \u2014 ${corpus}
-`));
-  if (issues.length === 0) {
-    ok("no issues found");
-    print();
-    return;
-  }
-  const grouped = {};
-  for (const issue of issues) {
-    (grouped[issue.kind] ??= []).push(issue);
-  }
-  const kindLabels = {
-    "missing-field": "frontmatter",
-    "broken-link": "broken links",
-    orphan: "orphan pages"
-  };
-  for (const [kind, items] of Object.entries(grouped)) {
-    print(chalk4.cyan(`\u2500\u2500 ${kindLabels[kind] ?? kind} (${items.length}) \u2500\u2500`));
-    for (const item of items) {
-      bad(`${item.file}: ${item.detail}`);
-    }
-    print();
-  }
-  print(chalk4.yellow(`${issues.length} issue(s) total
-`));
-}
-function lintCommand(program2) {
-  program2.command("lint").description("check frontmatter, broken wikilinks, and orphan pages").action(() => {
-    const corpus = requireCorpus();
-    const issues = runLint(corpus);
-    printLintReport(corpus, issues);
-    if (issues.length > 0) process.exitCode = 1;
-  });
-}
 
-// src/commands/audit.ts
-import { existsSync as existsSync5, mkdirSync as mkdirSync2, readFileSync as readFileSync8, writeFileSync as writeFileSync2 } from "fs";
-import { join as join6, basename as basename3 } from "path";
+// src/lib/frontmatter-write.ts
+import { readFileSync as readFileSync6, writeFileSync as writeFileSync2 } from "fs";
+import matter2 from "gray-matter";
 
 // src/lib/date.ts
 var SHANGHAI_TZ_OFFSET_MS = 8 * 60 * 60 * 1e3;
@@ -1658,11 +1589,584 @@ function tsMinute(d = /* @__PURE__ */ new Date()) {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
+// src/lib/frontmatter-write.ts
+var VERIFY_FIELDS = /* @__PURE__ */ new Set(["raw_sha256", "last_verified", "possibly_outdated"]);
+var PATCH_FIELDS = /* @__PURE__ */ new Set(["slug", ...VERIFY_FIELDS]);
+function readMarkdown(filePath) {
+  const parsed = matter2(readFileSync6(filePath, "utf-8"));
+  return { data: parsed.data, content: parsed.content };
+}
+function yamlScalar(value) {
+  if (value instanceof Date) return dateToYMDUtc(value);
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "number") return String(value);
+  const s = String(value);
+  if (/^[\w\u4e00-\u9fff./ -]+$/.test(s)) return s;
+  return JSON.stringify(s);
+}
+function serializeYaml(data) {
+  const lines = [];
+  for (const [key, value] of Object.entries(data)) {
+    if (Array.isArray(value)) {
+      lines.push(`${key}: [${value.map((v) => yamlScalar(v)).join(", ")}]`);
+    } else {
+      lines.push(`${key}: ${yamlScalar(value)}`);
+    }
+  }
+  return lines.join("\n") + "\n";
+}
+function writeMarkdown(filePath, data, content) {
+  const raw = readFileSync6(filePath, "utf-8");
+  const newline = raw.includes("\r\n") ? "\r\n" : "\n";
+  const block = splitFrontmatter(raw);
+  const body = content.startsWith("\n") ? content : `
+${content}`;
+  if (!block) {
+    writeFileSync2(filePath, `---${newline}${serializeYaml(data)}---${body}`, "utf-8");
+    return;
+  }
+  const lines = block.yaml.split(/\r?\n/);
+  const toAppend = [];
+  for (const [key, value] of Object.entries(data)) {
+    if (!PATCH_FIELDS.has(key)) continue;
+    if (!isWritableScalar(value)) continue;
+    const nextLine = `${key}: ${serializeInline(value)}`;
+    const existing = topLevelKeyLine(lines, key);
+    if (existing >= 0) {
+      if (lines[existing] === nextLine) continue;
+      lines[existing] = nextLine;
+    } else {
+      toAppend.push(nextLine);
+    }
+  }
+  const yaml = [...lines, ...toAppend].filter((line, i, arr) => i < arr.length - 1 || line !== "");
+  writeFileSync2(filePath, `---${newline}${yaml.join(newline)}${newline}---${body}`, "utf-8");
+}
+function canonicalMarkdownForHash(data, content) {
+  const normalized = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (VERIFY_FIELDS.has(key)) continue;
+    normalized[key] = normalizeValue(value);
+  }
+  const body = content.startsWith("\n") ? content : `
+${content}`;
+  return `${stableStringify(normalized)}
+${body}`;
+}
+function setFieldIfMissing(data, key, value) {
+  if (data[key]) return false;
+  data[key] = value;
+  return true;
+}
+function splitFrontmatter(raw) {
+  if (!raw.startsWith("---\n") && !raw.startsWith("---\r\n")) return null;
+  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)([\s\S]*)$/);
+  if (!match) return null;
+  return { yaml: match[1], body: match[2] };
+}
+function isWritableScalar(value) {
+  if (value instanceof Date) return true;
+  if (["string", "number", "boolean"].includes(typeof value)) return true;
+  return Array.isArray(value) && value.every(isWritableScalar);
+}
+function serializeInline(value) {
+  if (Array.isArray(value)) return `[${value.map((v) => yamlScalar(v)).join(", ")}]`;
+  return yamlScalar(value);
+}
+function topLevelKeyLine(lines, key) {
+  const re = new RegExp(`^${escapeRegExp(key)}\\s*:`);
+  return lines.findIndex((line) => re.test(line));
+}
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function normalizeValue(value) {
+  if (value instanceof Date) return dateToYMDUtc(value);
+  if (Array.isArray(value)) return value.map(normalizeValue);
+  if (value && typeof value === "object") {
+    const out2 = {};
+    for (const key of Object.keys(value).sort()) {
+      out2[key] = normalizeValue(value[key]);
+    }
+    return out2;
+  }
+  return value;
+}
+function stableStringify(value) {
+  return JSON.stringify(normalizeValue(value));
+}
+
+// src/lib/wikilinks.ts
+import { existsSync as existsSync5, readFileSync as readFileSync7 } from "fs";
+import { basename, join as join6, relative as relative3 } from "path";
+function stripCodeBlocks(content) {
+  return content.replace(/(```|~~~)[\s\S]*?\1/g, "").replace(/`[^`\n]+`/g, "");
+}
+function transformNonCode(content, transform) {
+  const codeRe = /((```|~~~)[\s\S]*?\2|`[^`\n]+`)/g;
+  let out2 = "";
+  let last = 0;
+  let m;
+  while ((m = codeRe.exec(content)) !== null) {
+    out2 += transform(content.slice(last, m.index));
+    out2 += m[0];
+    last = m.index + m[0].length;
+  }
+  out2 += transform(content.slice(last));
+  return out2;
+}
+function extractWikilinkLabels(content) {
+  const labels = [];
+  const linkRe = /\[\[([^\]|#]+)[^\]]*\]\]/g;
+  let m;
+  while ((m = linkRe.exec(stripCodeBlocks(content))) !== null) {
+    labels.push(m[1].trim());
+  }
+  return labels;
+}
+function arrayOfStrings(value) {
+  return Array.isArray(value) ? value.filter((v) => typeof v === "string") : [];
+}
+function collectLinkTargets(corpus) {
+  return collectMdFiles(corpus).map((filePath) => {
+    const rel = relative3(corpus, filePath);
+    const stem = rel.replace(/\.md$/, "");
+    const fm = extractFrontmatter(filePath);
+    const slug = typeof fm.slug === "string" && fm.slug ? fm.slug : stem;
+    const aliases = arrayOfStrings(fm.aliases);
+    const title = typeof fm.title === "string" ? fm.title : void 0;
+    if (title) aliases.push(title);
+    if (stem.endsWith("/article")) {
+      const folderStem = stem.replace(/\/article$/, "");
+      aliases.push(folderStem.split("/").pop() ?? folderStem);
+    }
+    return {
+      slug,
+      file: rel,
+      title,
+      type: typeof fm.type === "string" ? fm.type : void 0,
+      aliases: [...new Set(aliases.filter(Boolean))]
+    };
+  });
+}
+function resolveLabel(label, targets) {
+  return targets.find((target) => {
+    const stem = target.file.replace(/\.md$/, "");
+    const base = stem.split("/").pop();
+    const slugBase = target.slug.split("/").pop();
+    return label === stem || label === target.slug || label === base || label === slugBase || target.aliases.includes(label);
+  });
+}
+function collectWikilinkOccurrences(corpus) {
+  const out2 = [];
+  for (const filePath of collectMdFiles(corpus)) {
+    const rel = relative3(corpus, filePath);
+    let content = "";
+    try {
+      content = readFileSync7(filePath, "utf-8");
+    } catch {
+      continue;
+    }
+    for (const label of extractWikilinkLabels(content)) {
+      out2.push({ file: rel, label });
+    }
+  }
+  return out2;
+}
+function replaceWikilinkLabel(content, label, replacement, opts = {}) {
+  let count = 0;
+  const linkRe = /\[\[([^\]|#]+)([^\]]*)\]\]/g;
+  const next = transformNonCode(
+    content,
+    (segment) => segment.replace(linkRe, (match, rawLabel, suffix) => {
+      if (rawLabel.trim() !== label) return match;
+      count++;
+      const { anchor, alias } = parseWikilinkSuffix(suffix);
+      const visibleAlias = opts.alias ?? alias;
+      return `[[${replacement}${anchor}${visibleAlias ? `|${visibleAlias}` : ""}]]`;
+    })
+  );
+  return { content: next, count };
+}
+function plainWikilinkLabel(content, label) {
+  let count = 0;
+  const linkRe = /\[\[([^\]|#]+)([^\]]*)\]\]/g;
+  const next = transformNonCode(
+    content,
+    (segment) => segment.replace(linkRe, (match, rawLabel, suffix) => {
+      if (rawLabel.trim() !== label) return match;
+      count++;
+      const { alias } = parseWikilinkSuffix(suffix);
+      return alias ?? label;
+    })
+  );
+  return { content: next, count };
+}
+function parseWikilinkSuffix(suffix) {
+  const pipe = suffix.indexOf("|");
+  if (pipe >= 0) {
+    return {
+      anchor: suffix.slice(0, pipe),
+      alias: suffix.slice(pipe + 1) || void 0
+    };
+  }
+  return { anchor: suffix };
+}
+function labelToSlug(label) {
+  return label.trim().replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+}
+function relStem(rel) {
+  return rel.replace(/\.md$/, "");
+}
+
+// src/commands/snapshot.ts
+init_logger();
+import {
+  existsSync as existsSync6,
+  mkdirSync as mkdirSync2,
+  writeFileSync as writeFileSync3,
+  unlinkSync,
+  readdirSync as readdirSync4,
+  statSync as statSync3
+} from "fs";
+import { join as join7, relative as relative4 } from "path";
+import * as tar from "tar";
+init_paths();
+function collectAllFiles(dir, base) {
+  const results = [];
+  function walk(d) {
+    for (const entry of readdirSync4(d, { withFileTypes: true })) {
+      if (snapshotExcludeNames.has(entry.name)) continue;
+      const full = join7(d, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+      } else {
+        results.push(relative4(base, full));
+      }
+    }
+  }
+  walk(dir);
+  return results.sort();
+}
+async function createSnapshot(corpus, opts = {}) {
+  const snapshotsDir = join7(corpus, ".wiki", "snapshots");
+  mkdirSync2(snapshotsDir, { recursive: true });
+  const files = collectAllFiles(corpus, corpus);
+  if (files.length === 0) {
+    throw new Error("no files found in corpus");
+  }
+  const manifest = files.map((relPath) => {
+    const full = join7(corpus, relPath);
+    const st = statSync3(full);
+    return {
+      path: relPath,
+      sha256: sha256(full),
+      bytes: st.size,
+      mtime: st.mtime.toISOString()
+    };
+  });
+  const manifestPath = join7(snapshotsDir, "manifest.json");
+  writeFileSync3(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+  try {
+    const tag = opts.tag ? `-${opts.tag}` : "";
+    const tarName = `${tsCompact()}${tag}.tar.gz`;
+    const tarPath = join7(snapshotsDir, tarName);
+    const allEntries = [...files, relative4(corpus, manifestPath)];
+    await tar.create(
+      {
+        gzip: true,
+        file: tarPath,
+        cwd: corpus,
+        prefix: ""
+      },
+      allEntries
+    );
+    return tarPath;
+  } finally {
+    if (existsSync6(manifestPath)) unlinkSync(manifestPath);
+  }
+}
+function snapshotCommand(program2) {
+  program2.command("snapshot").option("--tag <name>", "optional tag appended to filename").description("create a tarball snapshot of the corpus").action(async (opts) => {
+    const corpus = requireCorpus();
+    try {
+      const tarPath = await createSnapshot(corpus, opts);
+      const tarStat = statSync3(tarPath);
+      const sizeMB = (tarStat.size / 1024 / 1024).toFixed(1);
+      const count = collectAllFiles(corpus, corpus).length;
+      ok(`snapshot saved: ${tarPath} (${count} files, ${sizeMB} MB)`);
+    } catch (e) {
+      const message = e.message;
+      if (message === "no files found in corpus") {
+        bad(message);
+      } else {
+        err(message);
+        process.exitCode = 1;
+      }
+      return;
+    }
+  });
+}
+
+// src/commands/lint.ts
+init_paths();
+init_logger();
+var REQUIRED_FIELDS = ["type", "title", "slug", "created", "updated"];
+function isRootLevel2(rel) {
+  return !rel.includes("/");
+}
+function shouldSkipFrontmatter(rel) {
+  const base = basename2(rel);
+  if (lintSkipFrontmatterBasenames.has(base)) return true;
+  if (isRootLevel2(rel) && lintRootOnlySkipBasenames.has(base)) return true;
+  for (const prefix of lintSkipFrontmatterPrefixes) {
+    if (rel.startsWith(prefix)) return true;
+  }
+  return false;
+}
+function shouldSkipOrphan(rel) {
+  const base = basename2(rel);
+  if (lintSkipFrontmatterBasenames.has(base)) return true;
+  if (isRootLevel2(rel) && lintRootOnlySkipBasenames.has(base)) return true;
+  for (const prefix of lintSkipOrphanPrefixes) {
+    if (rel.startsWith(prefix)) return true;
+  }
+  return false;
+}
+function shouldSkipBrokenLink(rel) {
+  for (const prefix of lintSkipBrokenLinkPrefixes) {
+    if (rel.startsWith(prefix)) return true;
+  }
+  return false;
+}
+function isGraphExcluded(fm) {
+  return fm["graph-excluded"] === true || fm["graph_excluded"] === true;
+}
+function isWorkbenchNodeModules(rel) {
+  return rel.startsWith("_\u5DE5\u4F5C\u53F0/") && rel.includes("/node_modules/");
+}
+function runLint(corpus) {
+  return runLintPlan(corpus).issues;
+}
+function runLintPlan(corpus) {
+  const files = collectMdFiles(corpus);
+  const issues = [];
+  const ignored = [];
+  const stemSet = /* @__PURE__ */ new Set();
+  const baseNameSet = /* @__PURE__ */ new Set();
+  const inboundLinks = /* @__PURE__ */ new Set();
+  for (const file of files) {
+    const rel = relative5(corpus, file);
+    const stem = rel.replace(/\.md$/, "");
+    stemSet.add(stem);
+    baseNameSet.add(stem.split("/").pop());
+    const fm = extractFrontmatter(file);
+    if (typeof fm.title === "string" && fm.title) baseNameSet.add(fm.title);
+    if (Array.isArray(fm.aliases)) {
+      for (const alias of fm.aliases) {
+        if (typeof alias === "string" && alias) baseNameSet.add(alias);
+      }
+    }
+    if (stem.endsWith("/article")) {
+      const folderStem = stem.replace(/\/article$/, "");
+      stemSet.add(folderStem);
+      baseNameSet.add(folderStem.split("/").pop());
+    }
+  }
+  const fileLinks = /* @__PURE__ */ new Map();
+  const fileFrontmatter = /* @__PURE__ */ new Map();
+  for (const file of files) {
+    const rel = relative5(corpus, file);
+    let fm = {};
+    try {
+      fm = extractFrontmatter(file);
+    } catch {
+    }
+    fileFrontmatter.set(rel, fm);
+    if (!shouldSkipFrontmatter(rel)) {
+      for (const field of REQUIRED_FIELDS) {
+        if (!fm[field]) {
+          issues.push({
+            file: rel,
+            kind: "missing-field",
+            detail: `missing frontmatter field: ${field}`
+          });
+        }
+      }
+    }
+    try {
+      const content = readFileSync8(file, "utf-8");
+      const targets = [];
+      for (const target of extractWikilinkLabels(content)) {
+        targets.push(target);
+        inboundLinks.add(target);
+      }
+      fileLinks.set(rel, targets);
+    } catch {
+    }
+  }
+  for (const [rel, targets] of fileLinks) {
+    if (shouldSkipBrokenLink(rel)) continue;
+    for (const target of targets) {
+      if (!stemSet.has(target) && !baseNameSet.has(target)) {
+        if (isWorkbenchNodeModules(rel)) {
+          ignored.push({
+            file: rel,
+            kind: "broken-link",
+            detail: `broken link: [[${target}]]`,
+            action: "ignore-by-policy"
+          });
+          continue;
+        }
+        issues.push({
+          file: rel,
+          kind: "broken-link",
+          detail: `broken link: [[${target}]]`
+        });
+      }
+    }
+  }
+  for (const file of files) {
+    const rel = relative5(corpus, file);
+    if (shouldSkipOrphan(rel)) continue;
+    const fm = fileFrontmatter.get(rel) ?? {};
+    if (isGraphExcluded(fm)) continue;
+    const stem = rel.replace(/\.md$/, "");
+    const baseName = stem.split("/").pop();
+    let hasInbound = inboundLinks.has(stem) || inboundLinks.has(baseName);
+    if (!hasInbound && stem.endsWith("/article")) {
+      const folderStem = stem.replace(/\/article$/, "");
+      const folderName = folderStem.split("/").pop();
+      hasInbound = inboundLinks.has(folderStem) || inboundLinks.has(folderName);
+    }
+    if (!hasInbound) {
+      issues.push({
+        file: rel,
+        kind: "orphan",
+        detail: "orphan page (no inbound links)"
+      });
+    }
+  }
+  const safe = [];
+  const needsDecision = [];
+  const dangerous = [];
+  for (const issue of issues) {
+    if (issue.kind === "missing-field" && issue.detail === "missing frontmatter field: slug" && issue.file.startsWith("\u539F\u6599/")) {
+      safe.push({ ...issue, action: "add-slug" });
+    } else if (issue.kind === "broken-link") {
+      needsDecision.push({ ...issue, action: "links-closure" });
+    } else if (issue.kind === "missing-field") {
+      dangerous.push({ ...issue, action: "manual-frontmatter" });
+    } else {
+      needsDecision.push({ ...issue, action: "review" });
+    }
+  }
+  return { issues, safe, needsDecision, ignored, dangerous };
+}
+function printLintReport(corpus, issues) {
+  print(chalk4.bold(`
+lorekit lint \u2014 ${corpus}
+`));
+  if (issues.length === 0) {
+    ok("no issues found");
+    print();
+    return;
+  }
+  const grouped = {};
+  for (const issue of issues) {
+    (grouped[issue.kind] ??= []).push(issue);
+  }
+  const kindLabels = {
+    "missing-field": "frontmatter",
+    "broken-link": "broken links",
+    orphan: "orphan pages"
+  };
+  for (const [kind, items] of Object.entries(grouped)) {
+    print(chalk4.cyan(`\u2500\u2500 ${kindLabels[kind] ?? kind} (${items.length}) \u2500\u2500`));
+    for (const item of items) {
+      bad(`${item.file}: ${item.detail}`);
+    }
+    print();
+  }
+  print(chalk4.yellow(`${issues.length} issue(s) total
+`));
+}
+function printLintPlan(corpus, plan) {
+  print(chalk4.bold(`
+lorekit lint plan \u2014 ${corpus}
+`));
+  const groups = [
+    ["Safe fixes", plan.safe],
+    ["Needs decision", plan.needsDecision],
+    ["Ignored", plan.ignored],
+    ["Dangerous", plan.dangerous]
+  ];
+  for (const [label, items] of groups) {
+    print(chalk4.cyan(`\u2500\u2500 ${label} (${items.length}) \u2500\u2500`));
+    for (const item of items) {
+      print(`- ${item.file}: ${item.detail} \u2192 ${item.action}`);
+    }
+    print();
+  }
+}
+async function applySafeFixes(corpus, plan) {
+  const fixes = plan.safe.filter((item) => item.action === "add-slug");
+  if (fixes.length === 0) return 0;
+  await createSnapshot(corpus, { tag: "lint-safe" });
+  for (const fix of fixes) {
+    const filePath = join8(corpus, fix.file);
+    const parsed = readMarkdown(filePath);
+    if (!parsed.data.slug) {
+      parsed.data.slug = fix.file.replace(/\.md$/, "");
+      writeMarkdown(filePath, parsed.data, parsed.content);
+    }
+  }
+  return fixes.length;
+}
+function lintCommand(program2) {
+  const lint = program2.command("lint").description("check frontmatter, broken wikilinks, and orphan pages").option("--json", "print issues as JSON to stdout", false).action((opts) => {
+    const corpus = requireCorpus();
+    const plan = runLintPlan(corpus);
+    const issues = plan.issues;
+    if (opts.json) {
+      out(JSON.stringify({ issues, ignored: plan.ignored }, null, 2));
+      if (issues.length > 0) process.exitCode = 1;
+      return;
+    }
+    printLintReport(corpus, issues);
+    if (issues.length > 0) process.exitCode = 1;
+  });
+  lint.command("plan").description("group lint issues by fix strategy").option("--json", "print plan as JSON to stdout", false).action((opts, command) => {
+    const corpus = requireCorpus();
+    const plan = runLintPlan(corpus);
+    const json = opts.json || Boolean(command.parent?.opts().json);
+    if (json) {
+      out(JSON.stringify(plan, null, 2));
+    } else {
+      printLintPlan(corpus, plan);
+    }
+    if (plan.issues.length > 0) process.exitCode = 1;
+  });
+  lint.command("fix").description("apply lint fixes").option("--safe", "only apply deterministic safe fixes", false).action(async (opts) => {
+    const corpus = requireCorpus();
+    if (!opts.safe) {
+      bad("only --safe is supported");
+      process.exitCode = 2;
+      return;
+    }
+    const plan = runLintPlan(corpus);
+    const count = await applySafeFixes(corpus, plan);
+    ok(`applied ${count} safe fix(es)`);
+  });
+}
+
 // src/commands/audit.ts
+import { existsSync as existsSync7, mkdirSync as mkdirSync3, readFileSync as readFileSync9, writeFileSync as writeFileSync4 } from "fs";
+import { join as join9, basename as basename3 } from "path";
 init_logger();
 var SEVERITY_ORDER = { high: 3, medium: 2, low: 1 };
 function extractPreview(filePath) {
-  const content = readFileSync8(filePath, "utf-8");
+  const content = readFileSync9(filePath, "utf-8");
   const lines = content.split("\n");
   let inFm = false;
   for (const line of lines) {
@@ -1683,11 +2187,11 @@ function extractPreview(filePath) {
 }
 function listAudit(root, filter) {
   const dirs = [];
-  if (filter === "open" || filter === "all") dirs.push(join6(root, "\u53CD\u9988", "\u5F85\u5904\u7406"));
-  if (filter === "resolved" || filter === "all") dirs.push(join6(root, "\u53CD\u9988", "\u5DF2\u5904\u7406"));
+  if (filter === "open" || filter === "all") dirs.push(join9(root, "\u53CD\u9988", "\u5F85\u5904\u7406"));
+  if (filter === "resolved" || filter === "all") dirs.push(join9(root, "\u53CD\u9988", "\u5DF2\u5904\u7406"));
   const entries = [];
   for (const dir of dirs) {
-    if (!existsSync5(dir)) continue;
+    if (!existsSync7(dir)) continue;
     const files = collectMdFiles(dir);
     for (const f of files) {
       if (basename3(f) === ".gitkeep") continue;
@@ -1740,9 +2244,9 @@ function createAudit(root, target, severity, text) {
   const now = /* @__PURE__ */ new Date();
   const filename = `${tsCompact(now)}-${slug}.md`;
   const tsFm = tsMinute(now);
-  const destDir = join6(root, "\u53CD\u9988", "\u5F85\u5904\u7406");
-  mkdirSync2(destDir, { recursive: true });
-  const dest = join6(destDir, filename);
+  const destDir = join9(root, "\u53CD\u9988", "\u5F85\u5904\u7406");
+  mkdirSync3(destDir, { recursive: true });
+  const dest = join9(destDir, filename);
   const content = `---
 type: audit
 target: ${target}
@@ -1753,7 +2257,7 @@ created: ${tsFm}
 
 ${text}
 `;
-  writeFileSync2(dest, content, "utf-8");
+  writeFileSync4(dest, content, "utf-8");
   ok(`created: \u53CD\u9988/\u5F85\u5904\u7406/${filename}`);
   print(`  target:   ${target}`);
   print(`  severity: ${severity}`);
@@ -1774,12 +2278,12 @@ function auditCommand(program2) {
 }
 
 // src/commands/dir-index.ts
-import { existsSync as existsSync6, readdirSync as readdirSync4, readFileSync as readFileSync9, statSync as statSync5, writeFileSync as writeFileSync3, lstatSync as lstatSync3 } from "fs";
-import { join as join7, basename as basename4, relative as relative5, resolve as resolve2 } from "path";
+import { existsSync as existsSync8, readdirSync as readdirSync5, readFileSync as readFileSync10, statSync as statSync4, writeFileSync as writeFileSync5, lstatSync as lstatSync3 } from "fs";
+import { join as join10, basename as basename4, relative as relative6, resolve as resolve2 } from "path";
 init_paths();
 init_logger();
 function extractSummary(filePath) {
-  const content = readFileSync9(filePath, "utf-8");
+  const content = readFileSync10(filePath, "utf-8");
   const lines = content.split("\n");
   let found = false;
   for (const line of lines) {
@@ -1791,7 +2295,7 @@ function extractSummary(filePath) {
     if (/^---\s*$/.test(line)) break;
     if (/^## /.test(line)) break;
     if (line.trim() === "") continue;
-    let text = line.trim().replace(/^\*\*[^*]*\*\*\s*/, "");
+    const text = line.trim().replace(/^\*\*[^*]*\*\*\s*/, "");
     const periodMatch = text.match(/^([^。.]*[。.])/);
     if (periodMatch && periodMatch[1].length <= 50) return periodMatch[1];
     return text.slice(0, 50);
@@ -1818,7 +2322,7 @@ function readEntryFromFile(filePath, slug) {
   if (!title) title = basename4(filePath, ".md");
   if (!updated) {
     try {
-      updated = dateToYMDLocal(statSync5(filePath).mtime);
+      updated = dateToYMDLocal(statSync4(filePath).mtime);
     } catch {
       updated = "unknown";
     }
@@ -1829,12 +2333,12 @@ function escapeCell(s) {
   return s.replace(/\|/g, "\\|");
 }
 function buildIndex(dir, root) {
-  const reldir = dir === root ? "" : relative5(root, dir);
+  const reldir = dir === root ? "" : relative6(root, dir);
   const dirName = reldir === "" ? basename4(root) : basename4(dir);
-  const indexFile = join7(dir, "_INDEX.md");
+  const indexFile = join10(dir, "_INDEX.md");
   let names;
   try {
-    names = readdirSync4(dir, { encoding: "utf-8" });
+    names = readdirSync5(dir, { encoding: "utf-8" });
   } catch {
     return false;
   }
@@ -1842,7 +2346,7 @@ function buildIndex(dir, root) {
   for (const name of names) {
     if (name.startsWith(".")) continue;
     if (name === "_INDEX.md" || name === ".gitkeep") continue;
-    const full = join7(dir, name);
+    const full = join10(dir, name);
     let stat;
     try {
       stat = lstatSync3(full);
@@ -1850,11 +2354,11 @@ function buildIndex(dir, root) {
       continue;
     }
     if (stat.isFile() && name.endsWith(".md")) {
-      const slug = relative5(root, full).replace(/\.md$/, "");
+      const slug = relative6(root, full).replace(/\.md$/, "");
       entries.push(readEntryFromFile(full, slug));
     } else if (stat.isDirectory() && isFolderPackage(full)) {
-      const articlePath = join7(full, "article.md");
-      const slug = relative5(root, full);
+      const articlePath = join10(full, "article.md");
+      const slug = relative6(root, full);
       entries.push(readEntryFromFile(articlePath, slug));
     }
   }
@@ -1871,7 +2375,7 @@ function buildIndex(dir, root) {
     lines.push(`| [[${e.slug}]] | ${escapeCell(e.summary)} | ${e.updated} |`);
   }
   lines.push("");
-  writeFileSync3(indexFile, lines.join("\n"), "utf-8");
+  writeFileSync5(indexFile, lines.join("\n"), "utf-8");
   const display = reldir === "" ? "_INDEX.md" : `${reldir}/_INDEX.md`;
   ok(`${display} (${entries.length} entries)`);
   return true;
@@ -1879,11 +2383,11 @@ function buildIndex(dir, root) {
 function findIndexableDirs(root) {
   const results = [];
   function walk(dir, isRoot) {
-    const rel = dir === root ? "" : relative5(root, dir);
+    const rel = dir === root ? "" : relative6(root, dir);
     if (rel && isIndexExcluded(rel)) return;
     let names;
     try {
-      names = readdirSync4(dir, { encoding: "utf-8" });
+      names = readdirSync5(dir, { encoding: "utf-8" });
     } catch {
       return;
     }
@@ -1892,7 +2396,7 @@ function findIndexableDirs(root) {
       for (const name of names) {
         if (name.startsWith(".")) continue;
         if (name === "_INDEX.md" || name === ".gitkeep") continue;
-        const full = join7(dir, name);
+        const full = join10(dir, name);
         let stat;
         try {
           stat = lstatSync3(full);
@@ -1912,7 +2416,7 @@ function findIndexableDirs(root) {
     }
     for (const name of names) {
       if (name.startsWith(".")) continue;
-      const full = join7(dir, name);
+      const full = join10(dir, name);
       let stat;
       try {
         stat = lstatSync3(full);
@@ -1929,8 +2433,8 @@ function findIndexableDirs(root) {
 }
 function runIndex(root, specificDir) {
   if (specificDir) {
-    const full = join7(root, specificDir);
-    if (!existsSync6(full)) {
+    const full = join10(root, specificDir);
+    if (!existsSync8(full)) {
       throw new Error(`directory not found: ${specificDir}`);
     }
     if (resolve2(full) === resolve2(root)) {
@@ -1938,7 +2442,7 @@ function runIndex(root, specificDir) {
         `cannot index the corpus root itself \u2014 L0 corpus/index.md already serves this role`
       );
     }
-    const rel = relative5(root, full);
+    const rel = relative6(root, full);
     if (isIndexExcluded(rel)) {
       throw new Error(
         `directory "${rel}" is in the exclude list (${indexExcludeDirPrefixes.join(" / ")})`
@@ -1978,15 +2482,15 @@ function indexCommand(program2) {
 
 // src/commands/install-skills.ts
 import {
-  existsSync as existsSync7,
-  mkdirSync as mkdirSync3,
-  readdirSync as readdirSync5,
+  existsSync as existsSync9,
+  mkdirSync as mkdirSync4,
+  readdirSync as readdirSync6,
   symlinkSync,
-  unlinkSync,
+  unlinkSync as unlinkSync2,
   readlinkSync,
   lstatSync as lstatSync4
 } from "fs";
-import { join as join8 } from "path";
+import { join as join11 } from "path";
 init_logger();
 function isSymlink(path) {
   try {
@@ -1998,13 +2502,13 @@ function isSymlink(path) {
 function installSkillsCommand(program2) {
   const cmd = program2.command("install-skills").description("Install lorekit skills into a harness (e.g. Claude Code)").option("--target <harness>", 'Target harness (currently only "claude-code")').option("--list", "List currently installed wiki-* skill symlinks").option("--uninstall", "Remove installed skill symlinks");
   cmd.action((opts) => {
-    const skillsDest = join8(process.env.HOME ?? "", ".claude", "skills");
+    const skillsDest = join11(process.env.HOME ?? "", ".claude", "skills");
     if (opts.list) {
-      if (!existsSync7(skillsDest)) return;
-      const names = readdirSync5(skillsDest, { encoding: "utf-8" });
+      if (!existsSync9(skillsDest)) return;
+      const names = readdirSync6(skillsDest, { encoding: "utf-8" });
       for (const name of names) {
         if (!name.startsWith("wiki-")) continue;
-        const full = join8(skillsDest, name);
+        const full = join11(skillsDest, name);
         if (!isSymlink(full)) continue;
         const target = readlinkSync(full);
         out(`${name} -> ${target}`);
@@ -2019,35 +2523,35 @@ function installSkillsCommand(program2) {
       err(`target '${opts.target}' not supported; only 'claude-code' is available`);
       process.exit(2);
     }
-    mkdirSync3(skillsDest, { recursive: true });
-    const skillsSrc = join8(lorekitRoot(), "skills");
-    if (!existsSync7(skillsSrc)) {
+    mkdirSync4(skillsDest, { recursive: true });
+    const skillsSrc = join11(lorekitRoot(), "skills");
+    if (!existsSync9(skillsSrc)) {
       err(`skills directory not found: ${skillsSrc}`);
       process.exit(1);
     }
-    const allNames = readdirSync5(skillsSrc, { encoding: "utf-8" });
+    const allNames = readdirSync6(skillsSrc, { encoding: "utf-8" });
     const skillNames = allNames.filter((name) => {
       if (!name.startsWith("wiki-")) return false;
       try {
-        return lstatSync4(join8(skillsSrc, name)).isDirectory();
+        return lstatSync4(join11(skillsSrc, name)).isDirectory();
       } catch {
         return false;
       }
     });
     let count = 0;
     for (const name of skillNames) {
-      const srcDir = join8(skillsSrc, name);
-      const skillFile = join8(srcDir, "SKILL.md");
-      if (!existsSync7(skillFile)) continue;
-      const dest = join8(skillsDest, name);
+      const srcDir = join11(skillsSrc, name);
+      const skillFile = join11(srcDir, "SKILL.md");
+      if (!existsSync9(skillFile)) continue;
+      const dest = join11(skillsDest, name);
       if (opts.uninstall) {
         if (isSymlink(dest)) {
-          unlinkSync(dest);
+          unlinkSync2(dest);
           ok(`removed ${name}`);
           count++;
         }
       } else {
-        if (isSymlink(dest)) unlinkSync(dest);
+        if (isSymlink(dest)) unlinkSync2(dest);
         symlinkSync(srcDir, dest);
         ok(`linked ${name}`);
         count++;
@@ -2062,109 +2566,20 @@ Installed ${count} skill(s). Restart Claude Code to load them.`);
   });
 }
 
-// src/commands/snapshot.ts
-init_logger();
-import {
-  existsSync as existsSync8,
-  mkdirSync as mkdirSync4,
-  writeFileSync as writeFileSync4,
-  unlinkSync as unlinkSync2,
-  readdirSync as readdirSync6,
-  statSync as statSync6
-} from "fs";
-import { join as join9, relative as relative6 } from "path";
-import * as tar from "tar";
-init_paths();
-function collectAllFiles(dir, base) {
-  const results = [];
-  function walk(d) {
-    for (const entry of readdirSync6(d, { withFileTypes: true })) {
-      if (snapshotExcludeNames.has(entry.name)) continue;
-      const full = join9(d, entry.name);
-      if (entry.isDirectory()) {
-        walk(full);
-      } else {
-        results.push(relative6(base, full));
-      }
-    }
-  }
-  walk(dir);
-  return results.sort();
-}
-async function createSnapshot(corpus, opts = {}) {
-  const snapshotsDir = join9(corpus, ".wiki", "snapshots");
-  mkdirSync4(snapshotsDir, { recursive: true });
-  const files = collectAllFiles(corpus, corpus);
-  if (files.length === 0) {
-    throw new Error("no files found in corpus");
-  }
-  const manifest = files.map((relPath) => {
-    const full = join9(corpus, relPath);
-    const st = statSync6(full);
-    return {
-      path: relPath,
-      sha256: sha256(full),
-      bytes: st.size,
-      mtime: st.mtime.toISOString()
-    };
-  });
-  const manifestPath = join9(snapshotsDir, "manifest.json");
-  writeFileSync4(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
-  try {
-    const tag = opts.tag ? `-${opts.tag}` : "";
-    const tarName = `${tsCompact()}${tag}.tar.gz`;
-    const tarPath = join9(snapshotsDir, tarName);
-    const allEntries = [...files, relative6(corpus, manifestPath)];
-    await tar.create(
-      {
-        gzip: true,
-        file: tarPath,
-        cwd: corpus,
-        prefix: ""
-      },
-      allEntries
-    );
-    return tarPath;
-  } finally {
-    if (existsSync8(manifestPath)) unlinkSync2(manifestPath);
-  }
-}
-function snapshotCommand(program2) {
-  program2.command("snapshot").option("--tag <name>", "optional tag appended to filename").description("create a tarball snapshot of the corpus").action(async (opts) => {
-    const corpus = requireCorpus();
-    try {
-      const tarPath = await createSnapshot(corpus, opts);
-      const tarStat = statSync6(tarPath);
-      const sizeMB = (tarStat.size / 1024 / 1024).toFixed(1);
-      const count = collectAllFiles(corpus, corpus).length;
-      ok(`snapshot saved: ${tarPath} (${count} files, ${sizeMB} MB)`);
-    } catch (e) {
-      const message = e.message;
-      if (message === "no files found in corpus") {
-        bad(message);
-      } else {
-        err(message);
-        process.exitCode = 1;
-      }
-      return;
-    }
-  });
-}
-
 // src/commands/restore.ts
 init_logger();
-import { existsSync as existsSync9, mkdirSync as mkdirSync5, readFileSync as readFileSync10, copyFileSync, rmSync } from "fs";
-import { join as join10, dirname as dirname3 } from "path";
+import { existsSync as existsSync10, mkdirSync as mkdirSync5, readFileSync as readFileSync11, copyFileSync, rmSync } from "fs";
+import { join as join12, dirname as dirname3 } from "path";
 import { createInterface as createInterface2 } from "readline";
 import { tmpdir } from "os";
 import * as tar2 from "tar";
 import chalk5 from "chalk";
 function ask2(question) {
   const rl = createInterface2({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve4) => {
+  return new Promise((resolve5) => {
     rl.question(question, (answer) => {
       rl.close();
-      resolve4(answer.trim());
+      resolve5(answer.trim());
     });
   });
 }
@@ -2174,30 +2589,30 @@ function rmDirRecursive(dir) {
 function restoreCommand(program2) {
   program2.command("restore").requiredOption("--from <snapshot>", "path to snapshot .tar.gz").option("--dry-run", "only list differences, do not restore").option("--file <path>", "restore only this specific file").description("restore files from a snapshot").action(async (opts) => {
     const corpus = requireCorpus();
-    if (!existsSync9(opts.from)) {
+    if (!existsSync10(opts.from)) {
       bad(`snapshot not found: ${opts.from}`);
       process.exitCode = 2;
       return;
     }
-    const tmpDir = join10(tmpdir(), `lorekit-restore-${Date.now()}`);
+    const tmpDir = join12(tmpdir(), `lorekit-restore-${Date.now()}`);
     mkdirSync5(tmpDir, { recursive: true });
     try {
       await tar2.extract({
         file: opts.from,
         cwd: tmpDir
       });
-      const manifestPath = join10(tmpDir, ".wiki", "snapshots", "manifest.json");
-      if (!existsSync9(manifestPath)) {
+      const manifestPath = join12(tmpDir, ".wiki", "snapshots", "manifest.json");
+      if (!existsSync10(manifestPath)) {
         bad("manifest.json not found in snapshot");
         process.exitCode = 1;
         return;
       }
-      const manifest = JSON.parse(readFileSync10(manifestPath, "utf-8"));
+      const manifest = JSON.parse(readFileSync11(manifestPath, "utf-8"));
       const diffs = [];
       for (const entry of manifest) {
         if (opts.file && entry.path !== opts.file) continue;
-        const corpusPath = join10(corpus, entry.path);
-        if (!existsSync9(corpusPath)) {
+        const corpusPath = join12(corpus, entry.path);
+        if (!existsSync10(corpusPath)) {
           diffs.push({
             kind: "MISSING",
             path: entry.path,
@@ -2248,9 +2663,9 @@ function restoreCommand(program2) {
       }
       let restored = 0;
       for (const d of diffs) {
-        const src = join10(tmpDir, d.path);
-        const dest = join10(corpus, d.path);
-        if (!existsSync9(src)) {
+        const src = join12(tmpDir, d.path);
+        const dest = join12(corpus, d.path);
+        if (!existsSync10(src)) {
           warn(`file not in snapshot archive: ${d.path}`);
           continue;
         }
@@ -2267,11 +2682,11 @@ function restoreCommand(program2) {
 
 // src/commands/search.ts
 init_logger();
-import { readFileSync as readFileSync11 } from "fs";
-import { join as join11, relative as relative8 } from "path";
+import { readFileSync as readFileSync12 } from "fs";
+import { join as join13, relative as relative7 } from "path";
 import { spawnSync } from "child_process";
 function searchWithRipgrep(query, corpus, opts) {
-  const searchDir = opts.dir ? join11(corpus, opts.dir) : corpus;
+  const searchDir = opts.dir ? join13(corpus, opts.dir) : corpus;
   const args = ["--json", "--no-heading", "-i"];
   if (opts.type) {
     args.push("--type", opts.type);
@@ -2292,7 +2707,7 @@ function searchWithRipgrep(query, corpus, opts) {
       const obj = JSON.parse(line);
       if (obj.type === "match") {
         results.push({
-          file: relative8(corpus, obj.data.path.text),
+          file: relative7(corpus, obj.data.path.text),
           line: obj.data.line_number,
           text: obj.data.lines.text.trimEnd()
         });
@@ -2303,17 +2718,17 @@ function searchWithRipgrep(query, corpus, opts) {
   return results;
 }
 function searchFallback(query, corpus, opts) {
-  const searchDir = opts.dir ? join11(corpus, opts.dir) : corpus;
+  const searchDir = opts.dir ? join13(corpus, opts.dir) : corpus;
   const files = collectMdFiles(searchDir);
   const pattern = new RegExp(query, "i");
   const results = [];
   for (const filePath of files) {
-    const content = readFileSync11(filePath, "utf-8");
+    const content = readFileSync12(filePath, "utf-8");
     const lines = content.split("\n");
     for (let i = 0; i < lines.length; i++) {
       if (pattern.test(lines[i])) {
         results.push({
-          file: relative8(corpus, filePath),
+          file: relative7(corpus, filePath),
           line: i + 1,
           text: lines[i].trimEnd()
         });
@@ -2348,13 +2763,13 @@ function searchCommand(program2) {
 // src/commands/vector.ts
 init_logger();
 import { createHash as createHash4 } from "crypto";
-import { existsSync as existsSync13, readFileSync as readFileSync15 } from "fs";
-import { join as join16, relative as relative14 } from "path";
+import { existsSync as existsSync14, readFileSync as readFileSync16 } from "fs";
+import { join as join18, relative as relative12 } from "path";
 
 // src/lib/vectordb/prune.ts
 init_files();
 init_schema();
-import { relative as relative10 } from "path";
+import { relative as relative9 } from "path";
 function pruneMissingDocuments(db, existingRelPaths) {
   const rows = db.prepare("SELECT id, path FROM documents").all();
   const missing = rows.filter((row) => !existingRelPaths.has(row.path));
@@ -2392,7 +2807,7 @@ async function pruneVectorDbMissingFiles(corpus) {
   const db = await openDb(corpus);
   try {
     const files = collectFiles(corpus);
-    const existingRelPaths = new Set(files.map((filePath) => relative10(corpus, filePath)));
+    const existingRelPaths = new Set(files.map((filePath) => relative9(corpus, filePath)));
     return pruneMissingDocuments(db, existingRelPaths);
   } finally {
     db.close();
@@ -2410,18 +2825,18 @@ async function runVectorSync(corpus, opts = {}) {
   const dim = testEmb.length;
   const db = await openDb2(corpus, dim);
   const files = collectFiles2(corpus);
-  const existingRelPaths = new Set(files.map((filePath) => relative14(corpus, filePath)));
+  const existingRelPaths = new Set(files.map((filePath) => relative12(corpus, filePath)));
   const pruned = pruneMissingDocuments(db, existingRelPaths);
   if (pruned > 0) warn(`vector sync pruned ${pruned} missing file(s)`);
   let synced = 0;
   let skipped = 0;
   let totalChunks = 0;
   for (const filePath of files) {
-    const rel = relative14(corpus, filePath);
+    const rel = relative12(corpus, filePath);
     if (!force) {
       const row = db.prepare("SELECT sha256 FROM documents WHERE path = ?").get(rel);
       if (row) {
-        const sha = createHash4("sha256").update(readFileSync15(filePath)).digest("hex");
+        const sha = createHash4("sha256").update(readFileSync16(filePath)).digest("hex");
         if (row.sha256 === sha) {
           skipped++;
           continue;
@@ -2468,8 +2883,8 @@ function vectorCommand(program2) {
       const { embedSingle: embedSingle2 } = await Promise.resolve().then(() => (init_ollama(), ollama_exports));
       const { openDb: openDb2, queryFlat: queryFlat2, queryLayered: queryLayered2, queryBM25Layered: queryBM25Layered2, queryHybrid: queryHybrid2 } = await Promise.resolve().then(() => (init_vectordb(), vectordb_exports));
       let dim = 1024;
-      const dbPath = join16(corpus, ".wiki", "vector.sqlite");
-      if (existsSync13(dbPath)) {
+      const dbPath = join18(corpus, ".wiki", "vector.sqlite");
+      if (existsSync14(dbPath)) {
         const tmpDb = await openDb2(corpus);
         const row = tmpDb.prepare("SELECT value FROM meta WHERE key = 'dim'").get();
         if (row) dim = parseInt(row.value, 10);
@@ -2499,12 +2914,12 @@ function vectorCommand(program2) {
 }
 
 // src/commands/fetch.ts
-import { existsSync as existsSync15, mkdirSync as mkdirSync8 } from "fs";
-import { join as join22, relative as relative15 } from "path";
+import { existsSync as existsSync16, mkdirSync as mkdirSync8 } from "fs";
+import { join as join24, relative as relative13 } from "path";
 
 // src/lib/fetcher/index.ts
 import { mkdir as mkdir4, writeFile as writeFile4 } from "fs/promises";
-import { join as join20 } from "path";
+import { join as join22 } from "path";
 
 // src/lib/fetcher/frontmatter.ts
 function escapeDoubleQuote(s) {
@@ -2535,7 +2950,7 @@ function buildFrontmatter(opts) {
 // src/lib/fetcher/helpers.ts
 import TurndownService from "turndown";
 function slugify(s) {
-  let slug = s.replace(/[^\w\u4e00-\u9fff-]+/g, "-").replace(/^-+|-+$/g, "");
+  const slug = s.replace(/[^\w\u4e00-\u9fff-]+/g, "-").replace(/^-+|-+$/g, "");
   return slug.slice(0, 50) || "untitled";
 }
 function resolveUrl(src, base) {
@@ -2649,7 +3064,7 @@ async function fetchHtmlL2(url) {
 
 // src/lib/fetcher/images.ts
 import { mkdir, writeFile } from "fs/promises";
-import { join as join17 } from "path";
+import { join as join19 } from "path";
 var MAX_IMG_BYTES = 5 * 1024 * 1024;
 var IMG_CONCURRENCY = 5;
 var MAGIC = [
@@ -2700,7 +3115,7 @@ async function downloadOneImage(url, idx, imagesDir, headers, assetsRelPath) {
       const ext = sniffExt(data.slice(0, 16), res.headers.get("content-type") || "");
       if (!ext) continue;
       const fname = `img_${String(idx).padStart(2, "0")}${ext}`;
-      await writeFile(join17(imagesDir, fname), data);
+      await writeFile(join19(imagesDir, fname), data);
       return { originalUrl: url, localRel: `${assetsRelPath}${fname}`, status: "ok" };
     } catch {
     }
@@ -2795,7 +3210,7 @@ function firstSrcsetUrl(srcset) {
 }
 function parseWeixin(html, baseUrl) {
   const $ = cheerio2.load(html);
-  let title = $("h1#activity-name").text().trim() || $("h1.rich_media_title").text().trim() || $('meta[property="og:title"]').attr("content")?.trim() || "";
+  const title = $("h1#activity-name").text().trim() || $("h1.rich_media_title").text().trim() || $('meta[property="og:title"]').attr("content")?.trim() || "";
   const author = $("a#js_name").text().trim() || $("#js_author_name").text().trim() || "";
   let publishDate;
   const ctMatch = html.match(/var\s+ct\s*=\s*"(\d+)"/);
@@ -2863,7 +3278,7 @@ function parseWeixin(html, baseUrl) {
 
 // src/lib/fetcher/routes/gist.ts
 import { mkdir as mkdir2, writeFile as writeFile2 } from "fs/promises";
-import { join as join18 } from "path";
+import { join as join20 } from "path";
 import * as cheerio3 from "cheerio";
 function parseGistUrl(url) {
   try {
@@ -2925,13 +3340,13 @@ async function fetchGist(url, outRoot) {
     if (!res.ok) throw new Error(`HTTP ${res.status} on ${mdLink.rawUrl}`);
     content = await res.text();
   } catch (e) {
-    const err3 = e;
-    const cause = err3.cause?.message ? ` (${err3.cause.message})` : "";
+    const err2 = e;
+    const cause = err2.cause?.message ? ` (${err2.cause.message})` : "";
     return {
       status: "error",
       route: "gist",
       url,
-      reason: `raw_fetch_failed: ${err3.message}${cause} [raw_url=${mdLink.rawUrl}]`
+      reason: `raw_fetch_failed: ${err2.message}${cause} [raw_url=${mdLink.rawUrl}]`
     };
   }
   const slug = slugify(title);
@@ -2952,7 +3367,7 @@ async function fetchGist(url, outRoot) {
   fmLines.push("");
   if (!hasH1) fmLines.push(`# ${title}`, "");
   fmLines.push(content.trim(), "");
-  const articlePath = join18(outRoot, `${slug}.md`);
+  const articlePath = join20(outRoot, `${slug}.md`);
   await writeFile2(articlePath, fmLines.join("\n"), "utf-8");
   return {
     status: "ok",
@@ -2972,7 +3387,7 @@ async function fetchGist(url, outRoot) {
 
 // src/lib/fetcher/routes/github.ts
 import { mkdir as mkdir3, writeFile as writeFile3 } from "fs/promises";
-import { join as join19 } from "path";
+import { join as join21 } from "path";
 function parseGithubRepoUrl(url) {
   try {
     const u = new URL(url);
@@ -3048,7 +3463,7 @@ async function fetchGithubDoc(url, outRoot) {
   if (!hasH1) fmLines.push(`# ${title}`, "");
   fmLines.push(`> Fetched from: ${chosenUrl}`, "");
   fmLines.push(content.trim(), "");
-  const articlePath = join19(outRoot, `${slug}.md`);
+  const articlePath = join21(outRoot, `${slug}.md`);
   await writeFile3(articlePath, fmLines.join("\n"), "utf-8");
   return {
     status: "ok",
@@ -3113,7 +3528,7 @@ async function fetchUrl(url, opts) {
   }
   let md = htmlToMarkdown(doc.bodyHtml);
   const slug = slugify(doc.title || "untitled");
-  const assetsDir = join20(opts.outRoot, `${slug}.assets`);
+  const assetsDir = join22(opts.outRoot, `${slug}.assets`);
   await mkdir4(opts.outRoot, { recursive: true });
   let imagesOk = 0;
   let imagesFailed = 0;
@@ -3141,7 +3556,7 @@ async function fetchUrl(url, opts) {
   fmLines.push("");
   if (doc.title) fmLines.push(`# ${doc.title}`, "");
   fmLines.push(md, "");
-  const articlePath = join20(opts.outRoot, `${slug}.md`);
+  const articlePath = join22(opts.outRoot, `${slug}.md`);
   await writeFile4(articlePath, fmLines.join("\n"), "utf-8");
   return {
     status: "ok",
@@ -3161,18 +3576,18 @@ async function fetchUrl(url, opts) {
 }
 
 // src/lib/ingest-state.ts
-import { existsSync as existsSync14, mkdirSync as mkdirSync7, readFileSync as readFileSync16, writeFileSync as writeFileSync5 } from "fs";
-import { join as join21, dirname as dirname4 } from "path";
+import { existsSync as existsSync15, mkdirSync as mkdirSync7, readFileSync as readFileSync17, writeFileSync as writeFileSync6 } from "fs";
+import { join as join23, dirname as dirname4 } from "path";
 function stateFilePath(corpus) {
-  return join21(corpus, ".wiki", "ingest-state.json");
+  return join23(corpus, ".wiki", "ingest-state.json");
 }
 function loadIngestState(corpus) {
   const p = stateFilePath(corpus);
-  if (!existsSync14(p)) {
+  if (!existsSync15(p)) {
     return { version: 1, ingests: {} };
   }
   try {
-    const raw = readFileSync16(p, "utf-8");
+    const raw = readFileSync17(p, "utf-8");
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") {
       return { version: 1, ingests: {} };
@@ -3190,7 +3605,7 @@ function saveIngestState(corpus, state) {
   const p = stateFilePath(corpus);
   mkdirSync7(dirname4(p), { recursive: true });
   const serialized = JSON.stringify(state, null, 2);
-  writeFileSync5(p, serialized + "\n", "utf-8");
+  writeFileSync6(p, serialized + "\n", "utf-8");
 }
 function getIngestRecord(corpus, url) {
   return loadIngestState(corpus).ingests[url];
@@ -3247,6 +3662,7 @@ function nextStepHint(record) {
 }
 
 // src/commands/fetch.ts
+init_logger();
 function suggestResult(route, url, suggest) {
   return { status: "unsupported", route, url, suggest };
 }
@@ -3273,9 +3689,9 @@ function fetchCommand(program2) {
       if (opts.out) {
         outRoot = opts.out;
       } else {
-        outRoot = corpus ? join22(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch") : "/tmp/lorekit-fetch";
+        outRoot = corpus ? join24(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch") : "/tmp/lorekit-fetch";
       }
-      if (!existsSync15(outRoot)) {
+      if (!existsSync16(outRoot)) {
         mkdirSync8(outRoot, { recursive: true });
       }
       let duplicate;
@@ -3283,14 +3699,14 @@ function fetchCommand(program2) {
         const state = getIngestRecord(corpus, url);
         if (state && state.status !== "completed") {
           const hint = nextStepHint(state);
-          console.error(
+          err(
             `[lorekit fetch] in-progress ingest detected for ${url}
   status: ${state.status}  steps done: ${state.stepsDone.join(", ") || "(none)"}
   started: ${state.startedAt}
   next step \u2192 ${hint}
   use --force to restart from scratch`
           );
-          console.log(
+          out(
             JSON.stringify({
               status: "in_progress",
               route: "rich",
@@ -3314,17 +3730,17 @@ function fetchCommand(program2) {
             const sdRaw = fm.source_date;
             const sourceDate = typeof sdRaw === "string" ? sdRaw : sdRaw instanceof Date ? sdRaw.toISOString().slice(0, 10) : void 0;
             duplicate = {
-              path: relative15(corpus, existing),
+              path: relative13(corpus, existing),
               sourceDate,
               title: typeof fm.title === "string" ? fm.title : void 0
             };
           }
         }
         if (duplicate) {
-          console.error(
+          err(
             `[lorekit fetch] duplicate url: ${url} already ingested at ${duplicate.path}` + (duplicate.sourceDate ? ` (source_date: ${duplicate.sourceDate})` : "") + `. Use --force to re-fetch anyway.`
           );
-          console.log(JSON.stringify({ status: "duplicate", route: "rich", url, duplicate }));
+          out(JSON.stringify({ status: "duplicate", route: "rich", url, duplicate }));
           return;
         }
       }
@@ -3359,7 +3775,7 @@ function fetchCommand(program2) {
           workbenchMd: result.markdown
         });
       }
-      console.log(JSON.stringify(result));
+      out(JSON.stringify(result));
       if (result.status === "error") {
         process.exitCode = 1;
       }
@@ -3368,15 +3784,15 @@ function fetchCommand(program2) {
 }
 
 // src/commands/ingest.ts
-import { existsSync as existsSync16, readFileSync as readFileSync17, writeFileSync as writeFileSync6 } from "fs";
-import { join as join23, relative as relative16 } from "path";
+import { existsSync as existsSync17, lstatSync as lstatSync5, readFileSync as readFileSync18, writeFileSync as writeFileSync7 } from "fs";
+import { join as join25, relative as relative14 } from "path";
 init_logger();
 var VALID_STEPS = ["fetch", "archive", "wiki", "backlink", "lint"];
 function today() {
   return dateToYMDLocal(/* @__PURE__ */ new Date());
 }
 function appendLogEntry(corpus, record, body) {
-  const logPath = join23(corpus, "log.md");
+  const logPath = join25(corpus, "log.md");
   const title = record.title ?? "(untitled)";
   const wikiList = (record.wikiPages ?? []).map((p) => `  - ${p}`).join("\n");
   const archived = record.archivedTo ?? "(unrecorded)";
@@ -3393,21 +3809,45 @@ ${wikiList}` : "- **\u65B0\u5EFA/\u66F4\u65B0\u9875**\uFF1A\uFF08\u65E0\uFF09",
     ""
   ].join("\n");
   let existing = "";
-  if (existsSync16(logPath)) existing = readFileSync17(logPath, "utf-8");
+  if (existsSync17(logPath)) existing = readFileSync18(logPath, "utf-8");
   if (!existing) {
     const header = '# Log\n\n> \u64CD\u4F5C\u65F6\u95F4\u7EBF\uFF0Cappend-only\u3002\u6BCF\u6761\u683C\u5F0F\uFF1A`## [YYYY-MM-DD] \u64CD\u4F5C\u7C7B\u578B | \u6807\u9898`\n> \u53EF\u7528 `grep "^## \\[" log.md | tail -10` \u5FEB\u901F\u67E5\u6700\u8FD1\u64CD\u4F5C\u3002\n\n';
-    writeFileSync6(logPath, header + entry, "utf-8");
+    writeFileSync7(logPath, header + entry, "utf-8");
     return;
   }
   const firstSection = existing.search(/^## \[/m);
   if (firstSection === -1) {
-    const sep2 = existing.endsWith("\n") ? "" : "\n";
-    writeFileSync6(logPath, existing + sep2 + entry, "utf-8");
+    const sep3 = existing.endsWith("\n") ? "" : "\n";
+    writeFileSync7(logPath, existing + sep3 + entry, "utf-8");
   } else {
     const before = existing.slice(0, firstSection);
     const after = existing.slice(firstSection);
-    writeFileSync6(logPath, before + entry + after, "utf-8");
+    writeFileSync7(logPath, before + entry + after, "utf-8");
   }
+}
+function ymdValue(value) {
+  if (typeof value === "string") return value;
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return void 0;
+}
+function archivedSourceMetadata(corpus, archivedTo) {
+  if (!archivedTo) return {};
+  const candidate = join25(corpus, archivedTo);
+  let filePath = candidate;
+  if (existsSync17(candidate)) {
+    try {
+      if (lstatSync5(candidate).isDirectory()) filePath = join25(candidate, "article.md");
+    } catch {
+      return {};
+    }
+  }
+  if (!existsSync17(filePath)) return {};
+  const fm = extractFrontmatter(filePath);
+  return {
+    title: typeof fm.title === "string" ? fm.title : void 0,
+    sourceDate: ymdValue(fm.source_date),
+    sourceKind: typeof fm.source_kind === "string" ? fm.source_kind : void 0
+  };
 }
 function ingestCommand(program2) {
   const group = program2.command("ingest").description("Track ingest pipeline state (record step progress, list pending, reconcile)");
@@ -3452,7 +3892,7 @@ ${summary.join("\n")}`
   group.command("record <url>").description("Record step progress for an ingest (call from wiki-ingest skill)").option(
     "--step <steps>",
     `mark step(s) as done. single: archive | multi: archive,wiki,backlink,lint. valid: ${VALID_STEPS.join(", ")}`
-  ).option("--archived-to <path>", "relative path where the source was moved (e.g. \u539F\u6599/\u526A\u85CF/xxx)").option("--wiki-page <path...>", "relative path of a wiki page created (can be repeated)").option(
+  ).option("--archived-to <path>", "relative path where the source was moved (e.g. \u539F\u6599/\u526A\u85CF/xxx)").option("--wiki-page <path...>", "relative path of a wiki page created (can be repeated)").option("--title <title>", "human-readable source title for state/log").option("--source-date <date>", "source date (YYYY-MM-DD)").option("--source-kind <kind>", "source kind (article|recording|...)").option(
     "--log <body>",
     "append a one-paragraph summary to corpus/log.md (CLI auto-fills url/archive/pages)"
   ).option("--status <status>", "explicit status (started|completed|failed)").option("--complete", "shortcut: mark status=completed").option("--fail <reason>", "shortcut: mark status=failed with reason").action(
@@ -3480,6 +3920,14 @@ ${summary.join("\n")}`
         }
       }
       if (opts.archivedTo) patch.archivedTo = opts.archivedTo;
+      const existingRecord = loadIngestState(corpus).ingests[url];
+      const meta = archivedSourceMetadata(corpus, opts.archivedTo);
+      const title = opts.title ?? existingRecord?.title ?? meta.title;
+      const sourceDate = opts.sourceDate ?? existingRecord?.sourceDate ?? meta.sourceDate;
+      const sourceKind = opts.sourceKind ?? existingRecord?.sourceKind ?? meta.sourceKind;
+      if (title) patch.title = title;
+      if (sourceDate) patch.sourceDate = sourceDate;
+      if (sourceKind) patch.sourceKind = sourceKind;
       if (opts.wikiPage && opts.wikiPage.length > 0) {
         const existing = loadIngestState(corpus).ingests[url];
         const prev = existing?.wikiPages ?? [];
@@ -3524,7 +3972,7 @@ ${summary.join("\n")}`
     const stemSet = /* @__PURE__ */ new Set();
     const baseNameSet = /* @__PURE__ */ new Set();
     for (const file of allMd) {
-      const rel = relative16(corpus, file);
+      const rel = relative14(corpus, file);
       const stem = rel.replace(/\.md$/, "");
       stemSet.add(stem);
       baseNameSet.add(stem.split("/").pop());
@@ -3539,17 +3987,17 @@ ${summary.join("\n")}`
     const okLinks = [];
     const checked = [];
     for (const f of files) {
-      const abs = f.startsWith("/") ? f : join23(process.cwd(), f);
-      if (!existsSync16(abs)) {
+      const abs = f.startsWith("/") ? f : join25(process.cwd(), f);
+      if (!existsSync17(abs)) {
         print(`[lorekit ingest check] file not found: ${f}`);
         process.exitCode = 2;
         continue;
       }
-      const rel = relative16(corpus, abs);
+      const rel = relative14(corpus, abs);
       checked.push(rel);
       let content;
       try {
-        content = stripCode(readFileSync17(abs, "utf-8"));
+        content = stripCode(readFileSync18(abs, "utf-8"));
       } catch {
         continue;
       }
@@ -3591,8 +4039,8 @@ ${summary.join("\n")}`
   });
   group.command("reconcile").description("Back-fill state for pre-existing \u539F\u6599/ pages missing a state record").option("--dry-run", "list what would be added without writing").action((opts) => {
     const corpus = requireCorpus();
-    const sourcesRoot = join23(corpus, "\u539F\u6599");
-    if (!existsSync16(sourcesRoot)) {
+    const sourcesRoot = join25(corpus, "\u539F\u6599");
+    if (!existsSync17(sourcesRoot)) {
       print("[lorekit ingest reconcile] no \u539F\u6599/ directory");
       return;
     }
@@ -3603,7 +4051,7 @@ ${summary.join("\n")}`
       const url = typeof fm.source_url === "string" && fm.source_url || typeof fm.url === "string" && fm.url || "";
       if (!url) continue;
       if (state.ingests[url]) continue;
-      const rel = relative16(corpus, mdPath);
+      const rel = relative14(corpus, mdPath);
       const archivedTo = rel.replace(/\/article\.md$/, "");
       const sdRaw = fm.source_date;
       const sourceDate = typeof sdRaw === "string" ? sdRaw : sdRaw instanceof Date ? sdRaw.toISOString().slice(0, 10) : void 0;
@@ -3635,8 +4083,8 @@ init_logger();
 
 // src/lib/root-index.ts
 init_logger();
-import { existsSync as existsSync17, readFileSync as readFileSync18, readdirSync as readdirSync10, writeFileSync as writeFileSync7 } from "fs";
-import { join as join24 } from "path";
+import { existsSync as existsSync18, readFileSync as readFileSync19, readdirSync as readdirSync9, writeFileSync as writeFileSync8 } from "fs";
+import { join as join26 } from "path";
 var MANAGED_SECTIONS = [
   { heading: "## \u6982\u5FF5", subdir: "\u77E5\u8BC6\u5E93/\u6982\u5FF5" },
   { heading: "## \u5B9E\u4F53", subdir: "\u77E5\u8BC6\u5E93/\u5B9E\u4F53" },
@@ -3644,14 +4092,14 @@ var MANAGED_SECTIONS = [
   { heading: "## \u4E13\u9898", subdir: "\u77E5\u8BC6\u5E93/\u4E13\u9898" }
 ];
 function listEntriesInDir(corpus, subdir) {
-  const dirPath = join24(corpus, subdir);
-  if (!existsSync17(dirPath)) return [];
+  const dirPath = join26(corpus, subdir);
+  if (!existsSync18(dirPath)) return [];
   const out2 = [];
-  for (const name of readdirSync10(dirPath)) {
+  for (const name of readdirSync9(dirPath)) {
     if (name.startsWith(".")) continue;
     if (name === "_INDEX.md") continue;
     if (!name.endsWith(".md")) continue;
-    const file = join24(dirPath, name);
+    const file = join26(dirPath, name);
     const slug = `${subdir}/${name.replace(/\.md$/, "")}`;
     out2.push({ slug, summary: extractCompiledTruthSnippet(file) });
   }
@@ -3660,7 +4108,7 @@ function listEntriesInDir(corpus, subdir) {
 function extractCompiledTruthSnippet(filePath) {
   let content;
   try {
-    content = readFileSync18(filePath, "utf-8");
+    content = readFileSync19(filePath, "utf-8");
   } catch (e) {
     debug(`extractCompiledTruthSnippet(${filePath}) failed: ${e.message}`);
     return "\u2014";
@@ -3729,11 +4177,11 @@ function mergeSection(content, heading, onDisk) {
   };
 }
 function refreshRootIndex(corpus) {
-  const indexPath = join24(corpus, "index.md");
-  if (!existsSync17(indexPath)) {
+  const indexPath = join26(corpus, "index.md");
+  if (!existsSync18(indexPath)) {
     return { filePath: indexPath, changed: false, perSection: [] };
   }
-  const before = readFileSync18(indexPath, "utf-8");
+  const before = readFileSync19(indexPath, "utf-8");
   let content = before;
   const perSection = [];
   for (const sec of MANAGED_SECTIONS) {
@@ -3743,7 +4191,7 @@ function refreshRootIndex(corpus) {
     perSection.push({ heading: sec.heading, ...result });
   }
   const changed = content !== before;
-  if (changed) writeFileSync7(indexPath, content, "utf-8");
+  if (changed) writeFileSync8(indexPath, content, "utf-8");
   return { filePath: indexPath, changed, perSection };
 }
 
@@ -3792,7 +4240,23 @@ async function runSync(corpus, opts = {}) {
     }
   }
   print();
-  if (!opts.skipVector) {
+  let shouldRunVector = opts.withVector === true && !opts.skipVector;
+  if (!opts.skipVector && !opts.withVector) {
+    try {
+      const { getStatus: getStatus2 } = await Promise.resolve().then(() => (init_status(), status_exports));
+      const status = await getStatus2(corpus);
+      shouldRunVector = status.mode === "vector";
+      if (!shouldRunVector) {
+        warn(`vector skipped: ${status.mode_reason}`);
+      }
+    } catch (e) {
+      warn(`vector skipped: status unavailable (${e.message})`);
+      shouldRunVector = false;
+    }
+  } else if (opts.skipVector) {
+    warn("vector skipped: --skip-vector");
+  }
+  if (shouldRunVector) {
     print(chalk6.cyan("\u2500\u2500 [2/3] vector: sync chunks + L0/L1 \u2500\u2500"));
     try {
       const r = await runVectorSync(corpus, { force, model, layered: true });
@@ -3809,7 +4273,7 @@ async function runSync(corpus, opts = {}) {
   }
 }
 function syncCommand(program2) {
-  program2.command("sync").description("one-shot: refresh _INDEX.md \u2192 vector sync (layered) \u2192 doctor").option("--force", "full rebuild of vector index", false).option("--model <name>", "ollama model name", "bge-m3").option("--skip-doctor", "skip the final doctor sanity check", false).option("--skip-vector", "only refresh _INDEX.md, skip vector sync", false).option("--skip-root-index", "skip merging corpus/index.md against disk", false).action(async (opts) => {
+  program2.command("sync").description("one-shot: refresh _INDEX.md \u2192 vector sync (layered) \u2192 doctor").option("--force", "full rebuild of vector index", false).option("--model <name>", "ollama model name", "bge-m3").option("--skip-doctor", "skip the final doctor sanity check", false).option("--skip-vector", "only refresh _INDEX.md, skip vector sync", false).option("--with-vector", "force vector sync even when text mode is recommended", false).option("--skip-root-index", "skip merging corpus/index.md against disk", false).action(async (opts) => {
     const corpus = requireCorpus();
     try {
       await runSync(corpus, opts);
@@ -3821,8 +4285,8 @@ function syncCommand(program2) {
 
 // src/commands/obsidian-tune.ts
 init_logger();
-import { cpSync as cpSync2, existsSync as existsSync18, mkdirSync as mkdirSync9, writeFileSync as writeFileSync8 } from "fs";
-import { join as join25 } from "path";
+import { cpSync as cpSync2, existsSync as existsSync19, mkdirSync as mkdirSync9, writeFileSync as writeFileSync9 } from "fs";
+import { join as join27 } from "path";
 function runPrint() {
   const cfg = getRecommendedGraphConfig();
   out(JSON.stringify(cfg, null, 2));
@@ -3860,16 +4324,16 @@ function runCheck(corpus) {
   return 1;
 }
 function runWrite(corpus) {
-  const dest = join25(corpus, ".obsidian", "graph.json");
-  const destDir = join25(corpus, ".obsidian");
-  if (!existsSync18(destDir)) mkdirSync9(destDir, { recursive: true });
-  if (existsSync18(dest)) {
+  const dest = join27(corpus, ".obsidian", "graph.json");
+  const destDir = join27(corpus, ".obsidian");
+  if (!existsSync19(destDir)) mkdirSync9(destDir, { recursive: true });
+  if (existsSync19(dest)) {
     const backup = `${dest}.bak.${tsCompact()}`;
     cpSync2(dest, backup);
     ok(`\u5907\u4EFD .obsidian/graph.json \u2192 ${backup}`);
   }
   const cfg = getRecommendedGraphConfig();
-  writeFileSync8(dest, JSON.stringify(cfg, null, 2) + "\n", "utf-8");
+  writeFileSync9(dest, JSON.stringify(cfg, null, 2) + "\n", "utf-8");
   ok("\u5199\u5165\u63A8\u8350 filter");
   info("\u8BF7\u5173\u6389 Obsidian\u300C\u5173\u7CFB\u56FE\u8C31\u300D\u6807\u7B7E\u9875\u518D\u91CD\u5F00\u751F\u6548");
   return 0;
@@ -3896,9 +4360,9 @@ function obsidianTuneCommand(program2) {
 }
 
 // src/commands/remove.ts
-import { existsSync as existsSync19, mkdirSync as mkdirSync10, readFileSync as readFileSync19, renameSync, writeFileSync as writeFileSync9 } from "fs";
-import { basename as basename7, dirname as dirname5, isAbsolute, join as join26, relative as relative17, resolve as resolve3, sep } from "path";
-import matter5 from "gray-matter";
+import { existsSync as existsSync20, mkdirSync as mkdirSync10, readFileSync as readFileSync20, renameSync, writeFileSync as writeFileSync10 } from "fs";
+import { basename as basename7, dirname as dirname5, isAbsolute, join as join28, relative as relative15, resolve as resolve3, sep } from "path";
+import matter6 from "gray-matter";
 import trash from "trash";
 init_logger();
 function isUrl(input) {
@@ -3914,22 +4378,22 @@ function normalizeRel(rel) {
   return toSlash(rel).replace(/^\.\//, "").replace(/\/+/g, "/");
 }
 function withinCorpus(corpus, abs) {
-  const rel = relative17(corpus, abs);
+  const rel = relative15(corpus, abs);
   return rel === "" || !rel.startsWith("..") && !isAbsolute(rel);
 }
 function resolveInputPath(corpus, input) {
   const candidates = [];
-  const rawAbs = isAbsolute(input) ? input : join26(corpus, input);
+  const rawAbs = isAbsolute(input) ? input : join28(corpus, input);
   candidates.push(rawAbs);
   if (!input.endsWith(".md")) candidates.push(`${rawAbs}.md`);
   for (const candidate of candidates) {
     const abs = resolve3(candidate);
-    if (withinCorpus(corpus, abs) && existsSync19(abs)) return abs;
+    if (withinCorpus(corpus, abs) && existsSync20(abs)) return abs;
   }
   return null;
 }
 function relFromAbs(corpus, abs) {
-  return normalizeRel(relative17(corpus, abs));
+  return normalizeRel(relative15(corpus, abs));
 }
 function aliasesForRel(rel) {
   const aliases = /* @__PURE__ */ new Set();
@@ -3941,7 +4405,7 @@ function aliasesForRel(rel) {
   return [...aliases];
 }
 function readText(abs) {
-  return readFileSync19(abs, "utf-8");
+  return readFileSync20(abs, "utf-8");
 }
 function extractWikilinks(content) {
   const links = [];
@@ -3951,14 +4415,14 @@ function extractWikilinks(content) {
   return links;
 }
 function addExistingTarget(corpus, targets, relOrAbs, reason) {
-  const abs = isAbsolute(relOrAbs) ? relOrAbs : join26(corpus, relOrAbs);
-  if (!existsSync19(abs)) return;
+  const abs = isAbsolute(relOrAbs) ? relOrAbs : join28(corpus, relOrAbs);
+  if (!existsSync20(abs)) return;
   const rel = relFromAbs(corpus, abs);
   targets.set(rel, { rel, abs, reason });
 }
 function addSourceTarget(corpus, targets, relOrAbs) {
-  const abs = isAbsolute(relOrAbs) ? relOrAbs : join26(corpus, relOrAbs);
-  if (!existsSync19(abs)) return;
+  const abs = isAbsolute(relOrAbs) ? relOrAbs : join28(corpus, relOrAbs);
+  if (!existsSync20(abs)) return;
   const rel = relFromAbs(corpus, abs);
   if (rel.endsWith("/article.md")) {
     addExistingTarget(corpus, targets, dirname5(abs), "source");
@@ -3972,15 +4436,15 @@ function addSourceTarget(corpus, targets, relOrAbs) {
 }
 function sourceCandidatesForSlug(corpus, slug) {
   return [
-    join26(corpus, slug),
-    join26(corpus, `${slug}.md`),
-    join26(corpus, slug, "article.md")
+    join28(corpus, slug),
+    join28(corpus, `${slug}.md`),
+    join28(corpus, slug, "article.md")
   ];
 }
 function collectSourceUrls(corpus, targets) {
   const urls = /* @__PURE__ */ new Set();
   for (const target of targets.values()) {
-    const files = existsSync19(target.abs) && target.rel.endsWith(".md") ? [target.abs] : collectMdFiles(target.abs);
+    const files = existsSync20(target.abs) && target.rel.endsWith(".md") ? [target.abs] : collectMdFiles(target.abs);
     for (const file of files) {
       const fm = extractFrontmatter(file);
       if (typeof fm.source_url === "string") urls.add(fm.source_url);
@@ -3990,23 +4454,23 @@ function collectSourceUrls(corpus, targets) {
   return [...urls];
 }
 function addSourcesFromSummary(corpus, targets, summaryAbs) {
-  const parsed = matter5(readText(summaryAbs));
+  const parsed = matter6(readText(summaryAbs));
   const sources = Array.isArray(parsed.data.sources) ? parsed.data.sources : [];
   for (const source of sources) {
     if (typeof source !== "string") continue;
     for (const candidate of sourceCandidatesForSlug(corpus, source)) {
-      if (existsSync19(candidate)) addSourceTarget(corpus, targets, candidate);
+      if (existsSync20(candidate)) addSourceTarget(corpus, targets, candidate);
     }
   }
   for (const link of extractWikilinks(parsed.content)) {
     if (!link.startsWith("\u539F\u6599/")) continue;
     for (const candidate of sourceCandidatesForSlug(corpus, link)) {
-      if (existsSync19(candidate)) addSourceTarget(corpus, targets, candidate);
+      if (existsSync20(candidate)) addSourceTarget(corpus, targets, candidate);
     }
   }
 }
 function addSummariesReferencingSources(corpus, targets, aliases) {
-  for (const file of collectMdFiles(join26(corpus, "\u77E5\u8BC6\u5E93", "\u6458\u8981"))) {
+  for (const file of collectMdFiles(join28(corpus, "\u77E5\u8BC6\u5E93", "\u6458\u8981"))) {
     const rel = relFromAbs(corpus, file);
     if (targets.has(rel)) continue;
     const content = readText(file);
@@ -4028,7 +4492,7 @@ function compiledTruthSnippets(content, aliases, input) {
 }
 function rewritePageForRemoval(corpus, file, aliases) {
   const rel = relFromAbs(corpus, file);
-  const parsed = matter5(readText(file));
+  const parsed = matter6(readText(file));
   const removedSources = [];
   let sourceCountBefore;
   let sourceCountAfter;
@@ -4064,7 +4528,7 @@ function rewritePageForRemoval(corpus, file, aliases) {
   });
   if (removedLines.length > 0) parsed.data.updated = todayYMDShanghai();
   const changed = removedLines.length > 0 || removedSources.length > 0;
-  const nextContent = changed ? matter5.stringify(nextLines.join("\n"), parsed.data) : readText(file);
+  const nextContent = changed ? matter6.stringify(nextLines.join("\n"), parsed.data) : readText(file);
   return {
     nextContent,
     change: changed ? {
@@ -4086,9 +4550,9 @@ function buildRemovalPlan(corpus, input, apply) {
     if (record?.archivedTo) addSourceTarget(corpus, targets, record.archivedTo);
     for (const page of record?.wikiPages ?? []) {
       if (normalizeRel(page).startsWith("\u77E5\u8BC6\u5E93/\u6458\u8981/")) {
-        const pageAbs = join26(corpus, page);
+        const pageAbs = join28(corpus, page);
         addExistingTarget(corpus, targets, pageAbs, "summary");
-        if (existsSync19(pageAbs)) addSourcesFromSummary(corpus, targets, pageAbs);
+        if (existsSync20(pageAbs)) addSourcesFromSummary(corpus, targets, pageAbs);
       }
     }
     const source = findSourceByUrl(corpus, input);
@@ -4138,8 +4602,8 @@ async function moveToTrash(paths) {
   if (testTrashDir) {
     mkdirSync10(testTrashDir, { recursive: true });
     for (const p of paths) {
-      if (!existsSync19(p)) continue;
-      const dest = join26(testTrashDir, `${tsCompact()}-${basename7(p)}`);
+      if (!existsSync20(p)) continue;
+      const dest = join28(testTrashDir, `${tsCompact()}-${basename7(p)}`);
       renameSync(p, dest);
     }
     return;
@@ -4149,9 +4613,9 @@ async function moveToTrash(paths) {
 function applyPageChanges(corpus, plan) {
   const aliases = new Set(plan.aliases);
   for (const change of plan.pageChanges) {
-    const file = join26(corpus, change.file);
+    const file = join28(corpus, change.file);
     const { nextContent } = rewritePageForRemoval(corpus, file, aliases);
-    writeFileSync9(file, nextContent, "utf-8");
+    writeFileSync10(file, nextContent, "utf-8");
   }
 }
 function forgetIngestRecords(corpus, urls) {
@@ -4229,7 +4693,7 @@ function removeCommand(program2) {
       forgetIngestRecords(corpus, plan.ingestRecords);
       await moveToTrash(plan.trashTargets.map((t) => t.abs));
       ok(`moved ${plan.trashTargets.length} item(s) to OS Trash`);
-      const hasVectorDb = existsSync19(join26(corpus, ".wiki", "vector.sqlite"));
+      const hasVectorDb = existsSync20(join28(corpus, ".wiki", "vector.sqlite"));
       if (hasVectorDb) {
         plan.vectorPruned = await pruneVectorDbMissingFiles(corpus);
         if (plan.vectorPruned > 0) ok(`vector pruned ${plan.vectorPruned} missing file(s)`);
@@ -4248,6 +4712,328 @@ function removeCommand(program2) {
   });
 }
 
+// src/commands/source.ts
+import { createHash as createHash5 } from "crypto";
+import { existsSync as existsSync21 } from "fs";
+import { join as join29, relative as relative16 } from "path";
+init_logger();
+function sha256Text(content) {
+  return createHash5("sha256").update(content).digest("hex");
+}
+function isOlderThanTwoYears(sourceDate) {
+  const parsed = sourceDate instanceof Date ? sourceDate : typeof sourceDate === "string" ? /* @__PURE__ */ new Date(`${sourceDate}T00:00:00Z`) : null;
+  if (!parsed) return false;
+  if (Number.isNaN(parsed.getTime())) return false;
+  const twoYearsMs = 2 * 365 * 24 * 60 * 60 * 1e3;
+  return Date.now() - parsed.getTime() > twoYearsMs;
+}
+async function finalizeSource(corpus, inputPath, opts = {}) {
+  const abs = inputPath.startsWith("/") ? inputPath : join29(corpus, inputPath);
+  if (!existsSync21(abs)) throw new Error(`source file not found: ${inputPath}`);
+  const rel = relative16(corpus, abs);
+  if (!rel.startsWith("\u539F\u6599/")) {
+    throw new Error(`source finalize only accepts files under \u539F\u6599/: ${rel}`);
+  }
+  const parsed = readMarkdown(abs);
+  let changed = false;
+  changed = setFieldIfMissing(parsed.data, "slug", rel.replace(/\.md$/, "")) || changed;
+  const computed = sha256Text(canonicalMarkdownForHash(parsed.data, parsed.content));
+  const current = typeof parsed.data.raw_sha256 === "string" ? parsed.data.raw_sha256 : void 0;
+  if (opts.check) {
+    return { file: rel, changed: false, raw_sha256: computed, current, ok: current === computed };
+  }
+  await createSnapshot(corpus, { tag: "source-finalize" });
+  if (parsed.data.raw_sha256 !== computed) {
+    parsed.data.raw_sha256 = computed;
+    changed = true;
+  }
+  const today2 = dateToYMDLocal(/* @__PURE__ */ new Date());
+  if (parsed.data.last_verified !== today2) {
+    parsed.data.last_verified = today2;
+    changed = true;
+  }
+  const outdated = isOlderThanTwoYears(parsed.data.source_date);
+  if (parsed.data.possibly_outdated !== outdated) {
+    parsed.data.possibly_outdated = outdated;
+    changed = true;
+  }
+  if (changed) writeMarkdown(abs, parsed.data, parsed.content);
+  return { file: rel, changed, raw_sha256: computed, ok: true };
+}
+function sourceCommand(program2) {
+  const source = program2.command("source").description("manage source files under \u539F\u6599/");
+  source.command("finalize <path>").description("write/check source slug + integrity metadata").option("--check", "check raw_sha256 without writing", false).action(async (pathArg, opts) => {
+    const corpus = requireCorpus();
+    try {
+      const result = await finalizeSource(corpus, pathArg, opts);
+      if (opts.check) {
+        if (result.ok) {
+          ok(`source hash ok: ${result.file}`);
+        } else {
+          bad(`source hash mismatch: ${result.file}`);
+          print(`  current: ${result.current ?? "(missing)"}`);
+          print(`  computed: ${result.raw_sha256}`);
+          process.exitCode = 1;
+        }
+        return;
+      }
+      ok(
+        `source finalized: ${result.file} ${result.changed ? result.raw_sha256 : "(unchanged)"}`
+      );
+    } catch (e) {
+      bad(e.message);
+      process.exitCode = 1;
+    }
+  });
+}
+
+// src/commands/links.ts
+import { existsSync as existsSync22, mkdirSync as mkdirSync11, readFileSync as readFileSync21, writeFileSync as writeFileSync11 } from "fs";
+import { dirname as dirname6, join as join30, relative as relative17, resolve as resolve4, sep as sep2 } from "path";
+init_paths();
+init_logger();
+function typeDir(type) {
+  if (type === "entity") return "\u77E5\u8BC6\u5E93/\u5B9E\u4F53";
+  return "\u77E5\u8BC6\u5E93/\u6982\u5FF5";
+}
+function suggestedPath(label, type = "concept") {
+  return `${typeDir(type)}/${labelToSlug(label)}.md`;
+}
+function targetIsCanonical(label, target) {
+  return label === target.slug || label === relStem(target.file);
+}
+function collectFileOccurrences(corpus, rel) {
+  const abs = resolveCorpusFile(corpus, rel);
+  if (!existsSync22(abs)) throw new Error(`file not found: ${rel}`);
+  const content = readFileSync21(abs, "utf-8");
+  return extractWikilinkLabels(content).map((label) => ({ file: rel, label }));
+}
+function normalizeRelPath(rel) {
+  return rel.split(sep2).join("/");
+}
+function shouldIgnoreFullCorpusOccurrence(occ) {
+  const rel = normalizeRelPath(occ.file);
+  if (rel.startsWith("_\u5DE5\u4F5C\u53F0/") && rel.includes("/node_modules/")) return true;
+  return lintSkipBrokenLinkPrefixes.some((prefix) => rel.startsWith(prefix));
+}
+function buildLinkSuggestions(corpus, opts = {}) {
+  const targets = collectLinkTargets(corpus);
+  const grouped = /* @__PURE__ */ new Map();
+  const rawOccurrences = opts.file ? collectFileOccurrences(corpus, opts.file) : collectWikilinkOccurrences(corpus);
+  const occurrences = opts.file ? rawOccurrences : rawOccurrences.filter((occ) => !shouldIgnoreFullCorpusOccurrence(occ));
+  for (const occ of occurrences) {
+    (grouped.get(occ.label) ?? grouped.set(occ.label, []).get(occ.label)).push(occ);
+  }
+  const suggestions = [];
+  for (const [label, occurrences2] of grouped) {
+    const target = resolveLabel(label, targets);
+    if (target && targetIsCanonical(label, target)) continue;
+    if (target) {
+      suggestions.push({
+        label,
+        occurrences: occurrences2,
+        seenCount: occurrences2.length,
+        similarPages: [
+          { slug: target.slug, file: target.file, title: target.title, type: target.type }
+        ],
+        suggestedAction: "fix",
+        suggestedPath: `${target.slug}.md`
+      });
+      continue;
+    }
+    suggestions.push({
+      label,
+      occurrences: occurrences2,
+      seenCount: occurrences2.length,
+      similarPages: [],
+      suggestedAction: "stub",
+      suggestedPath: suggestedPath(label)
+    });
+  }
+  return suggestions.sort((a, b) => a.label.localeCompare(b.label));
+}
+function printSuggest(corpus, suggestions) {
+  print(`
+lorekit links suggest \u2014 ${corpus}
+`);
+  if (suggestions.length === 0) {
+    ok("no link closure suggestions");
+    return;
+  }
+  for (const s of suggestions) {
+    print(`- ${s.label}: ${s.suggestedAction} (${s.seenCount} occurrence(s))`);
+    if (s.similarPages[0]) print(`  \u2192 ${s.similarPages[0].slug}`);
+    else print(`  \u2192 ${s.suggestedPath}`);
+  }
+}
+async function withSnapshot(corpus, tag) {
+  await createSnapshot(corpus, { tag });
+}
+function writeCandidateState(corpus, suggestions) {
+  const file = join30(corpus, ".wiki", "link-candidates.json");
+  mkdirSync11(dirname6(file), { recursive: true });
+  writeFileSync11(
+    file,
+    JSON.stringify({ version: 1, updatedAt: (/* @__PURE__ */ new Date()).toISOString(), suggestions }, null, 2) + "\n",
+    "utf-8"
+  );
+}
+function resolveCorpusFile(corpus, rel) {
+  const abs = resolve4(corpus, rel);
+  const fromCorpus = relative17(corpus, abs);
+  if (fromCorpus === "" || fromCorpus === ".." || fromCorpus.startsWith(`..${sep2}`)) {
+    throw new Error(`file is outside corpus: ${rel}`);
+  }
+  return abs;
+}
+async function fixLink(corpus, label, opts) {
+  const files = opts.file ? [resolveCorpusFile(corpus, opts.file)] : collectMdFiles(corpus);
+  if (opts.file && !existsSync22(files[0])) throw new Error(`file not found: ${opts.file}`);
+  const target = resolveLabel(relStem(opts.to), collectLinkTargets(corpus));
+  if (!target) throw new Error(`canonical target not found: ${opts.to}`);
+  await withSnapshot(corpus, "links-fix");
+  let changed = 0;
+  for (const filePath of files) {
+    const before = readFileSync21(filePath, "utf-8");
+    const result = replaceWikilinkLabel(before, label, target.slug, { alias: opts.alias });
+    if (result.count === 0) continue;
+    writeFileSync11(filePath, result.content, "utf-8");
+    changed += result.count;
+  }
+  return changed;
+}
+async function stubLink(corpus, label, opts) {
+  await withSnapshot(corpus, "links-stub");
+  const dir = typeDir(opts.type);
+  const rel = suggestedPath(label, opts.type);
+  const abs = join30(corpus, rel);
+  if (!existsSync22(abs)) {
+    mkdirSync11(dirname6(abs), { recursive: true });
+    const today2 = dateToYMDLocal(/* @__PURE__ */ new Date());
+    const type = opts.type === "entity" ? "entity" : "concept";
+    const sourceStem = opts.source ? opts.source.replace(/\.md$/, "") : void 0;
+    const timeline = sourceStem ? `- ${today2} | \u5728 [[${sourceStem}]] \u4E2D\u4F5C\u4E3A\u76F8\u5173\u8282\u70B9\u51FA\u73B0\uFF0C\u5F53\u524D\u6765\u6E90\u4E0D\u8DB3\uFF0C\u5F85\u8865\u72EC\u7ACB\u6765\u6E90\u3002` : `- ${today2} | \u7531 links closure \u521B\u5EFA stub\uFF0C\u5F85\u8865\u72EC\u7ACB\u6765\u6E90\u3002`;
+    writeFileSync11(
+      abs,
+      `---
+type: ${type}
+title: ${label}
+slug: ${dir}/${labelToSlug(label)}
+created: ${today2}
+updated: ${today2}
+confidence: low
+status: stub
+---
+
+# ${label}
+
+## Compiled Truth
+
+${label} \u662F\u5F53\u524D corpus \u4E2D\u51FA\u73B0\u7684\u5F85\u8865\u5145\u8282\u70B9\u3002\u5F53\u524D\u6765\u6E90\u4E0D\u8DB3\uFF0C\u6682\u4E0D\u5199\u6210\u6B63\u5F0F\u7ED3\u8BBA\uFF0C\u7B49\u5F85\u540E\u7EED\u72EC\u7ACB\u6765\u6E90\u8865\u5F3A\u3002
+
+## Timeline
+
+${timeline}
+`,
+      "utf-8"
+    );
+  }
+  return rel;
+}
+async function backlogLink(corpus, label, opts) {
+  await withSnapshot(corpus, "links-backlog");
+  const rel = "\u7CFB\u7EDF/missing-nodes.md";
+  const abs = join30(corpus, rel);
+  mkdirSync11(dirname6(abs), { recursive: true });
+  const today2 = dateToYMDLocal(/* @__PURE__ */ new Date());
+  const sourceStem = opts.source ? opts.source.replace(/\.md$/, "") : "(unrecorded)";
+  let content = "";
+  if (!existsSync22(abs)) {
+    content = `---
+type: system
+title: Missing Nodes
+slug: \u7CFB\u7EDF/missing-nodes
+created: ${today2}
+updated: ${today2}
+graph-excluded: true
+---
+
+# Missing Nodes
+
+`;
+  } else {
+    content = readFileSync21(abs, "utf-8");
+  }
+  if (!content.includes(`- [ ] ${label}
+`)) {
+    content += `- [ ] ${label}
+  - type: ${opts.type}
+  - first_seen: ${today2}
+  - seen_in: [[${sourceStem}]]
+  - suggested_path: ${suggestedPath(label, opts.type)}
+
+`;
+    content = content.replace(/^updated: .+$/m, `updated: ${today2}`);
+    writeFileSync11(abs, content, "utf-8");
+  }
+  return rel;
+}
+async function plainLink(corpus, label, opts) {
+  const abs = resolveCorpusFile(corpus, opts.file);
+  if (!existsSync22(abs)) throw new Error(`file not found: ${opts.file}`);
+  await withSnapshot(corpus, "links-plain");
+  const before = readFileSync21(abs, "utf-8");
+  const result = plainWikilinkLabel(before, label);
+  if (result.count > 0) writeFileSync11(abs, result.content, "utf-8");
+  return result.count;
+}
+function linksCommand(program2) {
+  const links = program2.command("links").description("inspect and close wikilink candidates");
+  links.command("suggest").description("suggest fixes for non-canonical or unresolved wikilinks").option("--json", "print suggestions as JSON to stdout", false).option("--write-state", "update .wiki/link-candidates.json machine state", false).option("--file <file>", "limit suggestions to one markdown file").action((opts) => {
+    const corpus = requireCorpus();
+    try {
+      const suggestions = buildLinkSuggestions(corpus, opts);
+      if (opts.writeState) writeCandidateState(corpus, suggestions);
+      if (opts.json) out(JSON.stringify({ suggestions }, null, 2));
+      else printSuggest(corpus, suggestions);
+      if (suggestions.length > 0) process.exitCode = 1;
+    } catch (e) {
+      bad(e.message);
+      process.exitCode = 1;
+    }
+  });
+  links.command("fix <label>").requiredOption("--to <slug>", "canonical target slug").option("--alias <text>", "visible alias").option("--file <file>", "limit rewrite to one markdown file").description("rewrite wikilinks to an existing canonical page").action(async (label, opts) => {
+    const corpus = requireCorpus();
+    try {
+      const count = await fixLink(corpus, label, opts);
+      ok(`rewrote ${count} link(s) for ${label}`);
+    } catch (e) {
+      bad(e.message);
+      process.exitCode = 1;
+    }
+  });
+  links.command("stub <label>").requiredOption("--type <type>", "concept|entity").option("--source <file>", "source file where the node was seen").description("create a low-confidence stub page").action(async (label, opts) => {
+    const corpus = requireCorpus();
+    const rel = await stubLink(corpus, label, opts);
+    ok(`stub ready: ${rel}`);
+  });
+  links.command("backlog <label>").requiredOption("--type <type>", "concept|entity").option("--source <file>", "source file where the node was seen").description("record a missing node without creating a page").action(async (label, opts) => {
+    const corpus = requireCorpus();
+    const rel = await backlogLink(corpus, label, opts);
+    ok(`backlog updated: ${rel}`);
+  });
+  links.command("plain <label>").requiredOption("--file <file>", "file to edit").description("downgrade a wikilink label to plain text in one file").action(async (label, opts) => {
+    const corpus = requireCorpus();
+    try {
+      const count = await plainLink(corpus, label, opts);
+      ok(`downgraded ${count} link(s) for ${label}`);
+    } catch (e) {
+      bad(e.message);
+      process.exitCode = 1;
+    }
+  });
+}
+
 // src/cli.ts
 var version = readVersion();
 function showBanner() {
@@ -4263,7 +5049,7 @@ function showBanner() {
     }
     try {
       const dbPath = `${corpus}/.wiki/vector.sqlite`;
-      if (existsSync20(dbPath)) {
+      if (existsSync23(dbPath)) {
         const db = new Database(dbPath, { readonly: true });
         const cntRow = db.prepare("SELECT COUNT(*) as c FROM documents").get();
         indexed = String(cntRow?.c ?? 0);
@@ -4336,6 +5122,8 @@ ingestCommand(program);
 syncCommand(program);
 obsidianTuneCommand(program);
 removeCommand(program);
+sourceCommand(program);
+linksCommand(program);
 if (process.argv.length <= 2) {
   showBanner();
 } else {

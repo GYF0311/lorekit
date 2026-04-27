@@ -12,6 +12,7 @@ export interface SyncOptions {
   model?: string;
   skipDoctor?: boolean;
   skipVector?: boolean;
+  withVector?: boolean;
   skipRootIndex?: boolean;
 }
 
@@ -77,8 +78,26 @@ export async function runSync(corpus: string, opts: SyncOptions = {}): Promise<v
   }
   print();
 
-  // Step 2: 向量库（除非显式 --skip-vector）
-  if (!opts.skipVector) {
+  // Step 2: 向量库。默认尊重 `vector status.mode`：小 corpus 仍以 Read 三层为主，
+  // 不让 Ollama / Metal 环境问题阻断 ingest 收尾；用户显式 --with-vector 时才强跑。
+  let shouldRunVector = opts.withVector === true && !opts.skipVector;
+  if (!opts.skipVector && !opts.withVector) {
+    try {
+      const { getStatus } = await import('../lib/vectordb/status.js');
+      const status = await getStatus(corpus);
+      shouldRunVector = status.mode === 'vector';
+      if (!shouldRunVector) {
+        warn(`vector skipped: ${status.mode_reason}`);
+      }
+    } catch (e) {
+      warn(`vector skipped: status unavailable (${(e as Error).message})`);
+      shouldRunVector = false;
+    }
+  } else if (opts.skipVector) {
+    warn('vector skipped: --skip-vector');
+  }
+
+  if (shouldRunVector) {
     print(chalk.cyan('── [2/3] vector: sync chunks + L0/L1 ──'));
     try {
       const r = await runVectorSync(corpus, { force, model, layered: true });
@@ -105,6 +124,7 @@ export function syncCommand(program: Command): void {
     .option('--model <name>', 'ollama model name', 'bge-m3')
     .option('--skip-doctor', 'skip the final doctor sanity check', false)
     .option('--skip-vector', 'only refresh _INDEX.md, skip vector sync', false)
+    .option('--with-vector', 'force vector sync even when text mode is recommended', false)
     .option('--skip-root-index', 'skip merging corpus/index.md against disk', false)
     .action(async (opts: SyncOptions) => {
       const corpus = requireCorpus();

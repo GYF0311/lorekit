@@ -28,12 +28,13 @@ Three layers:
 | --------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Launch screen   | `lorekit`               | No-arg invocation prints the blue logo + corpus status                                                                                                                |
 | Init            | `lorekit init`          | Scaffolds the corpus, deploys the Obsidian plugin, auto-backs up pre-existing content                                                                                 |
-| Doctor          | `lorekit doctor`        | Directory integrity, frontmatter coverage, stale workbench reminders                                                                                                  |
+| Doctor          | `lorekit doctor`        | Directory integrity, frontmatter coverage, stale workbench reminders; `--json --strict` for CI / agent gates                                                          |
 | Stats           | `lorekit stats`         | Page count, type breakdown                                                                                                                                            |
 | Search          | `lorekit search`        | Text search + vector semantic search (hybrid)                                                                                                                         |
 | Web fetch       | `lorekit fetch <url>`   | Pulls WeChat / generic pages into the workbench; auto-extracts `publishDate`, writes spec-compliant frontmatter, detects duplicate / in-progress URLs from state.json |
 | Ingest state    | `lorekit ingest <sub>`  | `list` / `pending` / `record` / `forget` / `reconcile` — the single source of truth for ingest pipeline progress                                                      |
-| Lint            | `lorekit lint`          | Broken wikilinks, orphan pages, duplicate detection                                                                                                                   |
+| Lint            | `lorekit lint`          | Broken wikilinks, orphan pages, duplicate detection; `--json`, `plan`, `fix --safe` for machine-readable review and safe repairs                                      |
+| Links           | `lorekit links`         | `suggest --write-state` / `fix --file` / `stub` / `backlog` / `plain` for closing wikilinks before ingest completion                                                 |
 | Snapshot        | `lorekit snapshot`      | Full-corpus tarball + manifest                                                                                                                                        |
 | Restore         | `lorekit restore`       | Recover missing / changed files from a snapshot                                                                                                                       |
 | Remove          | `lorekit remove`        | Dry-run impact report, then safely move selected sources/pages to OS Trash with provenance-aware cleanup                                                              |
@@ -42,9 +43,10 @@ Three layers:
 | Vector query    | `lorekit vector query`  | Search modes: `--layered` (vector), `--bm25` (FTS5), `--hybrid` (both + RRF)                                                                                          |
 | Vector status   | `lorekit vector status` | Inspect the index; returns `mode: text\|vector` recommendation based on `indexed_files` vs `MODE_THRESHOLD_FILES` (default 100)                                       |
 | Directory index | `lorekit index`         | Recursively generate `_INDEX.md` for every subdirectory (including folder-packaged sources like `原料/文章/<slug>/article.md`)                                        |
-| **Sync**        | **`lorekit sync`**      | **One-shot: `index` → `vector sync --layered` → `doctor`. Use this after every ingest/fileback to keep text index + vector store aligned**                            |
+| Source finalize | `lorekit source finalize` | Finalize an already archived source under `原料/` by adding stable `slug`, `raw_sha256`, and verification fields; `ingest record` can also record local source metadata |
+| **Sync**        | **`lorekit sync`**      | **One-shot: `index` → vector sync when available → `doctor`. Default is text-safe: if vector deps / ollama are absent, sync skips embeddings and still refreshes indexes** |
 
-> The CLI is named `lorekit`. The 6 Agent Skills keep the `wiki-` prefix (a nod to Karpathy's LLM Wiki): `wiki-ingest` / `wiki-query` / `wiki-fileback` / `wiki-lint` / `wiki-enrich` / `wiki-audit`.
+> The CLI is named `lorekit`. Agent Skills keep the `wiki-` prefix (a nod to Karpathy's LLM Wiki): `wiki-ingest` / `wiki-query` / `wiki-fileback` / `wiki-lint` / `wiki-links` / `wiki-remove` / `wiki-output` / `wiki-enrich` / `wiki-audit`. Claude Code sync is shipped first; Codex skill sync is planned next.
 
 ## Ingest Pipeline (single-source-of-truth state machine)
 
@@ -82,7 +84,7 @@ Fine-grained progress is tracked in a `stepsDone[]` array so an interrupted inge
 | `lorekit ingest record <url> --step wiki`    | `started`       | `[fetch, archive, wiki]`       |
 | `lorekit ingest record <url> --step lint`    | **`completed`** | `[fetch, archive, wiki, lint]` |
 
-Only `--step lint` auto-promotes to `completed`. Every other `--step` keeps the top status at `started` — all progress detail lives in `stepsDone`. Explicit `--complete` and `--fail <reason>` are also available.
+Only `--step lint` auto-promotes to `completed`, and agents should reach it only after links closure passes (`lorekit links suggest --file <touched-page>` has no unresolved P0 links, or the remaining items are recorded in `系统/missing-nodes.md`). Every other `--step` keeps the top status at `started` — all progress detail lives in `stepsDone`. Explicit `--complete` and `--fail <reason>` are also available.
 
 **What `lorekit fetch` does before hitting the network**, consulting state.json:
 
@@ -142,7 +144,7 @@ claude  # or codex / cursor / kimi …
 
 **Only Node.js is required.** No bash / Python / uv / pip. lorekit is pure TypeScript, cross-platform (macOS / Linux / Windows).
 
-Vector retrieval is optional — without ollama, the AI still navigates via `index.md`.
+Vector retrieval is optional. Without ollama / sqlite-vec, `lorekit sync` stays in text mode: it refreshes `index.md` / `_INDEX.md`, skips vector sync, and still runs `doctor`.
 
 ## Using It
 
@@ -164,7 +166,10 @@ Talk in natural language; the AI routes to the right skill:
 # → wiki-fileback: route to the right wiki page by subject
 
 > Check the health of the knowledge base
-# → wiki-lint: scan broken links, orphans, stale workbench
+# → wiki-lint: scan broken links, orphans, stale workbench; use --json / plan / fix --safe when the agent needs structured output
+
+> Close links for this new page
+# → wiki-links: suggest targets, safely fix obvious aliases, create stubs or backlog the rest
 
 > Back up the corpus
 # → lorekit snapshot → .wiki/snapshots/xxx.tar.gz
@@ -181,8 +186,8 @@ Embeddings are produced through ollama's local API. **No torch, no pip, no API k
 brew install ollama
 ollama pull bge-m3
 
-# Standard workflow (layered + FTS5 by default)
-lorekit sync                               # index → vector sync → doctor, one shot
+# Standard workflow
+lorekit sync                               # index → vector sync if available → doctor
 
 # Three query modes (pick based on the problem, not the index)
 lorekit vector query --hybrid --text "xxx" # BM25 + vector + RRF fusion (production default)
@@ -400,6 +405,9 @@ lorekit/
 │   ├── wiki-query/
 │   ├── wiki-fileback/
 │   ├── wiki-lint/
+│   ├── wiki-links/
+│   ├── wiki-remove/
+│   ├── wiki-output/
 │   ├── wiki-enrich/
 │   └── wiki-audit/
 ├── plugins/

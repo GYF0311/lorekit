@@ -83,10 +83,10 @@ After init you have the full corpus skeleton (see README for layout).
 
 ```bash
 lorekit install-skills --target claude-code
-# → symlinks the 6 skills into ~/.claude/skills/
+# → symlinks the wiki-* skills into ~/.claude/skills/
 ```
 
-Restart Claude Code to pick them up. Other agents: point them at the markdown files under `~/code/lorekit/skills/` via their own skill-registration mechanism.
+Restart Claude Code to pick them up. Other agents: point them at the markdown files under `~/code/lorekit/skills/` via their own skill-registration mechanism. Codex skill sync is planned next; until then, Codex can read the same `skills/wiki-*` markdown directly.
 
 ---
 
@@ -97,14 +97,16 @@ ollama serve          # if not already running
 ollama pull bge-m3    # 1.2 GB, one time
 
 cd ~/Desktop/my-corpus
-lorekit sync          # one-shot: index → vector sync --layered → doctor
+lorekit sync          # one-shot: index → vector sync if available → doctor
 ```
 
 `lorekit sync` is the standard entry point after any ingest/fileback. It:
 
 1. Recursively refreshes every `_INDEX.md` (via `lorekit index`)
-2. Incrementally re-embeds only changed files into `sqlite-vec` + FTS5
+2. Incrementally re-embeds changed files into `sqlite-vec` + FTS5 when vector deps / ollama are available
 3. Runs `doctor` as a non-blocking sanity check
+
+No vector setup is required. If vector deps are missing, `sync` skips embeddings, keeps text indexes fresh, and the agent continues through `index.md` → `_INDEX.md` → pages.
 
 Query modes (pick based on intent, not scale — the skill reads `lorekit vector status`'s `mode` field and routes automatically):
 
@@ -172,10 +174,25 @@ lorekit remove "知识库/摘要/<slug>.md" --apply
 Every `lorekit fetch` writes a record to `<corpus>/.wiki/ingest-state.json` with `status: started, stepsDone: ['fetch']`. As the skill advances through the pipeline, it records each step:
 
 ```bash
+lorekit source finalize 原料/文章/<slug>.md
 lorekit ingest record <url> --step archive --archived-to 原料/文章/<slug>
 lorekit ingest record <url> --step wiki --wiki-page 知识库/概念/<slug>.md
 lorekit ingest record <url> --step lint     # auto-promotes to status=completed
 ```
+
+For local files / pasted text, `ingest record` should carry the local source title if the source has no URL title yet; this keeps frontmatter complete before lint.
+
+Before `--step lint`, close wikilinks for the pages touched by this ingest:
+
+```bash
+lorekit links suggest --file "知识库/概念/<slug>.md" --json --write-state
+lorekit links fix "旧标签" --to "知识库/概念/<Canonical>" --alias "旧标签" --file "知识库/概念/<slug>.md"
+lorekit links stub "缺失概念" --type concept --source "知识库/概念/<slug>.md"
+lorekit links backlog "未来概念" --type concept --source "知识库/概念/<slug>.md"
+lorekit links plain "一次性词" --file "知识库/概念/<slug>.md"
+```
+
+Use `lorekit links stub` only for a real future node that deserves a placeholder page. Use `lorekit links plain` for one-off mentions that should not be a wiki link.
 
 Check what's in flight:
 
@@ -263,7 +280,16 @@ Prefer `~/Desktop/` or `~/Documents/`. Avoid iCloud (sqlite gets stalled by the 
 The CLI follows `cwd`. `cd` into whichever corpus you want to operate on.
 
 **ollama isn't running?**
-`lorekit vector sync` will tell you. Run `ollama serve`.
+`lorekit sync` will skip vector work and stay usable in text mode. Run `ollama serve` only when you want vector retrieval.
+
+**Need strict machine checks?**
+
+```bash
+lorekit doctor --json --strict
+lorekit lint --json
+lorekit lint plan
+lorekit lint fix --safe
+```
 
 **Swap embedding models?**
 
