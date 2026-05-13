@@ -28,7 +28,7 @@ Three layers:
 | --------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Launch screen   | `lorekit`               | No-arg invocation prints the blue logo + corpus status                                                                                                                |
 | Init            | `lorekit init`          | Scaffolds the corpus, deploys the Obsidian plugin, auto-backs up pre-existing content                                                                                 |
-| Doctor          | `lorekit doctor`        | Directory integrity, frontmatter coverage, stale workbench reminders                                                                                                  |
+| Doctor          | `lorekit doctor`        | Directory integrity, frontmatter coverage, Obsidian hints, optional integration health; supports `--json` and `--section integrations`                                |
 | Stats           | `lorekit stats`         | Page count, type breakdown                                                                                                                                            |
 | Search          | `lorekit search`        | Text search + vector semantic search (hybrid)                                                                                                                         |
 | Web fetch       | `lorekit fetch <url>`   | Pulls WeChat / generic pages into the workbench; auto-extracts `publishDate`, writes spec-compliant frontmatter, detects duplicate / in-progress URLs from state.json |
@@ -163,10 +163,14 @@ lorekit gbrain status
 lorekit gbrain export --dry-run
 lorekit gbrain export
 lorekit gbrain sync --dry-run
+lorekit gbrain sync
 lorekit gbrain doctor
+lorekit gbrain query "RAG"
 ```
 
-`export` writes only under `.wiki/integrations/gbrain-export/`, skips `_INDEX.md`, local `index.md`, and `知识库/模板/`, removes frontmatter `slug`, and injects `lorekit_source_path`, `lorekit_hash`, and `lorekit_exported_at`. `sync` then runs `gbrain import <export/pages>` and writes `.wiki/integrations/gbrain/sync-report.json`.
+`export` writes only under `.wiki/integrations/gbrain-export/`, skips `_INDEX.md`, local `index.md`, and `知识库/模板/`, removes frontmatter `slug`, and injects `lorekit_source_path`, `lorekit_hash`, and `lorekit_exported_at`. `sync` first checks the external GBrain binary, then exports and runs `gbrain import <export/pages>`, writing `.wiki/integrations/gbrain/sync-report.json`. If the binary is missing, `sync` writes a failure report without refreshing staging unless `--export-even-if-missing` is explicit.
+
+`query` requires a corpus and checks the export manifest + last sync report before calling GBrain. Use `--no-stale-check` only when intentionally querying an older external index.
 
 Boundary: GBrain must not write back to `知识库/` or `原料/`. Persisting new knowledge still goes through wiki-fileback / audit / snapshot review.
 

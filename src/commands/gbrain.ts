@@ -63,17 +63,21 @@ export function gbrainCommand(program: Command): void {
     .description('export lorekit pages and run gbrain import on the staging directory')
     .option('--dry-run', 'preview only; do not write export files or call gbrain import', false)
     .option('--json', 'output json', false)
-    .option('--force-export', 'reserved for future compatibility', false)
-    .action(async (opts: { dryRun?: boolean; json?: boolean; forceExport?: boolean }) => {
+    .option(
+      '--export-even-if-missing',
+      'refresh staging export even when the gbrain binary is missing',
+      false,
+    )
+    .action(async (opts: { dryRun?: boolean; json?: boolean; exportEvenIfMissing?: boolean }) => {
       const corpus = requireCorpus();
       const result = await syncGbrain(corpus, opts);
       if (opts.json) {
         printJson(result);
       } else if (result.status === 'ok') {
         if (result.dryRun) {
-          info(`would export ${result.export.pagesExported} page(s); gbrain import skipped`);
+          info(`would export ${result.export?.pagesExported ?? 0} page(s); gbrain import skipped`);
         } else {
-          ok(`gbrain sync complete: ${result.export.pagesExported} page(s) exported`);
+          ok(`gbrain sync complete: ${result.export?.pagesExported ?? 0} page(s) exported`);
         }
       } else {
         bad(`gbrain sync failed: ${result.errors.join('; ')}`);
@@ -106,12 +110,15 @@ export function gbrainCommand(program: Command): void {
     .argument('<text>', 'query text')
     .description('run gbrain query without writing back to lorekit')
     .option('--json', 'output json', false)
-    .action(async (text: string, opts: { json?: boolean }) => {
-      const result = await queryGbrain(text);
+    .option('--no-stale-check', 'skip corpus export/sync freshness guard')
+    .action(async (text: string, opts: { json?: boolean; staleCheck?: boolean }) => {
+      const corpus = requireCorpus();
+      const result = await queryGbrain(corpus, text, { staleCheck: opts.staleCheck !== false });
       if (opts.json) {
         printJson(result);
       } else {
         info(result.message);
+        for (const w of result.warnings) warn(w);
         if (result.gbrain?.stdout) print(result.gbrain.stdout.trim());
         if (result.gbrain?.stderr) warn(result.gbrain.stderr.trim());
         if (result.status === 'error') bad(result.errors.join('; '));

@@ -105,12 +105,42 @@ test('gbrain sync writes failure report when gbrain is missing', () => {
 
     const parsed = JSON.parse(r.stdout);
     assert.equal(parsed.status, 'error');
+    assert.equal(parsed.export, null);
     assert.match(parsed.errors.join('\n'), /not installed|ENOENT|spawn/);
+    assert.equal(
+      existsSync(join(corpus, '.wiki', 'integrations', 'gbrain-export')),
+      false,
+      'missing gbrain does not refresh staging export by default',
+    );
 
     const reportPath = join(corpus, '.wiki', 'integrations', 'gbrain', 'sync-report.json');
     assert.equal(existsSync(reportPath), true, 'failure report exists');
     const report = JSON.parse(readFileSync(reportPath, 'utf-8'));
     assert.equal(report.status, 'error');
+    assert.equal(report.export, null);
+  } finally {
+    cleanupTmpDir(corpus);
+  }
+});
+
+test('gbrain sync --export-even-if-missing keeps old staging-refresh behavior explicit', () => {
+  const corpus = seedCorpus('lorekit-smoke-gbrain-sync-export-missing-');
+  try {
+    const args = ['gbrain', 'sync', '--export-even-if-missing', '--json'];
+    const r = runLorekit(args, {
+      cwd: corpus,
+      env: { LOREKIT_GBRAIN_BIN: '__missing_lorekit_gbrain_binary__' },
+    });
+    assert.equal(r.status, 1, fmtRun(r, args, 'exit 1'));
+
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.status, 'error');
+    assert.equal(parsed.export.pagesExported, 1);
+    assert.equal(
+      existsSync(join(corpus, '.wiki', 'integrations', 'gbrain-export')),
+      true,
+      'explicit flag refreshes staging export even when gbrain is missing',
+    );
   } finally {
     cleanupTmpDir(corpus);
   }

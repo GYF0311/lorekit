@@ -170,7 +170,7 @@ export async function runSync(corpus: string, opts: SyncOptions = {}): Promise<S
   // Step 3: 健康体检（只报告不阻塞）
   if (!opts.skipDoctor) {
     print(chalk.cyan('── [3/3] doctor: sanity check ──'));
-    const issues = runDoctor(corpus);
+    const issues = await runDoctor(corpus);
     report.steps.doctor = { status: 'ok', issues };
   } else {
     report.steps.doctor = { status: 'skipped', reason: 'skip-doctor' };

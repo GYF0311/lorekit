@@ -103,13 +103,13 @@ var init_logger = __esm({
 });
 
 // src/lib/vectordb/files.ts
-import { createHash as createHash2 } from "crypto";
-import { readFileSync as readFileSync12, readdirSync as readdirSync7 } from "fs";
-import { basename as basename5, join as join12, relative as relative9 } from "path";
-import matter2 from "gray-matter";
+import { createHash as createHash3 } from "crypto";
+import { readFileSync as readFileSync15, readdirSync as readdirSync8 } from "fs";
+import { basename as basename5, join as join15, relative as relative10 } from "path";
+import matter3 from "gray-matter";
 function sha2562(filePath) {
-  const data = readFileSync12(filePath);
-  return createHash2("sha256").update(data).digest("hex");
+  const data = readFileSync15(filePath);
+  return createHash3("sha256").update(data).digest("hex");
 }
 function float32ToBuffer(arr) {
   return Buffer.from(arr.buffer, arr.byteOffset, arr.byteLength);
@@ -134,16 +134,16 @@ function collectFiles(corpus) {
   function walk(dir) {
     let entries;
     try {
-      entries = readdirSync7(dir, { withFileTypes: true });
+      entries = readdirSync8(dir, { withFileTypes: true });
     } catch {
       return;
     }
     for (const entry of entries) {
-      const full = join12(dir, entry.name);
+      const full = join15(dir, entry.name);
       if (entry.isDirectory()) {
         walk(full);
       } else if (entry.name.endsWith(".md")) {
-        const rel = relative9(corpus, full);
+        const rel = relative10(corpus, full);
         if (shouldIndex(rel)) {
           results.push(full);
         }
@@ -161,8 +161,8 @@ var init_files = __esm({
 });
 
 // src/lib/vectordb/schema.ts
-import { existsSync as existsSync10, mkdirSync as mkdirSync6 } from "fs";
-import { join as join13 } from "path";
+import { existsSync as existsSync14, mkdirSync as mkdirSync8 } from "fs";
+import { join as join16 } from "path";
 function vecDdl(dim) {
   return `
 CREATE VIRTUAL TABLE IF NOT EXISTS vec_chunks USING vec0(
@@ -200,9 +200,9 @@ async function loadSqlite() {
 }
 async function openDb(corpus, dim = EMBEDDING_DIM) {
   const { Database: Database2, sqliteVec } = await loadSqlite();
-  const wikiDir = join13(corpus, ".wiki");
-  if (!existsSync10(wikiDir)) mkdirSync6(wikiDir, { recursive: true });
-  const dbPath = join13(wikiDir, "vector.sqlite");
+  const wikiDir = join16(corpus, ".wiki");
+  if (!existsSync14(wikiDir)) mkdirSync8(wikiDir, { recursive: true });
+  const dbPath = join16(wikiDir, "vector.sqlite");
   const db = new Database2(dbPath);
   sqliteVec.load(db);
   db.pragma("journal_mode = WAL");
@@ -328,12 +328,12 @@ var chunker_exports = {};
 __export(chunker_exports, {
   chunkFile: () => chunkFile
 });
-import { readFileSync as readFileSync13 } from "fs";
+import { readFileSync as readFileSync16 } from "fs";
 import { basename as basename6 } from "path";
-import matter3 from "gray-matter";
+import matter4 from "gray-matter";
 function chunkFile(filePath, corpusRoot) {
-  const raw = readFileSync13(filePath, "utf-8");
-  const { data: fm, content: body } = matter3(raw);
+  const raw = readFileSync16(filePath, "utf-8");
+  const { data: fm, content: body } = matter4(raw);
   let title = fm.title || "";
   const type = fm.type || "";
   if (!title) {
@@ -387,10 +387,10 @@ var init_chunker = __esm({
 });
 
 // src/lib/vectordb/sync.ts
-import { relative as relative12 } from "path";
+import { relative as relative13 } from "path";
 async function syncFile(db, filePath, corpus, embedFn) {
   const { chunkFile: chunkFile2 } = await Promise.resolve().then(() => (init_chunker(), chunker_exports));
-  const rel = relative12(corpus, filePath);
+  const rel = relative13(corpus, filePath);
   const sha = sha2562(filePath);
   const old = db.prepare("SELECT id FROM documents WHERE path = ?").get(rel);
   if (old) {
@@ -447,9 +447,9 @@ var init_sync = __esm({
 });
 
 // src/lib/vectordb/build-layered-index.ts
-import { existsSync as existsSync11, readFileSync as readFileSync14, readdirSync as readdirSync8 } from "fs";
-import { join as join14, relative as relative13 } from "path";
-import matter4 from "gray-matter";
+import { existsSync as existsSync15, readFileSync as readFileSync17, readdirSync as readdirSync9 } from "fs";
+import { join as join17, relative as relative14 } from "path";
+import matter5 from "gray-matter";
 function parseIndexSections(content) {
   const lines = content.split("\n");
   const sections = [];
@@ -497,15 +497,15 @@ function findAllIndexFiles(corpus) {
   function walk(dir) {
     let entries;
     try {
-      entries = readdirSync8(dir, { withFileTypes: true });
+      entries = readdirSync9(dir, { withFileTypes: true });
     } catch (e) {
       warn(`findAllIndexFiles: skip ${dir} (${e.message})`);
       return;
     }
     for (const entry of entries) {
       if (entry.name.startsWith(".")) continue;
-      const full = join14(dir, entry.name);
-      const rel = relative13(corpus, full);
+      const full = join17(dir, entry.name);
+      const rel = relative14(corpus, full);
       if (vectorExcludePrefixes.some((p) => rel === p || rel.startsWith(p + "/"))) continue;
       if (entry.isDirectory()) {
         walk(full);
@@ -521,12 +521,12 @@ async function buildLayeredIndex(db, corpus, embedFn) {
   db.prepare("DELETE FROM dir_summaries").run();
   db.prepare("DELETE FROM vec_dirs").run();
   db.prepare("DELETE FROM fts_dirs").run();
-  const indexPath = join14(corpus, "index.md");
-  if (!existsSync11(indexPath)) {
+  const indexPath = join17(corpus, "index.md");
+  if (!existsSync15(indexPath)) {
     info("  L0: corpus/index.md not found, skipped");
   } else {
-    const raw = readFileSync14(indexPath, "utf-8");
-    const { content } = matter4(raw);
+    const raw = readFileSync17(indexPath, "utf-8");
+    const { content } = matter5(raw);
     const sections = parseIndexSections(content);
     if (sections.length === 0) {
       info("  L0: no sections with entries in index.md, skipped");
@@ -563,7 +563,7 @@ async function buildLayeredIndex(db, corpus, embedFn) {
   }
   const allEntries = [];
   for (const f of indexFiles) {
-    const raw = readFileSync14(f, "utf-8");
+    const raw = readFileSync17(f, "utf-8");
     allEntries.push(...parseIndexEntries(raw));
   }
   if (allEntries.length === 0) {
@@ -814,12 +814,12 @@ var init_query_bm25 = __esm({
 });
 
 // src/lib/vectordb/query-hybrid.ts
-import { createHash as createHash3 } from "crypto";
+import { createHash as createHash4 } from "crypto";
 function rrfMerge(lists, topK, k = 60) {
   const merged = /* @__PURE__ */ new Map();
   for (const list of lists) {
     list.forEach((item, i) => {
-      const fingerprint = createHash3("sha256").update(item.chunk).digest("hex").slice(0, 16);
+      const fingerprint = createHash4("sha256").update(item.chunk).digest("hex").slice(0, 16);
       const key = `${item.file}::${fingerprint}`;
       const rrf = 1 / (k + i + 1);
       const prev = merged.get(key);
@@ -850,8 +850,8 @@ var init_query_hybrid = __esm({
 });
 
 // src/lib/vectordb/status.ts
-import { existsSync as existsSync12 } from "fs";
-import { join as join15 } from "path";
+import { existsSync as existsSync16 } from "fs";
+import { join as join18 } from "path";
 function computeMode(indexed, indexedFiles) {
   if (!indexed) {
     return {
@@ -871,8 +871,8 @@ function computeMode(indexed, indexedFiles) {
   };
 }
 async function getStatus(corpus) {
-  const dbPath = join15(corpus, ".wiki", "vector.sqlite");
-  if (!existsSync12(dbPath)) {
+  const dbPath = join18(corpus, ".wiki", "vector.sqlite");
+  if (!existsSync16(dbPath)) {
     const rec2 = computeMode(false, 0);
     return {
       indexed: false,
@@ -1196,8 +1196,8 @@ function initCommand(program2) {
 
 // src/commands/doctor.ts
 init_logger();
-import { existsSync as existsSync4, lstatSync as lstatSync2, readFileSync as readFileSync5, readdirSync as readdirSync3 } from "fs";
-import { join as join5, relative as relative2 } from "path";
+import { existsSync as existsSync8, lstatSync as lstatSync2, readFileSync as readFileSync8, readdirSync as readdirSync4 } from "fs";
+import { join as join8, relative as relative3 } from "path";
 import chalk3 from "chalk";
 init_paths();
 
@@ -1241,6 +1241,505 @@ function missingTokens(actual, recommended) {
   return tokenize(recommended).filter((t) => !have.has(t));
 }
 
+// src/lib/integrations/gbrain.ts
+import { existsSync as existsSync7, mkdirSync as mkdirSync3, readFileSync as readFileSync7 } from "fs";
+import { join as join7 } from "path";
+
+// src/lib/integrations/gbrain-status.ts
+import { existsSync as existsSync4 } from "fs";
+import { homedir } from "os";
+import { join as join5 } from "path";
+
+// src/lib/integrations/process.ts
+import { spawn } from "child_process";
+function runExternalCommand(opts) {
+  const startedAt = Date.now();
+  const timeoutMs = opts.timeoutMs ?? 12e4;
+  return new Promise((resolve5) => {
+    let stdout = "";
+    let stderr = "";
+    let settled = false;
+    let timedOut = false;
+    const child = spawn(opts.command, opts.args, {
+      cwd: opts.cwd,
+      shell: false,
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill("SIGTERM");
+    }, timeoutMs);
+    child.stdout?.on("data", (chunk) => {
+      stdout += chunk.toString("utf-8");
+    });
+    child.stderr?.on("data", (chunk) => {
+      stderr += chunk.toString("utf-8");
+    });
+    child.on("error", (e) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve5({
+        command: opts.command,
+        args: opts.args,
+        exitCode: -1,
+        stdout,
+        stderr,
+        durationMs: Date.now() - startedAt,
+        timedOut,
+        error: e.message
+      });
+    });
+    child.on("close", (code) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve5({
+        command: opts.command,
+        args: opts.args,
+        exitCode: code ?? (timedOut ? 124 : 1),
+        stdout,
+        stderr,
+        durationMs: Date.now() - startedAt,
+        timedOut
+      });
+    });
+  });
+}
+
+// src/lib/integrations/gbrain-status.ts
+var GBRAIN_INSTALL_HINT = [
+  "git clone https://github.com/garrytan/gbrain.git ~/code/gbrain",
+  "cd ~/code/gbrain",
+  "bun install",
+  "bun link",
+  "gbrain init"
+].join("\n");
+async function getGbrainStatus() {
+  const binary = process.env.LOREKIT_GBRAIN_BIN || "gbrain";
+  const errors = [];
+  const versionProbe = await runExternalCommand({
+    command: binary,
+    args: ["--version"],
+    timeoutMs: 1e4
+  });
+  if (versionProbe.exitCode !== 0) {
+    errors.push(versionProbe.error || versionProbe.stderr.trim() || "gbrain binary not installed");
+    return {
+      installed: false,
+      binary,
+      version: null,
+      brainInitialized: existsSync4(join5(homedir(), ".gbrain")),
+      installHint: GBRAIN_INSTALL_HINT,
+      errors
+    };
+  }
+  const version2 = (versionProbe.stdout || versionProbe.stderr).trim() || null;
+  return {
+    installed: true,
+    binary,
+    version: version2,
+    brainInitialized: existsSync4(join5(homedir(), ".gbrain")),
+    installHint: GBRAIN_INSTALL_HINT,
+    errors
+  };
+}
+
+// src/lib/integrations/gbrain-export.ts
+import { createHash as createHash2 } from "crypto";
+import {
+  existsSync as existsSync6,
+  mkdirSync as mkdirSync2,
+  readFileSync as readFileSync6,
+  readdirSync as readdirSync3,
+  renameSync,
+  statSync as statSync4,
+  writeFileSync as writeFileSync3
+} from "fs";
+import { dirname as dirname3, join as join6, relative as relative2, resolve as resolve2 } from "path";
+import matter2 from "gray-matter";
+
+// src/lib/integrations/manifest.ts
+import { existsSync as existsSync5, readFileSync as readFileSync5, writeFileSync as writeFileSync2 } from "fs";
+function writeJsonFile(path, data) {
+  writeFileSync2(path, JSON.stringify(data, null, 2) + "\n", "utf-8");
+}
+function readJsonFile(path) {
+  if (!existsSync5(path)) return null;
+  return JSON.parse(readFileSync5(path, "utf-8"));
+}
+
+// src/lib/integrations/gbrain-export.ts
+function toPosixPath(path) {
+  return path.split("\\").join("/");
+}
+function sha256Content(content) {
+  return "sha256:" + createHash2("sha256").update(content).digest("hex");
+}
+function exportRoot(corpus, out2) {
+  if (!out2) return join6(corpus, ".wiki", "integrations", "gbrain-export");
+  return resolve2(corpus, out2);
+}
+function collectKnowledgeMarkdown(corpus) {
+  const root = join6(corpus, "\u77E5\u8BC6\u5E93");
+  const candidates = [];
+  const skipped = [];
+  const warnings = [];
+  if (!existsSync6(root)) {
+    warnings.push("\u77E5\u8BC6\u5E93/ not found; no pages exported");
+    return { candidates, skipped, warnings };
+  }
+  function walk(dir) {
+    for (const entry of readdirSync3(dir, { withFileTypes: true })) {
+      if (entry.name.startsWith(".")) continue;
+      const absPath = join6(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(absPath);
+        continue;
+      }
+      if (!entry.isFile() || !entry.name.endsWith(".md")) continue;
+      const sourcePath = toPosixPath(relative2(corpus, absPath));
+      if (sourcePath === "\u77E5\u8BC6\u5E93/\u6A21\u677F" || sourcePath.startsWith("\u77E5\u8BC6\u5E93/\u6A21\u677F/")) {
+        skipped.push({ sourcePath, reason: "template file skipped by default" });
+        continue;
+      }
+      if (entry.name === "_INDEX.md") {
+        skipped.push({ sourcePath, reason: "index file skipped by default" });
+        continue;
+      }
+      if (entry.name === "index.md") {
+        skipped.push({ sourcePath, reason: "local index file skipped by default" });
+        continue;
+      }
+      candidates.push({ absPath, sourcePath });
+    }
+  }
+  walk(root);
+  candidates.sort((a, b) => a.sourcePath.localeCompare(b.sourcePath));
+  skipped.sort((a, b) => a.sourcePath.localeCompare(b.sourcePath));
+  return { candidates, skipped, warnings };
+}
+function ensureFreshExportDir(root, exportedAt) {
+  mkdirSync2(root, { recursive: true });
+  const backupRoot = join6(root, "backups", exportedAt.replace(/[:.]/g, "-"));
+  let moved = false;
+  for (const name of ["pages", "manifest.json", "README.md"]) {
+    const current = join6(root, name);
+    if (!existsSync6(current)) continue;
+    if (!moved) {
+      mkdirSync2(backupRoot, { recursive: true });
+      moved = true;
+    }
+    renameSync(current, join6(backupRoot, name));
+  }
+}
+function normalizeForGbrain(raw, sourcePath, exportedAt) {
+  const parsed = matter2(raw);
+  const data = { ...parsed.data };
+  delete data.slug;
+  data.lorekit_source_path = sourcePath;
+  data.lorekit_layer = "artifact";
+  data.lorekit_hash = sha256Content(raw);
+  data.lorekit_exported_at = exportedAt;
+  return matter2.stringify(parsed.content, data);
+}
+function pageMeta(raw) {
+  const parsed = matter2(raw);
+  return {
+    title: typeof parsed.data.title === "string" ? parsed.data.title : null,
+    type: typeof parsed.data.type === "string" ? parsed.data.type : null
+  };
+}
+function exportForGbrain(corpus, opts = {}) {
+  const dryRun = opts.dryRun ?? false;
+  const exportedAt = (/* @__PURE__ */ new Date()).toISOString();
+  const root = exportRoot(corpus, opts.out);
+  const pagesDir = join6(root, "pages");
+  const manifestPath = join6(root, "manifest.json");
+  const { candidates, skipped, warnings } = collectKnowledgeMarkdown(corpus);
+  const pages = [];
+  for (const candidate of candidates) {
+    const rawBuffer = readFileSync6(candidate.absPath);
+    const raw = rawBuffer.toString("utf-8");
+    const relUnderKnowledge = toPosixPath(relative2(join6(corpus, "\u77E5\u8BC6\u5E93"), candidate.absPath));
+    const exportPath = toPosixPath(join6("pages", relUnderKnowledge));
+    const meta = pageMeta(raw);
+    pages.push({
+      sourcePath: candidate.sourcePath,
+      exportPath,
+      title: meta.title,
+      type: meta.type,
+      hash: sha256Content(rawBuffer),
+      bytes: statSync4(candidate.absPath).size,
+      status: "exported"
+    });
+  }
+  if (!dryRun) {
+    ensureFreshExportDir(root, exportedAt);
+    for (const candidate of candidates) {
+      const raw = readFileSync6(candidate.absPath, "utf-8");
+      const relUnderKnowledge = relative2(join6(corpus, "\u77E5\u8BC6\u5E93"), candidate.absPath);
+      const target = join6(pagesDir, relUnderKnowledge);
+      mkdirSync2(dirname3(target), { recursive: true });
+      writeFileSync3(target, normalizeForGbrain(raw, candidate.sourcePath, exportedAt), "utf-8");
+    }
+    const manifest = {
+      version: 1,
+      integration: "gbrain",
+      source: "lorekit",
+      corpus,
+      exportedAt,
+      pages,
+      skipped,
+      warnings
+    };
+    writeJsonFile(manifestPath, manifest);
+    writeFileSync3(
+      join6(root, "README.md"),
+      [
+        "# GBrain export",
+        "",
+        "Generated by `lorekit gbrain export`.",
+        "This directory is a staging copy for GBrain import; lorekit \u77E5\u8BC6\u5E93/ remains the source of truth.",
+        ""
+      ].join("\n"),
+      "utf-8"
+    );
+  }
+  return {
+    status: warnings.length > 0 ? "warn" : "ok",
+    dryRun,
+    corpus,
+    exportDir: root,
+    pagesDir,
+    manifestPath,
+    exportedAt,
+    pagesExported: pages.length,
+    pagesSkipped: skipped.length,
+    pages,
+    skipped,
+    warnings
+  };
+}
+
+// src/lib/integrations/gbrain.ts
+function syncReportPath(corpus) {
+  return join7(corpus, ".wiki", "integrations", "gbrain", "sync-report.json");
+}
+function writeSyncReport(corpus, result) {
+  const path = syncReportPath(corpus);
+  mkdirSync3(join7(corpus, ".wiki", "integrations", "gbrain"), { recursive: true });
+  writeJsonFile(path, result);
+}
+function commandSummary(binary, pagesDir) {
+  return [binary, "import", pagesDir];
+}
+async function syncGbrain(corpus, opts = {}) {
+  const dryRun = opts.dryRun ?? false;
+  const startedAt = (/* @__PURE__ */ new Date()).toISOString();
+  if (dryRun) {
+    const exportResult2 = exportForGbrain(corpus, { dryRun: true });
+    return {
+      status: "ok",
+      dryRun: true,
+      startedAt,
+      finishedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      corpus,
+      export: exportResult2,
+      gbrain: null,
+      gbrainImport: { skipped: true, reason: "dry-run" },
+      warnings: exportResult2.warnings,
+      errors: []
+    };
+  }
+  const gbrainStatus = await getGbrainStatus();
+  if (!gbrainStatus.installed) {
+    const exportResult2 = opts.exportEvenIfMissing ? exportForGbrain(corpus, { dryRun: false }) : null;
+    const result2 = {
+      status: "error",
+      dryRun: false,
+      startedAt,
+      finishedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      corpus,
+      export: exportResult2,
+      gbrain: null,
+      gbrainImport: { skipped: true, reason: "gbrain-missing" },
+      warnings: exportResult2?.warnings ?? [],
+      errors: ["gbrain is not installed", ...gbrainStatus.errors]
+    };
+    writeSyncReport(corpus, result2);
+    return result2;
+  }
+  const exportResult = exportForGbrain(corpus, { dryRun: false });
+  const importCommand = commandSummary(gbrainStatus.binary, exportResult.pagesDir);
+  const external = await runExternalCommand({
+    command: gbrainStatus.binary,
+    args: ["import", exportResult.pagesDir],
+    cwd: corpus,
+    timeoutMs: 12e4
+  });
+  const result = {
+    status: external.exitCode === 0 ? "ok" : "error",
+    dryRun: false,
+    startedAt,
+    finishedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    corpus,
+    export: exportResult,
+    gbrain: {
+      binary: gbrainStatus.binary,
+      version: gbrainStatus.version,
+      command: importCommand,
+      exitCode: external.exitCode,
+      stdout: external.stdout,
+      stderr: external.stderr,
+      durationMs: external.durationMs
+    },
+    warnings: exportResult.warnings,
+    errors: external.exitCode === 0 ? [] : [external.error || external.stderr || "gbrain import failed"]
+  };
+  writeSyncReport(corpus, result);
+  return result;
+}
+async function doctorGbrain(corpus) {
+  const issues = [];
+  const gbrain = await getGbrainStatus();
+  if (!gbrain.installed) {
+    issues.push({
+      section: "gbrain",
+      severity: "warn",
+      message: "GBrain binary is not installed",
+      recommendation: "Install GBrain only if you want graph retrieval: git clone + bun install + bun link"
+    });
+  }
+  const manifestPath = join7(corpus, ".wiki", "integrations", "gbrain-export", "manifest.json");
+  const syncPath = syncReportPath(corpus);
+  const manifest = readJsonFile(manifestPath);
+  if (!manifest) {
+    issues.push({
+      section: "gbrain",
+      severity: "warn",
+      message: "GBrain export manifest is missing",
+      recommendation: "Run lorekit gbrain export"
+    });
+  } else {
+    for (const page of manifest.pages) {
+      const sourcePath = join7(corpus, page.sourcePath);
+      if (!existsSync7(sourcePath)) {
+        issues.push({
+          section: "gbrain",
+          severity: "warn",
+          message: `Exported page source is missing: ${page.sourcePath}`,
+          recommendation: "Run lorekit gbrain export to refresh the staging directory"
+        });
+        continue;
+      }
+      const currentHash = "sha256:" + sha256(sourcePath);
+      if (currentHash !== page.hash) {
+        issues.push({
+          section: "gbrain",
+          severity: "warn",
+          message: `GBrain export is stale: ${page.sourcePath}`,
+          recommendation: "Run lorekit gbrain export or lorekit gbrain sync"
+        });
+      }
+    }
+  }
+  if (!existsSync7(syncPath)) {
+    issues.push({
+      section: "gbrain",
+      severity: "warn",
+      message: "GBrain sync report is missing",
+      recommendation: "Run lorekit gbrain sync after export when GBrain is installed"
+    });
+  } else {
+    try {
+      const report = JSON.parse(readFileSync7(syncPath, "utf-8"));
+      if (report.status !== "ok") {
+        issues.push({
+          section: "gbrain",
+          severity: "warn",
+          message: "Last GBrain sync did not finish successfully",
+          recommendation: "Inspect .wiki/integrations/gbrain/sync-report.json and rerun sync"
+        });
+      }
+    } catch (e) {
+      issues.push({
+        section: "gbrain",
+        severity: "error",
+        message: `GBrain sync report is unreadable: ${e.message}`,
+        recommendation: "Regenerate it with lorekit gbrain sync"
+      });
+    }
+  }
+  const hasError = issues.some((i) => i.severity === "error");
+  return {
+    status: hasError ? "error" : issues.length > 0 ? "warn" : "ok",
+    corpus,
+    gbrain,
+    manifestPath,
+    syncReportPath: syncPath,
+    issues
+  };
+}
+async function queryGbrain(corpus, text, opts = {}) {
+  const message = "This answer comes from GBrain index generated from lorekit export. To persist new knowledge, use wiki-fileback / lorekit audit.";
+  const shouldCheck = opts.staleCheck !== false;
+  if (shouldCheck) {
+    const check = await doctorGbrain(corpus);
+    if (!check.gbrain.installed) {
+      return {
+        status: "error",
+        source: "gbrain",
+        message,
+        staleCheck: { skipped: false, status: check.status, issues: check.issues },
+        gbrain: null,
+        warnings: check.issues.map((i) => i.message),
+        errors: ["gbrain is not installed", ...check.gbrain.errors]
+      };
+    }
+    if (check.status !== "ok") {
+      return {
+        status: "error",
+        source: "gbrain",
+        message,
+        staleCheck: { skipped: false, status: check.status, issues: check.issues },
+        gbrain: null,
+        warnings: check.issues.map((i) => i.message),
+        errors: [
+          "GBrain export is not ready. Run lorekit gbrain sync first, or pass --no-stale-check to query anyway.",
+          ...check.issues.map((i) => i.message)
+        ]
+      };
+    }
+  }
+  const status = await getGbrainStatus();
+  if (!status.installed) {
+    return {
+      status: "error",
+      source: "gbrain",
+      message,
+      staleCheck: { skipped: !shouldCheck, status: null, issues: [] },
+      gbrain: null,
+      warnings: [],
+      errors: ["gbrain is not installed", ...status.errors]
+    };
+  }
+  const r = await runExternalCommand({
+    command: status.binary,
+    args: ["query", text],
+    timeoutMs: 12e4
+  });
+  return {
+    status: r.exitCode === 0 ? "ok" : "error",
+    source: "gbrain",
+    message,
+    staleCheck: { skipped: !shouldCheck, status: shouldCheck ? "ok" : null, issues: [] },
+    gbrain: r,
+    warnings: [],
+    errors: r.exitCode === 0 ? [] : [r.error || r.stderr || "gbrain query failed"]
+  };
+}
+
 // src/commands/doctor.ts
 var EXPECTED_DIRS = [
   "\u6BCF\u65E5",
@@ -1253,54 +1752,68 @@ var EXPECTED_DIRS = [
   "\u7CFB\u7EDF",
   "_\u5DE5\u4F5C\u53F0"
 ];
-function checkDirs(corpus) {
-  let issues = 0;
+function inspectDirs(corpus) {
+  const missing = [];
   for (const dir of EXPECTED_DIRS) {
-    const full = join5(corpus, dir);
-    if (existsSync4(full)) {
-      ok(`${dir}/`);
-    } else {
-      bad(`${dir}/ ${chalk3.dim("missing")}`);
-      issues++;
-    }
+    const full = join8(corpus, dir);
+    if (!existsSync8(full)) missing.push(dir);
   }
-  return issues;
+  return { missing };
+}
+function checkDirs(corpus) {
+  const { missing } = inspectDirs(corpus);
+  for (const dir of EXPECTED_DIRS) {
+    if (missing.includes(dir)) bad(`${dir}/ ${chalk3.dim("missing")}`);
+    else ok(`${dir}/`);
+  }
+  return missing.length;
+}
+function inspectWikiVersion(corpus) {
+  const versionFile = join8(corpus, ".wiki", "version");
+  if (existsSync8(versionFile)) {
+    const ver = readFileSync8(versionFile, "utf-8").trim();
+    return { exists: true, version: ver };
+  }
+  return { exists: false, version: null };
 }
 function checkWikiVersion(corpus) {
-  const versionFile = join5(corpus, ".wiki", "version");
-  if (existsSync4(versionFile)) {
-    const ver = readFileSync5(versionFile, "utf-8").trim();
-    ok(`.wiki/version \u2192 ${ver}`);
+  const result = inspectWikiVersion(corpus);
+  if (result.exists) {
+    ok(`.wiki/version \u2192 ${result.version}`);
     return 0;
   }
   bad(".wiki/version missing");
   return 1;
 }
-function checkFrontmatterCoverage(corpus) {
+function inspectFrontmatterCoverage(corpus) {
   const files = collectMdFiles(corpus);
   const withFm = files.filter((f) => hasFrontmatter(f)).length;
   const total = files.length;
   const pct = total === 0 ? 100 : Math.round(withFm / total * 100);
+  return { withFrontmatter: withFm, total, pct };
+}
+function checkFrontmatterCoverage(corpus) {
+  const { withFrontmatter, total, pct } = inspectFrontmatterCoverage(corpus);
   const color = pct >= 90 ? chalk3.green : pct >= 60 ? chalk3.yellow : chalk3.red;
   const icon = pct >= 90 ? "\u2713" : pct >= 60 ? "\u26A0" : "\u2717";
-  print(`${color(icon)} frontmatter coverage: ${withFm}/${total} (${pct}%)`);
+  print(`${color(icon)} frontmatter coverage: ${withFrontmatter}/${total} (${pct}%)`);
 }
-function checkIndexFiles(corpus) {
-  let missing = 0;
+function findMissingIndexDirs(corpus) {
+  const missing = [];
   function walk(dir) {
-    if (!existsSync4(dir)) return;
-    for (const entry of readdirSync3(dir, { withFileTypes: true })) {
+    if (!existsSync8(dir)) return;
+    for (const entry of readdirSync4(dir, { withFileTypes: true })) {
       if (entry.name.startsWith(".")) continue;
       if (!entry.isDirectory()) continue;
-      const full = join5(dir, entry.name);
-      const rel = relative2(corpus, full);
+      const full = join8(dir, entry.name);
+      const rel = relative3(corpus, full);
       if (isIndexExcluded(rel)) continue;
       if (isFolderPackage(full)) continue;
       let shouldHaveIndex = false;
-      for (const name of readdirSync3(full)) {
+      for (const name of readdirSync4(full)) {
         if (name.startsWith(".")) continue;
         if (name === "_INDEX.md" || name === ".gitkeep") continue;
-        const childPath = join5(full, name);
+        const childPath = join8(full, name);
         let stat;
         try {
           stat = lstatSync2(childPath);
@@ -1316,46 +1829,158 @@ function checkIndexFiles(corpus) {
           break;
         }
       }
-      if (shouldHaveIndex && !existsSync4(join5(full, "_INDEX.md"))) {
-        warn(`_INDEX.md missing in ${rel}/`);
-        missing++;
+      if (shouldHaveIndex && !existsSync8(join8(full, "_INDEX.md"))) {
+        missing.push(rel);
       }
       walk(full);
     }
   }
   walk(corpus);
-  if (missing === 0) {
-    ok("all directories with .md files have _INDEX.md");
-  }
   return missing;
 }
-function checkObsidianGraph(corpus) {
+function checkIndexFiles(corpus) {
+  const missing = findMissingIndexDirs(corpus);
+  for (const rel of missing) warn(`_INDEX.md missing in ${rel}/`);
+  if (missing.length === 0) {
+    ok("all directories with .md files have _INDEX.md");
+  }
+  return missing.length;
+}
+function inspectObsidianGraph(corpus) {
   try {
     const recommended = getRecommendedFilter();
     const cur = readCorpusFilter(corpus);
     if (!cur.exists) {
-      warn("obsidian: graph filter \u4E0D\u5B8C\u6574\uFF0C\u8FD0\u884C lorekit obsidian-tune \u67E5\u770B\u8BE6\u60C5");
-      return;
+      return {
+        status: "warn",
+        message: "graph filter \u4E0D\u5B8C\u6574\uFF0C\u8FD0\u884C lorekit obsidian-tune \u67E5\u770B\u8BE6\u60C5"
+      };
     }
     if (isFilterComplete(cur.search, recommended)) {
-      ok("obsidian: graph filter \u5B8C\u6574");
-    } else {
-      warn("obsidian: graph filter \u4E0D\u5B8C\u6574\uFF0C\u8FD0\u884C lorekit obsidian-tune \u67E5\u770B\u8BE6\u60C5");
+      return { status: "ok", message: "graph filter \u5B8C\u6574" };
     }
+    return {
+      status: "warn",
+      message: "graph filter \u4E0D\u5B8C\u6574\uFF0C\u8FD0\u884C lorekit obsidian-tune \u67E5\u770B\u8BE6\u60C5"
+    };
   } catch (e) {
-    warn(`obsidian: \u68C0\u67E5 graph filter \u5931\u8D25: ${e.message}`);
+    return { status: "warn", message: `\u68C0\u67E5 graph filter \u5931\u8D25: ${e.message}` };
   }
+}
+function checkObsidianGraph(corpus) {
+  const result = inspectObsidianGraph(corpus);
+  if (result.status === "ok") ok(`obsidian: ${result.message}`);
+  else warn(`obsidian: ${result.message}`);
+}
+function inspectArchive(corpus) {
+  const archiveDir = join8(corpus, "_\u5F52\u6863");
+  if (existsSync8(archiveDir)) {
+    return { status: "ok", exists: true };
+  }
+  return { status: "warn", exists: false, message: "_\u5F52\u6863/ not found (optional)" };
 }
 function checkArchive(corpus) {
-  const archiveDir = join5(corpus, "_\u5F52\u6863");
-  if (existsSync4(archiveDir)) {
-    ok("_\u5F52\u6863/ exists");
-    return 0;
-  }
-  warn("_\u5F52\u6863/ not found (optional)");
+  const result = inspectArchive(corpus);
+  if (result.status === "ok") ok("_\u5F52\u6863/ exists");
+  else warn(String(result.message));
   return 0;
 }
-function runDoctor(corpus) {
+function statusFromIssues(issues) {
+  if (issues.some((issue) => issue.severity === "error")) return "error";
+  if (issues.length > 0) return "warn";
+  return "ok";
+}
+function convertGbrainIssue(issue) {
+  return {
+    section: "gbrain",
+    severity: issue.severity,
+    message: issue.message,
+    recommendation: issue.recommendation
+  };
+}
+function gbrainSection(gbrain) {
+  return {
+    status: gbrain.status,
+    gbrain: {
+      status: gbrain.status,
+      installed: gbrain.gbrain.installed,
+      binary: gbrain.gbrain.binary,
+      version: gbrain.gbrain.version,
+      brainInitialized: gbrain.gbrain.brainInitialized,
+      manifestPath: gbrain.manifestPath,
+      syncReportPath: gbrain.syncReportPath,
+      issues: gbrain.issues
+    }
+  };
+}
+async function runDoctorReport(corpus, opts = {}) {
+  const section = opts.section ?? "all";
+  if (section !== "all" && section !== "integrations") {
+    throw new Error(`unsupported doctor section: ${section}`);
+  }
+  const report = {
+    status: "ok",
+    generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    corpus,
+    sections: {},
+    issues: [],
+    hardIssues: 0
+  };
+  if (section === "all") {
+    const dirs = inspectDirs(corpus);
+    report.sections.directories = {
+      status: dirs.missing.length > 0 ? "error" : "ok",
+      expected: EXPECTED_DIRS,
+      missing: dirs.missing
+    };
+    for (const dir of dirs.missing) {
+      report.issues.push({
+        section: "directories",
+        severity: "error",
+        message: `${dir}/ missing`
+      });
+    }
+    const wiki = inspectWikiVersion(corpus);
+    report.sections.wikiMetadata = {
+      status: wiki.exists ? "ok" : "error",
+      version: wiki.version,
+      versionFileExists: wiki.exists
+    };
+    if (!wiki.exists) {
+      report.issues.push({
+        section: "wikiMetadata",
+        severity: "error",
+        message: ".wiki/version missing"
+      });
+    }
+    const fm = inspectFrontmatterCoverage(corpus);
+    report.sections.frontmatter = {
+      status: fm.pct >= 90 ? "ok" : fm.pct >= 60 ? "warn" : "error",
+      ...fm
+    };
+    const missingIndexes = findMissingIndexDirs(corpus);
+    report.sections.indexFiles = {
+      status: missingIndexes.length > 0 ? "warn" : "ok",
+      missing: missingIndexes
+    };
+    for (const rel of missingIndexes) {
+      report.issues.push({
+        section: "indexFiles",
+        severity: "warn",
+        message: `_INDEX.md missing in ${rel}/`
+      });
+    }
+    report.sections.archive = inspectArchive(corpus);
+    report.sections.obsidian = inspectObsidianGraph(corpus);
+  }
+  const gbrain = await doctorGbrain(corpus);
+  report.sections.integrations = gbrainSection(gbrain);
+  report.issues.push(...gbrain.issues.map(convertGbrainIssue));
+  report.hardIssues = report.issues.filter((issue) => issue.severity === "error").length;
+  report.status = statusFromIssues(report.issues);
+  return report;
+}
+async function runDoctor(corpus) {
   print(chalk3.bold(`
 lorekit doctor \u2014 ${corpus}
 `));
@@ -1378,6 +2003,20 @@ lorekit doctor \u2014 ${corpus}
   print(chalk3.cyan("\u2500\u2500 obsidian \u2500\u2500"));
   checkObsidianGraph(corpus);
   print();
+  print(chalk3.cyan("\u2500\u2500 integrations \u2500\u2500"));
+  const gbrain = await doctorGbrain(corpus);
+  if (gbrain.status === "ok") {
+    ok("gbrain: integration healthy");
+  } else {
+    for (const issue of gbrain.issues) {
+      const line = `gbrain: ${issue.message}. ${issue.recommendation}`;
+      if (issue.severity === "error") bad(line);
+      else warn(line);
+    }
+  }
+  const integrationErrors = gbrain.issues.filter((issue) => issue.severity === "error").length;
+  issues += integrationErrors;
+  print();
   if (issues === 0) {
     print(chalk3.green.bold("all checks passed \u2713"));
   } else {
@@ -1387,16 +2026,41 @@ lorekit doctor \u2014 ${corpus}
   return issues;
 }
 function doctorCommand(program2) {
-  program2.command("doctor").description("run health checks on the corpus").action(() => {
+  program2.command("doctor").description("run health checks on the corpus").option("--json", "output machine-readable doctor report", false).option("--section <name>", "only run a doctor section (currently: integrations)", "all").action(async (opts) => {
     const corpus = requireCorpus();
-    const issues = runDoctor(corpus);
+    if (opts.json) {
+      const report = await runDoctorReport(corpus, {
+        section: opts.section === "integrations" ? "integrations" : "all"
+      });
+      out(JSON.stringify(report, null, 2));
+      process.exitCode = report.hardIssues > 0 ? 1 : 0;
+      return;
+    }
+    if (opts.section === "integrations") {
+      const report = await runDoctorReport(corpus, { section: "integrations" });
+      print(chalk3.bold(`
+lorekit doctor \u2014 ${corpus}
+`));
+      print(chalk3.cyan("\u2500\u2500 integrations \u2500\u2500"));
+      const integration = report.sections.integrations?.gbrain;
+      const issues2 = integration?.issues ?? [];
+      if (issues2.length === 0) ok("gbrain: integration healthy");
+      for (const issue of issues2) {
+        const line = `gbrain: ${issue.message}. ${issue.recommendation}`;
+        if (issue.severity === "error") bad(line);
+        else warn(line);
+      }
+      process.exitCode = report.hardIssues > 0 ? 1 : 0;
+      return;
+    }
+    const issues = await runDoctor(corpus);
     process.exitCode = issues > 0 ? 1 : 0;
   });
 }
 
 // src/commands/stats.ts
-import { readFileSync as readFileSync6, statSync as statSync4 } from "fs";
-import { relative as relative3 } from "path";
+import { readFileSync as readFileSync9, statSync as statSync5 } from "fs";
+import { relative as relative4 } from "path";
 init_logger();
 function statsCommand(program2) {
   program2.command("stats").description("output corpus statistics as JSON").action(() => {
@@ -1413,11 +2077,11 @@ function statsCommand(program2) {
       const fm = extractFrontmatter(file);
       const type = fm.type || "unknown";
       byType[type] = (byType[type] || 0) + 1;
-      const rel = relative3(corpus, file);
+      const rel = relative4(corpus, file);
       const topDir = rel.split("/")[0] || ".";
       byDir[topDir] = (byDir[topDir] || 0) + 1;
       try {
-        const mtime = statSync4(file).mtime;
+        const mtime = statSync5(file).mtime;
         if (now - mtime.getTime() < sevenDays) {
           recentActive7d++;
         }
@@ -1427,7 +2091,7 @@ function statsCommand(program2) {
         debug(`stats: stat(${file}) failed: ${e.message}`);
       }
       try {
-        const content = readFileSync6(file, "utf-8");
+        const content = readFileSync9(file, "utf-8");
         const linkRe = /\[\[([^\]|#]+)[^\]]*\]\]/g;
         let m;
         while ((m = linkRe.exec(content)) !== null) {
@@ -1439,7 +2103,7 @@ function statsCommand(program2) {
     }
     const orphans = [];
     for (const file of files) {
-      const rel = relative3(corpus, file);
+      const rel = relative4(corpus, file);
       const stem = rel.replace(/\.md$/, "");
       const baseName = stem.split("/").pop();
       if (!inboundLinks.has(stem) && !inboundLinks.has(baseName)) {
@@ -1459,8 +2123,8 @@ function statsCommand(program2) {
 }
 
 // src/commands/lint.ts
-import { readFileSync as readFileSync7 } from "fs";
-import { relative as relative4, basename as basename2 } from "path";
+import { readFileSync as readFileSync10 } from "fs";
+import { relative as relative5, basename as basename2 } from "path";
 import chalk4 from "chalk";
 init_paths();
 init_logger();
@@ -1507,7 +2171,7 @@ function runLint(corpus) {
   const baseNameSet = /* @__PURE__ */ new Set();
   const inboundLinks = /* @__PURE__ */ new Set();
   for (const file of files) {
-    const rel = relative4(corpus, file);
+    const rel = relative5(corpus, file);
     const stem = rel.replace(/\.md$/, "");
     stemSet.add(stem);
     baseNameSet.add(stem.split("/").pop());
@@ -1520,7 +2184,7 @@ function runLint(corpus) {
   const fileLinks = /* @__PURE__ */ new Map();
   const fileFrontmatter = /* @__PURE__ */ new Map();
   for (const file of files) {
-    const rel = relative4(corpus, file);
+    const rel = relative5(corpus, file);
     let fm = {};
     try {
       fm = extractFrontmatter(file);
@@ -1539,7 +2203,7 @@ function runLint(corpus) {
       }
     }
     try {
-      const content = stripCodeBlocks(readFileSync7(file, "utf-8"));
+      const content = stripCodeBlocks(readFileSync10(file, "utf-8"));
       const linkRe = /\[\[([^\]|#]+)[^\]]*\]\]/g;
       const targets = [];
       let m;
@@ -1565,7 +2229,7 @@ function runLint(corpus) {
     }
   }
   for (const file of files) {
-    const rel = relative4(corpus, file);
+    const rel = relative5(corpus, file);
     if (shouldSkipOrphan(rel)) continue;
     const fm = fileFrontmatter.get(rel) ?? {};
     if (isGraphExcluded(fm)) continue;
@@ -1625,8 +2289,8 @@ function lintCommand(program2) {
 }
 
 // src/commands/audit.ts
-import { existsSync as existsSync5, mkdirSync as mkdirSync2, readFileSync as readFileSync8, writeFileSync as writeFileSync2 } from "fs";
-import { join as join6, basename as basename3 } from "path";
+import { existsSync as existsSync9, mkdirSync as mkdirSync4, readFileSync as readFileSync11, writeFileSync as writeFileSync4 } from "fs";
+import { join as join9, basename as basename3 } from "path";
 
 // src/lib/date.ts
 var SHANGHAI_TZ_OFFSET_MS = 8 * 60 * 60 * 1e3;
@@ -1662,7 +2326,7 @@ function tsMinute(d = /* @__PURE__ */ new Date()) {
 init_logger();
 var SEVERITY_ORDER = { high: 3, medium: 2, low: 1 };
 function extractPreview(filePath) {
-  const content = readFileSync8(filePath, "utf-8");
+  const content = readFileSync11(filePath, "utf-8");
   const lines = content.split("\n");
   let inFm = false;
   for (const line of lines) {
@@ -1683,11 +2347,11 @@ function extractPreview(filePath) {
 }
 function listAudit(root, filter) {
   const dirs = [];
-  if (filter === "open" || filter === "all") dirs.push(join6(root, "\u53CD\u9988", "\u5F85\u5904\u7406"));
-  if (filter === "resolved" || filter === "all") dirs.push(join6(root, "\u53CD\u9988", "\u5DF2\u5904\u7406"));
+  if (filter === "open" || filter === "all") dirs.push(join9(root, "\u53CD\u9988", "\u5F85\u5904\u7406"));
+  if (filter === "resolved" || filter === "all") dirs.push(join9(root, "\u53CD\u9988", "\u5DF2\u5904\u7406"));
   const entries = [];
   for (const dir of dirs) {
-    if (!existsSync5(dir)) continue;
+    if (!existsSync9(dir)) continue;
     const files = collectMdFiles(dir);
     for (const f of files) {
       if (basename3(f) === ".gitkeep") continue;
@@ -1740,9 +2404,9 @@ function createAudit(root, target, severity, text) {
   const now = /* @__PURE__ */ new Date();
   const filename = `${tsCompact(now)}-${slug}.md`;
   const tsFm = tsMinute(now);
-  const destDir = join6(root, "\u53CD\u9988", "\u5F85\u5904\u7406");
-  mkdirSync2(destDir, { recursive: true });
-  const dest = join6(destDir, filename);
+  const destDir = join9(root, "\u53CD\u9988", "\u5F85\u5904\u7406");
+  mkdirSync4(destDir, { recursive: true });
+  const dest = join9(destDir, filename);
   const content = `---
 type: audit
 target: ${target}
@@ -1753,7 +2417,7 @@ created: ${tsFm}
 
 ${text}
 `;
-  writeFileSync2(dest, content, "utf-8");
+  writeFileSync4(dest, content, "utf-8");
   ok(`created: \u53CD\u9988/\u5F85\u5904\u7406/${filename}`);
   print(`  target:   ${target}`);
   print(`  severity: ${severity}`);
@@ -1774,12 +2438,12 @@ function auditCommand(program2) {
 }
 
 // src/commands/dir-index.ts
-import { existsSync as existsSync6, readdirSync as readdirSync4, readFileSync as readFileSync9, statSync as statSync5, writeFileSync as writeFileSync3, lstatSync as lstatSync3 } from "fs";
-import { join as join7, basename as basename4, relative as relative5, resolve as resolve2 } from "path";
+import { existsSync as existsSync10, readdirSync as readdirSync5, readFileSync as readFileSync12, statSync as statSync6, writeFileSync as writeFileSync5, lstatSync as lstatSync3 } from "fs";
+import { join as join10, basename as basename4, relative as relative6, resolve as resolve3 } from "path";
 init_paths();
 init_logger();
 function extractSummary(filePath) {
-  const content = readFileSync9(filePath, "utf-8");
+  const content = readFileSync12(filePath, "utf-8");
   const lines = content.split("\n");
   let found = false;
   for (const line of lines) {
@@ -1818,7 +2482,7 @@ function readEntryFromFile(filePath, slug) {
   if (!title) title = basename4(filePath, ".md");
   if (!updated) {
     try {
-      updated = dateToYMDLocal(statSync5(filePath).mtime);
+      updated = dateToYMDLocal(statSync6(filePath).mtime);
     } catch {
       updated = "unknown";
     }
@@ -1829,12 +2493,12 @@ function escapeCell(s) {
   return s.replace(/\|/g, "\\|");
 }
 function buildIndex(dir, root) {
-  const reldir = dir === root ? "" : relative5(root, dir);
+  const reldir = dir === root ? "" : relative6(root, dir);
   const dirName = reldir === "" ? basename4(root) : basename4(dir);
-  const indexFile = join7(dir, "_INDEX.md");
+  const indexFile = join10(dir, "_INDEX.md");
   let names;
   try {
-    names = readdirSync4(dir, { encoding: "utf-8" });
+    names = readdirSync5(dir, { encoding: "utf-8" });
   } catch {
     return false;
   }
@@ -1842,7 +2506,7 @@ function buildIndex(dir, root) {
   for (const name of names) {
     if (name.startsWith(".")) continue;
     if (name === "_INDEX.md" || name === ".gitkeep") continue;
-    const full = join7(dir, name);
+    const full = join10(dir, name);
     let stat;
     try {
       stat = lstatSync3(full);
@@ -1850,11 +2514,11 @@ function buildIndex(dir, root) {
       continue;
     }
     if (stat.isFile() && name.endsWith(".md")) {
-      const slug = relative5(root, full).replace(/\.md$/, "");
+      const slug = relative6(root, full).replace(/\.md$/, "");
       entries.push(readEntryFromFile(full, slug));
     } else if (stat.isDirectory() && isFolderPackage(full)) {
-      const articlePath = join7(full, "article.md");
-      const slug = relative5(root, full);
+      const articlePath = join10(full, "article.md");
+      const slug = relative6(root, full);
       entries.push(readEntryFromFile(articlePath, slug));
     }
   }
@@ -1871,7 +2535,7 @@ function buildIndex(dir, root) {
     lines.push(`| [[${e.slug}]] | ${escapeCell(e.summary)} | ${e.updated} |`);
   }
   lines.push("");
-  writeFileSync3(indexFile, lines.join("\n"), "utf-8");
+  writeFileSync5(indexFile, lines.join("\n"), "utf-8");
   const display = reldir === "" ? "_INDEX.md" : `${reldir}/_INDEX.md`;
   ok(`${display} (${entries.length} entries)`);
   return true;
@@ -1879,11 +2543,11 @@ function buildIndex(dir, root) {
 function findIndexableDirs(root) {
   const results = [];
   function walk(dir, isRoot) {
-    const rel = dir === root ? "" : relative5(root, dir);
+    const rel = dir === root ? "" : relative6(root, dir);
     if (rel && isIndexExcluded(rel)) return;
     let names;
     try {
-      names = readdirSync4(dir, { encoding: "utf-8" });
+      names = readdirSync5(dir, { encoding: "utf-8" });
     } catch {
       return;
     }
@@ -1892,7 +2556,7 @@ function findIndexableDirs(root) {
       for (const name of names) {
         if (name.startsWith(".")) continue;
         if (name === "_INDEX.md" || name === ".gitkeep") continue;
-        const full = join7(dir, name);
+        const full = join10(dir, name);
         let stat;
         try {
           stat = lstatSync3(full);
@@ -1912,7 +2576,7 @@ function findIndexableDirs(root) {
     }
     for (const name of names) {
       if (name.startsWith(".")) continue;
-      const full = join7(dir, name);
+      const full = join10(dir, name);
       let stat;
       try {
         stat = lstatSync3(full);
@@ -1929,16 +2593,16 @@ function findIndexableDirs(root) {
 }
 function runIndex(root, specificDir) {
   if (specificDir) {
-    const full = join7(root, specificDir);
-    if (!existsSync6(full)) {
+    const full = join10(root, specificDir);
+    if (!existsSync10(full)) {
       throw new Error(`directory not found: ${specificDir}`);
     }
-    if (resolve2(full) === resolve2(root)) {
+    if (resolve3(full) === resolve3(root)) {
       throw new Error(
         `cannot index the corpus root itself \u2014 L0 corpus/index.md already serves this role`
       );
     }
-    const rel = relative5(root, full);
+    const rel = relative6(root, full);
     if (isIndexExcluded(rel)) {
       throw new Error(
         `directory "${rel}" is in the exclude list (${indexExcludeDirPrefixes.join(" / ")})`
@@ -1978,15 +2642,15 @@ function indexCommand(program2) {
 
 // src/commands/install-skills.ts
 import {
-  existsSync as existsSync7,
-  mkdirSync as mkdirSync3,
-  readdirSync as readdirSync5,
+  existsSync as existsSync11,
+  mkdirSync as mkdirSync5,
+  readdirSync as readdirSync6,
   symlinkSync,
   unlinkSync,
   readlinkSync,
   lstatSync as lstatSync4
 } from "fs";
-import { join as join8 } from "path";
+import { join as join11 } from "path";
 init_logger();
 function isSymlink(path) {
   try {
@@ -1998,13 +2662,13 @@ function isSymlink(path) {
 function installSkillsCommand(program2) {
   const cmd = program2.command("install-skills").description("Install lorekit skills into a harness (e.g. Claude Code)").option("--target <harness>", 'Target harness (currently only "claude-code")').option("--list", "List currently installed wiki-* skill symlinks").option("--uninstall", "Remove installed skill symlinks");
   cmd.action((opts) => {
-    const skillsDest = join8(process.env.HOME ?? "", ".claude", "skills");
+    const skillsDest = join11(process.env.HOME ?? "", ".claude", "skills");
     if (opts.list) {
-      if (!existsSync7(skillsDest)) return;
-      const names = readdirSync5(skillsDest, { encoding: "utf-8" });
+      if (!existsSync11(skillsDest)) return;
+      const names = readdirSync6(skillsDest, { encoding: "utf-8" });
       for (const name of names) {
         if (!name.startsWith("wiki-")) continue;
-        const full = join8(skillsDest, name);
+        const full = join11(skillsDest, name);
         if (!isSymlink(full)) continue;
         const target = readlinkSync(full);
         out(`${name} -> ${target}`);
@@ -2019,27 +2683,27 @@ function installSkillsCommand(program2) {
       err(`target '${opts.target}' not supported; only 'claude-code' is available`);
       process.exit(2);
     }
-    mkdirSync3(skillsDest, { recursive: true });
-    const skillsSrc = join8(lorekitRoot(), "skills");
-    if (!existsSync7(skillsSrc)) {
+    mkdirSync5(skillsDest, { recursive: true });
+    const skillsSrc = join11(lorekitRoot(), "skills");
+    if (!existsSync11(skillsSrc)) {
       err(`skills directory not found: ${skillsSrc}`);
       process.exit(1);
     }
-    const allNames = readdirSync5(skillsSrc, { encoding: "utf-8" });
+    const allNames = readdirSync6(skillsSrc, { encoding: "utf-8" });
     const skillNames = allNames.filter((name) => {
       if (!name.startsWith("wiki-")) return false;
       try {
-        return lstatSync4(join8(skillsSrc, name)).isDirectory();
+        return lstatSync4(join11(skillsSrc, name)).isDirectory();
       } catch {
         return false;
       }
     });
     let count = 0;
     for (const name of skillNames) {
-      const srcDir = join8(skillsSrc, name);
-      const skillFile = join8(srcDir, "SKILL.md");
-      if (!existsSync7(skillFile)) continue;
-      const dest = join8(skillsDest, name);
+      const srcDir = join11(skillsSrc, name);
+      const skillFile = join11(srcDir, "SKILL.md");
+      if (!existsSync11(skillFile)) continue;
+      const dest = join11(skillsDest, name);
       if (opts.uninstall) {
         if (isSymlink(dest)) {
           unlinkSync(dest);
@@ -2065,26 +2729,26 @@ Installed ${count} skill(s). Restart Claude Code to load them.`);
 // src/commands/snapshot.ts
 init_logger();
 import {
-  existsSync as existsSync8,
-  mkdirSync as mkdirSync4,
-  writeFileSync as writeFileSync4,
+  existsSync as existsSync12,
+  mkdirSync as mkdirSync6,
+  writeFileSync as writeFileSync6,
   unlinkSync as unlinkSync2,
-  readdirSync as readdirSync6,
-  statSync as statSync6
+  readdirSync as readdirSync7,
+  statSync as statSync7
 } from "fs";
-import { join as join9, relative as relative6 } from "path";
+import { join as join12, relative as relative7 } from "path";
 import * as tar from "tar";
 init_paths();
 function collectAllFiles(dir, base) {
   const results = [];
   function walk(d) {
-    for (const entry of readdirSync6(d, { withFileTypes: true })) {
+    for (const entry of readdirSync7(d, { withFileTypes: true })) {
       if (snapshotExcludeNames.has(entry.name)) continue;
-      const full = join9(d, entry.name);
+      const full = join12(d, entry.name);
       if (entry.isDirectory()) {
         walk(full);
       } else {
-        results.push(relative6(base, full));
+        results.push(relative7(base, full));
       }
     }
   }
@@ -2092,15 +2756,15 @@ function collectAllFiles(dir, base) {
   return results.sort();
 }
 async function createSnapshot(corpus, opts = {}) {
-  const snapshotsDir = join9(corpus, ".wiki", "snapshots");
-  mkdirSync4(snapshotsDir, { recursive: true });
+  const snapshotsDir = join12(corpus, ".wiki", "snapshots");
+  mkdirSync6(snapshotsDir, { recursive: true });
   const files = collectAllFiles(corpus, corpus);
   if (files.length === 0) {
     throw new Error("no files found in corpus");
   }
   const manifest = files.map((relPath) => {
-    const full = join9(corpus, relPath);
-    const st = statSync6(full);
+    const full = join12(corpus, relPath);
+    const st = statSync7(full);
     return {
       path: relPath,
       sha256: sha256(full),
@@ -2108,13 +2772,13 @@ async function createSnapshot(corpus, opts = {}) {
       mtime: st.mtime.toISOString()
     };
   });
-  const manifestPath = join9(snapshotsDir, "manifest.json");
-  writeFileSync4(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+  const manifestPath = join12(snapshotsDir, "manifest.json");
+  writeFileSync6(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
   try {
     const tag = opts.tag ? `-${opts.tag}` : "";
     const tarName = `${tsCompact()}${tag}.tar.gz`;
-    const tarPath = join9(snapshotsDir, tarName);
-    const allEntries = [...files, relative6(corpus, manifestPath)];
+    const tarPath = join12(snapshotsDir, tarName);
+    const allEntries = [...files, relative7(corpus, manifestPath)];
     await tar.create(
       {
         gzip: true,
@@ -2126,7 +2790,7 @@ async function createSnapshot(corpus, opts = {}) {
     );
     return tarPath;
   } finally {
-    if (existsSync8(manifestPath)) unlinkSync2(manifestPath);
+    if (existsSync12(manifestPath)) unlinkSync2(manifestPath);
   }
 }
 function snapshotCommand(program2) {
@@ -2134,7 +2798,7 @@ function snapshotCommand(program2) {
     const corpus = requireCorpus();
     try {
       const tarPath = await createSnapshot(corpus, opts);
-      const tarStat = statSync6(tarPath);
+      const tarStat = statSync7(tarPath);
       const sizeMB = (tarStat.size / 1024 / 1024).toFixed(1);
       const count = collectAllFiles(corpus, corpus).length;
       ok(`snapshot saved: ${tarPath} (${count} files, ${sizeMB} MB)`);
@@ -2153,8 +2817,8 @@ function snapshotCommand(program2) {
 
 // src/commands/restore.ts
 init_logger();
-import { existsSync as existsSync9, mkdirSync as mkdirSync5, readFileSync as readFileSync10, copyFileSync, rmSync } from "fs";
-import { join as join10, dirname as dirname3 } from "path";
+import { existsSync as existsSync13, mkdirSync as mkdirSync7, readFileSync as readFileSync13, copyFileSync, rmSync } from "fs";
+import { join as join13, dirname as dirname4 } from "path";
 import { createInterface as createInterface2 } from "readline";
 import { tmpdir } from "os";
 import * as tar2 from "tar";
@@ -2174,30 +2838,30 @@ function rmDirRecursive(dir) {
 function restoreCommand(program2) {
   program2.command("restore").requiredOption("--from <snapshot>", "path to snapshot .tar.gz").option("--dry-run", "only list differences, do not restore").option("--file <path>", "restore only this specific file").description("restore files from a snapshot").action(async (opts) => {
     const corpus = requireCorpus();
-    if (!existsSync9(opts.from)) {
+    if (!existsSync13(opts.from)) {
       bad(`snapshot not found: ${opts.from}`);
       process.exitCode = 2;
       return;
     }
-    const tmpDir = join10(tmpdir(), `lorekit-restore-${Date.now()}`);
-    mkdirSync5(tmpDir, { recursive: true });
+    const tmpDir = join13(tmpdir(), `lorekit-restore-${Date.now()}`);
+    mkdirSync7(tmpDir, { recursive: true });
     try {
       await tar2.extract({
         file: opts.from,
         cwd: tmpDir
       });
-      const manifestPath = join10(tmpDir, ".wiki", "snapshots", "manifest.json");
-      if (!existsSync9(manifestPath)) {
+      const manifestPath = join13(tmpDir, ".wiki", "snapshots", "manifest.json");
+      if (!existsSync13(manifestPath)) {
         bad("manifest.json not found in snapshot");
         process.exitCode = 1;
         return;
       }
-      const manifest = JSON.parse(readFileSync10(manifestPath, "utf-8"));
+      const manifest = JSON.parse(readFileSync13(manifestPath, "utf-8"));
       const diffs = [];
       for (const entry of manifest) {
         if (opts.file && entry.path !== opts.file) continue;
-        const corpusPath = join10(corpus, entry.path);
-        if (!existsSync9(corpusPath)) {
+        const corpusPath = join13(corpus, entry.path);
+        if (!existsSync13(corpusPath)) {
           diffs.push({
             kind: "MISSING",
             path: entry.path,
@@ -2248,13 +2912,13 @@ function restoreCommand(program2) {
       }
       let restored = 0;
       for (const d of diffs) {
-        const src = join10(tmpDir, d.path);
-        const dest = join10(corpus, d.path);
-        if (!existsSync9(src)) {
+        const src = join13(tmpDir, d.path);
+        const dest = join13(corpus, d.path);
+        if (!existsSync13(src)) {
           warn(`file not in snapshot archive: ${d.path}`);
           continue;
         }
-        mkdirSync5(dirname3(dest), { recursive: true });
+        mkdirSync7(dirname4(dest), { recursive: true });
         copyFileSync(src, dest);
         restored++;
       }
@@ -2267,11 +2931,11 @@ function restoreCommand(program2) {
 
 // src/commands/search.ts
 init_logger();
-import { readFileSync as readFileSync11 } from "fs";
-import { join as join11, relative as relative8 } from "path";
+import { readFileSync as readFileSync14 } from "fs";
+import { join as join14, relative as relative9 } from "path";
 import { spawnSync } from "child_process";
 function searchWithRipgrep(query, corpus, opts) {
-  const searchDir = opts.dir ? join11(corpus, opts.dir) : corpus;
+  const searchDir = opts.dir ? join14(corpus, opts.dir) : corpus;
   const args = ["--json", "--no-heading", "-i"];
   if (opts.type) {
     args.push("--type", opts.type);
@@ -2292,7 +2956,7 @@ function searchWithRipgrep(query, corpus, opts) {
       const obj = JSON.parse(line);
       if (obj.type === "match") {
         results.push({
-          file: relative8(corpus, obj.data.path.text),
+          file: relative9(corpus, obj.data.path.text),
           line: obj.data.line_number,
           text: obj.data.lines.text.trimEnd()
         });
@@ -2303,17 +2967,17 @@ function searchWithRipgrep(query, corpus, opts) {
   return results;
 }
 function searchFallback(query, corpus, opts) {
-  const searchDir = opts.dir ? join11(corpus, opts.dir) : corpus;
+  const searchDir = opts.dir ? join14(corpus, opts.dir) : corpus;
   const files = collectMdFiles(searchDir);
   const pattern = new RegExp(query, "i");
   const results = [];
   for (const filePath of files) {
-    const content = readFileSync11(filePath, "utf-8");
+    const content = readFileSync14(filePath, "utf-8");
     const lines = content.split("\n");
     for (let i = 0; i < lines.length; i++) {
       if (pattern.test(lines[i])) {
         results.push({
-          file: relative8(corpus, filePath),
+          file: relative9(corpus, filePath),
           line: i + 1,
           text: lines[i].trimEnd()
         });
@@ -2347,14 +3011,14 @@ function searchCommand(program2) {
 
 // src/commands/vector.ts
 init_logger();
-import { createHash as createHash4 } from "crypto";
-import { existsSync as existsSync13, readFileSync as readFileSync15 } from "fs";
-import { join as join16, relative as relative14 } from "path";
+import { createHash as createHash5 } from "crypto";
+import { existsSync as existsSync17, readFileSync as readFileSync18 } from "fs";
+import { join as join19, relative as relative15 } from "path";
 
 // src/lib/vectordb/prune.ts
 init_files();
 init_schema();
-import { relative as relative10 } from "path";
+import { relative as relative11 } from "path";
 function pruneMissingDocuments(db, existingRelPaths) {
   const rows = db.prepare("SELECT id, path FROM documents").all();
   const missing = rows.filter((row) => !existingRelPaths.has(row.path));
@@ -2392,7 +3056,7 @@ async function pruneVectorDbMissingFiles(corpus) {
   const db = await openDb(corpus);
   try {
     const files = collectFiles(corpus);
-    const existingRelPaths = new Set(files.map((filePath) => relative10(corpus, filePath)));
+    const existingRelPaths = new Set(files.map((filePath) => relative11(corpus, filePath)));
     return pruneMissingDocuments(db, existingRelPaths);
   } finally {
     db.close();
@@ -2410,18 +3074,18 @@ async function runVectorSync(corpus, opts = {}) {
   const dim = testEmb.length;
   const db = await openDb2(corpus, dim);
   const files = collectFiles2(corpus);
-  const existingRelPaths = new Set(files.map((filePath) => relative14(corpus, filePath)));
+  const existingRelPaths = new Set(files.map((filePath) => relative15(corpus, filePath)));
   const pruned = pruneMissingDocuments(db, existingRelPaths);
   if (pruned > 0) warn(`vector sync pruned ${pruned} missing file(s)`);
   let synced = 0;
   let skipped = 0;
   let totalChunks = 0;
   for (const filePath of files) {
-    const rel = relative14(corpus, filePath);
+    const rel = relative15(corpus, filePath);
     if (!force) {
       const row = db.prepare("SELECT sha256 FROM documents WHERE path = ?").get(rel);
       if (row) {
-        const sha = createHash4("sha256").update(readFileSync15(filePath)).digest("hex");
+        const sha = createHash5("sha256").update(readFileSync18(filePath)).digest("hex");
         if (row.sha256 === sha) {
           skipped++;
           continue;
@@ -2468,8 +3132,8 @@ function vectorCommand(program2) {
       const { embedSingle: embedSingle2 } = await Promise.resolve().then(() => (init_ollama(), ollama_exports));
       const { openDb: openDb2, queryFlat: queryFlat2, queryLayered: queryLayered2, queryBM25Layered: queryBM25Layered2, queryHybrid: queryHybrid2 } = await Promise.resolve().then(() => (init_vectordb(), vectordb_exports));
       let dim = 1024;
-      const dbPath = join16(corpus, ".wiki", "vector.sqlite");
-      if (existsSync13(dbPath)) {
+      const dbPath = join19(corpus, ".wiki", "vector.sqlite");
+      if (existsSync17(dbPath)) {
         const tmpDb = await openDb2(corpus);
         const row = tmpDb.prepare("SELECT value FROM meta WHERE key = 'dim'").get();
         if (row) dim = parseInt(row.value, 10);
@@ -2499,12 +3163,12 @@ function vectorCommand(program2) {
 }
 
 // src/commands/fetch.ts
-import { existsSync as existsSync15, mkdirSync as mkdirSync8 } from "fs";
-import { join as join22, relative as relative15 } from "path";
+import { existsSync as existsSync19, mkdirSync as mkdirSync10 } from "fs";
+import { join as join25, relative as relative16 } from "path";
 
 // src/lib/fetcher/index.ts
 import { mkdir as mkdir4, writeFile as writeFile4 } from "fs/promises";
-import { join as join20 } from "path";
+import { join as join23 } from "path";
 
 // src/lib/fetcher/frontmatter.ts
 function escapeDoubleQuote(s) {
@@ -2649,7 +3313,7 @@ async function fetchHtmlL2(url) {
 
 // src/lib/fetcher/images.ts
 import { mkdir, writeFile } from "fs/promises";
-import { join as join17 } from "path";
+import { join as join20 } from "path";
 var MAX_IMG_BYTES = 5 * 1024 * 1024;
 var IMG_CONCURRENCY = 5;
 var MAGIC = [
@@ -2700,7 +3364,7 @@ async function downloadOneImage(url, idx, imagesDir, headers, assetsRelPath) {
       const ext = sniffExt(data.slice(0, 16), res.headers.get("content-type") || "");
       if (!ext) continue;
       const fname = `img_${String(idx).padStart(2, "0")}${ext}`;
-      await writeFile(join17(imagesDir, fname), data);
+      await writeFile(join20(imagesDir, fname), data);
       return { originalUrl: url, localRel: `${assetsRelPath}${fname}`, status: "ok" };
     } catch {
     }
@@ -2863,7 +3527,7 @@ function parseWeixin(html, baseUrl) {
 
 // src/lib/fetcher/routes/gist.ts
 import { mkdir as mkdir2, writeFile as writeFile2 } from "fs/promises";
-import { join as join18 } from "path";
+import { join as join21 } from "path";
 import * as cheerio3 from "cheerio";
 function parseGistUrl(url) {
   try {
@@ -2952,7 +3616,7 @@ async function fetchGist(url, outRoot) {
   fmLines.push("");
   if (!hasH1) fmLines.push(`# ${title}`, "");
   fmLines.push(content.trim(), "");
-  const articlePath = join18(outRoot, `${slug}.md`);
+  const articlePath = join21(outRoot, `${slug}.md`);
   await writeFile2(articlePath, fmLines.join("\n"), "utf-8");
   return {
     status: "ok",
@@ -2972,7 +3636,7 @@ async function fetchGist(url, outRoot) {
 
 // src/lib/fetcher/routes/github.ts
 import { mkdir as mkdir3, writeFile as writeFile3 } from "fs/promises";
-import { join as join19 } from "path";
+import { join as join22 } from "path";
 function parseGithubRepoUrl(url) {
   try {
     const u = new URL(url);
@@ -3048,7 +3712,7 @@ async function fetchGithubDoc(url, outRoot) {
   if (!hasH1) fmLines.push(`# ${title}`, "");
   fmLines.push(`> Fetched from: ${chosenUrl}`, "");
   fmLines.push(content.trim(), "");
-  const articlePath = join19(outRoot, `${slug}.md`);
+  const articlePath = join22(outRoot, `${slug}.md`);
   await writeFile3(articlePath, fmLines.join("\n"), "utf-8");
   return {
     status: "ok",
@@ -3113,7 +3777,7 @@ async function fetchUrl(url, opts) {
   }
   let md = htmlToMarkdown(doc.bodyHtml);
   const slug = slugify(doc.title || "untitled");
-  const assetsDir = join20(opts.outRoot, `${slug}.assets`);
+  const assetsDir = join23(opts.outRoot, `${slug}.assets`);
   await mkdir4(opts.outRoot, { recursive: true });
   let imagesOk = 0;
   let imagesFailed = 0;
@@ -3141,7 +3805,7 @@ async function fetchUrl(url, opts) {
   fmLines.push("");
   if (doc.title) fmLines.push(`# ${doc.title}`, "");
   fmLines.push(md, "");
-  const articlePath = join20(opts.outRoot, `${slug}.md`);
+  const articlePath = join23(opts.outRoot, `${slug}.md`);
   await writeFile4(articlePath, fmLines.join("\n"), "utf-8");
   return {
     status: "ok",
@@ -3161,18 +3825,18 @@ async function fetchUrl(url, opts) {
 }
 
 // src/lib/ingest-state.ts
-import { existsSync as existsSync14, mkdirSync as mkdirSync7, readFileSync as readFileSync16, writeFileSync as writeFileSync5 } from "fs";
-import { join as join21, dirname as dirname4 } from "path";
+import { existsSync as existsSync18, mkdirSync as mkdirSync9, readFileSync as readFileSync19, writeFileSync as writeFileSync7 } from "fs";
+import { join as join24, dirname as dirname5 } from "path";
 function stateFilePath(corpus) {
-  return join21(corpus, ".wiki", "ingest-state.json");
+  return join24(corpus, ".wiki", "ingest-state.json");
 }
 function loadIngestState(corpus) {
   const p = stateFilePath(corpus);
-  if (!existsSync14(p)) {
+  if (!existsSync18(p)) {
     return { version: 1, ingests: {} };
   }
   try {
-    const raw = readFileSync16(p, "utf-8");
+    const raw = readFileSync19(p, "utf-8");
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") {
       return { version: 1, ingests: {} };
@@ -3188,9 +3852,9 @@ function loadIngestState(corpus) {
 }
 function saveIngestState(corpus, state) {
   const p = stateFilePath(corpus);
-  mkdirSync7(dirname4(p), { recursive: true });
+  mkdirSync9(dirname5(p), { recursive: true });
   const serialized = JSON.stringify(state, null, 2);
-  writeFileSync5(p, serialized + "\n", "utf-8");
+  writeFileSync7(p, serialized + "\n", "utf-8");
 }
 function getIngestRecord(corpus, url) {
   return loadIngestState(corpus).ingests[url];
@@ -3273,10 +3937,10 @@ function fetchCommand(program2) {
       if (opts.out) {
         outRoot = opts.out;
       } else {
-        outRoot = corpus ? join22(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch") : "/tmp/lorekit-fetch";
+        outRoot = corpus ? join25(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch") : "/tmp/lorekit-fetch";
       }
-      if (!existsSync15(outRoot)) {
-        mkdirSync8(outRoot, { recursive: true });
+      if (!existsSync19(outRoot)) {
+        mkdirSync10(outRoot, { recursive: true });
       }
       let duplicate;
       if (corpus && !opts.force) {
@@ -3314,7 +3978,7 @@ function fetchCommand(program2) {
             const sdRaw = fm.source_date;
             const sourceDate = typeof sdRaw === "string" ? sdRaw : sdRaw instanceof Date ? sdRaw.toISOString().slice(0, 10) : void 0;
             duplicate = {
-              path: relative15(corpus, existing),
+              path: relative16(corpus, existing),
               sourceDate,
               title: typeof fm.title === "string" ? fm.title : void 0
             };
@@ -3368,15 +4032,15 @@ function fetchCommand(program2) {
 }
 
 // src/commands/ingest.ts
-import { existsSync as existsSync16, readFileSync as readFileSync17, writeFileSync as writeFileSync6 } from "fs";
-import { join as join23, relative as relative16 } from "path";
+import { existsSync as existsSync20, readFileSync as readFileSync20, writeFileSync as writeFileSync8 } from "fs";
+import { join as join26, relative as relative17 } from "path";
 init_logger();
 var VALID_STEPS = ["fetch", "archive", "wiki", "backlink", "lint"];
 function today() {
   return dateToYMDLocal(/* @__PURE__ */ new Date());
 }
 function appendLogEntry(corpus, record, body) {
-  const logPath = join23(corpus, "log.md");
+  const logPath = join26(corpus, "log.md");
   const title = record.title ?? "(untitled)";
   const wikiList = (record.wikiPages ?? []).map((p) => `  - ${p}`).join("\n");
   const archived = record.archivedTo ?? "(unrecorded)";
@@ -3393,20 +4057,20 @@ ${wikiList}` : "- **\u65B0\u5EFA/\u66F4\u65B0\u9875**\uFF1A\uFF08\u65E0\uFF09",
     ""
   ].join("\n");
   let existing = "";
-  if (existsSync16(logPath)) existing = readFileSync17(logPath, "utf-8");
+  if (existsSync20(logPath)) existing = readFileSync20(logPath, "utf-8");
   if (!existing) {
     const header = '# Log\n\n> \u64CD\u4F5C\u65F6\u95F4\u7EBF\uFF0Cappend-only\u3002\u6BCF\u6761\u683C\u5F0F\uFF1A`## [YYYY-MM-DD] \u64CD\u4F5C\u7C7B\u578B | \u6807\u9898`\n> \u53EF\u7528 `grep "^## \\[" log.md | tail -10` \u5FEB\u901F\u67E5\u6700\u8FD1\u64CD\u4F5C\u3002\n\n';
-    writeFileSync6(logPath, header + entry, "utf-8");
+    writeFileSync8(logPath, header + entry, "utf-8");
     return;
   }
   const firstSection = existing.search(/^## \[/m);
   if (firstSection === -1) {
     const sep2 = existing.endsWith("\n") ? "" : "\n";
-    writeFileSync6(logPath, existing + sep2 + entry, "utf-8");
+    writeFileSync8(logPath, existing + sep2 + entry, "utf-8");
   } else {
     const before = existing.slice(0, firstSection);
     const after = existing.slice(firstSection);
-    writeFileSync6(logPath, before + entry + after, "utf-8");
+    writeFileSync8(logPath, before + entry + after, "utf-8");
   }
 }
 function ingestCommand(program2) {
@@ -3524,7 +4188,7 @@ ${summary.join("\n")}`
     const stemSet = /* @__PURE__ */ new Set();
     const baseNameSet = /* @__PURE__ */ new Set();
     for (const file of allMd) {
-      const rel = relative16(corpus, file);
+      const rel = relative17(corpus, file);
       const stem = rel.replace(/\.md$/, "");
       stemSet.add(stem);
       baseNameSet.add(stem.split("/").pop());
@@ -3539,17 +4203,17 @@ ${summary.join("\n")}`
     const okLinks = [];
     const checked = [];
     for (const f of files) {
-      const abs = f.startsWith("/") ? f : join23(process.cwd(), f);
-      if (!existsSync16(abs)) {
+      const abs = f.startsWith("/") ? f : join26(process.cwd(), f);
+      if (!existsSync20(abs)) {
         print(`[lorekit ingest check] file not found: ${f}`);
         process.exitCode = 2;
         continue;
       }
-      const rel = relative16(corpus, abs);
+      const rel = relative17(corpus, abs);
       checked.push(rel);
       let content;
       try {
-        content = stripCode(readFileSync17(abs, "utf-8"));
+        content = stripCode(readFileSync20(abs, "utf-8"));
       } catch {
         continue;
       }
@@ -3591,8 +4255,8 @@ ${summary.join("\n")}`
   });
   group.command("reconcile").description("Back-fill state for pre-existing \u539F\u6599/ pages missing a state record").option("--dry-run", "list what would be added without writing").action((opts) => {
     const corpus = requireCorpus();
-    const sourcesRoot = join23(corpus, "\u539F\u6599");
-    if (!existsSync16(sourcesRoot)) {
+    const sourcesRoot = join26(corpus, "\u539F\u6599");
+    if (!existsSync20(sourcesRoot)) {
       print("[lorekit ingest reconcile] no \u539F\u6599/ directory");
       return;
     }
@@ -3603,7 +4267,7 @@ ${summary.join("\n")}`
       const url = typeof fm.source_url === "string" && fm.source_url || typeof fm.url === "string" && fm.url || "";
       if (!url) continue;
       if (state.ingests[url]) continue;
-      const rel = relative16(corpus, mdPath);
+      const rel = relative17(corpus, mdPath);
       const archivedTo = rel.replace(/\/article\.md$/, "");
       const sdRaw = fm.source_date;
       const sourceDate = typeof sdRaw === "string" ? sdRaw : sdRaw instanceof Date ? sdRaw.toISOString().slice(0, 10) : void 0;
@@ -3631,14 +4295,14 @@ ${summary.join("\n")}`
 
 // src/commands/sync.ts
 import chalk6 from "chalk";
-import { mkdirSync as mkdirSync9, writeFileSync as writeFileSync8 } from "fs";
-import { join as join25 } from "path";
+import { mkdirSync as mkdirSync11, writeFileSync as writeFileSync10 } from "fs";
+import { join as join28 } from "path";
 init_logger();
 
 // src/lib/root-index.ts
 init_logger();
-import { existsSync as existsSync17, readFileSync as readFileSync18, readdirSync as readdirSync10, writeFileSync as writeFileSync7 } from "fs";
-import { join as join24 } from "path";
+import { existsSync as existsSync21, readFileSync as readFileSync21, readdirSync as readdirSync11, writeFileSync as writeFileSync9 } from "fs";
+import { join as join27 } from "path";
 var MANAGED_SECTIONS = [
   { heading: "## \u6982\u5FF5", subdir: "\u77E5\u8BC6\u5E93/\u6982\u5FF5" },
   { heading: "## \u5B9E\u4F53", subdir: "\u77E5\u8BC6\u5E93/\u5B9E\u4F53" },
@@ -3646,14 +4310,14 @@ var MANAGED_SECTIONS = [
   { heading: "## \u4E13\u9898", subdir: "\u77E5\u8BC6\u5E93/\u4E13\u9898" }
 ];
 function listEntriesInDir(corpus, subdir) {
-  const dirPath = join24(corpus, subdir);
-  if (!existsSync17(dirPath)) return [];
+  const dirPath = join27(corpus, subdir);
+  if (!existsSync21(dirPath)) return [];
   const out2 = [];
-  for (const name of readdirSync10(dirPath)) {
+  for (const name of readdirSync11(dirPath)) {
     if (name.startsWith(".")) continue;
     if (name === "_INDEX.md") continue;
     if (!name.endsWith(".md")) continue;
-    const file = join24(dirPath, name);
+    const file = join27(dirPath, name);
     const slug = `${subdir}/${name.replace(/\.md$/, "")}`;
     out2.push({ slug, summary: extractCompiledTruthSnippet(file) });
   }
@@ -3662,7 +4326,7 @@ function listEntriesInDir(corpus, subdir) {
 function extractCompiledTruthSnippet(filePath) {
   let content;
   try {
-    content = readFileSync18(filePath, "utf-8");
+    content = readFileSync21(filePath, "utf-8");
   } catch (e) {
     debug(`extractCompiledTruthSnippet(${filePath}) failed: ${e.message}`);
     return "\u2014";
@@ -3731,11 +4395,11 @@ function mergeSection(content, heading, onDisk) {
   };
 }
 function refreshRootIndex(corpus) {
-  const indexPath = join24(corpus, "index.md");
-  if (!existsSync17(indexPath)) {
+  const indexPath = join27(corpus, "index.md");
+  if (!existsSync21(indexPath)) {
     return { filePath: indexPath, changed: false, perSection: [] };
   }
-  const before = readFileSync18(indexPath, "utf-8");
+  const before = readFileSync21(indexPath, "utf-8");
   let content = before;
   const perSection = [];
   for (const sec of MANAGED_SECTIONS) {
@@ -3745,7 +4409,7 @@ function refreshRootIndex(corpus) {
     perSection.push({ heading: sec.heading, ...result });
   }
   const changed = content !== before;
-  if (changed) writeFileSync7(indexPath, content, "utf-8");
+  if (changed) writeFileSync9(indexPath, content, "utf-8");
   return { filePath: indexPath, changed, perSection };
 }
 
@@ -3766,13 +4430,13 @@ function createReport(corpus) {
     errors: []
   };
 }
-function writeSyncReport(corpus, report) {
-  const dir = join25(corpus, ".wiki", "reports", "sync");
-  mkdirSync9(dir, { recursive: true });
+function writeSyncReport2(corpus, report) {
+  const dir = join28(corpus, ".wiki", "reports", "sync");
+  mkdirSync11(dir, { recursive: true });
   const stamp = report.startedAt.replace(/[:.]/g, "-");
-  const path = join25(dir, `${stamp}.json`);
+  const path = join28(dir, `${stamp}.json`);
   report.reportPath = path;
-  writeFileSync8(path, JSON.stringify(report, null, 2) + "\n", "utf-8");
+  writeFileSync10(path, JSON.stringify(report, null, 2) + "\n", "utf-8");
   return path;
 }
 async function runSync(corpus, opts = {}) {
@@ -3855,7 +4519,7 @@ async function runSync(corpus, opts = {}) {
   }
   if (!opts.skipDoctor) {
     print(chalk6.cyan("\u2500\u2500 [3/3] doctor: sanity check \u2500\u2500"));
-    const issues = runDoctor(corpus);
+    const issues = await runDoctor(corpus);
     report.steps.doctor = { status: "ok", issues };
   } else {
     report.steps.doctor = { status: "skipped", reason: "skip-doctor" };
@@ -3868,7 +4532,7 @@ function syncCommand(program2) {
     const corpus = requireCorpus();
     try {
       const report = await runSync(corpus, opts);
-      if (opts.report) writeSyncReport(corpus, report);
+      if (opts.report) writeSyncReport2(corpus, report);
       if (opts.json) out(JSON.stringify(report, null, 2));
     } catch {
       process.exit(1);
@@ -3878,8 +4542,8 @@ function syncCommand(program2) {
 
 // src/commands/obsidian-tune.ts
 init_logger();
-import { cpSync as cpSync2, existsSync as existsSync18, mkdirSync as mkdirSync10, writeFileSync as writeFileSync9 } from "fs";
-import { join as join26 } from "path";
+import { cpSync as cpSync2, existsSync as existsSync22, mkdirSync as mkdirSync12, writeFileSync as writeFileSync11 } from "fs";
+import { join as join29 } from "path";
 function runPrint() {
   const cfg = getRecommendedGraphConfig();
   out(JSON.stringify(cfg, null, 2));
@@ -3917,16 +4581,16 @@ function runCheck(corpus) {
   return 1;
 }
 function runWrite(corpus) {
-  const dest = join26(corpus, ".obsidian", "graph.json");
-  const destDir = join26(corpus, ".obsidian");
-  if (!existsSync18(destDir)) mkdirSync10(destDir, { recursive: true });
-  if (existsSync18(dest)) {
+  const dest = join29(corpus, ".obsidian", "graph.json");
+  const destDir = join29(corpus, ".obsidian");
+  if (!existsSync22(destDir)) mkdirSync12(destDir, { recursive: true });
+  if (existsSync22(dest)) {
     const backup = `${dest}.bak.${tsCompact()}`;
     cpSync2(dest, backup);
     ok(`\u5907\u4EFD .obsidian/graph.json \u2192 ${backup}`);
   }
   const cfg = getRecommendedGraphConfig();
-  writeFileSync9(dest, JSON.stringify(cfg, null, 2) + "\n", "utf-8");
+  writeFileSync11(dest, JSON.stringify(cfg, null, 2) + "\n", "utf-8");
   ok("\u5199\u5165\u63A8\u8350 filter");
   info("\u8BF7\u5173\u6389 Obsidian\u300C\u5173\u7CFB\u56FE\u8C31\u300D\u6807\u7B7E\u9875\u518D\u91CD\u5F00\u751F\u6548");
   return 0;
@@ -3953,9 +4617,9 @@ function obsidianTuneCommand(program2) {
 }
 
 // src/commands/remove.ts
-import { existsSync as existsSync19, mkdirSync as mkdirSync11, readFileSync as readFileSync19, renameSync, writeFileSync as writeFileSync10 } from "fs";
-import { basename as basename7, dirname as dirname5, isAbsolute, join as join27, relative as relative17, resolve as resolve3, sep } from "path";
-import matter5 from "gray-matter";
+import { existsSync as existsSync23, mkdirSync as mkdirSync13, readFileSync as readFileSync22, renameSync as renameSync2, writeFileSync as writeFileSync12 } from "fs";
+import { basename as basename7, dirname as dirname6, isAbsolute, join as join30, relative as relative18, resolve as resolve4, sep } from "path";
+import matter6 from "gray-matter";
 import trash from "trash";
 init_logger();
 function isUrl(input) {
@@ -3971,22 +4635,22 @@ function normalizeRel(rel) {
   return toSlash(rel).replace(/^\.\//, "").replace(/\/+/g, "/");
 }
 function withinCorpus(corpus, abs) {
-  const rel = relative17(corpus, abs);
+  const rel = relative18(corpus, abs);
   return rel === "" || !rel.startsWith("..") && !isAbsolute(rel);
 }
 function resolveInputPath(corpus, input) {
   const candidates = [];
-  const rawAbs = isAbsolute(input) ? input : join27(corpus, input);
+  const rawAbs = isAbsolute(input) ? input : join30(corpus, input);
   candidates.push(rawAbs);
   if (!input.endsWith(".md")) candidates.push(`${rawAbs}.md`);
   for (const candidate of candidates) {
-    const abs = resolve3(candidate);
-    if (withinCorpus(corpus, abs) && existsSync19(abs)) return abs;
+    const abs = resolve4(candidate);
+    if (withinCorpus(corpus, abs) && existsSync23(abs)) return abs;
   }
   return null;
 }
 function relFromAbs(corpus, abs) {
-  return normalizeRel(relative17(corpus, abs));
+  return normalizeRel(relative18(corpus, abs));
 }
 function aliasesForRel(rel) {
   const aliases = /* @__PURE__ */ new Set();
@@ -3998,7 +4662,7 @@ function aliasesForRel(rel) {
   return [...aliases];
 }
 function readText(abs) {
-  return readFileSync19(abs, "utf-8");
+  return readFileSync22(abs, "utf-8");
 }
 function extractWikilinks(content) {
   const links = [];
@@ -4008,17 +4672,17 @@ function extractWikilinks(content) {
   return links;
 }
 function addExistingTarget(corpus, targets, relOrAbs, reason) {
-  const abs = isAbsolute(relOrAbs) ? relOrAbs : join27(corpus, relOrAbs);
-  if (!existsSync19(abs)) return;
+  const abs = isAbsolute(relOrAbs) ? relOrAbs : join30(corpus, relOrAbs);
+  if (!existsSync23(abs)) return;
   const rel = relFromAbs(corpus, abs);
   targets.set(rel, { rel, abs, reason });
 }
 function addSourceTarget(corpus, targets, relOrAbs) {
-  const abs = isAbsolute(relOrAbs) ? relOrAbs : join27(corpus, relOrAbs);
-  if (!existsSync19(abs)) return;
+  const abs = isAbsolute(relOrAbs) ? relOrAbs : join30(corpus, relOrAbs);
+  if (!existsSync23(abs)) return;
   const rel = relFromAbs(corpus, abs);
   if (rel.endsWith("/article.md")) {
-    addExistingTarget(corpus, targets, dirname5(abs), "source");
+    addExistingTarget(corpus, targets, dirname6(abs), "source");
     return;
   }
   addExistingTarget(corpus, targets, abs, "source");
@@ -4029,15 +4693,15 @@ function addSourceTarget(corpus, targets, relOrAbs) {
 }
 function sourceCandidatesForSlug(corpus, slug) {
   return [
-    join27(corpus, slug),
-    join27(corpus, `${slug}.md`),
-    join27(corpus, slug, "article.md")
+    join30(corpus, slug),
+    join30(corpus, `${slug}.md`),
+    join30(corpus, slug, "article.md")
   ];
 }
 function collectSourceUrls(corpus, targets) {
   const urls = /* @__PURE__ */ new Set();
   for (const target of targets.values()) {
-    const files = existsSync19(target.abs) && target.rel.endsWith(".md") ? [target.abs] : collectMdFiles(target.abs);
+    const files = existsSync23(target.abs) && target.rel.endsWith(".md") ? [target.abs] : collectMdFiles(target.abs);
     for (const file of files) {
       const fm = extractFrontmatter(file);
       if (typeof fm.source_url === "string") urls.add(fm.source_url);
@@ -4047,23 +4711,23 @@ function collectSourceUrls(corpus, targets) {
   return [...urls];
 }
 function addSourcesFromSummary(corpus, targets, summaryAbs) {
-  const parsed = matter5(readText(summaryAbs));
+  const parsed = matter6(readText(summaryAbs));
   const sources = Array.isArray(parsed.data.sources) ? parsed.data.sources : [];
   for (const source of sources) {
     if (typeof source !== "string") continue;
     for (const candidate of sourceCandidatesForSlug(corpus, source)) {
-      if (existsSync19(candidate)) addSourceTarget(corpus, targets, candidate);
+      if (existsSync23(candidate)) addSourceTarget(corpus, targets, candidate);
     }
   }
   for (const link of extractWikilinks(parsed.content)) {
     if (!link.startsWith("\u539F\u6599/")) continue;
     for (const candidate of sourceCandidatesForSlug(corpus, link)) {
-      if (existsSync19(candidate)) addSourceTarget(corpus, targets, candidate);
+      if (existsSync23(candidate)) addSourceTarget(corpus, targets, candidate);
     }
   }
 }
 function addSummariesReferencingSources(corpus, targets, aliases) {
-  for (const file of collectMdFiles(join27(corpus, "\u77E5\u8BC6\u5E93", "\u6458\u8981"))) {
+  for (const file of collectMdFiles(join30(corpus, "\u77E5\u8BC6\u5E93", "\u6458\u8981"))) {
     const rel = relFromAbs(corpus, file);
     if (targets.has(rel)) continue;
     const content = readText(file);
@@ -4085,7 +4749,7 @@ function compiledTruthSnippets(content, aliases, input) {
 }
 function rewritePageForRemoval(corpus, file, aliases) {
   const rel = relFromAbs(corpus, file);
-  const parsed = matter5(readText(file));
+  const parsed = matter6(readText(file));
   const removedSources = [];
   let sourceCountBefore;
   let sourceCountAfter;
@@ -4121,7 +4785,7 @@ function rewritePageForRemoval(corpus, file, aliases) {
   });
   if (removedLines.length > 0) parsed.data.updated = todayYMDShanghai();
   const changed = removedLines.length > 0 || removedSources.length > 0;
-  const nextContent = changed ? matter5.stringify(nextLines.join("\n"), parsed.data) : readText(file);
+  const nextContent = changed ? matter6.stringify(nextLines.join("\n"), parsed.data) : readText(file);
   return {
     nextContent,
     change: changed ? {
@@ -4143,9 +4807,9 @@ function buildRemovalPlan(corpus, input, apply) {
     if (record?.archivedTo) addSourceTarget(corpus, targets, record.archivedTo);
     for (const page of record?.wikiPages ?? []) {
       if (normalizeRel(page).startsWith("\u77E5\u8BC6\u5E93/\u6458\u8981/")) {
-        const pageAbs = join27(corpus, page);
+        const pageAbs = join30(corpus, page);
         addExistingTarget(corpus, targets, pageAbs, "summary");
-        if (existsSync19(pageAbs)) addSourcesFromSummary(corpus, targets, pageAbs);
+        if (existsSync23(pageAbs)) addSourcesFromSummary(corpus, targets, pageAbs);
       }
     }
     const source = findSourceByUrl(corpus, input);
@@ -4193,11 +4857,11 @@ function buildRemovalPlan(corpus, input, apply) {
 async function moveToTrash(paths) {
   const testTrashDir = process.env.LOREKIT_TEST_TRASH_DIR;
   if (testTrashDir) {
-    mkdirSync11(testTrashDir, { recursive: true });
+    mkdirSync13(testTrashDir, { recursive: true });
     for (const p of paths) {
-      if (!existsSync19(p)) continue;
-      const dest = join27(testTrashDir, `${tsCompact()}-${basename7(p)}`);
-      renameSync(p, dest);
+      if (!existsSync23(p)) continue;
+      const dest = join30(testTrashDir, `${tsCompact()}-${basename7(p)}`);
+      renameSync2(p, dest);
     }
     return;
   }
@@ -4206,9 +4870,9 @@ async function moveToTrash(paths) {
 function applyPageChanges(corpus, plan) {
   const aliases = new Set(plan.aliases);
   for (const change of plan.pageChanges) {
-    const file = join27(corpus, change.file);
+    const file = join30(corpus, change.file);
     const { nextContent } = rewritePageForRemoval(corpus, file, aliases);
-    writeFileSync10(file, nextContent, "utf-8");
+    writeFileSync12(file, nextContent, "utf-8");
   }
 }
 function forgetIngestRecords(corpus, urls) {
@@ -4286,7 +4950,7 @@ function removeCommand(program2) {
       forgetIngestRecords(corpus, plan.ingestRecords);
       await moveToTrash(plan.trashTargets.map((t) => t.abs));
       ok(`moved ${plan.trashTargets.length} item(s) to OS Trash`);
-      const hasVectorDb = existsSync19(join27(corpus, ".wiki", "vector.sqlite"));
+      const hasVectorDb = existsSync23(join30(corpus, ".wiki", "vector.sqlite"));
       if (hasVectorDb) {
         plan.vectorPruned = await pruneVectorDbMissingFiles(corpus);
         if (plan.vectorPruned > 0) ok(`vector pruned ${plan.vectorPruned} missing file(s)`);
@@ -4303,469 +4967,6 @@ function removeCommand(program2) {
     }
     if (opts.json) out(JSON.stringify(plan));
   });
-}
-
-// src/lib/integrations/gbrain.ts
-import { existsSync as existsSync23, mkdirSync as mkdirSync13, readFileSync as readFileSync22 } from "fs";
-import { join as join30 } from "path";
-
-// src/lib/integrations/gbrain-status.ts
-import { existsSync as existsSync20 } from "fs";
-import { homedir } from "os";
-import { join as join28 } from "path";
-
-// src/lib/integrations/process.ts
-import { spawn } from "child_process";
-function runExternalCommand(opts) {
-  const startedAt = Date.now();
-  const timeoutMs = opts.timeoutMs ?? 12e4;
-  return new Promise((resolve5) => {
-    let stdout = "";
-    let stderr = "";
-    let settled = false;
-    let timedOut = false;
-    const child = spawn(opts.command, opts.args, {
-      cwd: opts.cwd,
-      shell: false,
-      stdio: ["ignore", "pipe", "pipe"]
-    });
-    const timer = setTimeout(() => {
-      timedOut = true;
-      child.kill("SIGTERM");
-    }, timeoutMs);
-    child.stdout?.on("data", (chunk) => {
-      stdout += chunk.toString("utf-8");
-    });
-    child.stderr?.on("data", (chunk) => {
-      stderr += chunk.toString("utf-8");
-    });
-    child.on("error", (e) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve5({
-        command: opts.command,
-        args: opts.args,
-        exitCode: -1,
-        stdout,
-        stderr,
-        durationMs: Date.now() - startedAt,
-        timedOut,
-        error: e.message
-      });
-    });
-    child.on("close", (code) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve5({
-        command: opts.command,
-        args: opts.args,
-        exitCode: code ?? (timedOut ? 124 : 1),
-        stdout,
-        stderr,
-        durationMs: Date.now() - startedAt,
-        timedOut
-      });
-    });
-  });
-}
-
-// src/lib/integrations/gbrain-status.ts
-var GBRAIN_INSTALL_HINT = [
-  "git clone https://github.com/garrytan/gbrain.git ~/code/gbrain",
-  "cd ~/code/gbrain",
-  "bun install",
-  "bun link",
-  "gbrain init"
-].join("\n");
-async function getGbrainStatus() {
-  const binary = process.env.LOREKIT_GBRAIN_BIN || "gbrain";
-  const errors = [];
-  const versionProbe = await runExternalCommand({
-    command: binary,
-    args: ["--version"],
-    timeoutMs: 1e4
-  });
-  if (versionProbe.exitCode !== 0) {
-    errors.push(versionProbe.error || versionProbe.stderr.trim() || "gbrain binary not installed");
-    return {
-      installed: false,
-      binary,
-      version: null,
-      brainInitialized: existsSync20(join28(homedir(), ".gbrain")),
-      installHint: GBRAIN_INSTALL_HINT,
-      errors
-    };
-  }
-  const version2 = (versionProbe.stdout || versionProbe.stderr).trim() || null;
-  return {
-    installed: true,
-    binary,
-    version: version2,
-    brainInitialized: existsSync20(join28(homedir(), ".gbrain")),
-    installHint: GBRAIN_INSTALL_HINT,
-    errors
-  };
-}
-
-// src/lib/integrations/gbrain-export.ts
-import { createHash as createHash5 } from "crypto";
-import {
-  existsSync as existsSync22,
-  mkdirSync as mkdirSync12,
-  readFileSync as readFileSync21,
-  readdirSync as readdirSync11,
-  renameSync as renameSync2,
-  statSync as statSync7,
-  writeFileSync as writeFileSync12
-} from "fs";
-import { dirname as dirname6, join as join29, relative as relative18, resolve as resolve4 } from "path";
-import matter6 from "gray-matter";
-
-// src/lib/integrations/manifest.ts
-import { existsSync as existsSync21, readFileSync as readFileSync20, writeFileSync as writeFileSync11 } from "fs";
-function writeJsonFile(path, data) {
-  writeFileSync11(path, JSON.stringify(data, null, 2) + "\n", "utf-8");
-}
-function readJsonFile(path) {
-  if (!existsSync21(path)) return null;
-  return JSON.parse(readFileSync20(path, "utf-8"));
-}
-
-// src/lib/integrations/gbrain-export.ts
-function toPosixPath(path) {
-  return path.split("\\").join("/");
-}
-function sha256Content(content) {
-  return "sha256:" + createHash5("sha256").update(content).digest("hex");
-}
-function exportRoot(corpus, out2) {
-  if (!out2) return join29(corpus, ".wiki", "integrations", "gbrain-export");
-  return resolve4(corpus, out2);
-}
-function collectKnowledgeMarkdown(corpus) {
-  const root = join29(corpus, "\u77E5\u8BC6\u5E93");
-  const candidates = [];
-  const skipped = [];
-  const warnings = [];
-  if (!existsSync22(root)) {
-    warnings.push("\u77E5\u8BC6\u5E93/ not found; no pages exported");
-    return { candidates, skipped, warnings };
-  }
-  function walk(dir) {
-    for (const entry of readdirSync11(dir, { withFileTypes: true })) {
-      if (entry.name.startsWith(".")) continue;
-      const absPath = join29(dir, entry.name);
-      if (entry.isDirectory()) {
-        walk(absPath);
-        continue;
-      }
-      if (!entry.isFile() || !entry.name.endsWith(".md")) continue;
-      const sourcePath = toPosixPath(relative18(corpus, absPath));
-      if (sourcePath === "\u77E5\u8BC6\u5E93/\u6A21\u677F" || sourcePath.startsWith("\u77E5\u8BC6\u5E93/\u6A21\u677F/")) {
-        skipped.push({ sourcePath, reason: "template file skipped by default" });
-        continue;
-      }
-      if (entry.name === "_INDEX.md") {
-        skipped.push({ sourcePath, reason: "index file skipped by default" });
-        continue;
-      }
-      if (entry.name === "index.md") {
-        skipped.push({ sourcePath, reason: "local index file skipped by default" });
-        continue;
-      }
-      candidates.push({ absPath, sourcePath });
-    }
-  }
-  walk(root);
-  candidates.sort((a, b) => a.sourcePath.localeCompare(b.sourcePath));
-  skipped.sort((a, b) => a.sourcePath.localeCompare(b.sourcePath));
-  return { candidates, skipped, warnings };
-}
-function ensureFreshExportDir(root, exportedAt) {
-  mkdirSync12(root, { recursive: true });
-  const backupRoot = join29(root, "backups", exportedAt.replace(/[:.]/g, "-"));
-  let moved = false;
-  for (const name of ["pages", "manifest.json", "README.md"]) {
-    const current = join29(root, name);
-    if (!existsSync22(current)) continue;
-    if (!moved) {
-      mkdirSync12(backupRoot, { recursive: true });
-      moved = true;
-    }
-    renameSync2(current, join29(backupRoot, name));
-  }
-}
-function normalizeForGbrain(raw, sourcePath, exportedAt) {
-  const parsed = matter6(raw);
-  const data = { ...parsed.data };
-  delete data.slug;
-  data.lorekit_source_path = sourcePath;
-  data.lorekit_layer = "artifact";
-  data.lorekit_hash = sha256Content(raw);
-  data.lorekit_exported_at = exportedAt;
-  return matter6.stringify(parsed.content, data);
-}
-function pageMeta(raw) {
-  const parsed = matter6(raw);
-  return {
-    title: typeof parsed.data.title === "string" ? parsed.data.title : null,
-    type: typeof parsed.data.type === "string" ? parsed.data.type : null
-  };
-}
-function exportForGbrain(corpus, opts = {}) {
-  const dryRun = opts.dryRun ?? false;
-  const exportedAt = (/* @__PURE__ */ new Date()).toISOString();
-  const root = exportRoot(corpus, opts.out);
-  const pagesDir = join29(root, "pages");
-  const manifestPath = join29(root, "manifest.json");
-  const { candidates, skipped, warnings } = collectKnowledgeMarkdown(corpus);
-  const pages = [];
-  for (const candidate of candidates) {
-    const rawBuffer = readFileSync21(candidate.absPath);
-    const raw = rawBuffer.toString("utf-8");
-    const relUnderKnowledge = toPosixPath(relative18(join29(corpus, "\u77E5\u8BC6\u5E93"), candidate.absPath));
-    const exportPath = toPosixPath(join29("pages", relUnderKnowledge));
-    const meta = pageMeta(raw);
-    pages.push({
-      sourcePath: candidate.sourcePath,
-      exportPath,
-      title: meta.title,
-      type: meta.type,
-      hash: sha256Content(rawBuffer),
-      bytes: statSync7(candidate.absPath).size,
-      status: "exported"
-    });
-  }
-  if (!dryRun) {
-    ensureFreshExportDir(root, exportedAt);
-    for (const candidate of candidates) {
-      const raw = readFileSync21(candidate.absPath, "utf-8");
-      const relUnderKnowledge = relative18(join29(corpus, "\u77E5\u8BC6\u5E93"), candidate.absPath);
-      const target = join29(pagesDir, relUnderKnowledge);
-      mkdirSync12(dirname6(target), { recursive: true });
-      writeFileSync12(target, normalizeForGbrain(raw, candidate.sourcePath, exportedAt), "utf-8");
-    }
-    const manifest = {
-      version: 1,
-      integration: "gbrain",
-      source: "lorekit",
-      corpus,
-      exportedAt,
-      pages,
-      skipped,
-      warnings
-    };
-    writeJsonFile(manifestPath, manifest);
-    writeFileSync12(
-      join29(root, "README.md"),
-      [
-        "# GBrain export",
-        "",
-        "Generated by `lorekit gbrain export`.",
-        "This directory is a staging copy for GBrain import; lorekit \u77E5\u8BC6\u5E93/ remains the source of truth.",
-        ""
-      ].join("\n"),
-      "utf-8"
-    );
-  }
-  return {
-    status: warnings.length > 0 ? "warn" : "ok",
-    dryRun,
-    corpus,
-    exportDir: root,
-    pagesDir,
-    manifestPath,
-    exportedAt,
-    pagesExported: pages.length,
-    pagesSkipped: skipped.length,
-    pages,
-    skipped,
-    warnings
-  };
-}
-
-// src/lib/integrations/gbrain.ts
-function syncReportPath(corpus) {
-  return join30(corpus, ".wiki", "integrations", "gbrain", "sync-report.json");
-}
-function writeSyncReport2(corpus, result) {
-  const path = syncReportPath(corpus);
-  mkdirSync13(join30(corpus, ".wiki", "integrations", "gbrain"), { recursive: true });
-  writeJsonFile(path, result);
-}
-function commandSummary(binary, pagesDir) {
-  return [binary, "import", pagesDir];
-}
-async function syncGbrain(corpus, opts = {}) {
-  const dryRun = opts.dryRun ?? false;
-  const startedAt = (/* @__PURE__ */ new Date()).toISOString();
-  const exportResult = exportForGbrain(corpus, { dryRun });
-  if (dryRun) {
-    return {
-      status: "ok",
-      dryRun: true,
-      startedAt,
-      finishedAt: (/* @__PURE__ */ new Date()).toISOString(),
-      corpus,
-      export: exportResult,
-      gbrain: null,
-      gbrainImport: { skipped: true, reason: "dry-run" },
-      warnings: exportResult.warnings,
-      errors: []
-    };
-  }
-  const gbrainStatus = await getGbrainStatus();
-  if (!gbrainStatus.installed) {
-    const result2 = {
-      status: "error",
-      dryRun: false,
-      startedAt,
-      finishedAt: (/* @__PURE__ */ new Date()).toISOString(),
-      corpus,
-      export: exportResult,
-      gbrain: null,
-      warnings: exportResult.warnings,
-      errors: ["gbrain is not installed", ...gbrainStatus.errors]
-    };
-    writeSyncReport2(corpus, result2);
-    return result2;
-  }
-  const importCommand = commandSummary(gbrainStatus.binary, exportResult.pagesDir);
-  const external = await runExternalCommand({
-    command: gbrainStatus.binary,
-    args: ["import", exportResult.pagesDir],
-    cwd: corpus,
-    timeoutMs: 12e4
-  });
-  const result = {
-    status: external.exitCode === 0 ? "ok" : "error",
-    dryRun: false,
-    startedAt,
-    finishedAt: (/* @__PURE__ */ new Date()).toISOString(),
-    corpus,
-    export: exportResult,
-    gbrain: {
-      binary: gbrainStatus.binary,
-      version: gbrainStatus.version,
-      command: importCommand,
-      exitCode: external.exitCode,
-      stdout: external.stdout,
-      stderr: external.stderr,
-      durationMs: external.durationMs
-    },
-    warnings: exportResult.warnings,
-    errors: external.exitCode === 0 ? [] : [external.error || external.stderr || "gbrain import failed"]
-  };
-  writeSyncReport2(corpus, result);
-  return result;
-}
-async function doctorGbrain(corpus) {
-  const issues = [];
-  const gbrain = await getGbrainStatus();
-  if (!gbrain.installed) {
-    issues.push({
-      section: "gbrain",
-      severity: "warn",
-      message: "GBrain binary is not installed",
-      recommendation: "Install GBrain only if you want graph retrieval: git clone + bun install + bun link"
-    });
-  }
-  const manifestPath = join30(corpus, ".wiki", "integrations", "gbrain-export", "manifest.json");
-  const syncPath = syncReportPath(corpus);
-  const manifest = readJsonFile(manifestPath);
-  if (!manifest) {
-    issues.push({
-      section: "gbrain",
-      severity: "warn",
-      message: "GBrain export manifest is missing",
-      recommendation: "Run lorekit gbrain export"
-    });
-  } else {
-    for (const page of manifest.pages) {
-      const sourcePath = join30(corpus, page.sourcePath);
-      if (!existsSync23(sourcePath)) {
-        issues.push({
-          section: "gbrain",
-          severity: "warn",
-          message: `Exported page source is missing: ${page.sourcePath}`,
-          recommendation: "Run lorekit gbrain export to refresh the staging directory"
-        });
-        continue;
-      }
-      const currentHash = "sha256:" + sha256(sourcePath);
-      if (currentHash !== page.hash) {
-        issues.push({
-          section: "gbrain",
-          severity: "warn",
-          message: `GBrain export is stale: ${page.sourcePath}`,
-          recommendation: "Run lorekit gbrain export or lorekit gbrain sync"
-        });
-      }
-    }
-  }
-  if (!existsSync23(syncPath)) {
-    issues.push({
-      section: "gbrain",
-      severity: "warn",
-      message: "GBrain sync report is missing",
-      recommendation: "Run lorekit gbrain sync after export when GBrain is installed"
-    });
-  } else {
-    try {
-      const report = JSON.parse(readFileSync22(syncPath, "utf-8"));
-      if (report.status !== "ok") {
-        issues.push({
-          section: "gbrain",
-          severity: "warn",
-          message: "Last GBrain sync did not finish successfully",
-          recommendation: "Inspect .wiki/integrations/gbrain/sync-report.json and rerun sync"
-        });
-      }
-    } catch (e) {
-      issues.push({
-        section: "gbrain",
-        severity: "error",
-        message: `GBrain sync report is unreadable: ${e.message}`,
-        recommendation: "Regenerate it with lorekit gbrain sync"
-      });
-    }
-  }
-  const hasError = issues.some((i) => i.severity === "error");
-  return {
-    status: hasError ? "error" : issues.length > 0 ? "warn" : "ok",
-    corpus,
-    gbrain,
-    manifestPath,
-    syncReportPath: syncPath,
-    issues
-  };
-}
-async function queryGbrain(text) {
-  const status = await getGbrainStatus();
-  const message = "This answer comes from GBrain index generated from lorekit export. To persist new knowledge, use wiki-fileback / lorekit audit.";
-  if (!status.installed) {
-    return {
-      status: "error",
-      source: "gbrain",
-      message,
-      gbrain: null,
-      errors: ["gbrain is not installed", ...status.errors]
-    };
-  }
-  const r = await runExternalCommand({
-    command: status.binary,
-    args: ["query", text],
-    timeoutMs: 12e4
-  });
-  return {
-    status: r.exitCode === 0 ? "ok" : "error",
-    source: "gbrain",
-    message,
-    gbrain: r,
-    errors: r.exitCode === 0 ? [] : [r.error || r.stderr || "gbrain query failed"]
-  };
 }
 
 // src/commands/gbrain.ts
@@ -4803,16 +5004,20 @@ function gbrainCommand(program2) {
     if (result.pagesSkipped > 0) warn(`skipped ${result.pagesSkipped} index file(s)`);
     for (const w of result.warnings) warn(w);
   });
-  cmd.command("sync").description("export lorekit pages and run gbrain import on the staging directory").option("--dry-run", "preview only; do not write export files or call gbrain import", false).option("--json", "output json", false).option("--force-export", "reserved for future compatibility", false).action(async (opts) => {
+  cmd.command("sync").description("export lorekit pages and run gbrain import on the staging directory").option("--dry-run", "preview only; do not write export files or call gbrain import", false).option("--json", "output json", false).option(
+    "--export-even-if-missing",
+    "refresh staging export even when the gbrain binary is missing",
+    false
+  ).action(async (opts) => {
     const corpus = requireCorpus();
     const result = await syncGbrain(corpus, opts);
     if (opts.json) {
       printJson(result);
     } else if (result.status === "ok") {
       if (result.dryRun) {
-        info(`would export ${result.export.pagesExported} page(s); gbrain import skipped`);
+        info(`would export ${result.export?.pagesExported ?? 0} page(s); gbrain import skipped`);
       } else {
-        ok(`gbrain sync complete: ${result.export.pagesExported} page(s) exported`);
+        ok(`gbrain sync complete: ${result.export?.pagesExported ?? 0} page(s) exported`);
       }
     } else {
       bad(`gbrain sync failed: ${result.errors.join("; ")}`);
@@ -4834,12 +5039,14 @@ function gbrainCommand(program2) {
     }
     process.exitCode = result.status === "error" ? 1 : 0;
   });
-  cmd.command("query").argument("<text>", "query text").description("run gbrain query without writing back to lorekit").option("--json", "output json", false).action(async (text, opts) => {
-    const result = await queryGbrain(text);
+  cmd.command("query").argument("<text>", "query text").description("run gbrain query without writing back to lorekit").option("--json", "output json", false).option("--no-stale-check", "skip corpus export/sync freshness guard").action(async (text, opts) => {
+    const corpus = requireCorpus();
+    const result = await queryGbrain(corpus, text, { staleCheck: opts.staleCheck !== false });
     if (opts.json) {
       printJson(result);
     } else {
       info(result.message);
+      for (const w of result.warnings) warn(w);
       if (result.gbrain?.stdout) print(result.gbrain.stdout.trim());
       if (result.gbrain?.stderr) warn(result.gbrain.stderr.trim());
       if (result.status === "error") bad(result.errors.join("; "));

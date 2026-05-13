@@ -130,10 +130,12 @@ lorekit gbrain status
 lorekit gbrain export --dry-run
 lorekit gbrain export
 lorekit gbrain sync --dry-run
+lorekit gbrain sync
 lorekit gbrain doctor
+lorekit gbrain query "..."
 ```
 
-`export` writes only under `.wiki/integrations/gbrain-export/`. It skips generated indexes and templates, removes frontmatter `slug`, and records source hashes in `manifest.json`. `sync` calls external `gbrain import` and writes `.wiki/integrations/gbrain/sync-report.json`.
+`export` writes only under `.wiki/integrations/gbrain-export/`. It skips generated indexes and templates, removes frontmatter `slug`, and records source hashes in `manifest.json`. `sync` checks the external binary before writing staging, calls external `gbrain import`, and writes `.wiki/integrations/gbrain/sync-report.json`. `query` checks corpus/export/sync freshness before calling GBrain; pass `--no-stale-check` only for intentional debugging.
 
 ---
 

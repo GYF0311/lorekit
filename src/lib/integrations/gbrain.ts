@@ -11,7 +11,7 @@ export { getGbrainStatus, exportForGbrain };
 export interface GbrainSyncOptions {
   dryRun?: boolean;
   json?: boolean;
-  forceExport?: boolean;
+  exportEvenIfMissing?: boolean;
 }
 
 export interface GbrainSyncResult {
@@ -20,7 +20,7 @@ export interface GbrainSyncResult {
   startedAt: string;
   finishedAt: string;
   corpus: string;
-  export: GbrainExportResult;
+  export: GbrainExportResult | null;
   gbrain: {
     binary: string;
     version: string | null;
@@ -55,7 +55,13 @@ export interface GbrainQueryResult {
   status: 'ok' | 'error';
   source: 'gbrain';
   message: string;
+  staleCheck: {
+    skipped: boolean;
+    status: GbrainDoctorResult['status'] | null;
+    issues: GbrainDoctorIssue[];
+  };
   gbrain: ExternalCommandResult | null;
+  warnings: string[];
   errors: string[];
 }
 
@@ -79,9 +85,9 @@ export async function syncGbrain(
 ): Promise<GbrainSyncResult> {
   const dryRun = opts.dryRun ?? false;
   const startedAt = new Date().toISOString();
-  const exportResult = exportForGbrain(corpus, { dryRun });
 
   if (dryRun) {
+    const exportResult = exportForGbrain(corpus, { dryRun: true });
     return {
       status: 'ok',
       dryRun: true,
@@ -98,6 +104,9 @@ export async function syncGbrain(
 
   const gbrainStatus = await getGbrainStatus();
   if (!gbrainStatus.installed) {
+    const exportResult = opts.exportEvenIfMissing
+      ? exportForGbrain(corpus, { dryRun: false })
+      : null;
     const result: GbrainSyncResult = {
       status: 'error',
       dryRun: false,
@@ -106,13 +115,15 @@ export async function syncGbrain(
       corpus,
       export: exportResult,
       gbrain: null,
-      warnings: exportResult.warnings,
+      gbrainImport: { skipped: true, reason: 'gbrain-missing' },
+      warnings: exportResult?.warnings ?? [],
       errors: ['gbrain is not installed', ...gbrainStatus.errors],
     };
     writeSyncReport(corpus, result);
     return result;
   }
 
+  const exportResult = exportForGbrain(corpus, { dryRun: false });
   const importCommand = commandSummary(gbrainStatus.binary, exportResult.pagesDir);
   const external = await runExternalCommand({
     command: gbrainStatus.binary,
@@ -229,16 +240,56 @@ export async function doctorGbrain(corpus: string): Promise<GbrainDoctorResult> 
   };
 }
 
-export async function queryGbrain(text: string): Promise<GbrainQueryResult> {
-  const status = await getGbrainStatus();
+export interface GbrainQueryOptions {
+  staleCheck?: boolean;
+}
+
+export async function queryGbrain(
+  corpus: string,
+  text: string,
+  opts: GbrainQueryOptions = {},
+): Promise<GbrainQueryResult> {
   const message =
     'This answer comes from GBrain index generated from lorekit export. To persist new knowledge, use wiki-fileback / lorekit audit.';
+  const shouldCheck = opts.staleCheck !== false;
+  if (shouldCheck) {
+    const check = await doctorGbrain(corpus);
+    if (!check.gbrain.installed) {
+      return {
+        status: 'error',
+        source: 'gbrain',
+        message,
+        staleCheck: { skipped: false, status: check.status, issues: check.issues },
+        gbrain: null,
+        warnings: check.issues.map((i) => i.message),
+        errors: ['gbrain is not installed', ...check.gbrain.errors],
+      };
+    }
+    if (check.status !== 'ok') {
+      return {
+        status: 'error',
+        source: 'gbrain',
+        message,
+        staleCheck: { skipped: false, status: check.status, issues: check.issues },
+        gbrain: null,
+        warnings: check.issues.map((i) => i.message),
+        errors: [
+          'GBrain export is not ready. Run lorekit gbrain sync first, or pass --no-stale-check to query anyway.',
+          ...check.issues.map((i) => i.message),
+        ],
+      };
+    }
+  }
+
+  const status = await getGbrainStatus();
   if (!status.installed) {
     return {
       status: 'error',
       source: 'gbrain',
       message,
+      staleCheck: { skipped: !shouldCheck, status: null, issues: [] },
       gbrain: null,
+      warnings: [],
       errors: ['gbrain is not installed', ...status.errors],
     };
   }
@@ -252,7 +303,9 @@ export async function queryGbrain(text: string): Promise<GbrainQueryResult> {
     status: r.exitCode === 0 ? 'ok' : 'error',
     source: 'gbrain',
     message,
+    staleCheck: { skipped: !shouldCheck, status: shouldCheck ? 'ok' : null, issues: [] },
     gbrain: r,
+    warnings: [],
     errors: r.exitCode === 0 ? [] : [r.error || r.stderr || 'gbrain query failed'],
   };
 }

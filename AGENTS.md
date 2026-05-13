@@ -179,7 +179,11 @@ lorekit gbrain export --dry-run             # 预览导出 知识库/ 到 .wiki/
 lorekit gbrain export                       # 生成 GBrain-safe staging；不改 知识库/ 或 原料/
 lorekit gbrain sync --dry-run               # 预览 sync，不调用 gbrain import
 lorekit gbrain sync                         # 调用外部 gbrain import，并写 sync-report.json
+lorekit gbrain sync --export-even-if-missing # GBrain 缺失时仍显式刷新 staging
 lorekit gbrain doctor                       # 检查 manifest stale / 上次 sync / binary 状态
+lorekit gbrain query "<q>"                  # 查询前默认检查 corpus + export/sync freshness
+lorekit doctor --json                       # 机器可读健康报告，含 optional integrations
+lorekit doctor --section integrations       # 只检查 GBrain 等可选集成健康
 ```
 
 详见 `docs/QUICKSTART.md` 和 `README.md`。

@@ -2,7 +2,7 @@ import type { Command } from 'commander';
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import chalk from 'chalk';
-import { ok, bad, warn, print } from '../utils/logger.js';
+import { ok, bad, warn, print, out } from '../utils/logger.js';
 import { requireCorpus, collectMdFiles, hasFrontmatter } from '../lib/corpus.js';
 import { isIndexExcluded, isFolderPackage } from '../lib/paths.js';
 import {
@@ -10,6 +10,11 @@ import {
   readCorpusFilter,
   isFilterComplete,
 } from '../lib/obsidian.js';
+import {
+  doctorGbrain,
+  type GbrainDoctorIssue,
+  type GbrainDoctorResult,
+} from '../lib/integrations/gbrain.js';
 
 const EXPECTED_DIRS = [
   '每日',
@@ -23,44 +28,95 @@ const EXPECTED_DIRS = [
   '_工作台',
 ];
 
-function checkDirs(corpus: string): number {
-  let issues = 0;
-  for (const dir of EXPECTED_DIRS) {
-    const full = join(corpus, dir);
-    if (existsSync(full)) {
-      ok(`${dir}/`);
-    } else {
-      bad(`${dir}/ ${chalk.dim('missing')}`);
-      issues++;
-    }
-  }
-  return issues;
+type DoctorStatus = 'ok' | 'warn' | 'error';
+type DoctorSectionName =
+  | 'directories'
+  | 'wikiMetadata'
+  | 'frontmatter'
+  | 'indexFiles'
+  | 'archive'
+  | 'obsidian'
+  | 'integrations';
+
+interface DoctorIssue {
+  section: DoctorSectionName | 'gbrain';
+  severity: 'warn' | 'error';
+  message: string;
+  recommendation?: string;
 }
 
-function checkWikiVersion(corpus: string): number {
+interface DoctorSectionReport {
+  status: DoctorStatus;
+  [key: string]: unknown;
+}
+
+export interface DoctorRunReport {
+  status: DoctorStatus;
+  generatedAt: string;
+  corpus: string;
+  sections: Partial<Record<DoctorSectionName, DoctorSectionReport>>;
+  issues: DoctorIssue[];
+  hardIssues: number;
+}
+
+export interface DoctorOptions {
+  section?: 'all' | 'integrations';
+}
+
+function inspectDirs(corpus: string): { missing: string[] } {
+  const missing: string[] = [];
+  for (const dir of EXPECTED_DIRS) {
+    const full = join(corpus, dir);
+    if (!existsSync(full)) missing.push(dir);
+  }
+  return { missing };
+}
+
+function checkDirs(corpus: string): number {
+  const { missing } = inspectDirs(corpus);
+  for (const dir of EXPECTED_DIRS) {
+    if (missing.includes(dir)) bad(`${dir}/ ${chalk.dim('missing')}`);
+    else ok(`${dir}/`);
+  }
+  return missing.length;
+}
+
+function inspectWikiVersion(corpus: string): { exists: boolean; version: string | null } {
   const versionFile = join(corpus, '.wiki', 'version');
   if (existsSync(versionFile)) {
     const ver = readFileSync(versionFile, 'utf-8').trim();
-    ok(`.wiki/version → ${ver}`);
+    return { exists: true, version: ver };
+  }
+  return { exists: false, version: null };
+}
+
+function checkWikiVersion(corpus: string): number {
+  const result = inspectWikiVersion(corpus);
+  if (result.exists) {
+    ok(`.wiki/version → ${result.version}`);
     return 0;
   }
   bad('.wiki/version missing');
   return 1;
 }
 
-function checkFrontmatterCoverage(corpus: string) {
+function inspectFrontmatterCoverage(corpus: string) {
   const files = collectMdFiles(corpus);
   const withFm = files.filter((f) => hasFrontmatter(f)).length;
   const total = files.length;
   const pct = total === 0 ? 100 : Math.round((withFm / total) * 100);
-
-  const color = pct >= 90 ? chalk.green : pct >= 60 ? chalk.yellow : chalk.red;
-  const icon = pct >= 90 ? '✓' : pct >= 60 ? '⚠' : '✗';
-  print(`${color(icon)} frontmatter coverage: ${withFm}/${total} (${pct}%)`);
+  return { withFrontmatter: withFm, total, pct };
 }
 
-function checkIndexFiles(corpus: string): number {
-  let missing = 0;
+function checkFrontmatterCoverage(corpus: string) {
+  const { withFrontmatter, total, pct } = inspectFrontmatterCoverage(corpus);
+  const color = pct >= 90 ? chalk.green : pct >= 60 ? chalk.yellow : chalk.red;
+  const icon = pct >= 90 ? '✓' : pct >= 60 ? '⚠' : '✗';
+  print(`${color(icon)} frontmatter coverage: ${withFrontmatter}/${total} (${pct}%)`);
+}
+
+function findMissingIndexDirs(corpus: string): string[] {
+  const missing: string[] = [];
 
   function walk(dir: string) {
     if (!existsSync(dir)) return;
@@ -101,58 +157,187 @@ function checkIndexFiles(corpus: string): number {
       }
 
       if (shouldHaveIndex && !existsSync(join(full, '_INDEX.md'))) {
-        warn(`_INDEX.md missing in ${rel}/`);
-        missing++;
+        missing.push(rel);
       }
       walk(full);
     }
   }
 
   walk(corpus);
-  if (missing === 0) {
+  return missing;
+}
+
+function checkIndexFiles(corpus: string): number {
+  const missing = findMissingIndexDirs(corpus);
+  for (const rel of missing) warn(`_INDEX.md missing in ${rel}/`);
+  if (missing.length === 0) {
     ok('all directories with .md files have _INDEX.md');
   }
-  return missing;
+  return missing.length;
 }
 
 /**
  * 检查 .obsidian/graph.json filter 是否含推荐项（批次 26 触达老用户）。
  * obsidian 是可选用途，不阻塞 doctor 整体绿 —— 故意不计入 issues 总数。
  */
-function checkObsidianGraph(corpus: string): void {
+function inspectObsidianGraph(corpus: string): DoctorSectionReport {
   try {
     const recommended = getRecommendedFilter();
     const cur = readCorpusFilter(corpus);
     if (!cur.exists) {
-      warn('obsidian: graph filter 不完整，运行 lorekit obsidian-tune 查看详情');
-      return;
+      return {
+        status: 'warn',
+        message: 'graph filter 不完整，运行 lorekit obsidian-tune 查看详情',
+      };
     }
     if (isFilterComplete(cur.search, recommended)) {
-      ok('obsidian: graph filter 完整');
-    } else {
-      warn('obsidian: graph filter 不完整，运行 lorekit obsidian-tune 查看详情');
+      return { status: 'ok', message: 'graph filter 完整' };
     }
+    return {
+      status: 'warn',
+      message: 'graph filter 不完整，运行 lorekit obsidian-tune 查看详情',
+    };
   } catch (e) {
-    // 模板缺失或读失败：不阻塞 doctor 主流程，给个 warn
-    warn(`obsidian: 检查 graph filter 失败: ${(e as Error).message}`);
+    return { status: 'warn', message: `检查 graph filter 失败: ${(e as Error).message}` };
   }
 }
 
-function checkArchive(corpus: string): number {
+function checkObsidianGraph(corpus: string): void {
+  const result = inspectObsidianGraph(corpus);
+  if (result.status === 'ok') ok(`obsidian: ${result.message}`);
+  else warn(`obsidian: ${result.message}`);
+}
+
+function inspectArchive(corpus: string): DoctorSectionReport {
   const archiveDir = join(corpus, '_归档');
   if (existsSync(archiveDir)) {
-    ok('_归档/ exists');
-    return 0;
+    return { status: 'ok', exists: true };
   }
-  warn('_归档/ not found (optional)');
+  return { status: 'warn', exists: false, message: '_归档/ not found (optional)' };
+}
+
+function checkArchive(corpus: string): number {
+  const result = inspectArchive(corpus);
+  if (result.status === 'ok') ok('_归档/ exists');
+  else warn(String(result.message));
   return 0; // not a hard failure
+}
+
+function statusFromIssues(issues: DoctorIssue[]): DoctorStatus {
+  if (issues.some((issue) => issue.severity === 'error')) return 'error';
+  if (issues.length > 0) return 'warn';
+  return 'ok';
+}
+
+function convertGbrainIssue(issue: GbrainDoctorIssue): DoctorIssue {
+  return {
+    section: 'gbrain',
+    severity: issue.severity,
+    message: issue.message,
+    recommendation: issue.recommendation,
+  };
+}
+
+function gbrainSection(gbrain: GbrainDoctorResult): DoctorSectionReport {
+  return {
+    status: gbrain.status,
+    gbrain: {
+      status: gbrain.status,
+      installed: gbrain.gbrain.installed,
+      binary: gbrain.gbrain.binary,
+      version: gbrain.gbrain.version,
+      brainInitialized: gbrain.gbrain.brainInitialized,
+      manifestPath: gbrain.manifestPath,
+      syncReportPath: gbrain.syncReportPath,
+      issues: gbrain.issues,
+    },
+  };
+}
+
+export async function runDoctorReport(
+  corpus: string,
+  opts: DoctorOptions = {},
+): Promise<DoctorRunReport> {
+  const section = opts.section ?? 'all';
+  if (section !== 'all' && section !== 'integrations') {
+    throw new Error(`unsupported doctor section: ${section}`);
+  }
+
+  const report: DoctorRunReport = {
+    status: 'ok',
+    generatedAt: new Date().toISOString(),
+    corpus,
+    sections: {},
+    issues: [],
+    hardIssues: 0,
+  };
+
+  if (section === 'all') {
+    const dirs = inspectDirs(corpus);
+    report.sections.directories = {
+      status: dirs.missing.length > 0 ? 'error' : 'ok',
+      expected: EXPECTED_DIRS,
+      missing: dirs.missing,
+    };
+    for (const dir of dirs.missing) {
+      report.issues.push({
+        section: 'directories',
+        severity: 'error',
+        message: `${dir}/ missing`,
+      });
+    }
+
+    const wiki = inspectWikiVersion(corpus);
+    report.sections.wikiMetadata = {
+      status: wiki.exists ? 'ok' : 'error',
+      version: wiki.version,
+      versionFileExists: wiki.exists,
+    };
+    if (!wiki.exists) {
+      report.issues.push({
+        section: 'wikiMetadata',
+        severity: 'error',
+        message: '.wiki/version missing',
+      });
+    }
+
+    const fm = inspectFrontmatterCoverage(corpus);
+    report.sections.frontmatter = {
+      status: fm.pct >= 90 ? 'ok' : fm.pct >= 60 ? 'warn' : 'error',
+      ...fm,
+    };
+
+    const missingIndexes = findMissingIndexDirs(corpus);
+    report.sections.indexFiles = {
+      status: missingIndexes.length > 0 ? 'warn' : 'ok',
+      missing: missingIndexes,
+    };
+    for (const rel of missingIndexes) {
+      report.issues.push({
+        section: 'indexFiles',
+        severity: 'warn',
+        message: `_INDEX.md missing in ${rel}/`,
+      });
+    }
+
+    report.sections.archive = inspectArchive(corpus);
+    report.sections.obsidian = inspectObsidianGraph(corpus);
+  }
+
+  const gbrain = await doctorGbrain(corpus);
+  report.sections.integrations = gbrainSection(gbrain);
+  report.issues.push(...gbrain.issues.map(convertGbrainIssue));
+
+  report.hardIssues = report.issues.filter((issue) => issue.severity === 'error').length;
+  report.status = statusFromIssues(report.issues);
+  return report;
 }
 
 /**
  * 程序内复用入口：跑健康体检。
  * 返回 issue 总数。调用方自行决定要不要把退出码设成非零。
  */
-export function runDoctor(corpus: string): number {
+export async function runDoctor(corpus: string): Promise<number> {
   print(chalk.bold(`\nlorekit doctor — ${corpus}\n`));
 
   let issues = 0;
@@ -181,6 +366,21 @@ export function runDoctor(corpus: string): number {
   checkObsidianGraph(corpus);
   print();
 
+  print(chalk.cyan('── integrations ──'));
+  const gbrain = await doctorGbrain(corpus);
+  if (gbrain.status === 'ok') {
+    ok('gbrain: integration healthy');
+  } else {
+    for (const issue of gbrain.issues) {
+      const line = `gbrain: ${issue.message}. ${issue.recommendation}`;
+      if (issue.severity === 'error') bad(line);
+      else warn(line);
+    }
+  }
+  const integrationErrors = gbrain.issues.filter((issue) => issue.severity === 'error').length;
+  issues += integrationErrors;
+  print();
+
   if (issues === 0) {
     print(chalk.green.bold('all checks passed ✓'));
   } else {
@@ -195,9 +395,36 @@ export function doctorCommand(program: Command) {
   program
     .command('doctor')
     .description('run health checks on the corpus')
-    .action(() => {
+    .option('--json', 'output machine-readable doctor report', false)
+    .option('--section <name>', 'only run a doctor section (currently: integrations)', 'all')
+    .action(async (opts: { json?: boolean; section?: 'all' | 'integrations' | string }) => {
       const corpus = requireCorpus();
-      const issues = runDoctor(corpus);
+      if (opts.json) {
+        const report = await runDoctorReport(corpus, {
+          section: opts.section === 'integrations' ? 'integrations' : 'all',
+        });
+        out(JSON.stringify(report, null, 2));
+        process.exitCode = report.hardIssues > 0 ? 1 : 0;
+        return;
+      }
+      if (opts.section === 'integrations') {
+        const report = await runDoctorReport(corpus, { section: 'integrations' });
+        print(chalk.bold(`\nlorekit doctor — ${corpus}\n`));
+        print(chalk.cyan('── integrations ──'));
+        const integration = report.sections.integrations?.gbrain as
+          | { issues?: GbrainDoctorIssue[] }
+          | undefined;
+        const issues = integration?.issues ?? [];
+        if (issues.length === 0) ok('gbrain: integration healthy');
+        for (const issue of issues) {
+          const line = `gbrain: ${issue.message}. ${issue.recommendation}`;
+          if (issue.severity === 'error') bad(line);
+          else warn(line);
+        }
+        process.exitCode = report.hardIssues > 0 ? 1 : 0;
+        return;
+      }
+      const issues = await runDoctor(corpus);
       process.exitCode = issues > 0 ? 1 : 0;
     });
 }
