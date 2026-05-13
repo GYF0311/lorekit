@@ -95,3 +95,42 @@ test('gbrain export writes GBrain-safe markdown and manifest under .wiki only', 
     cleanupTmpDir(corpus);
   }
 });
+
+test('gbrain export rejects --out outside .wiki/integrations by default', () => {
+  const { corpus } = seedCorpus();
+  try {
+    const args = ['gbrain', 'export', '--out', '../../outside', '--json'];
+    const r = runLorekit(args, { cwd: corpus });
+    assert.equal(r.status, 2, fmtRun(r, args, 'exit 2 for unsafe --out'));
+    assert.match(
+      r.stderr,
+      /invalid --out.*\.wiki\/integrations.*--allow-outside-corpus/is,
+      fmtRun(r, args, 'stderr explains safe export root and override flag'),
+    );
+  } finally {
+    cleanupTmpDir(corpus);
+  }
+});
+
+test('gbrain export --allow-outside-corpus makes unsafe --out explicit', () => {
+  const { corpus } = seedCorpus();
+  try {
+    const args = [
+      'gbrain',
+      'export',
+      '--out',
+      '../../outside',
+      '--allow-outside-corpus',
+      '--dry-run',
+      '--json',
+    ];
+    const r = runLorekit(args, { cwd: corpus });
+    assert.equal(r.status, 0, fmtRun(r, args, 'exit 0 with explicit unsafe override'));
+
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.dryRun, true);
+    assert.match(parsed.exportDir, /outside$/);
+  } finally {
+    cleanupTmpDir(corpus);
+  }
+});

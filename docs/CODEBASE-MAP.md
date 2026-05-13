@@ -44,7 +44,7 @@ lorekit/
 | `ingest.ts`           | 407 | ingest pipeline state machine：list / pending / record / check / forget / reconcile |
 | `dir-index.ts`        | 273 | 递归生成 `_INDEX.md`（原 `commands/index.ts`，批次 17 改名消除歧义）                |
 | `sync.ts`             | 204 | 一键链：dir-index → root index → vector sync → doctor；`--json/--report` 输出步骤收据 |
-| `doctor.ts`           | 430 | corpus 健康检查；human 输出 + `--json` 结构化报告 + `--section integrations` 可选集成检查 |
+| `doctor.ts`           | 469 | corpus 健康检查；human 输出 + `--json` 结构化报告 + 严格 `--section <name>` 检查 |
 | `vector.ts`           | 188 | 向量子命令：sync / query（flat / layered / bm25 / hybrid）/ status                  |
 | `lint.ts`             | 192 | frontmatter / 死链 / 孤岛页扫描                                                     |
 | `audit.ts`            | 162 | 反馈条目 CRUD                                                                       |
@@ -53,7 +53,7 @@ lorekit/
 | `install-skills.ts`   | 107 | 把 skills 软链到 `~/.claude/skills`                                                 |
 | `obsidian-tune.ts`    | 120 | 批次 26：老用户升级一键应用 `.obsidian/graph.json` filter（默认检查 / `--write` 备份后写 / `--print` 管道用）|
 | `remove.ts`           | 438 | 安全移除 URL/路径：dry-run 影响报告，`--apply` snapshot → OS Trash → provenance 清理 → sync/lint |
-| `gbrain.ts`           | 128 | 可选 GBrain read-only bridge：status / export / sync / doctor / query，stdout JSON + stale guard + 外部命令边界 |
+| `gbrain.ts`           | 147 | 可选 GBrain read-only bridge：status / export / sync / doctor / query，stdout JSON + stale warning + 外部命令边界 |
 
 ## src/lib/ 详单
 
@@ -107,9 +107,9 @@ lorekit/
 | ---- | ---- |
 | `process.ts` | `spawn` 外部命令封装；不走 shell interpolation，捕获 stdout/stderr/exitCode/timeout |
 | `gbrain-status.ts` | 探测 `gbrain --version`，未安装时输出 clone + bun install + bun link + init 建议 |
-| `gbrain-export.ts` | 将 `知识库/` 导出为 GBrain-safe staging：跳过 index/template，移除 `slug`，注入 lorekit metadata，生成 manifest |
+| `gbrain-export.ts` | 将 `知识库/` 导出为 GBrain-safe staging：跳过 index/template，限制默认 export root，移除 `slug`，注入 lorekit metadata，生成 manifest |
 | `manifest.ts` | GBrain export manifest 类型与 JSON 读写 helper |
-| `gbrain.ts` | sync/doctor/query 编排：写 sync-report、检查 manifest stale、query 前 freshness guard、缺 binary 时避免默认刷新 staging |
+| `gbrain.ts` | sync/doctor/query 编排：写 sync-report、检查 manifest stale、query 前 freshness warning、缺 binary 时避免默认刷新 staging |
 
 ## src/utils/ 详单
 

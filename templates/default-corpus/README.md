@@ -65,7 +65,7 @@ lorekit gbrain sync
 lorekit gbrain query "..."
 ```
 
-边界：GBrain 只读 `.wiki/integrations/gbrain-export/`，不能直接写回 `知识库/` 或 `原料/`。`sync` 会先检查外部 binary；缺失时默认不刷新 staging。`query` 默认检查 export/sync freshness，只有明确调试旧索引时才传 `--no-stale-check`。
+边界：GBrain 只读 `.wiki/integrations/gbrain-export/`，不能直接写回 `知识库/` 或 `原料/`。`export --out` 默认只能写在 `.wiki/integrations/` 下。`sync` 会先检查外部 binary；缺失时默认不刷新 staging。`query` 默认检查 export/sync freshness；如果 stale 会提醒先 sync，但不阻止查询。
 
 ## 版本
 

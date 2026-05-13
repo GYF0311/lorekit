@@ -57,7 +57,7 @@ test('gbrain query requires a lorekit corpus by default', () => {
   }
 });
 
-test('gbrain query refuses stale or unsynced export by default', () => {
+test('gbrain query warns on stale or unsynced export but still queries by default', () => {
   const corpus = seedCorpus();
   const marker = join(corpus, 'called.txt');
   const bin = fakeQueryGbrain(corpus);
@@ -70,13 +70,15 @@ test('gbrain query refuses stale or unsynced export by default', () => {
         LOREKIT_FAKE_GBRAIN_MARKER: marker,
       },
     });
-    assert.equal(r.status, 1, fmtRun(r, args, 'exit 1 when GBrain export is unsynced'));
+    assert.equal(r.status, 0, fmtRun(r, args, 'exit 0 with stale warning'));
 
     const parsed = JSON.parse(r.stdout);
-    assert.equal(parsed.status, 'error');
+    assert.equal(parsed.status, 'ok');
     assert.equal(parsed.staleCheck?.skipped, false);
-    assert.match(parsed.errors.join('\n'), /GBrain export is not ready|sync/i);
-    assert.equal(existsSync(marker), false, 'fake gbrain was not called');
+    assert.equal(parsed.staleCheck?.status, 'warn');
+    assert.match(parsed.warnings.join('\n'), /GBrain index may be stale/i);
+    assert.match(parsed.gbrain.stdout, /query ok: query RAG/);
+    assert.match(readFileSync(marker, 'utf-8'), /^query RAG/);
   } finally {
     cleanupTmpDir(corpus);
   }

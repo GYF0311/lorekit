@@ -252,6 +252,10 @@ export async function queryGbrain(
   const message =
     'This answer comes from GBrain index generated from lorekit export. To persist new knowledge, use wiki-fileback / lorekit audit.';
   const shouldCheck = opts.staleCheck !== false;
+  let status: GbrainStatusResult;
+  let staleStatus: GbrainDoctorResult['status'] | null = null;
+  let staleIssues: GbrainDoctorIssue[] = [];
+
   if (shouldCheck) {
     const check = await doctorGbrain(corpus);
     if (!check.gbrain.installed) {
@@ -265,23 +269,13 @@ export async function queryGbrain(
         errors: ['gbrain is not installed', ...check.gbrain.errors],
       };
     }
-    if (check.status !== 'ok') {
-      return {
-        status: 'error',
-        source: 'gbrain',
-        message,
-        staleCheck: { skipped: false, status: check.status, issues: check.issues },
-        gbrain: null,
-        warnings: check.issues.map((i) => i.message),
-        errors: [
-          'GBrain export is not ready. Run lorekit gbrain sync first, or pass --no-stale-check to query anyway.',
-          ...check.issues.map((i) => i.message),
-        ],
-      };
-    }
+    status = check.gbrain;
+    staleStatus = check.status;
+    staleIssues = check.issues;
+  } else {
+    status = await getGbrainStatus();
   }
 
-  const status = await getGbrainStatus();
   if (!status.installed) {
     return {
       status: 'error',
@@ -294,6 +288,14 @@ export async function queryGbrain(
     };
   }
 
+  const staleWarnings =
+    shouldCheck && staleIssues.length > 0
+      ? [
+          'GBrain index may be stale. Run lorekit gbrain sync.',
+          ...staleIssues.map((i) => i.message),
+        ]
+      : [];
+
   const r = await runExternalCommand({
     command: status.binary,
     args: ['query', text],
@@ -303,9 +305,9 @@ export async function queryGbrain(
     status: r.exitCode === 0 ? 'ok' : 'error',
     source: 'gbrain',
     message,
-    staleCheck: { skipped: !shouldCheck, status: shouldCheck ? 'ok' : null, issues: [] },
+    staleCheck: { skipped: !shouldCheck, status: staleStatus, issues: staleIssues },
     gbrain: r,
-    warnings: [],
+    warnings: staleWarnings,
     errors: r.exitCode === 0 ? [] : [r.error || r.stderr || 'gbrain query failed'],
   };
 }

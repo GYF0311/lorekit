@@ -274,10 +274,11 @@ lorekit 是 Node.js / TypeScript / commander / better-sqlite3 / optional sqlite-
 - export 默认跳过 `_INDEX.md`、local `index.md`、`知识库/模板/`
 - export 移除 frontmatter `slug`，避免 GBrain path-authoritative slug 校验失败
 - export 注入 `lorekit_source_path` / `lorekit_hash` / `lorekit_exported_at`
+- export 自定义 `--out` 默认只能写入 `.wiki/integrations/`，`--allow-outside-corpus` 是显式逃生舱
 - `lorekit gbrain sync` 先检查外部 binary，再 export + 调 `gbrain import <export/pages>`，写 `.wiki/integrations/gbrain/sync-report.json`
 - GBrain 缺失时 `sync` 默认只写失败 report，不刷新 staging；`--export-even-if-missing` 才保留旧的显式 staging refresh 行为
-- `lorekit gbrain query` 默认 require corpus，并检查 manifest / sync report / stale hash；`--no-stale-check` 只给调试或有意查询旧索引用
-- `lorekit doctor --json` 和 `doctor --section integrations` 会暴露 GBrain health；缺 binary 是 warn，不让 corpus hard fail，坏 report JSON 是 error
+- `lorekit gbrain query` 默认 require corpus，并检查 manifest / sync report / stale hash；stale 时 warn 但继续查外部索引，`--no-stale-check` 只给调试 noisy guard 用
+- `lorekit doctor --json` 和严格 `doctor --section <name>` 会暴露 GBrain health；缺 binary 是 warn，不让 corpus hard fail，坏 report JSON 是 error
 - GBrain 未安装时 `status/doctor` 给安装建议，`sync/query` 清晰失败
 
 ### 同步收据
@@ -308,7 +309,7 @@ CLI 负责：
 - ingest state / audit state 等确定性账本
 - lint / doctor / Obsidian 配置检查
 - index / sync / vector / report
-- 可选 GBrain bridge 的 export / sync / stale guard
+- 可选 GBrain bridge 的 export / sync / stale warning
 
 CLI 不负责：
 

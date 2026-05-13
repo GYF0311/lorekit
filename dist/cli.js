@@ -1356,7 +1356,7 @@ import {
   statSync as statSync4,
   writeFileSync as writeFileSync3
 } from "fs";
-import { dirname as dirname3, join as join6, relative as relative2, resolve as resolve2 } from "path";
+import { dirname as dirname3, isAbsolute, join as join6, relative as relative2, resolve as resolve2 } from "path";
 import matter2 from "gray-matter";
 
 // src/lib/integrations/manifest.ts
@@ -1376,9 +1376,22 @@ function toPosixPath(path) {
 function sha256Content(content) {
   return "sha256:" + createHash2("sha256").update(content).digest("hex");
 }
-function exportRoot(corpus, out2) {
+function isWithin(parent, child) {
+  const rel = relative2(parent, child);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute(rel);
+}
+function exportRoot(corpus, out2, allowOutsideCorpus = false) {
   if (!out2) return join6(corpus, ".wiki", "integrations", "gbrain-export");
-  return resolve2(corpus, out2);
+  const root = resolve2(corpus, out2);
+  if (!allowOutsideCorpus) {
+    const safeRoot = resolve2(corpus, ".wiki", "integrations");
+    if (!isWithin(safeRoot, root)) {
+      throw new Error(
+        "invalid --out: export directory must stay under .wiki/integrations/ unless --allow-outside-corpus is set"
+      );
+    }
+  }
+  return root;
 }
 function collectKnowledgeMarkdown(corpus) {
   const root = join6(corpus, "\u77E5\u8BC6\u5E93");
@@ -1453,7 +1466,7 @@ function pageMeta(raw) {
 function exportForGbrain(corpus, opts = {}) {
   const dryRun = opts.dryRun ?? false;
   const exportedAt = (/* @__PURE__ */ new Date()).toISOString();
-  const root = exportRoot(corpus, opts.out);
+  const root = exportRoot(corpus, opts.out, opts.allowOutsideCorpus);
   const pagesDir = join6(root, "pages");
   const manifestPath = join6(root, "manifest.json");
   const { candidates, skipped, warnings } = collectKnowledgeMarkdown(corpus);
@@ -1684,6 +1697,9 @@ async function doctorGbrain(corpus) {
 async function queryGbrain(corpus, text, opts = {}) {
   const message = "This answer comes from GBrain index generated from lorekit export. To persist new knowledge, use wiki-fileback / lorekit audit.";
   const shouldCheck = opts.staleCheck !== false;
+  let status;
+  let staleStatus = null;
+  let staleIssues = [];
   if (shouldCheck) {
     const check = await doctorGbrain(corpus);
     if (!check.gbrain.installed) {
@@ -1697,22 +1713,12 @@ async function queryGbrain(corpus, text, opts = {}) {
         errors: ["gbrain is not installed", ...check.gbrain.errors]
       };
     }
-    if (check.status !== "ok") {
-      return {
-        status: "error",
-        source: "gbrain",
-        message,
-        staleCheck: { skipped: false, status: check.status, issues: check.issues },
-        gbrain: null,
-        warnings: check.issues.map((i) => i.message),
-        errors: [
-          "GBrain export is not ready. Run lorekit gbrain sync first, or pass --no-stale-check to query anyway.",
-          ...check.issues.map((i) => i.message)
-        ]
-      };
-    }
+    status = check.gbrain;
+    staleStatus = check.status;
+    staleIssues = check.issues;
+  } else {
+    status = await getGbrainStatus();
   }
-  const status = await getGbrainStatus();
   if (!status.installed) {
     return {
       status: "error",
@@ -1724,6 +1730,10 @@ async function queryGbrain(corpus, text, opts = {}) {
       errors: ["gbrain is not installed", ...status.errors]
     };
   }
+  const staleWarnings = shouldCheck && staleIssues.length > 0 ? [
+    "GBrain index may be stale. Run lorekit gbrain sync.",
+    ...staleIssues.map((i) => i.message)
+  ] : [];
   const r = await runExternalCommand({
     command: status.binary,
     args: ["query", text],
@@ -1733,9 +1743,9 @@ async function queryGbrain(corpus, text, opts = {}) {
     status: r.exitCode === 0 ? "ok" : "error",
     source: "gbrain",
     message,
-    staleCheck: { skipped: !shouldCheck, status: shouldCheck ? "ok" : null, issues: [] },
+    staleCheck: { skipped: !shouldCheck, status: staleStatus, issues: staleIssues },
     gbrain: r,
-    warnings: [],
+    warnings: staleWarnings,
     errors: r.exitCode === 0 ? [] : [r.error || r.stderr || "gbrain query failed"]
   };
 }
@@ -1752,6 +1762,24 @@ var EXPECTED_DIRS = [
   "\u7CFB\u7EDF",
   "_\u5DE5\u4F5C\u53F0"
 ];
+var PUBLIC_DOCTOR_SECTIONS = [
+  "structure",
+  "metadata",
+  "index",
+  "archive",
+  "obsidian",
+  "integrations"
+];
+function validSectionList() {
+  return PUBLIC_DOCTOR_SECTIONS.join(", ");
+}
+function parseDoctorSection(section) {
+  if (section === "all") return "all";
+  if (PUBLIC_DOCTOR_SECTIONS.includes(section)) {
+    return section;
+  }
+  return null;
+}
 function inspectDirs(corpus) {
   const missing = [];
   for (const dir of EXPECTED_DIRS) {
@@ -1915,9 +1943,7 @@ function gbrainSection(gbrain) {
 }
 async function runDoctorReport(corpus, opts = {}) {
   const section = opts.section ?? "all";
-  if (section !== "all" && section !== "integrations") {
-    throw new Error(`unsupported doctor section: ${section}`);
-  }
+  if (!parseDoctorSection(section)) throw new Error(`invalid section: ${section}`);
   const report = {
     status: "ok",
     generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
@@ -1926,7 +1952,7 @@ async function runDoctorReport(corpus, opts = {}) {
     issues: [],
     hardIssues: 0
   };
-  if (section === "all") {
+  if (section === "all" || section === "structure") {
     const dirs = inspectDirs(corpus);
     report.sections.directories = {
       status: dirs.missing.length > 0 ? "error" : "ok",
@@ -1940,6 +1966,8 @@ async function runDoctorReport(corpus, opts = {}) {
         message: `${dir}/ missing`
       });
     }
+  }
+  if (section === "all" || section === "metadata") {
     const wiki = inspectWikiVersion(corpus);
     report.sections.wikiMetadata = {
       status: wiki.exists ? "ok" : "error",
@@ -1958,6 +1986,8 @@ async function runDoctorReport(corpus, opts = {}) {
       status: fm.pct >= 90 ? "ok" : fm.pct >= 60 ? "warn" : "error",
       ...fm
     };
+  }
+  if (section === "all" || section === "index") {
     const missingIndexes = findMissingIndexDirs(corpus);
     report.sections.indexFiles = {
       status: missingIndexes.length > 0 ? "warn" : "ok",
@@ -1970,55 +2000,80 @@ async function runDoctorReport(corpus, opts = {}) {
         message: `_INDEX.md missing in ${rel}/`
       });
     }
+  }
+  if (section === "all" || section === "archive") {
     report.sections.archive = inspectArchive(corpus);
+  }
+  if (section === "all" || section === "obsidian") {
     report.sections.obsidian = inspectObsidianGraph(corpus);
   }
-  const gbrain = await doctorGbrain(corpus);
-  report.sections.integrations = gbrainSection(gbrain);
-  report.issues.push(...gbrain.issues.map(convertGbrainIssue));
+  if (section === "all" || section === "integrations") {
+    const gbrain = await doctorGbrain(corpus);
+    report.sections.integrations = gbrainSection(gbrain);
+    report.issues.push(...gbrain.issues.map(convertGbrainIssue));
+  }
   report.hardIssues = report.issues.filter((issue) => issue.severity === "error").length;
   report.status = statusFromIssues(report.issues);
   return report;
 }
-async function runDoctor(corpus) {
+async function runDoctor(corpus, opts = {}) {
+  const section = opts.section ?? "all";
+  if (!parseDoctorSection(section)) throw new Error(`invalid section: ${section}`);
   print(chalk3.bold(`
 lorekit doctor \u2014 ${corpus}
 `));
   let issues = 0;
-  print(chalk3.cyan("\u2500\u2500 directories \u2500\u2500"));
-  issues += checkDirs(corpus);
-  print();
-  print(chalk3.cyan("\u2500\u2500 wiki metadata \u2500\u2500"));
-  issues += checkWikiVersion(corpus);
-  print();
-  print(chalk3.cyan("\u2500\u2500 frontmatter \u2500\u2500"));
-  checkFrontmatterCoverage(corpus);
-  print();
-  print(chalk3.cyan("\u2500\u2500 index files \u2500\u2500"));
-  issues += checkIndexFiles(corpus);
-  print();
-  print(chalk3.cyan("\u2500\u2500 archive \u2500\u2500"));
-  checkArchive(corpus);
-  print();
-  print(chalk3.cyan("\u2500\u2500 obsidian \u2500\u2500"));
-  checkObsidianGraph(corpus);
-  print();
-  print(chalk3.cyan("\u2500\u2500 integrations \u2500\u2500"));
-  const gbrain = await doctorGbrain(corpus);
-  if (gbrain.status === "ok") {
-    ok("gbrain: integration healthy");
-  } else {
-    for (const issue of gbrain.issues) {
-      const line = `gbrain: ${issue.message}. ${issue.recommendation}`;
-      if (issue.severity === "error") bad(line);
-      else warn(line);
-    }
+  let optionalWarnings = 0;
+  if (section === "all" || section === "structure") {
+    print(chalk3.cyan("\u2500\u2500 directories \u2500\u2500"));
+    issues += checkDirs(corpus);
+    print();
   }
-  const integrationErrors = gbrain.issues.filter((issue) => issue.severity === "error").length;
-  issues += integrationErrors;
-  print();
+  if (section === "all" || section === "metadata") {
+    print(chalk3.cyan("\u2500\u2500 wiki metadata \u2500\u2500"));
+    issues += checkWikiVersion(corpus);
+    print();
+    print(chalk3.cyan("\u2500\u2500 frontmatter \u2500\u2500"));
+    checkFrontmatterCoverage(corpus);
+    print();
+  }
+  if (section === "all" || section === "index") {
+    print(chalk3.cyan("\u2500\u2500 index files \u2500\u2500"));
+    issues += checkIndexFiles(corpus);
+    print();
+  }
+  if (section === "all" || section === "archive") {
+    print(chalk3.cyan("\u2500\u2500 archive \u2500\u2500"));
+    checkArchive(corpus);
+    print();
+  }
+  if (section === "all" || section === "obsidian") {
+    print(chalk3.cyan("\u2500\u2500 obsidian \u2500\u2500"));
+    checkObsidianGraph(corpus);
+    print();
+  }
+  if (section === "all" || section === "integrations") {
+    print(chalk3.cyan("\u2500\u2500 integrations \u2500\u2500"));
+    const gbrain = await doctorGbrain(corpus);
+    if (gbrain.status === "ok") {
+      ok("gbrain: integration healthy");
+    } else {
+      for (const issue of gbrain.issues) {
+        const line = `gbrain: ${issue.message}. ${issue.recommendation}`;
+        if (issue.severity === "error") bad(line);
+        else warn(line);
+      }
+    }
+    const integrationErrors = gbrain.issues.filter((issue) => issue.severity === "error").length;
+    optionalWarnings += gbrain.issues.filter((issue) => issue.severity === "warn").length;
+    issues += integrationErrors;
+    print();
+  }
   if (issues === 0) {
-    print(chalk3.green.bold("all checks passed \u2713"));
+    print(chalk3.green.bold("all hard checks passed \u2713"));
+    if (optionalWarnings > 0) {
+      print(chalk3.yellow.bold("optional warnings found \u26A0"));
+    }
   } else {
     print(chalk3.yellow(`${issues} issue(s) found`));
   }
@@ -2026,34 +2081,22 @@ lorekit doctor \u2014 ${corpus}
   return issues;
 }
 function doctorCommand(program2) {
-  program2.command("doctor").description("run health checks on the corpus").option("--json", "output machine-readable doctor report", false).option("--section <name>", "only run a doctor section (currently: integrations)", "all").action(async (opts) => {
+  program2.command("doctor").description("run health checks on the corpus").option("--json", "output machine-readable doctor report", false).option("--section <name>", `only run one section: ${validSectionList()}`, "all").action(async (opts) => {
+    const section = parseDoctorSection(opts.section ?? "all");
+    if (!section) {
+      bad(`invalid section: ${opts.section}`);
+      print(`valid: ${validSectionList()}`);
+      process.exitCode = 2;
+      return;
+    }
     const corpus = requireCorpus();
     if (opts.json) {
-      const report = await runDoctorReport(corpus, {
-        section: opts.section === "integrations" ? "integrations" : "all"
-      });
+      const report = await runDoctorReport(corpus, { section });
       out(JSON.stringify(report, null, 2));
       process.exitCode = report.hardIssues > 0 ? 1 : 0;
       return;
     }
-    if (opts.section === "integrations") {
-      const report = await runDoctorReport(corpus, { section: "integrations" });
-      print(chalk3.bold(`
-lorekit doctor \u2014 ${corpus}
-`));
-      print(chalk3.cyan("\u2500\u2500 integrations \u2500\u2500"));
-      const integration = report.sections.integrations?.gbrain;
-      const issues2 = integration?.issues ?? [];
-      if (issues2.length === 0) ok("gbrain: integration healthy");
-      for (const issue of issues2) {
-        const line = `gbrain: ${issue.message}. ${issue.recommendation}`;
-        if (issue.severity === "error") bad(line);
-        else warn(line);
-      }
-      process.exitCode = report.hardIssues > 0 ? 1 : 0;
-      return;
-    }
-    const issues = await runDoctor(corpus);
+    const issues = await runDoctor(corpus, { section });
     process.exitCode = issues > 0 ? 1 : 0;
   });
 }
@@ -4618,7 +4661,7 @@ function obsidianTuneCommand(program2) {
 
 // src/commands/remove.ts
 import { existsSync as existsSync23, mkdirSync as mkdirSync13, readFileSync as readFileSync22, renameSync as renameSync2, writeFileSync as writeFileSync12 } from "fs";
-import { basename as basename7, dirname as dirname6, isAbsolute, join as join30, relative as relative18, resolve as resolve4, sep } from "path";
+import { basename as basename7, dirname as dirname6, isAbsolute as isAbsolute2, join as join30, relative as relative18, resolve as resolve4, sep } from "path";
 import matter6 from "gray-matter";
 import trash from "trash";
 init_logger();
@@ -4636,11 +4679,11 @@ function normalizeRel(rel) {
 }
 function withinCorpus(corpus, abs) {
   const rel = relative18(corpus, abs);
-  return rel === "" || !rel.startsWith("..") && !isAbsolute(rel);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute2(rel);
 }
 function resolveInputPath(corpus, input) {
   const candidates = [];
-  const rawAbs = isAbsolute(input) ? input : join30(corpus, input);
+  const rawAbs = isAbsolute2(input) ? input : join30(corpus, input);
   candidates.push(rawAbs);
   if (!input.endsWith(".md")) candidates.push(`${rawAbs}.md`);
   for (const candidate of candidates) {
@@ -4672,13 +4715,13 @@ function extractWikilinks(content) {
   return links;
 }
 function addExistingTarget(corpus, targets, relOrAbs, reason) {
-  const abs = isAbsolute(relOrAbs) ? relOrAbs : join30(corpus, relOrAbs);
+  const abs = isAbsolute2(relOrAbs) ? relOrAbs : join30(corpus, relOrAbs);
   if (!existsSync23(abs)) return;
   const rel = relFromAbs(corpus, abs);
   targets.set(rel, { rel, abs, reason });
 }
 function addSourceTarget(corpus, targets, relOrAbs) {
-  const abs = isAbsolute(relOrAbs) ? relOrAbs : join30(corpus, relOrAbs);
+  const abs = isAbsolute2(relOrAbs) ? relOrAbs : join30(corpus, relOrAbs);
   if (!existsSync23(abs)) return;
   const rel = relFromAbs(corpus, abs);
   if (rel.endsWith("/article.md")) {
@@ -4989,21 +5032,34 @@ function gbrainCommand(program2) {
       print(result.installHint);
     }
   });
-  cmd.command("export").description("export lorekit \u77E5\u8BC6\u5E93/ pages into a GBrain-safe staging directory").option("--out <dir>", "export directory relative to corpus").option("--dry-run", "preview only; do not write files", false).option("--json", "output json", false).action((opts) => {
-    const corpus = requireCorpus();
-    const result = exportForGbrain(corpus, { out: opts.out, dryRun: opts.dryRun });
-    if (opts.json) {
-      printJson(result);
-      return;
+  cmd.command("export").description("export lorekit \u77E5\u8BC6\u5E93/ pages into a GBrain-safe staging directory").option("--out <dir>", "export directory relative to corpus; must stay under .wiki/integrations").option("--allow-outside-corpus", "allow --out outside the default safe export root", false).option("--dry-run", "preview only; do not write files", false).option("--json", "output json", false).action(
+    (opts) => {
+      const corpus = requireCorpus();
+      let result;
+      try {
+        result = exportForGbrain(corpus, {
+          out: opts.out,
+          allowOutsideCorpus: opts.allowOutsideCorpus,
+          dryRun: opts.dryRun
+        });
+      } catch (e) {
+        bad(e.message);
+        process.exitCode = 2;
+        return;
+      }
+      if (opts.json) {
+        printJson(result);
+        return;
+      }
+      if (result.dryRun) {
+        info(`would export ${result.pagesExported} page(s) to ${result.exportDir}`);
+      } else {
+        ok(`exported ${result.pagesExported} page(s) to ${result.exportDir}`);
+      }
+      if (result.pagesSkipped > 0) warn(`skipped ${result.pagesSkipped} index file(s)`);
+      for (const w of result.warnings) warn(w);
     }
-    if (result.dryRun) {
-      info(`would export ${result.pagesExported} page(s) to ${result.exportDir}`);
-    } else {
-      ok(`exported ${result.pagesExported} page(s) to ${result.exportDir}`);
-    }
-    if (result.pagesSkipped > 0) warn(`skipped ${result.pagesSkipped} index file(s)`);
-    for (const w of result.warnings) warn(w);
-  });
+  );
   cmd.command("sync").description("export lorekit pages and run gbrain import on the staging directory").option("--dry-run", "preview only; do not write export files or call gbrain import", false).option("--json", "output json", false).option(
     "--export-even-if-missing",
     "refresh staging export even when the gbrain binary is missing",
@@ -5039,7 +5095,7 @@ function gbrainCommand(program2) {
     }
     process.exitCode = result.status === "error" ? 1 : 0;
   });
-  cmd.command("query").argument("<text>", "query text").description("run gbrain query without writing back to lorekit").option("--json", "output json", false).option("--no-stale-check", "skip corpus export/sync freshness guard").action(async (text, opts) => {
+  cmd.command("query").argument("<text>", "query text").description("run gbrain query without writing back to lorekit").option("--json", "output json", false).option("--no-stale-check", "skip corpus export/sync freshness warning").action(async (text, opts) => {
     const corpus = requireCorpus();
     const result = await queryGbrain(corpus, text, { staleCheck: opts.staleCheck !== false });
     if (opts.json) {

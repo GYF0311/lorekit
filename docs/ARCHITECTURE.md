@@ -146,13 +146,13 @@ flowchart LR
   Stage --> Sync["lorekit gbrain sync"]
   Sync --> GBrain["external gbrain import"]
   Sync --> Report[".wiki/integrations/gbrain/sync-report.json"]
-  Manifest --> QueryGuard["query stale guard"]
+  Manifest --> QueryGuard["query stale warning"]
   Report --> QueryGuard
   QueryGuard --> Query["lorekit gbrain query"]
   GBrain --> Query
 ```
 
-边界：`lorekit gbrain` 只做 read-only bridge。它不修改 `知识库/`，不修改 `原料/`，不把 GBrain 加进 runtime dependencies，也不 vendor GBrain 源码。导出阶段会移除 frontmatter `slug`，让 GBrain 按导出路径生成 slug；同时注入 `lorekit_source_path` / `lorekit_hash` / `lorekit_exported_at` 以便 doctor 检测 stale export。`query` 默认必须在 corpus 内运行，并先检查 manifest / sync report；若外部索引缺失或 stale，会停止并提示先 `lorekit gbrain sync`，除非显式传 `--no-stale-check`。
+边界：`lorekit gbrain` 只做 read-only bridge。它不修改 `知识库/`，不修改 `原料/`，不把 GBrain 加进 runtime dependencies，也不 vendor GBrain 源码。导出阶段会移除 frontmatter `slug`，让 GBrain 按导出路径生成 slug；同时注入 `lorekit_source_path` / `lorekit_hash` / `lorekit_exported_at` 以便 doctor 检测 stale export。`export --out` 默认只能写到 `.wiki/integrations/` 下，除非显式传 `--allow-outside-corpus`。`query` 默认必须在 corpus 内运行，并先检查 manifest / sync report；若外部索引缺失或 stale，会提醒先 `lorekit gbrain sync`，但不会阻止调用外部 `gbrain query`。
 
 ## 核心抽象
 
@@ -167,8 +167,8 @@ flowchart LR
 | VectorDB    | `lib/vectordb/`                | sqlite-vec + FTS5；queryFlat / queryLayered / queryBM25Layered / queryHybrid（10 文件子模块，v0.4.0 / 批次 22 拆分；批次 24-fix 后 BM25 走 chunk 直查） |
 | VectorPrune | `lib/vectordb/prune.ts`        | 删除后清理 vector.sqlite 中磁盘已不存在的 documents 及其 chunks/page summaries/vec/FTS 记录 |
 | Remove      | `commands/remove.ts`           | URL/路径解析、dry-run 影响报告、snapshot、OS Trash、来源归因级联清理                    |
-| GBrain      | `commands/gbrain.ts` + `lib/integrations/` | 可选只读集成：status/export/sync/doctor/query，外部进程封装、manifest、stale 检查 |
-| DoctorReport | `commands/doctor.ts`          | `lorekit doctor --json` / `--section integrations` 的结构化健康报告；可选集成 warn 不阻塞 corpus |
+| GBrain      | `commands/gbrain.ts` + `lib/integrations/` | 可选只读集成：status/export/sync/doctor/query，外部进程封装、manifest、stale 提醒、安全 export 边界 |
+| DoctorReport | `commands/doctor.ts`          | `lorekit doctor --json` / 严格 `--section <name>` 的结构化健康报告；可选集成 warn 不阻塞 corpus |
 | SyncReport  | `commands/sync.ts`             | `lorekit sync --json/--report` 的步骤状态收据；写 `.wiki/reports/sync/` |
 | RootIndex   | `lib/root-index.ts`            | `corpus/index.md` 的受控区合并刷新（保留人类摘要）                            |
 | DirIndex    | `commands/dir-index.ts → runIndex` | 所有子目录 `_INDEX.md` 自动生成（v0.4.0 / 批次 17 从 `commands/index.ts` 改名消歧义） |

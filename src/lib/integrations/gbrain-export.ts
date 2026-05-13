@@ -8,7 +8,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import matter from 'gray-matter';
 import {
   type GbrainExportManifest,
@@ -20,6 +20,7 @@ import {
 export interface GbrainExportOptions {
   out?: string;
   dryRun?: boolean;
+  allowOutsideCorpus?: boolean;
 }
 
 export interface GbrainExportResult {
@@ -50,9 +51,23 @@ function sha256Content(content: Buffer | string): string {
   return 'sha256:' + createHash('sha256').update(content).digest('hex');
 }
 
-function exportRoot(corpus: string, out?: string): string {
+function isWithin(parent: string, child: string): boolean {
+  const rel = relative(parent, child);
+  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
+}
+
+function exportRoot(corpus: string, out?: string, allowOutsideCorpus = false): string {
   if (!out) return join(corpus, '.wiki', 'integrations', 'gbrain-export');
-  return resolve(corpus, out);
+  const root = resolve(corpus, out);
+  if (!allowOutsideCorpus) {
+    const safeRoot = resolve(corpus, '.wiki', 'integrations');
+    if (!isWithin(safeRoot, root)) {
+      throw new Error(
+        'invalid --out: export directory must stay under .wiki/integrations/ unless --allow-outside-corpus is set',
+      );
+    }
+  }
+  return root;
 }
 
 function collectKnowledgeMarkdown(corpus: string): {
@@ -141,7 +156,7 @@ function pageMeta(raw: string): { title: string | null; type: string | null } {
 export function exportForGbrain(corpus: string, opts: GbrainExportOptions = {}): GbrainExportResult {
   const dryRun = opts.dryRun ?? false;
   const exportedAt = new Date().toISOString();
-  const root = exportRoot(corpus, opts.out);
+  const root = exportRoot(corpus, opts.out, opts.allowOutsideCorpus);
   const pagesDir = join(root, 'pages');
   const manifestPath = join(root, 'manifest.json');
   const { candidates, skipped, warnings } = collectKnowledgeMarkdown(corpus);

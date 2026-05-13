@@ -34,6 +34,30 @@ test('doctor --json reports optional GBrain integration warnings without hard fa
   }
 });
 
+test('doctor human output distinguishes hard pass from optional warnings', () => {
+  const corpus = initCorpus('lorekit-smoke-doctor-human-warn-');
+  try {
+    const args = ['doctor'];
+    const r = runLorekit(args, {
+      cwd: corpus,
+      env: { LOREKIT_GBRAIN_BIN: '__missing_lorekit_gbrain_binary__' },
+    });
+    assert.equal(r.status, 0, fmtRun(r, args, 'optional warnings still exit 0'));
+    assert.match(
+      r.stderr,
+      /all hard checks passed/i,
+      fmtRun(r, args, 'stderr says hard checks passed'),
+    );
+    assert.match(
+      r.stderr,
+      /optional warnings found/i,
+      fmtRun(r, args, 'stderr says optional warnings found'),
+    );
+  } finally {
+    cleanupTmpDir(corpus);
+  }
+});
+
 test('doctor --section integrations --json can inspect only integration health', () => {
   const corpus = initCorpus('lorekit-smoke-doctor-json-section-');
   try {
@@ -48,6 +72,22 @@ test('doctor --section integrations --json can inspect only integration health',
     assert.equal(parsed.status, 'warn');
     assert.deepEqual(Object.keys(parsed.sections), ['integrations']);
     assert.equal(parsed.sections.integrations.gbrain.status, 'warn');
+  } finally {
+    cleanupTmpDir(corpus);
+  }
+});
+
+test('doctor --section rejects unknown section with exit 2', () => {
+  const corpus = initCorpus('lorekit-smoke-doctor-invalid-section-');
+  try {
+    const args = ['doctor', '--section', 'abc'];
+    const r = runLorekit(args, { cwd: corpus });
+    assert.equal(r.status, 2, fmtRun(r, args, 'invalid section exits 2'));
+    assert.match(r.stderr, /invalid section: abc/i);
+    assert.match(
+      r.stderr,
+      /valid: structure, metadata, index, archive, obsidian, integrations/i,
+    );
   } finally {
     cleanupTmpDir(corpus);
   }

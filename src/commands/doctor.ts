@@ -29,6 +29,16 @@ const EXPECTED_DIRS = [
 ];
 
 type DoctorStatus = 'ok' | 'warn' | 'error';
+const PUBLIC_DOCTOR_SECTIONS = [
+  'structure',
+  'metadata',
+  'index',
+  'archive',
+  'obsidian',
+  'integrations',
+] as const;
+
+type PublicDoctorSection = (typeof PUBLIC_DOCTOR_SECTIONS)[number];
 type DoctorSectionName =
   | 'directories'
   | 'wikiMetadata'
@@ -60,7 +70,19 @@ export interface DoctorRunReport {
 }
 
 export interface DoctorOptions {
-  section?: 'all' | 'integrations';
+  section?: 'all' | PublicDoctorSection;
+}
+
+function validSectionList(): string {
+  return PUBLIC_DOCTOR_SECTIONS.join(', ');
+}
+
+function parseDoctorSection(section: string): DoctorOptions['section'] | null {
+  if (section === 'all') return 'all';
+  if ((PUBLIC_DOCTOR_SECTIONS as readonly string[]).includes(section)) {
+    return section as PublicDoctorSection;
+  }
+  return null;
 }
 
 function inspectDirs(corpus: string): { missing: string[] } {
@@ -259,9 +281,7 @@ export async function runDoctorReport(
   opts: DoctorOptions = {},
 ): Promise<DoctorRunReport> {
   const section = opts.section ?? 'all';
-  if (section !== 'all' && section !== 'integrations') {
-    throw new Error(`unsupported doctor section: ${section}`);
-  }
+  if (!parseDoctorSection(section)) throw new Error(`invalid section: ${section}`);
 
   const report: DoctorRunReport = {
     status: 'ok',
@@ -272,7 +292,7 @@ export async function runDoctorReport(
     hardIssues: 0,
   };
 
-  if (section === 'all') {
+  if (section === 'all' || section === 'structure') {
     const dirs = inspectDirs(corpus);
     report.sections.directories = {
       status: dirs.missing.length > 0 ? 'error' : 'ok',
@@ -286,7 +306,9 @@ export async function runDoctorReport(
         message: `${dir}/ missing`,
       });
     }
+  }
 
+  if (section === 'all' || section === 'metadata') {
     const wiki = inspectWikiVersion(corpus);
     report.sections.wikiMetadata = {
       status: wiki.exists ? 'ok' : 'error',
@@ -306,7 +328,9 @@ export async function runDoctorReport(
       status: fm.pct >= 90 ? 'ok' : fm.pct >= 60 ? 'warn' : 'error',
       ...fm,
     };
+  }
 
+  if (section === 'all' || section === 'index') {
     const missingIndexes = findMissingIndexDirs(corpus);
     report.sections.indexFiles = {
       status: missingIndexes.length > 0 ? 'warn' : 'ok',
@@ -319,14 +343,21 @@ export async function runDoctorReport(
         message: `_INDEX.md missing in ${rel}/`,
       });
     }
+  }
 
+  if (section === 'all' || section === 'archive') {
     report.sections.archive = inspectArchive(corpus);
+  }
+
+  if (section === 'all' || section === 'obsidian') {
     report.sections.obsidian = inspectObsidianGraph(corpus);
   }
 
-  const gbrain = await doctorGbrain(corpus);
-  report.sections.integrations = gbrainSection(gbrain);
-  report.issues.push(...gbrain.issues.map(convertGbrainIssue));
+  if (section === 'all' || section === 'integrations') {
+    const gbrain = await doctorGbrain(corpus);
+    report.sections.integrations = gbrainSection(gbrain);
+    report.issues.push(...gbrain.issues.map(convertGbrainIssue));
+  }
 
   report.hardIssues = report.issues.filter((issue) => issue.severity === 'error').length;
   report.status = statusFromIssues(report.issues);
@@ -337,52 +368,72 @@ export async function runDoctorReport(
  * 程序内复用入口：跑健康体检。
  * 返回 issue 总数。调用方自行决定要不要把退出码设成非零。
  */
-export async function runDoctor(corpus: string): Promise<number> {
+export async function runDoctor(corpus: string, opts: DoctorOptions = {}): Promise<number> {
+  const section = opts.section ?? 'all';
+  if (!parseDoctorSection(section)) throw new Error(`invalid section: ${section}`);
+
   print(chalk.bold(`\nlorekit doctor — ${corpus}\n`));
 
   let issues = 0;
+  let optionalWarnings = 0;
 
-  print(chalk.cyan('── directories ──'));
-  issues += checkDirs(corpus);
-  print();
-
-  print(chalk.cyan('── wiki metadata ──'));
-  issues += checkWikiVersion(corpus);
-  print();
-
-  print(chalk.cyan('── frontmatter ──'));
-  checkFrontmatterCoverage(corpus);
-  print();
-
-  print(chalk.cyan('── index files ──'));
-  issues += checkIndexFiles(corpus);
-  print();
-
-  print(chalk.cyan('── archive ──'));
-  checkArchive(corpus);
-  print();
-
-  print(chalk.cyan('── obsidian ──'));
-  checkObsidianGraph(corpus);
-  print();
-
-  print(chalk.cyan('── integrations ──'));
-  const gbrain = await doctorGbrain(corpus);
-  if (gbrain.status === 'ok') {
-    ok('gbrain: integration healthy');
-  } else {
-    for (const issue of gbrain.issues) {
-      const line = `gbrain: ${issue.message}. ${issue.recommendation}`;
-      if (issue.severity === 'error') bad(line);
-      else warn(line);
-    }
+  if (section === 'all' || section === 'structure') {
+    print(chalk.cyan('── directories ──'));
+    issues += checkDirs(corpus);
+    print();
   }
-  const integrationErrors = gbrain.issues.filter((issue) => issue.severity === 'error').length;
-  issues += integrationErrors;
-  print();
+
+  if (section === 'all' || section === 'metadata') {
+    print(chalk.cyan('── wiki metadata ──'));
+    issues += checkWikiVersion(corpus);
+    print();
+
+    print(chalk.cyan('── frontmatter ──'));
+    checkFrontmatterCoverage(corpus);
+    print();
+  }
+
+  if (section === 'all' || section === 'index') {
+    print(chalk.cyan('── index files ──'));
+    issues += checkIndexFiles(corpus);
+    print();
+  }
+
+  if (section === 'all' || section === 'archive') {
+    print(chalk.cyan('── archive ──'));
+    checkArchive(corpus);
+    print();
+  }
+
+  if (section === 'all' || section === 'obsidian') {
+    print(chalk.cyan('── obsidian ──'));
+    checkObsidianGraph(corpus);
+    print();
+  }
+
+  if (section === 'all' || section === 'integrations') {
+    print(chalk.cyan('── integrations ──'));
+    const gbrain = await doctorGbrain(corpus);
+    if (gbrain.status === 'ok') {
+      ok('gbrain: integration healthy');
+    } else {
+      for (const issue of gbrain.issues) {
+        const line = `gbrain: ${issue.message}. ${issue.recommendation}`;
+        if (issue.severity === 'error') bad(line);
+        else warn(line);
+      }
+    }
+    const integrationErrors = gbrain.issues.filter((issue) => issue.severity === 'error').length;
+    optionalWarnings += gbrain.issues.filter((issue) => issue.severity === 'warn').length;
+    issues += integrationErrors;
+    print();
+  }
 
   if (issues === 0) {
-    print(chalk.green.bold('all checks passed ✓'));
+    print(chalk.green.bold('all hard checks passed ✓'));
+    if (optionalWarnings > 0) {
+      print(chalk.yellow.bold('optional warnings found ⚠'));
+    }
   } else {
     print(chalk.yellow(`${issues} issue(s) found`));
   }
@@ -396,35 +447,23 @@ export function doctorCommand(program: Command) {
     .command('doctor')
     .description('run health checks on the corpus')
     .option('--json', 'output machine-readable doctor report', false)
-    .option('--section <name>', 'only run a doctor section (currently: integrations)', 'all')
+    .option('--section <name>', `only run one section: ${validSectionList()}`, 'all')
     .action(async (opts: { json?: boolean; section?: 'all' | 'integrations' | string }) => {
+      const section = parseDoctorSection(opts.section ?? 'all');
+      if (!section) {
+        bad(`invalid section: ${opts.section}`);
+        print(`valid: ${validSectionList()}`);
+        process.exitCode = 2;
+        return;
+      }
       const corpus = requireCorpus();
       if (opts.json) {
-        const report = await runDoctorReport(corpus, {
-          section: opts.section === 'integrations' ? 'integrations' : 'all',
-        });
+        const report = await runDoctorReport(corpus, { section });
         out(JSON.stringify(report, null, 2));
         process.exitCode = report.hardIssues > 0 ? 1 : 0;
         return;
       }
-      if (opts.section === 'integrations') {
-        const report = await runDoctorReport(corpus, { section: 'integrations' });
-        print(chalk.bold(`\nlorekit doctor — ${corpus}\n`));
-        print(chalk.cyan('── integrations ──'));
-        const integration = report.sections.integrations?.gbrain as
-          | { issues?: GbrainDoctorIssue[] }
-          | undefined;
-        const issues = integration?.issues ?? [];
-        if (issues.length === 0) ok('gbrain: integration healthy');
-        for (const issue of issues) {
-          const line = `gbrain: ${issue.message}. ${issue.recommendation}`;
-          if (issue.severity === 'error') bad(line);
-          else warn(line);
-        }
-        process.exitCode = report.hardIssues > 0 ? 1 : 0;
-        return;
-      }
-      const issues = await runDoctor(corpus);
+      const issues = await runDoctor(corpus, { section });
       process.exitCode = issues > 0 ? 1 : 0;
     });
 }

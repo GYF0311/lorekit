@@ -249,6 +249,7 @@ Counter-evidence 节**即使为空也必须写**——"没反驳"是一个信号
 - 不允许 GBrain 直接写回 `知识库/` 或 `原料/`
 - 任何新知识持久化仍必须走 wiki-fileback / audit / snapshot
 - `lorekit gbrain export` 默认跳过 `_INDEX.md`、local `index.md` 和 `知识库/模板/`
+- `lorekit gbrain export --out` 默认只能写在 `.wiki/integrations/` 下
 - `lorekit gbrain sync` 缺 binary 时默认只写 failure report，不刷新 staging
-- `lorekit gbrain query` 默认检查 corpus + export/sync freshness；仅调试旧索引时用 `--no-stale-check`
-- `lorekit doctor --section integrations` 可单独检查 GBrain health
+- `lorekit gbrain query` 默认检查 corpus + export/sync freshness；stale 时提醒但不阻止查询
+- `lorekit doctor --section integrations` 可单独检查 GBrain health；未知 section 必须报参数错

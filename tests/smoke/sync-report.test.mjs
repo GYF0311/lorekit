@@ -30,6 +30,25 @@ test('sync --json emits machine-readable step report', () => {
   }
 });
 
+test('sync --skip-vector --json awaits doctor and reports numeric issue count', () => {
+  const corpus = initCorpus();
+  try {
+    const args = ['sync', '--skip-vector', '--json'];
+    const r = runLorekit(args, {
+      cwd: corpus,
+      env: { LOREKIT_GBRAIN_BIN: '__missing_lorekit_gbrain_binary__' },
+    });
+    assert.equal(r.status, 0, fmtRun(r, args, 'exit 0'));
+
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.status, 'ok');
+    assert.equal(parsed.steps.doctor.status, 'ok');
+    assert.equal(typeof parsed.steps.doctor.issues, 'number');
+  } finally {
+    cleanupTmpDir(corpus);
+  }
+});
+
 test('sync --report writes report json under .wiki/reports/sync', () => {
   const corpus = initCorpus();
   try {

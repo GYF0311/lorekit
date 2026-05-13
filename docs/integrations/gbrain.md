@@ -21,6 +21,8 @@ GBrain  = graph + hybrid retrieval index
 lorekit gbrain status
 lorekit gbrain export --dry-run
 lorekit gbrain export
+lorekit gbrain export --out .wiki/integrations/custom-gbrain-export
+lorekit gbrain export --out /tmp/gbrain-export --allow-outside-corpus
 lorekit gbrain sync --dry-run
 lorekit gbrain sync
 lorekit gbrain sync --export-even-if-missing
@@ -49,6 +51,8 @@ lorekit_hash:
 lorekit_exported_at:
 ```
 
+Custom `--out` paths are intentionally constrained: by default they must stay under `.wiki/integrations/`. Use `--allow-outside-corpus` only for an explicit unsafe export target.
+
 `sync` first checks that the external GBrain binary is installed, then exports and runs:
 
 ```bash
@@ -72,7 +76,7 @@ lorekit doctor --json
 
 GBrain is optional: missing binary is a warning, not a hard corpus failure. Unreadable integration state, such as a broken sync report JSON, is a hard error.
 
-`query` requires running inside a lorekit corpus. By default it checks the export manifest and last sync report before calling `gbrain query`, so users do not accidentally trust a stale external index. Use `--no-stale-check` only for intentional debugging or recovery.
+`query` requires running inside a lorekit corpus. By default it checks the export manifest and last sync report before calling `gbrain query`. If that state looks stale, it warns with `GBrain index may be stale. Run lorekit gbrain sync.` but still queries the external index. Use `--no-stale-check` only for intentional debugging or recovery.
 
 ## Install GBrain
 

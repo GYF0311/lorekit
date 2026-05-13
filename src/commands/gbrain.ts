@@ -39,24 +39,43 @@ export function gbrainCommand(program: Command): void {
   cmd
     .command('export')
     .description('export lorekit 知识库/ pages into a GBrain-safe staging directory')
-    .option('--out <dir>', 'export directory relative to corpus')
+    .option('--out <dir>', 'export directory relative to corpus; must stay under .wiki/integrations')
+    .option('--allow-outside-corpus', 'allow --out outside the default safe export root', false)
     .option('--dry-run', 'preview only; do not write files', false)
     .option('--json', 'output json', false)
-    .action((opts: { out?: string; dryRun?: boolean; json?: boolean }) => {
-      const corpus = requireCorpus();
-      const result = exportForGbrain(corpus, { out: opts.out, dryRun: opts.dryRun });
-      if (opts.json) {
-        printJson(result);
-        return;
-      }
-      if (result.dryRun) {
-        info(`would export ${result.pagesExported} page(s) to ${result.exportDir}`);
-      } else {
-        ok(`exported ${result.pagesExported} page(s) to ${result.exportDir}`);
-      }
-      if (result.pagesSkipped > 0) warn(`skipped ${result.pagesSkipped} index file(s)`);
-      for (const w of result.warnings) warn(w);
-    });
+    .action(
+      (opts: {
+        out?: string;
+        allowOutsideCorpus?: boolean;
+        dryRun?: boolean;
+        json?: boolean;
+      }) => {
+        const corpus = requireCorpus();
+        let result: ReturnType<typeof exportForGbrain>;
+        try {
+          result = exportForGbrain(corpus, {
+            out: opts.out,
+            allowOutsideCorpus: opts.allowOutsideCorpus,
+            dryRun: opts.dryRun,
+          });
+        } catch (e) {
+          bad((e as Error).message);
+          process.exitCode = 2;
+          return;
+        }
+        if (opts.json) {
+          printJson(result);
+          return;
+        }
+        if (result.dryRun) {
+          info(`would export ${result.pagesExported} page(s) to ${result.exportDir}`);
+        } else {
+          ok(`exported ${result.pagesExported} page(s) to ${result.exportDir}`);
+        }
+        if (result.pagesSkipped > 0) warn(`skipped ${result.pagesSkipped} index file(s)`);
+        for (const w of result.warnings) warn(w);
+      },
+    );
 
   cmd
     .command('sync')
@@ -110,7 +129,7 @@ export function gbrainCommand(program: Command): void {
     .argument('<text>', 'query text')
     .description('run gbrain query without writing back to lorekit')
     .option('--json', 'output json', false)
-    .option('--no-stale-check', 'skip corpus export/sync freshness guard')
+    .option('--no-stale-check', 'skip corpus export/sync freshness warning')
     .action(async (text: string, opts: { json?: boolean; staleCheck?: boolean }) => {
       const corpus = requireCorpus();
       const result = await queryGbrain(corpus, text, { staleCheck: opts.staleCheck !== false });

@@ -28,7 +28,7 @@ Three layers:
 | --------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Launch screen   | `lorekit`               | No-arg invocation prints the blue logo + corpus status                                                                                                                |
 | Init            | `lorekit init`          | Scaffolds the corpus, deploys the Obsidian plugin, auto-backs up pre-existing content                                                                                 |
-| Doctor          | `lorekit doctor`        | Directory integrity, frontmatter coverage, Obsidian hints, optional integration health; supports `--json` and `--section integrations`                                |
+| Doctor          | `lorekit doctor`        | Directory integrity, frontmatter coverage, Obsidian hints, optional integration health; supports `--json` and strict `--section <name>` filters                        |
 | Stats           | `lorekit stats`         | Page count, type breakdown                                                                                                                                            |
 | Search          | `lorekit search`        | Text search + vector semantic search (hybrid)                                                                                                                         |
 | Web fetch       | `lorekit fetch <url>`   | Pulls WeChat / generic pages into the workbench; auto-extracts `publishDate`, writes spec-compliant frontmatter, detects duplicate / in-progress URLs from state.json |
@@ -131,6 +131,20 @@ claude  # or codex / cursor / kimi …
 
 (Future: once published to npm, `npm install -g lorekit` will be enough.)
 
+### What Success Looks Like
+
+You can start real use when these five checks work in the same corpus:
+
+```bash
+lorekit init ~/Desktop/my-corpus
+lorekit fetch <url>
+# AI ingest compiles the fetched source into 知识库/
+lorekit sync --json
+lorekit snapshot
+```
+
+At that point, stop polishing the tool and use the corpus for 1-2 weeks. The next iteration should come from actual friction, not imagined completeness.
+
 ### Dependencies
 
 | Tool         | Purpose                  | Install                | Required |
@@ -168,9 +182,9 @@ lorekit gbrain doctor
 lorekit gbrain query "RAG"
 ```
 
-`export` writes only under `.wiki/integrations/gbrain-export/`, skips `_INDEX.md`, local `index.md`, and `知识库/模板/`, removes frontmatter `slug`, and injects `lorekit_source_path`, `lorekit_hash`, and `lorekit_exported_at`. `sync` first checks the external GBrain binary, then exports and runs `gbrain import <export/pages>`, writing `.wiki/integrations/gbrain/sync-report.json`. If the binary is missing, `sync` writes a failure report without refreshing staging unless `--export-even-if-missing` is explicit.
+`export` writes only under `.wiki/integrations/gbrain-export/` by default. Custom `--out` paths must stay under `.wiki/integrations/`; pass `--allow-outside-corpus` only when you intentionally want an unsafe export target. `export` skips `_INDEX.md`, local `index.md`, and `知识库/模板/`, removes frontmatter `slug`, and injects `lorekit_source_path`, `lorekit_hash`, and `lorekit_exported_at`. `sync` first checks the external GBrain binary, then exports and runs `gbrain import <export/pages>`, writing `.wiki/integrations/gbrain/sync-report.json`. If the binary is missing, `sync` writes a failure report without refreshing staging unless `--export-even-if-missing` is explicit.
 
-`query` requires a corpus and checks the export manifest + last sync report before calling GBrain. Use `--no-stale-check` only when intentionally querying an older external index.
+`query` requires a corpus and checks the export manifest + last sync report before calling GBrain. If the export or sync report looks stale, it warns with `GBrain index may be stale. Run lorekit gbrain sync.` but still calls `gbrain query`; use `--no-stale-check` only for debugging noisy freshness checks.
 
 Boundary: GBrain must not write back to `知识库/` or `原料/`. Persisting new knowledge still goes through wiki-fileback / audit / snapshot review.
 

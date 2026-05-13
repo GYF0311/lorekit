@@ -135,11 +135,27 @@ lorekit gbrain doctor
 lorekit gbrain query "..."
 ```
 
-`export` writes only under `.wiki/integrations/gbrain-export/`. It skips generated indexes and templates, removes frontmatter `slug`, and records source hashes in `manifest.json`. `sync` checks the external binary before writing staging, calls external `gbrain import`, and writes `.wiki/integrations/gbrain/sync-report.json`. `query` checks corpus/export/sync freshness before calling GBrain; pass `--no-stale-check` only for intentional debugging.
+`export` writes only under `.wiki/integrations/gbrain-export/` by default. Custom `--out` paths must stay under `.wiki/integrations/`; pass `--allow-outside-corpus` only for an intentional unsafe target. It skips generated indexes and templates, removes frontmatter `slug`, and records source hashes in `manifest.json`. `sync` checks the external binary before writing staging, calls external `gbrain import`, and writes `.wiki/integrations/gbrain/sync-report.json`. `query` checks corpus/export/sync freshness before calling GBrain; stale state prints `GBrain index may be stale. Run lorekit gbrain sync.` but does not block the query.
 
 ---
 
-## 7. First conversation
+## 7. What Success Looks Like
+
+You are ready for real use once the same corpus can complete this loop:
+
+```bash
+lorekit init ~/Desktop/my-corpus
+lorekit fetch <url>
+# AI ingest compiles the fetched source into 知识库/
+lorekit sync --json
+lorekit snapshot
+```
+
+Optional GBrain is healthy enough when `lorekit gbrain export --dry-run` shows the expected pages and `lorekit doctor` reports hard checks passing. Missing GBrain itself is only an optional warning.
+
+---
+
+## 8. First conversation
 
 ```bash
 cd ~/Desktop/my-corpus
