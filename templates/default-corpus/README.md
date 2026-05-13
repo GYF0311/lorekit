@@ -53,6 +53,18 @@
 
 手动复制到 Obsidian「关系图谱 → 筛选」并保存为默认即可。改完 graph.json 后关掉「关系图谱」标签页再重开才生效。
 
+## GBrain 可选集成
+
+`lorekit gbrain` 可以把 `知识库/` 导出成 GBrain 友好的只读 staging copy：
+
+```bash
+lorekit gbrain export --dry-run
+lorekit gbrain export
+lorekit gbrain sync --dry-run
+```
+
+边界：GBrain 只读 `.wiki/integrations/gbrain-export/`，不能直接写回 `知识库/` 或 `原料/`。
+
 ## 版本
 
 当前 lorekit 版本记在 `.wiki/version`。

@@ -103,6 +103,7 @@ bug 修复线索：
 - 不加 LLM re-ranker（先生本机跑不动小模型；但可以让主 agent 自己 rerank，属 skill 层）
 - 不加 Query expansion 到 CLI（属 skill 层，让 agent 自己改写 query 调多次 lorekit）
 - 不回归 Karpathy 纯度（删自实现向量栈换 qmd）：代价大于收益（见 §3 模型自由度论证）
+- 不把 GBrain 作为 lorekit runtime dependency，也不 vendor GBrain 源码（见 §10）
 
 ## 7. lorekit 产品定位：个人知识 compilation harness
 
@@ -251,3 +252,47 @@ Karpathy 的 LLM Wiki Gist 原文假设：**1 wiki = 1 domain**（专项 wiki，
 1. **CLI** — `lorekit obsidian-tune` 检查 + `--write` 一键应用
 2. **被动触达** — `lorekit doctor` 主动提示 filter 不完整 + 修复命令
 3. **Layer 3 命令存在意义升级**：从"单条 graph filter 不值得养独立命令"变成"诊断 + 修复 .obsidian/ 配置漂移的专门命令"，未来加 colorGroups / userIgnoreFilters 等都纳入这个命令
+
+## 10. GBrain 只读集成边界
+
+### 结论
+
+`lorekit` 继续做高质量 Markdown Wiki compiler，GBrain 作为可选 graph / hybrid retrieval layer 接入。
+
+```text
+lorekit 写 canonical wiki
+GBrain 读 staging export
+```
+
+### 为什么不合并源码
+
+lorekit 是 Node.js / TypeScript / commander / better-sqlite3 / optional sqlite-vec。GBrain 是 Bun / TypeScript / PGLite / pgvector / MCP SDK / 多 AI SDK。直接合并会把 lorekit 从轻量、文件优先、可审计的工具变成 agent brain platform，违背当前产品边界。
+
+### 已落地的边界
+
+- `lorekit gbrain export` 只读 `知识库/`，只写 `.wiki/integrations/gbrain-export/`
+- export 默认跳过 `_INDEX.md`、local `index.md`、`知识库/模板/`
+- export 移除 frontmatter `slug`，避免 GBrain path-authoritative slug 校验失败
+- export 注入 `lorekit_source_path` / `lorekit_hash` / `lorekit_exported_at`
+- `lorekit gbrain sync` 调外部 `gbrain import <export/pages>`，写 `.wiki/integrations/gbrain/sync-report.json`
+- `lorekit gbrain query` 只透传查询；写回仍然必须走 wiki-fileback / audit / snapshot
+- GBrain 未安装时 `status/doctor` 给安装建议，`sync/query` 清晰失败
+
+### 同步收据
+
+方案里的 `sync --json/--report` 已落地到主 `lorekit sync`：
+
+- `--json` 把 index / rootIndex / vector / doctor 每一步状态写 stdout
+- `--report` 写 `.wiki/reports/sync/<timestamp>.json`
+- `--skip-vector` / `--skip-doctor` 会在 report 里标为 `skipped`，方便 agent 判断是刻意跳过还是失败
+
+### 后续要用 benchmark 决策
+
+以下不在本阶段直接做：
+
+- GBrain 是否比 lorekit hybrid 在关系型问题上显著更好
+- 是否要加入 `lorekit gbrain benchmark`
+- 是否导出 `原料/`、`每日/`、`写作/`
+- 是否生成 GBrain MCP 配置辅助
+
+判定标准：关系型问题 P@5 或正确率明显优于 lorekit hybrid，否定问题幻觉率不能更高，且 query latency 可接受。

@@ -42,7 +42,8 @@ Three layers:
 | Vector query    | `lorekit vector query`  | Search modes: `--layered` (vector), `--bm25` (FTS5), `--hybrid` (both + RRF)                                                                                          |
 | Vector status   | `lorekit vector status` | Inspect the index; returns `mode: text\|vector` recommendation based on `indexed_files` vs `MODE_THRESHOLD_FILES` (default 100)                                       |
 | Directory index | `lorekit index`         | Recursively generate `_INDEX.md` for every subdirectory (including folder-packaged sources like `原料/文章/<slug>/article.md`)                                        |
-| **Sync**        | **`lorekit sync`**      | **One-shot: `index` → `vector sync --layered` → `doctor`. Use this after every ingest/fileback to keep text index + vector store aligned**                            |
+| **Sync**        | **`lorekit sync`**      | **One-shot: `index` → `vector sync --layered` → `doctor`; supports `--json` and `--report` for agent-readable step receipts**                                       |
+| GBrain          | `lorekit gbrain <sub>`  | Optional read-only bridge: export `知识库/` into `.wiki/integrations/gbrain-export/`, then call external `gbrain import`; never writes canonical wiki pages             |
 
 > The CLI is named `lorekit`. The 6 Agent Skills keep the `wiki-` prefix (a nod to Karpathy's LLM Wiki): `wiki-ingest` / `wiki-query` / `wiki-fileback` / `wiki-lint` / `wiki-enrich` / `wiki-audit`.
 
@@ -139,10 +140,35 @@ claude  # or codex / cursor / kimi …
 | ripgrep      | Text-search acceleration | `brew install ripgrep` | Optional |
 | ollama       | Local embedding runtime  | `brew install ollama`  | Optional |
 | bge-m3       | Embedding model          | `ollama pull bge-m3`   | Optional |
+| Bun + GBrain | Graph retrieval bridge   | `git clone https://github.com/garrytan/gbrain.git && cd gbrain && bun install && bun link` | Optional |
 
 **Only Node.js is required.** No bash / Python / uv / pip. lorekit is pure TypeScript, cross-platform (macOS / Linux / Windows).
 
 Vector retrieval is optional — without ollama, the AI still navigates via `index.md`.
+
+## Optional GBrain Bridge
+
+GBrain is an optional graph / hybrid retrieval layer. lorekit remains the source of truth:
+
+```text
+lorekit writes 知识库/
+GBrain reads an exported staging copy
+```
+
+No GBrain code is vendored into lorekit, and GBrain is not a `package.json` dependency. The bridge only shells out to an installed `gbrain` binary.
+
+```bash
+cd ~/Desktop/my-corpus
+lorekit gbrain status
+lorekit gbrain export --dry-run
+lorekit gbrain export
+lorekit gbrain sync --dry-run
+lorekit gbrain doctor
+```
+
+`export` writes only under `.wiki/integrations/gbrain-export/`, skips `_INDEX.md`, local `index.md`, and `知识库/模板/`, removes frontmatter `slug`, and injects `lorekit_source_path`, `lorekit_hash`, and `lorekit_exported_at`. `sync` then runs `gbrain import <export/pages>` and writes `.wiki/integrations/gbrain/sync-report.json`.
+
+Boundary: GBrain must not write back to `知识库/` or `原料/`. Persisting new knowledge still goes through wiki-fileback / audit / snapshot review.
 
 ## Using It
 
@@ -188,6 +214,10 @@ lorekit sync                               # index → vector sync → doctor, o
 lorekit vector query --hybrid --text "xxx" # BM25 + vector + RRF fusion (production default)
 lorekit vector query --layered --text "xxx" # vector-only layered (debug)
 lorekit vector query --bm25    --text "xxx" # FTS5-only BM25 (debug precise keywords / dates)
+
+# Agent-readable receipts
+lorekit sync --json
+lorekit sync --report                       # writes .wiki/reports/sync/<timestamp>.json
 ```
 
 Swappable embedding models (any ollama-hosted model works):

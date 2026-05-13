@@ -10,8 +10,8 @@
 lorekit/
 ├── src/                    TypeScript 源码（约 6270 LoC，含 fetcher/vectordb 子模块）
 │   ├── cli.ts              CLI 入口 + 启动 banner + 命令注册
-│   ├── commands/           15 个子命令实现
-│   ├── lib/                7 个核心库 + fetcher/ + vectordb/ 两个子模块目录
+│   ├── commands/           16 个子命令实现
+│   ├── lib/                核心库 + fetcher/ + vectordb/ + integrations/ 子模块目录
 │   └── utils/              通用 helper（fs / logger）
 ├── bin/                    npm bin shim（lorekit.js）
 ├── dist/                   tsup 构建产物（提交进 git，给免构建用户用）
@@ -44,7 +44,7 @@ lorekit/
 | `fetch.ts`            | 183 | URL 路由 → 调 fetcher 子模块，duplicate / in-progress 检测                          |
 | `ingest.ts`           | 407 | ingest pipeline state machine：list / pending / record / check / forget / reconcile |
 | `dir-index.ts`        | 273 | 递归生成 `_INDEX.md`（原 `commands/index.ts`，批次 17 改名消除歧义）                |
-| `sync.ts`             | 117 | 一键链：dir-index → vector sync → doctor                                            |
+| `sync.ts`             | 204 | 一键链：dir-index → root index → vector sync → doctor；`--json/--report` 输出步骤收据 |
 | `vector.ts`           | 188 | 向量子命令：sync / query（flat / layered / bm25 / hybrid）/ status                  |
 | `lint.ts`             | 192 | frontmatter / 死链 / 孤岛页扫描                                                     |
 | `audit.ts`            | 162 | 反馈条目 CRUD                                                                       |
@@ -53,6 +53,7 @@ lorekit/
 | `install-skills.ts`   | 107 | 把 skills 软链到 `~/.claude/skills`                                                 |
 | `obsidian-tune.ts`    | 120 | 批次 26：老用户升级一键应用 `.obsidian/graph.json` filter（默认检查 / `--write` 备份后写 / `--print` 管道用）|
 | `remove.ts`           | 438 | 安全移除 URL/路径：dry-run 影响报告，`--apply` snapshot → OS Trash → provenance 清理 → sync/lint |
+| `gbrain.ts`           | 121 | 可选 GBrain read-only bridge：status / export / sync / doctor / query，stdout JSON + 外部命令边界 |
 
 ## src/lib/ 详单
 
@@ -100,6 +101,16 @@ lorekit/
 | `status.ts`                 | 130 | `computeMode` + `getStatus` 检索模式推荐                        |
 | `prune.ts`                  | 49  | 清理 vector.sqlite 里磁盘已不存在的 documents/chunks/page summaries/vec/FTS 记录 |
 
+### `src/lib/integrations/`（GBrain 可选集成）
+
+| 文件 | 职责 |
+| ---- | ---- |
+| `process.ts` | `spawn` 外部命令封装；不走 shell interpolation，捕获 stdout/stderr/exitCode/timeout |
+| `gbrain-status.ts` | 探测 `gbrain --version`，未安装时输出 clone + bun install + bun link + init 建议 |
+| `gbrain-export.ts` | 将 `知识库/` 导出为 GBrain-safe staging：跳过 index/template，移除 `slug`，注入 lorekit metadata，生成 manifest |
+| `manifest.ts` | GBrain export manifest 类型与 JSON 读写 helper |
+| `gbrain.ts` | sync/doctor/query 编排：写 sync-report、检查 manifest stale、透传 query |
+
 ## src/utils/ 详单
 
 | 文件        | LoC | 职责                                                                                         |
@@ -119,9 +130,10 @@ lorekit/
 6. `src/lib/vectordb/index.ts` — 检索栈 barrel，commands/vector.ts 走它的 9 个 API
 7. `src/lib/vectordb/schema.ts` — DDL + `openDb`，所有 vectordb 子模块靠它的 `Db` 类型
 8. `src/commands/ingest.ts` — state machine 对外 surface，最大单文件
-9. `src/commands/sync.ts` — 把索引 / 向量 / 体检串起来，复用 `runIndex` + `vector sync` + `doctor`
+9. `src/commands/sync.ts` — 把索引 / 向量 / 体检串起来，复用 `runIndex` + `vector sync` + `doctor`，并产出 agent-readable report
 10. `src/commands/remove.ts` — 删除路径最敏感：只做来源归因级联，先 snapshot，再 OS Trash
-11. `src/utils/logger.ts` — 全仓库输出统一入口（CONVENTIONS 强制，stdout/stderr 分流）
+11. `src/commands/gbrain.ts` — 外部 GBrain 边界：必须保持只读导出，不得写回 canonical wiki
+12. `src/utils/logger.ts` — 全仓库输出统一入口（CONVENTIONS 强制，stdout/stderr 分流）
 
 ## 配置文件
 

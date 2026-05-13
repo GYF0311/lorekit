@@ -142,7 +142,7 @@ Agent system prompt 是稀缺资源，永远用指针风格而不是全量注入
 
 ## Harness 规则（LLM 行为契约）
 
-> 下列 9 项规则是 lorekit 当前版本的 **harness 契约**，与 `skills/wiki-*` 的行为约定配套。
+> 下列 10 项规则是 lorekit 当前版本的 **harness 契约**，与 `skills/wiki-*` 的行为约定配套。
 > 新 corpus 一建好就带这些规则；老 corpus 不追溯，但新建页要按新规则。
 
 ### 1. Personal-writing 分流规则
@@ -239,3 +239,13 @@ Counter-evidence 节**即使为空也必须写**——"没反驳"是一个信号
 - `corpus/系统/**/*.md`（所有 schema 规范文档）
 
 **不在上述清单里的文件**（`知识库/**` / `原料/**` / `每日/**` 等）不加 `graph-excluded`——它们是知识资产，需要进索引。
+
+### 10. GBrain 只读集成规则
+
+如果使用 `lorekit gbrain`：
+
+- `知识库/` 仍是 canonical source of truth
+- GBrain 只能读取 `.wiki/integrations/gbrain-export/` staging copy
+- 不允许 GBrain 直接写回 `知识库/` 或 `原料/`
+- 任何新知识持久化仍必须走 wiki-fileback / audit / snapshot
+- `lorekit gbrain export` 默认跳过 `_INDEX.md`、local `index.md` 和 `知识库/模板/`

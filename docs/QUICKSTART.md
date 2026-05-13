@@ -28,6 +28,7 @@ Pure TypeScript, Node.js-only, usable from any AI coding agent (Claude Code / Co
 | ripgrep     | Faster text search         | `brew install ripgrep`                     | `rg --version`     |
 | ollama      | Local vector embeddings    | `brew install ollama`                      | `ollama --version` |
 | bge-m3      | Embedding model (EN+ZH)    | `ollama pull bge-m3`                       | `ollama list`      |
+| Bun + GBrain | Optional graph retrieval  | `git clone https://github.com/garrytan/gbrain.git && cd gbrain && bun install && bun link` | `gbrain --version` |
 | Claude Code | Best end-to-end experience | [download](https://claude.com/claude-code) | `claude --version` |
 | Obsidian    | Visual wiki browsing       | [download](https://obsidian.md)            | —                  |
 
@@ -112,11 +113,31 @@ Query modes (pick based on intent, not scale — the skill reads `lorekit vector
 lorekit vector query --hybrid  --text "…"   # BM25 + vector + RRF (production default)
 lorekit vector query --layered --text "…"   # vector-only layered (debug)
 lorekit vector query --bm25    --text "…"   # FTS5-only BM25 (debug precise terms / dates)
+
+lorekit sync --json                         # machine-readable step report
+lorekit sync --report                       # writes .wiki/reports/sync/<timestamp>.json
 ```
 
 ---
 
-## 6. First conversation
+## 6. Optional: export to GBrain
+
+GBrain is optional. Use it only when you want a graph / agent-memory retrieval layer next to lorekit's Markdown wiki. lorekit remains the source of truth; GBrain reads a staging copy.
+
+```bash
+cd ~/Desktop/my-corpus
+lorekit gbrain status
+lorekit gbrain export --dry-run
+lorekit gbrain export
+lorekit gbrain sync --dry-run
+lorekit gbrain doctor
+```
+
+`export` writes only under `.wiki/integrations/gbrain-export/`. It skips generated indexes and templates, removes frontmatter `slug`, and records source hashes in `manifest.json`. `sync` calls external `gbrain import` and writes `.wiki/integrations/gbrain/sync-report.json`.
+
+---
+
+## 7. First conversation
 
 ```bash
 cd ~/Desktop/my-corpus
@@ -167,7 +188,7 @@ lorekit remove "知识库/摘要/<slug>.md" --apply
 
 ---
 
-## 7. Ingest pipeline cheat sheet
+## 8. Ingest pipeline cheat sheet
 
 Every `lorekit fetch` writes a record to `<corpus>/.wiki/ingest-state.json` with `status: started, stepsDone: ['fetch']`. As the skill advances through the pipeline, it records each step:
 
@@ -203,7 +224,7 @@ lorekit ingest reconcile             # commit
 
 ---
 
-## 8. Write three anchor cards
+## 9. Write three anchor cards
 
 Give the agent some initial context:
 

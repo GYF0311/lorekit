@@ -956,7 +956,7 @@ var init_vectordb = __esm({
 });
 
 // src/cli.ts
-import { existsSync as existsSync20 } from "fs";
+import { existsSync as existsSync24 } from "fs";
 import { Command } from "commander";
 import chalk7 from "chalk";
 import Database from "better-sqlite3";
@@ -1071,10 +1071,10 @@ import chalk2 from "chalk";
 var MINIMAL_DIRS = ["\u539F\u6599", "\u77E5\u8BC6\u5E93/\u6982\u5FF5", "\u77E5\u8BC6\u5E93/\u5B9E\u4F53", "\u77E5\u8BC6\u5E93/\u6458\u8981", "\u6BCF\u65E5", "\u7CFB\u7EDF", ".wiki"];
 function ask(question) {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve4) => {
+  return new Promise((resolve5) => {
     rl.question(question, (answer) => {
       rl.close();
-      resolve4(answer.trim());
+      resolve5(answer.trim());
     });
   });
 }
@@ -2161,10 +2161,10 @@ import * as tar2 from "tar";
 import chalk5 from "chalk";
 function ask2(question) {
   const rl = createInterface2({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve4) => {
+  return new Promise((resolve5) => {
     rl.question(question, (answer) => {
       rl.close();
-      resolve4(answer.trim());
+      resolve5(answer.trim());
     });
   });
 }
@@ -3631,6 +3631,8 @@ ${summary.join("\n")}`
 
 // src/commands/sync.ts
 import chalk6 from "chalk";
+import { mkdirSync as mkdirSync9, writeFileSync as writeFileSync8 } from "fs";
+import { join as join25 } from "path";
 init_logger();
 
 // src/lib/root-index.ts
@@ -3748,18 +3750,48 @@ function refreshRootIndex(corpus) {
 }
 
 // src/commands/sync.ts
+function createReport(corpus) {
+  return {
+    status: "ok",
+    startedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    finishedAt: "",
+    corpus,
+    steps: {
+      index: { status: "skipped" },
+      rootIndex: { status: "skipped" },
+      vector: { status: "skipped" },
+      doctor: { status: "skipped" }
+    },
+    reportPath: null,
+    errors: []
+  };
+}
+function writeSyncReport(corpus, report) {
+  const dir = join25(corpus, ".wiki", "reports", "sync");
+  mkdirSync9(dir, { recursive: true });
+  const stamp = report.startedAt.replace(/[:.]/g, "-");
+  const path = join25(dir, `${stamp}.json`);
+  report.reportPath = path;
+  writeFileSync8(path, JSON.stringify(report, null, 2) + "\n", "utf-8");
+  return path;
+}
 async function runSync(corpus, opts = {}) {
   const force = opts.force ?? false;
   const model = opts.model ?? "bge-m3";
+  const report = createReport(corpus);
   print(chalk6.cyan("\u2500\u2500 [1/3] index: refresh _INDEX.md \u2500\u2500"));
   try {
     const generated = runIndex(corpus);
+    report.steps.index = { status: "ok", generated };
     if (generated === 0) {
       warn("no indexable directories found");
     } else {
       ok(`refreshed ${generated} _INDEX.md file(s)`);
     }
   } catch (e) {
+    report.status = "error";
+    report.steps.index = { status: "error", error: e.message };
+    report.errors.push(`index failed: ${e.message}`);
     err(`index failed: ${e.message}`);
     throw e;
   }
@@ -3774,6 +3806,13 @@ async function runSync(corpus, opts = {}) {
         }),
         { added: 0, removed: 0, kept: 0 }
       );
+      report.steps.rootIndex = {
+        status: "ok",
+        changed: r.changed,
+        added: totals.added,
+        removed: totals.removed,
+        kept: totals.kept
+      };
       if (!r.changed) {
         ok(`index.md unchanged (${totals.kept} entries across managed sections)`);
       } else {
@@ -3787,32 +3826,50 @@ async function runSync(corpus, opts = {}) {
         }
       }
     } catch (e) {
+      report.status = "error";
+      report.steps.rootIndex = { status: "error", error: e.message };
+      report.errors.push(`root index sync failed: ${e.message}`);
       err(`root index sync failed: ${e.message}`);
       throw e;
     }
+  } else {
+    report.steps.rootIndex = { status: "skipped", reason: "skip-root-index" };
   }
   print();
   if (!opts.skipVector) {
     print(chalk6.cyan("\u2500\u2500 [2/3] vector: sync chunks + L0/L1 \u2500\u2500"));
     try {
       const r = await runVectorSync(corpus, { force, model, layered: true });
+      report.steps.vector = { status: "ok", ...r, model };
       ok(`synced ${r.synced} files (${r.totalChunks} chunks), skipped ${r.skipped} unchanged`);
     } catch (e) {
+      report.status = "error";
+      report.steps.vector = { status: "error", error: e.message, model };
+      report.errors.push(`vector sync failed: ${e.message}`);
       err(`vector sync failed: ${e.message}`);
       throw e;
     }
     print();
+  } else {
+    report.steps.vector = { status: "skipped", reason: "skip-vector" };
   }
   if (!opts.skipDoctor) {
     print(chalk6.cyan("\u2500\u2500 [3/3] doctor: sanity check \u2500\u2500"));
-    runDoctor(corpus);
+    const issues = runDoctor(corpus);
+    report.steps.doctor = { status: "ok", issues };
+  } else {
+    report.steps.doctor = { status: "skipped", reason: "skip-doctor" };
   }
+  report.finishedAt = (/* @__PURE__ */ new Date()).toISOString();
+  return report;
 }
 function syncCommand(program2) {
-  program2.command("sync").description("one-shot: refresh _INDEX.md \u2192 vector sync (layered) \u2192 doctor").option("--force", "full rebuild of vector index", false).option("--model <name>", "ollama model name", "bge-m3").option("--skip-doctor", "skip the final doctor sanity check", false).option("--skip-vector", "only refresh _INDEX.md, skip vector sync", false).option("--skip-root-index", "skip merging corpus/index.md against disk", false).action(async (opts) => {
+  program2.command("sync").description("one-shot: refresh _INDEX.md \u2192 vector sync (layered) \u2192 doctor").option("--force", "full rebuild of vector index", false).option("--model <name>", "ollama model name", "bge-m3").option("--skip-doctor", "skip the final doctor sanity check", false).option("--skip-vector", "only refresh _INDEX.md, skip vector sync", false).option("--skip-root-index", "skip merging corpus/index.md against disk", false).option("--json", "output machine-readable sync report", false).option("--report", "write .wiki/reports/sync/<timestamp>.json", false).action(async (opts) => {
     const corpus = requireCorpus();
     try {
-      await runSync(corpus, opts);
+      const report = await runSync(corpus, opts);
+      if (opts.report) writeSyncReport(corpus, report);
+      if (opts.json) out(JSON.stringify(report, null, 2));
     } catch {
       process.exit(1);
     }
@@ -3821,8 +3878,8 @@ function syncCommand(program2) {
 
 // src/commands/obsidian-tune.ts
 init_logger();
-import { cpSync as cpSync2, existsSync as existsSync18, mkdirSync as mkdirSync9, writeFileSync as writeFileSync8 } from "fs";
-import { join as join25 } from "path";
+import { cpSync as cpSync2, existsSync as existsSync18, mkdirSync as mkdirSync10, writeFileSync as writeFileSync9 } from "fs";
+import { join as join26 } from "path";
 function runPrint() {
   const cfg = getRecommendedGraphConfig();
   out(JSON.stringify(cfg, null, 2));
@@ -3860,16 +3917,16 @@ function runCheck(corpus) {
   return 1;
 }
 function runWrite(corpus) {
-  const dest = join25(corpus, ".obsidian", "graph.json");
-  const destDir = join25(corpus, ".obsidian");
-  if (!existsSync18(destDir)) mkdirSync9(destDir, { recursive: true });
+  const dest = join26(corpus, ".obsidian", "graph.json");
+  const destDir = join26(corpus, ".obsidian");
+  if (!existsSync18(destDir)) mkdirSync10(destDir, { recursive: true });
   if (existsSync18(dest)) {
     const backup = `${dest}.bak.${tsCompact()}`;
     cpSync2(dest, backup);
     ok(`\u5907\u4EFD .obsidian/graph.json \u2192 ${backup}`);
   }
   const cfg = getRecommendedGraphConfig();
-  writeFileSync8(dest, JSON.stringify(cfg, null, 2) + "\n", "utf-8");
+  writeFileSync9(dest, JSON.stringify(cfg, null, 2) + "\n", "utf-8");
   ok("\u5199\u5165\u63A8\u8350 filter");
   info("\u8BF7\u5173\u6389 Obsidian\u300C\u5173\u7CFB\u56FE\u8C31\u300D\u6807\u7B7E\u9875\u518D\u91CD\u5F00\u751F\u6548");
   return 0;
@@ -3896,8 +3953,8 @@ function obsidianTuneCommand(program2) {
 }
 
 // src/commands/remove.ts
-import { existsSync as existsSync19, mkdirSync as mkdirSync10, readFileSync as readFileSync19, renameSync, writeFileSync as writeFileSync9 } from "fs";
-import { basename as basename7, dirname as dirname5, isAbsolute, join as join26, relative as relative17, resolve as resolve3, sep } from "path";
+import { existsSync as existsSync19, mkdirSync as mkdirSync11, readFileSync as readFileSync19, renameSync, writeFileSync as writeFileSync10 } from "fs";
+import { basename as basename7, dirname as dirname5, isAbsolute, join as join27, relative as relative17, resolve as resolve3, sep } from "path";
 import matter5 from "gray-matter";
 import trash from "trash";
 init_logger();
@@ -3919,7 +3976,7 @@ function withinCorpus(corpus, abs) {
 }
 function resolveInputPath(corpus, input) {
   const candidates = [];
-  const rawAbs = isAbsolute(input) ? input : join26(corpus, input);
+  const rawAbs = isAbsolute(input) ? input : join27(corpus, input);
   candidates.push(rawAbs);
   if (!input.endsWith(".md")) candidates.push(`${rawAbs}.md`);
   for (const candidate of candidates) {
@@ -3951,13 +4008,13 @@ function extractWikilinks(content) {
   return links;
 }
 function addExistingTarget(corpus, targets, relOrAbs, reason) {
-  const abs = isAbsolute(relOrAbs) ? relOrAbs : join26(corpus, relOrAbs);
+  const abs = isAbsolute(relOrAbs) ? relOrAbs : join27(corpus, relOrAbs);
   if (!existsSync19(abs)) return;
   const rel = relFromAbs(corpus, abs);
   targets.set(rel, { rel, abs, reason });
 }
 function addSourceTarget(corpus, targets, relOrAbs) {
-  const abs = isAbsolute(relOrAbs) ? relOrAbs : join26(corpus, relOrAbs);
+  const abs = isAbsolute(relOrAbs) ? relOrAbs : join27(corpus, relOrAbs);
   if (!existsSync19(abs)) return;
   const rel = relFromAbs(corpus, abs);
   if (rel.endsWith("/article.md")) {
@@ -3972,9 +4029,9 @@ function addSourceTarget(corpus, targets, relOrAbs) {
 }
 function sourceCandidatesForSlug(corpus, slug) {
   return [
-    join26(corpus, slug),
-    join26(corpus, `${slug}.md`),
-    join26(corpus, slug, "article.md")
+    join27(corpus, slug),
+    join27(corpus, `${slug}.md`),
+    join27(corpus, slug, "article.md")
   ];
 }
 function collectSourceUrls(corpus, targets) {
@@ -4006,7 +4063,7 @@ function addSourcesFromSummary(corpus, targets, summaryAbs) {
   }
 }
 function addSummariesReferencingSources(corpus, targets, aliases) {
-  for (const file of collectMdFiles(join26(corpus, "\u77E5\u8BC6\u5E93", "\u6458\u8981"))) {
+  for (const file of collectMdFiles(join27(corpus, "\u77E5\u8BC6\u5E93", "\u6458\u8981"))) {
     const rel = relFromAbs(corpus, file);
     if (targets.has(rel)) continue;
     const content = readText(file);
@@ -4086,7 +4143,7 @@ function buildRemovalPlan(corpus, input, apply) {
     if (record?.archivedTo) addSourceTarget(corpus, targets, record.archivedTo);
     for (const page of record?.wikiPages ?? []) {
       if (normalizeRel(page).startsWith("\u77E5\u8BC6\u5E93/\u6458\u8981/")) {
-        const pageAbs = join26(corpus, page);
+        const pageAbs = join27(corpus, page);
         addExistingTarget(corpus, targets, pageAbs, "summary");
         if (existsSync19(pageAbs)) addSourcesFromSummary(corpus, targets, pageAbs);
       }
@@ -4136,10 +4193,10 @@ function buildRemovalPlan(corpus, input, apply) {
 async function moveToTrash(paths) {
   const testTrashDir = process.env.LOREKIT_TEST_TRASH_DIR;
   if (testTrashDir) {
-    mkdirSync10(testTrashDir, { recursive: true });
+    mkdirSync11(testTrashDir, { recursive: true });
     for (const p of paths) {
       if (!existsSync19(p)) continue;
-      const dest = join26(testTrashDir, `${tsCompact()}-${basename7(p)}`);
+      const dest = join27(testTrashDir, `${tsCompact()}-${basename7(p)}`);
       renameSync(p, dest);
     }
     return;
@@ -4149,9 +4206,9 @@ async function moveToTrash(paths) {
 function applyPageChanges(corpus, plan) {
   const aliases = new Set(plan.aliases);
   for (const change of plan.pageChanges) {
-    const file = join26(corpus, change.file);
+    const file = join27(corpus, change.file);
     const { nextContent } = rewritePageForRemoval(corpus, file, aliases);
-    writeFileSync9(file, nextContent, "utf-8");
+    writeFileSync10(file, nextContent, "utf-8");
   }
 }
 function forgetIngestRecords(corpus, urls) {
@@ -4229,7 +4286,7 @@ function removeCommand(program2) {
       forgetIngestRecords(corpus, plan.ingestRecords);
       await moveToTrash(plan.trashTargets.map((t) => t.abs));
       ok(`moved ${plan.trashTargets.length} item(s) to OS Trash`);
-      const hasVectorDb = existsSync19(join26(corpus, ".wiki", "vector.sqlite"));
+      const hasVectorDb = existsSync19(join27(corpus, ".wiki", "vector.sqlite"));
       if (hasVectorDb) {
         plan.vectorPruned = await pruneVectorDbMissingFiles(corpus);
         if (plan.vectorPruned > 0) ok(`vector pruned ${plan.vectorPruned} missing file(s)`);
@@ -4248,6 +4305,549 @@ function removeCommand(program2) {
   });
 }
 
+// src/lib/integrations/gbrain.ts
+import { existsSync as existsSync23, mkdirSync as mkdirSync13, readFileSync as readFileSync22 } from "fs";
+import { join as join30 } from "path";
+
+// src/lib/integrations/gbrain-status.ts
+import { existsSync as existsSync20 } from "fs";
+import { homedir } from "os";
+import { join as join28 } from "path";
+
+// src/lib/integrations/process.ts
+import { spawn } from "child_process";
+function runExternalCommand(opts) {
+  const startedAt = Date.now();
+  const timeoutMs = opts.timeoutMs ?? 12e4;
+  return new Promise((resolve5) => {
+    let stdout = "";
+    let stderr = "";
+    let settled = false;
+    let timedOut = false;
+    const child = spawn(opts.command, opts.args, {
+      cwd: opts.cwd,
+      shell: false,
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill("SIGTERM");
+    }, timeoutMs);
+    child.stdout?.on("data", (chunk) => {
+      stdout += chunk.toString("utf-8");
+    });
+    child.stderr?.on("data", (chunk) => {
+      stderr += chunk.toString("utf-8");
+    });
+    child.on("error", (e) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve5({
+        command: opts.command,
+        args: opts.args,
+        exitCode: -1,
+        stdout,
+        stderr,
+        durationMs: Date.now() - startedAt,
+        timedOut,
+        error: e.message
+      });
+    });
+    child.on("close", (code) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve5({
+        command: opts.command,
+        args: opts.args,
+        exitCode: code ?? (timedOut ? 124 : 1),
+        stdout,
+        stderr,
+        durationMs: Date.now() - startedAt,
+        timedOut
+      });
+    });
+  });
+}
+
+// src/lib/integrations/gbrain-status.ts
+var GBRAIN_INSTALL_HINT = [
+  "git clone https://github.com/garrytan/gbrain.git ~/code/gbrain",
+  "cd ~/code/gbrain",
+  "bun install",
+  "bun link",
+  "gbrain init"
+].join("\n");
+async function getGbrainStatus() {
+  const binary = process.env.LOREKIT_GBRAIN_BIN || "gbrain";
+  const errors = [];
+  const versionProbe = await runExternalCommand({
+    command: binary,
+    args: ["--version"],
+    timeoutMs: 1e4
+  });
+  if (versionProbe.exitCode !== 0) {
+    errors.push(versionProbe.error || versionProbe.stderr.trim() || "gbrain binary not installed");
+    return {
+      installed: false,
+      binary,
+      version: null,
+      brainInitialized: existsSync20(join28(homedir(), ".gbrain")),
+      installHint: GBRAIN_INSTALL_HINT,
+      errors
+    };
+  }
+  const version2 = (versionProbe.stdout || versionProbe.stderr).trim() || null;
+  return {
+    installed: true,
+    binary,
+    version: version2,
+    brainInitialized: existsSync20(join28(homedir(), ".gbrain")),
+    installHint: GBRAIN_INSTALL_HINT,
+    errors
+  };
+}
+
+// src/lib/integrations/gbrain-export.ts
+import { createHash as createHash5 } from "crypto";
+import {
+  existsSync as existsSync22,
+  mkdirSync as mkdirSync12,
+  readFileSync as readFileSync21,
+  readdirSync as readdirSync11,
+  renameSync as renameSync2,
+  statSync as statSync7,
+  writeFileSync as writeFileSync12
+} from "fs";
+import { dirname as dirname6, join as join29, relative as relative18, resolve as resolve4 } from "path";
+import matter6 from "gray-matter";
+
+// src/lib/integrations/manifest.ts
+import { existsSync as existsSync21, readFileSync as readFileSync20, writeFileSync as writeFileSync11 } from "fs";
+function writeJsonFile(path, data) {
+  writeFileSync11(path, JSON.stringify(data, null, 2) + "\n", "utf-8");
+}
+function readJsonFile(path) {
+  if (!existsSync21(path)) return null;
+  return JSON.parse(readFileSync20(path, "utf-8"));
+}
+
+// src/lib/integrations/gbrain-export.ts
+function toPosixPath(path) {
+  return path.split("\\").join("/");
+}
+function sha256Content(content) {
+  return "sha256:" + createHash5("sha256").update(content).digest("hex");
+}
+function exportRoot(corpus, out2) {
+  if (!out2) return join29(corpus, ".wiki", "integrations", "gbrain-export");
+  return resolve4(corpus, out2);
+}
+function collectKnowledgeMarkdown(corpus) {
+  const root = join29(corpus, "\u77E5\u8BC6\u5E93");
+  const candidates = [];
+  const skipped = [];
+  const warnings = [];
+  if (!existsSync22(root)) {
+    warnings.push("\u77E5\u8BC6\u5E93/ not found; no pages exported");
+    return { candidates, skipped, warnings };
+  }
+  function walk(dir) {
+    for (const entry of readdirSync11(dir, { withFileTypes: true })) {
+      if (entry.name.startsWith(".")) continue;
+      const absPath = join29(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(absPath);
+        continue;
+      }
+      if (!entry.isFile() || !entry.name.endsWith(".md")) continue;
+      const sourcePath = toPosixPath(relative18(corpus, absPath));
+      if (sourcePath === "\u77E5\u8BC6\u5E93/\u6A21\u677F" || sourcePath.startsWith("\u77E5\u8BC6\u5E93/\u6A21\u677F/")) {
+        skipped.push({ sourcePath, reason: "template file skipped by default" });
+        continue;
+      }
+      if (entry.name === "_INDEX.md") {
+        skipped.push({ sourcePath, reason: "index file skipped by default" });
+        continue;
+      }
+      if (entry.name === "index.md") {
+        skipped.push({ sourcePath, reason: "local index file skipped by default" });
+        continue;
+      }
+      candidates.push({ absPath, sourcePath });
+    }
+  }
+  walk(root);
+  candidates.sort((a, b) => a.sourcePath.localeCompare(b.sourcePath));
+  skipped.sort((a, b) => a.sourcePath.localeCompare(b.sourcePath));
+  return { candidates, skipped, warnings };
+}
+function ensureFreshExportDir(root, exportedAt) {
+  mkdirSync12(root, { recursive: true });
+  const backupRoot = join29(root, "backups", exportedAt.replace(/[:.]/g, "-"));
+  let moved = false;
+  for (const name of ["pages", "manifest.json", "README.md"]) {
+    const current = join29(root, name);
+    if (!existsSync22(current)) continue;
+    if (!moved) {
+      mkdirSync12(backupRoot, { recursive: true });
+      moved = true;
+    }
+    renameSync2(current, join29(backupRoot, name));
+  }
+}
+function normalizeForGbrain(raw, sourcePath, exportedAt) {
+  const parsed = matter6(raw);
+  const data = { ...parsed.data };
+  delete data.slug;
+  data.lorekit_source_path = sourcePath;
+  data.lorekit_layer = "artifact";
+  data.lorekit_hash = sha256Content(raw);
+  data.lorekit_exported_at = exportedAt;
+  return matter6.stringify(parsed.content, data);
+}
+function pageMeta(raw) {
+  const parsed = matter6(raw);
+  return {
+    title: typeof parsed.data.title === "string" ? parsed.data.title : null,
+    type: typeof parsed.data.type === "string" ? parsed.data.type : null
+  };
+}
+function exportForGbrain(corpus, opts = {}) {
+  const dryRun = opts.dryRun ?? false;
+  const exportedAt = (/* @__PURE__ */ new Date()).toISOString();
+  const root = exportRoot(corpus, opts.out);
+  const pagesDir = join29(root, "pages");
+  const manifestPath = join29(root, "manifest.json");
+  const { candidates, skipped, warnings } = collectKnowledgeMarkdown(corpus);
+  const pages = [];
+  for (const candidate of candidates) {
+    const rawBuffer = readFileSync21(candidate.absPath);
+    const raw = rawBuffer.toString("utf-8");
+    const relUnderKnowledge = toPosixPath(relative18(join29(corpus, "\u77E5\u8BC6\u5E93"), candidate.absPath));
+    const exportPath = toPosixPath(join29("pages", relUnderKnowledge));
+    const meta = pageMeta(raw);
+    pages.push({
+      sourcePath: candidate.sourcePath,
+      exportPath,
+      title: meta.title,
+      type: meta.type,
+      hash: sha256Content(rawBuffer),
+      bytes: statSync7(candidate.absPath).size,
+      status: "exported"
+    });
+  }
+  if (!dryRun) {
+    ensureFreshExportDir(root, exportedAt);
+    for (const candidate of candidates) {
+      const raw = readFileSync21(candidate.absPath, "utf-8");
+      const relUnderKnowledge = relative18(join29(corpus, "\u77E5\u8BC6\u5E93"), candidate.absPath);
+      const target = join29(pagesDir, relUnderKnowledge);
+      mkdirSync12(dirname6(target), { recursive: true });
+      writeFileSync12(target, normalizeForGbrain(raw, candidate.sourcePath, exportedAt), "utf-8");
+    }
+    const manifest = {
+      version: 1,
+      integration: "gbrain",
+      source: "lorekit",
+      corpus,
+      exportedAt,
+      pages,
+      skipped,
+      warnings
+    };
+    writeJsonFile(manifestPath, manifest);
+    writeFileSync12(
+      join29(root, "README.md"),
+      [
+        "# GBrain export",
+        "",
+        "Generated by `lorekit gbrain export`.",
+        "This directory is a staging copy for GBrain import; lorekit \u77E5\u8BC6\u5E93/ remains the source of truth.",
+        ""
+      ].join("\n"),
+      "utf-8"
+    );
+  }
+  return {
+    status: warnings.length > 0 ? "warn" : "ok",
+    dryRun,
+    corpus,
+    exportDir: root,
+    pagesDir,
+    manifestPath,
+    exportedAt,
+    pagesExported: pages.length,
+    pagesSkipped: skipped.length,
+    pages,
+    skipped,
+    warnings
+  };
+}
+
+// src/lib/integrations/gbrain.ts
+function syncReportPath(corpus) {
+  return join30(corpus, ".wiki", "integrations", "gbrain", "sync-report.json");
+}
+function writeSyncReport2(corpus, result) {
+  const path = syncReportPath(corpus);
+  mkdirSync13(join30(corpus, ".wiki", "integrations", "gbrain"), { recursive: true });
+  writeJsonFile(path, result);
+}
+function commandSummary(binary, pagesDir) {
+  return [binary, "import", pagesDir];
+}
+async function syncGbrain(corpus, opts = {}) {
+  const dryRun = opts.dryRun ?? false;
+  const startedAt = (/* @__PURE__ */ new Date()).toISOString();
+  const exportResult = exportForGbrain(corpus, { dryRun });
+  if (dryRun) {
+    return {
+      status: "ok",
+      dryRun: true,
+      startedAt,
+      finishedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      corpus,
+      export: exportResult,
+      gbrain: null,
+      gbrainImport: { skipped: true, reason: "dry-run" },
+      warnings: exportResult.warnings,
+      errors: []
+    };
+  }
+  const gbrainStatus = await getGbrainStatus();
+  if (!gbrainStatus.installed) {
+    const result2 = {
+      status: "error",
+      dryRun: false,
+      startedAt,
+      finishedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      corpus,
+      export: exportResult,
+      gbrain: null,
+      warnings: exportResult.warnings,
+      errors: ["gbrain is not installed", ...gbrainStatus.errors]
+    };
+    writeSyncReport2(corpus, result2);
+    return result2;
+  }
+  const importCommand = commandSummary(gbrainStatus.binary, exportResult.pagesDir);
+  const external = await runExternalCommand({
+    command: gbrainStatus.binary,
+    args: ["import", exportResult.pagesDir],
+    cwd: corpus,
+    timeoutMs: 12e4
+  });
+  const result = {
+    status: external.exitCode === 0 ? "ok" : "error",
+    dryRun: false,
+    startedAt,
+    finishedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    corpus,
+    export: exportResult,
+    gbrain: {
+      binary: gbrainStatus.binary,
+      version: gbrainStatus.version,
+      command: importCommand,
+      exitCode: external.exitCode,
+      stdout: external.stdout,
+      stderr: external.stderr,
+      durationMs: external.durationMs
+    },
+    warnings: exportResult.warnings,
+    errors: external.exitCode === 0 ? [] : [external.error || external.stderr || "gbrain import failed"]
+  };
+  writeSyncReport2(corpus, result);
+  return result;
+}
+async function doctorGbrain(corpus) {
+  const issues = [];
+  const gbrain = await getGbrainStatus();
+  if (!gbrain.installed) {
+    issues.push({
+      section: "gbrain",
+      severity: "warn",
+      message: "GBrain binary is not installed",
+      recommendation: "Install GBrain only if you want graph retrieval: git clone + bun install + bun link"
+    });
+  }
+  const manifestPath = join30(corpus, ".wiki", "integrations", "gbrain-export", "manifest.json");
+  const syncPath = syncReportPath(corpus);
+  const manifest = readJsonFile(manifestPath);
+  if (!manifest) {
+    issues.push({
+      section: "gbrain",
+      severity: "warn",
+      message: "GBrain export manifest is missing",
+      recommendation: "Run lorekit gbrain export"
+    });
+  } else {
+    for (const page of manifest.pages) {
+      const sourcePath = join30(corpus, page.sourcePath);
+      if (!existsSync23(sourcePath)) {
+        issues.push({
+          section: "gbrain",
+          severity: "warn",
+          message: `Exported page source is missing: ${page.sourcePath}`,
+          recommendation: "Run lorekit gbrain export to refresh the staging directory"
+        });
+        continue;
+      }
+      const currentHash = "sha256:" + sha256(sourcePath);
+      if (currentHash !== page.hash) {
+        issues.push({
+          section: "gbrain",
+          severity: "warn",
+          message: `GBrain export is stale: ${page.sourcePath}`,
+          recommendation: "Run lorekit gbrain export or lorekit gbrain sync"
+        });
+      }
+    }
+  }
+  if (!existsSync23(syncPath)) {
+    issues.push({
+      section: "gbrain",
+      severity: "warn",
+      message: "GBrain sync report is missing",
+      recommendation: "Run lorekit gbrain sync after export when GBrain is installed"
+    });
+  } else {
+    try {
+      const report = JSON.parse(readFileSync22(syncPath, "utf-8"));
+      if (report.status !== "ok") {
+        issues.push({
+          section: "gbrain",
+          severity: "warn",
+          message: "Last GBrain sync did not finish successfully",
+          recommendation: "Inspect .wiki/integrations/gbrain/sync-report.json and rerun sync"
+        });
+      }
+    } catch (e) {
+      issues.push({
+        section: "gbrain",
+        severity: "error",
+        message: `GBrain sync report is unreadable: ${e.message}`,
+        recommendation: "Regenerate it with lorekit gbrain sync"
+      });
+    }
+  }
+  const hasError = issues.some((i) => i.severity === "error");
+  return {
+    status: hasError ? "error" : issues.length > 0 ? "warn" : "ok",
+    corpus,
+    gbrain,
+    manifestPath,
+    syncReportPath: syncPath,
+    issues
+  };
+}
+async function queryGbrain(text) {
+  const status = await getGbrainStatus();
+  const message = "This answer comes from GBrain index generated from lorekit export. To persist new knowledge, use wiki-fileback / lorekit audit.";
+  if (!status.installed) {
+    return {
+      status: "error",
+      source: "gbrain",
+      message,
+      gbrain: null,
+      errors: ["gbrain is not installed", ...status.errors]
+    };
+  }
+  const r = await runExternalCommand({
+    command: status.binary,
+    args: ["query", text],
+    timeoutMs: 12e4
+  });
+  return {
+    status: r.exitCode === 0 ? "ok" : "error",
+    source: "gbrain",
+    message,
+    gbrain: r,
+    errors: r.exitCode === 0 ? [] : [r.error || r.stderr || "gbrain query failed"]
+  };
+}
+
+// src/commands/gbrain.ts
+init_logger();
+function printJson(result) {
+  out(JSON.stringify(result, null, 2));
+}
+function gbrainCommand(program2) {
+  const cmd = program2.command("gbrain").description("optional GBrain read-only integration");
+  cmd.command("status").description("check whether GBrain is installed").option("--json", "output json", false).action(async (opts) => {
+    const result = await getGbrainStatus();
+    if (opts.json) {
+      printJson(result);
+      return;
+    }
+    if (result.installed) {
+      ok(`GBrain installed: ${result.version ?? result.binary}`);
+    } else {
+      warn("GBrain is not installed");
+      print(result.installHint);
+    }
+  });
+  cmd.command("export").description("export lorekit \u77E5\u8BC6\u5E93/ pages into a GBrain-safe staging directory").option("--out <dir>", "export directory relative to corpus").option("--dry-run", "preview only; do not write files", false).option("--json", "output json", false).action((opts) => {
+    const corpus = requireCorpus();
+    const result = exportForGbrain(corpus, { out: opts.out, dryRun: opts.dryRun });
+    if (opts.json) {
+      printJson(result);
+      return;
+    }
+    if (result.dryRun) {
+      info(`would export ${result.pagesExported} page(s) to ${result.exportDir}`);
+    } else {
+      ok(`exported ${result.pagesExported} page(s) to ${result.exportDir}`);
+    }
+    if (result.pagesSkipped > 0) warn(`skipped ${result.pagesSkipped} index file(s)`);
+    for (const w of result.warnings) warn(w);
+  });
+  cmd.command("sync").description("export lorekit pages and run gbrain import on the staging directory").option("--dry-run", "preview only; do not write export files or call gbrain import", false).option("--json", "output json", false).option("--force-export", "reserved for future compatibility", false).action(async (opts) => {
+    const corpus = requireCorpus();
+    const result = await syncGbrain(corpus, opts);
+    if (opts.json) {
+      printJson(result);
+    } else if (result.status === "ok") {
+      if (result.dryRun) {
+        info(`would export ${result.export.pagesExported} page(s); gbrain import skipped`);
+      } else {
+        ok(`gbrain sync complete: ${result.export.pagesExported} page(s) exported`);
+      }
+    } else {
+      bad(`gbrain sync failed: ${result.errors.join("; ")}`);
+    }
+    process.exitCode = result.status === "ok" ? 0 : 1;
+  });
+  cmd.command("doctor").description("check GBrain integration health").option("--json", "output json", false).action(async (opts) => {
+    const corpus = requireCorpus();
+    const result = await doctorGbrain(corpus);
+    if (opts.json) {
+      printJson(result);
+    } else {
+      if (result.status === "ok") ok("GBrain integration healthy");
+      for (const issue of result.issues) {
+        const line = `${issue.message}. ${issue.recommendation}`;
+        if (issue.severity === "error") bad(line);
+        else warn(line);
+      }
+    }
+    process.exitCode = result.status === "error" ? 1 : 0;
+  });
+  cmd.command("query").argument("<text>", "query text").description("run gbrain query without writing back to lorekit").option("--json", "output json", false).action(async (text, opts) => {
+    const result = await queryGbrain(text);
+    if (opts.json) {
+      printJson(result);
+    } else {
+      info(result.message);
+      if (result.gbrain?.stdout) print(result.gbrain.stdout.trim());
+      if (result.gbrain?.stderr) warn(result.gbrain.stderr.trim());
+      if (result.status === "error") bad(result.errors.join("; "));
+    }
+    process.exitCode = result.status === "ok" ? 0 : 1;
+  });
+}
+
 // src/cli.ts
 var version = readVersion();
 function showBanner() {
@@ -4263,7 +4863,7 @@ function showBanner() {
     }
     try {
       const dbPath = `${corpus}/.wiki/vector.sqlite`;
-      if (existsSync20(dbPath)) {
+      if (existsSync24(dbPath)) {
         const db = new Database(dbPath, { readonly: true });
         const cntRow = db.prepare("SELECT COUNT(*) as c FROM documents").get();
         indexed = String(cntRow?.c ?? 0);
@@ -4336,6 +4936,7 @@ ingestCommand(program);
 syncCommand(program);
 obsidianTuneCommand(program);
 removeCommand(program);
+gbrainCommand(program);
 if (process.argv.length <= 2) {
   showBanner();
 } else {
