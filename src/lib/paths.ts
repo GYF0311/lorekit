@@ -180,8 +180,24 @@ export const lintSkipBrokenLinkPrefixes: readonly string[] = ['知识库/模板/
 export const snapshotExcludeNames: ReadonlySet<string> = new Set(['.wiki', '.git', '.DS_Store']);
 
 // ---------------------------------------------------------------------------
+// 边界守卫 helper
+// ---------------------------------------------------------------------------
+
+/**
+ * 检查 abs 是否在 root 边界内（含 root 自身）。
+ * 用法：corpus / tmpdir / .wiki/integrations 任一作为 root 都行。
+ *
+ * 实现来源：原 src/commands/remove.ts 的 withinCorpus()，
+ * v0.4.x 抽到 SSOT 供 restore / gbrain export / search 复用。
+ */
+export function isWithin(root: string, abs: string): boolean {
+  const rel = pathRelative(root, abs);
+  return rel === '' || (!rel.startsWith('..') && !pathIsAbsolute(rel));
+}
+
+// ---------------------------------------------------------------------------
 // 内部 helper（用静态 import；放文件末尾以保持顶部导出干净）
 // ---------------------------------------------------------------------------
 
 import { lstatSync } from 'node:fs';
-import { join as pathJoin } from 'node:path';
+import { join as pathJoin, relative as pathRelative, isAbsolute as pathIsAbsolute } from 'node:path';

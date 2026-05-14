@@ -11,7 +11,7 @@ var __export = (target, all) => {
 
 // src/lib/paths.ts
 import { lstatSync } from "fs";
-import { join as pathJoin } from "path";
+import { join as pathJoin, relative as pathRelative, isAbsolute as pathIsAbsolute } from "path";
 function isIndexExcluded(rel) {
   for (const prefix of indexExcludeDirPrefixes) {
     if (rel === prefix || rel.startsWith(prefix + "/")) return true;
@@ -25,6 +25,10 @@ function isFolderPackage(dir) {
   } catch {
     return false;
   }
+}
+function isWithin(root, abs) {
+  const rel = pathRelative(root, abs);
+  return rel === "" || !rel.startsWith("..") && !pathIsAbsolute(rel);
 }
 var alwaysExcludeNames, vectorIncludeDirs, vectorExcludePrefixes, vectorExcludeNames, indexExcludeDirPrefixes, lintSkipFrontmatterBasenames, lintRootOnlySkipBasenames, lintSkipOrphanPrefixes, lintSkipFrontmatterPrefixes, lintSkipBrokenLinkPrefixes, snapshotExcludeNames;
 var init_paths = __esm({
@@ -105,7 +109,7 @@ var init_logger = __esm({
 // src/lib/vectordb/files.ts
 import { createHash as createHash3 } from "crypto";
 import { readFileSync as readFileSync15, readdirSync as readdirSync8 } from "fs";
-import { basename as basename5, join as join15, relative as relative10 } from "path";
+import { basename as basename5, join as join15, relative as relative9 } from "path";
 import matter3 from "gray-matter";
 function sha2562(filePath) {
   const data = readFileSync15(filePath);
@@ -143,7 +147,7 @@ function collectFiles(corpus) {
       if (entry.isDirectory()) {
         walk(full);
       } else if (entry.name.endsWith(".md")) {
-        const rel = relative10(corpus, full);
+        const rel = relative9(corpus, full);
         if (shouldIndex(rel)) {
           results.push(full);
         }
@@ -387,10 +391,10 @@ var init_chunker = __esm({
 });
 
 // src/lib/vectordb/sync.ts
-import { relative as relative13 } from "path";
+import { relative as relative12 } from "path";
 async function syncFile(db, filePath, corpus, embedFn) {
   const { chunkFile: chunkFile2 } = await Promise.resolve().then(() => (init_chunker(), chunker_exports));
-  const rel = relative13(corpus, filePath);
+  const rel = relative12(corpus, filePath);
   const sha = sha2562(filePath);
   const old = db.prepare("SELECT id FROM documents WHERE path = ?").get(rel);
   if (old) {
@@ -448,7 +452,7 @@ var init_sync = __esm({
 
 // src/lib/vectordb/build-layered-index.ts
 import { existsSync as existsSync15, readFileSync as readFileSync17, readdirSync as readdirSync9 } from "fs";
-import { join as join17, relative as relative14 } from "path";
+import { join as join17, relative as relative13 } from "path";
 import matter5 from "gray-matter";
 function parseIndexSections(content) {
   const lines = content.split("\n");
@@ -505,7 +509,7 @@ function findAllIndexFiles(corpus) {
     for (const entry of entries) {
       if (entry.name.startsWith(".")) continue;
       const full = join17(dir, entry.name);
-      const rel = relative14(corpus, full);
+      const rel = relative13(corpus, full);
       if (vectorExcludePrefixes.some((p) => rel === p || rel.startsWith(p + "/"))) continue;
       if (entry.isDirectory()) {
         walk(full);
@@ -1346,6 +1350,7 @@ async function getGbrainStatus() {
 }
 
 // src/lib/integrations/gbrain-export.ts
+init_paths();
 import { createHash as createHash2 } from "crypto";
 import {
   existsSync as existsSync6,
@@ -1377,8 +1382,15 @@ function sha256Content(content) {
   return "sha256:" + createHash2("sha256").update(content).digest("hex");
 }
 function exportRoot(corpus, out2) {
-  if (!out2) return join6(corpus, ".wiki", "integrations", "gbrain-export");
-  return resolve2(corpus, out2);
+  const wikiIntegrations = join6(corpus, ".wiki", "integrations");
+  if (!out2) return join6(wikiIntegrations, "gbrain-export");
+  const resolved = resolve2(corpus, out2);
+  if (!isWithin(wikiIntegrations, resolved)) {
+    throw new Error(
+      `gbrain export --out must stay within .wiki/integrations/; got: ${resolved}`
+    );
+  }
+  return resolved;
 }
 function collectKnowledgeMarkdown(corpus) {
   const root = join6(corpus, "\u77E5\u8BC6\u5E93");
@@ -2818,11 +2830,12 @@ function snapshotCommand(program2) {
 // src/commands/restore.ts
 init_logger();
 import { existsSync as existsSync13, mkdirSync as mkdirSync7, readFileSync as readFileSync13, copyFileSync, rmSync } from "fs";
-import { join as join13, dirname as dirname4 } from "path";
+import { join as join13, dirname as dirname4, isAbsolute } from "path";
 import { createInterface as createInterface2 } from "readline";
 import { tmpdir } from "os";
 import * as tar2 from "tar";
 import chalk5 from "chalk";
+init_paths();
 function ask2(question) {
   const rl = createInterface2({ input: process.stdin, output: process.stdout });
   return new Promise((resolve5) => {
@@ -2860,7 +2873,17 @@ function restoreCommand(program2) {
       const diffs = [];
       for (const entry of manifest) {
         if (opts.file && entry.path !== opts.file) continue;
+        if (isAbsolute(entry.path) || entry.path.split(/[/\\]/).includes("..")) {
+          bad(`refuse to restore outside corpus: ${entry.path}`);
+          process.exitCode = 1;
+          return;
+        }
         const corpusPath = join13(corpus, entry.path);
+        if (!isWithin(corpus, corpusPath)) {
+          bad(`refuse to restore outside corpus: ${entry.path}`);
+          process.exitCode = 1;
+          return;
+        }
         if (!existsSync13(corpusPath)) {
           diffs.push({
             kind: "MISSING",
@@ -2914,6 +2937,11 @@ function restoreCommand(program2) {
       for (const d of diffs) {
         const src = join13(tmpDir, d.path);
         const dest = join13(corpus, d.path);
+        if (!isWithin(corpus, dest)) {
+          bad(`refuse to restore outside corpus: ${d.path}`);
+          process.exitCode = 1;
+          return;
+        }
         if (!existsSync13(src)) {
           warn(`file not in snapshot archive: ${d.path}`);
           continue;
@@ -2932,10 +2960,15 @@ function restoreCommand(program2) {
 // src/commands/search.ts
 init_logger();
 import { readFileSync as readFileSync14 } from "fs";
-import { join as join14, relative as relative9 } from "path";
+import { join as join14, relative as relative8 } from "path";
 import { spawnSync } from "child_process";
+init_paths();
 function searchWithRipgrep(query, corpus, opts) {
   const searchDir = opts.dir ? join14(corpus, opts.dir) : corpus;
+  if (opts.dir && !isWithin(corpus, searchDir)) {
+    err(`search --dir must stay within corpus; got: ${opts.dir}`);
+    process.exit(2);
+  }
   const args = ["--json", "--no-heading", "-i"];
   if (opts.type) {
     args.push("--type", opts.type);
@@ -2956,7 +2989,7 @@ function searchWithRipgrep(query, corpus, opts) {
       const obj = JSON.parse(line);
       if (obj.type === "match") {
         results.push({
-          file: relative9(corpus, obj.data.path.text),
+          file: relative8(corpus, obj.data.path.text),
           line: obj.data.line_number,
           text: obj.data.lines.text.trimEnd()
         });
@@ -2968,6 +3001,10 @@ function searchWithRipgrep(query, corpus, opts) {
 }
 function searchFallback(query, corpus, opts) {
   const searchDir = opts.dir ? join14(corpus, opts.dir) : corpus;
+  if (opts.dir && !isWithin(corpus, searchDir)) {
+    err(`search --dir must stay within corpus; got: ${opts.dir}`);
+    process.exit(2);
+  }
   const files = collectMdFiles(searchDir);
   const pattern = new RegExp(query, "i");
   const results = [];
@@ -2977,7 +3014,7 @@ function searchFallback(query, corpus, opts) {
     for (let i = 0; i < lines.length; i++) {
       if (pattern.test(lines[i])) {
         results.push({
-          file: relative9(corpus, filePath),
+          file: relative8(corpus, filePath),
           line: i + 1,
           text: lines[i].trimEnd()
         });
@@ -3013,12 +3050,12 @@ function searchCommand(program2) {
 init_logger();
 import { createHash as createHash5 } from "crypto";
 import { existsSync as existsSync17, readFileSync as readFileSync18 } from "fs";
-import { join as join19, relative as relative15 } from "path";
+import { join as join19, relative as relative14 } from "path";
 
 // src/lib/vectordb/prune.ts
 init_files();
 init_schema();
-import { relative as relative11 } from "path";
+import { relative as relative10 } from "path";
 function pruneMissingDocuments(db, existingRelPaths) {
   const rows = db.prepare("SELECT id, path FROM documents").all();
   const missing = rows.filter((row) => !existingRelPaths.has(row.path));
@@ -3056,7 +3093,7 @@ async function pruneVectorDbMissingFiles(corpus) {
   const db = await openDb(corpus);
   try {
     const files = collectFiles(corpus);
-    const existingRelPaths = new Set(files.map((filePath) => relative11(corpus, filePath)));
+    const existingRelPaths = new Set(files.map((filePath) => relative10(corpus, filePath)));
     return pruneMissingDocuments(db, existingRelPaths);
   } finally {
     db.close();
@@ -3074,14 +3111,14 @@ async function runVectorSync(corpus, opts = {}) {
   const dim = testEmb.length;
   const db = await openDb2(corpus, dim);
   const files = collectFiles2(corpus);
-  const existingRelPaths = new Set(files.map((filePath) => relative15(corpus, filePath)));
+  const existingRelPaths = new Set(files.map((filePath) => relative14(corpus, filePath)));
   const pruned = pruneMissingDocuments(db, existingRelPaths);
   if (pruned > 0) warn(`vector sync pruned ${pruned} missing file(s)`);
   let synced = 0;
   let skipped = 0;
   let totalChunks = 0;
   for (const filePath of files) {
-    const rel = relative15(corpus, filePath);
+    const rel = relative14(corpus, filePath);
     if (!force) {
       const row = db.prepare("SELECT sha256 FROM documents WHERE path = ?").get(rel);
       if (row) {
@@ -3164,7 +3201,7 @@ function vectorCommand(program2) {
 
 // src/commands/fetch.ts
 import { existsSync as existsSync19, mkdirSync as mkdirSync10 } from "fs";
-import { join as join25, relative as relative16 } from "path";
+import { join as join25, relative as relative15 } from "path";
 
 // src/lib/fetcher/index.ts
 import { mkdir as mkdir4, writeFile as writeFile4 } from "fs/promises";
@@ -3978,7 +4015,7 @@ function fetchCommand(program2) {
             const sdRaw = fm.source_date;
             const sourceDate = typeof sdRaw === "string" ? sdRaw : sdRaw instanceof Date ? sdRaw.toISOString().slice(0, 10) : void 0;
             duplicate = {
-              path: relative16(corpus, existing),
+              path: relative15(corpus, existing),
               sourceDate,
               title: typeof fm.title === "string" ? fm.title : void 0
             };
@@ -4033,7 +4070,7 @@ function fetchCommand(program2) {
 
 // src/commands/ingest.ts
 import { existsSync as existsSync20, readFileSync as readFileSync20, writeFileSync as writeFileSync8 } from "fs";
-import { join as join26, relative as relative17 } from "path";
+import { join as join26, relative as relative16 } from "path";
 init_logger();
 var VALID_STEPS = ["fetch", "archive", "wiki", "backlink", "lint"];
 function today() {
@@ -4188,7 +4225,7 @@ ${summary.join("\n")}`
     const stemSet = /* @__PURE__ */ new Set();
     const baseNameSet = /* @__PURE__ */ new Set();
     for (const file of allMd) {
-      const rel = relative17(corpus, file);
+      const rel = relative16(corpus, file);
       const stem = rel.replace(/\.md$/, "");
       stemSet.add(stem);
       baseNameSet.add(stem.split("/").pop());
@@ -4209,7 +4246,7 @@ ${summary.join("\n")}`
         process.exitCode = 2;
         continue;
       }
-      const rel = relative17(corpus, abs);
+      const rel = relative16(corpus, abs);
       checked.push(rel);
       let content;
       try {
@@ -4267,7 +4304,7 @@ ${summary.join("\n")}`
       const url = typeof fm.source_url === "string" && fm.source_url || typeof fm.url === "string" && fm.url || "";
       if (!url) continue;
       if (state.ingests[url]) continue;
-      const rel = relative17(corpus, mdPath);
+      const rel = relative16(corpus, mdPath);
       const archivedTo = rel.replace(/\/article\.md$/, "");
       const sdRaw = fm.source_date;
       const sourceDate = typeof sdRaw === "string" ? sdRaw : sdRaw instanceof Date ? sdRaw.toISOString().slice(0, 10) : void 0;
@@ -4618,9 +4655,10 @@ function obsidianTuneCommand(program2) {
 
 // src/commands/remove.ts
 import { existsSync as existsSync23, mkdirSync as mkdirSync13, readFileSync as readFileSync22, renameSync as renameSync2, writeFileSync as writeFileSync12 } from "fs";
-import { basename as basename7, dirname as dirname6, isAbsolute, join as join30, relative as relative18, resolve as resolve4, sep } from "path";
+import { basename as basename7, dirname as dirname6, isAbsolute as isAbsolute2, join as join30, relative as relative17, resolve as resolve4, sep } from "path";
 import matter6 from "gray-matter";
 import trash from "trash";
+init_paths();
 init_logger();
 function isUrl(input) {
   return /^https?:\/\//i.test(input);
@@ -4634,23 +4672,19 @@ function stripMd(rel) {
 function normalizeRel(rel) {
   return toSlash(rel).replace(/^\.\//, "").replace(/\/+/g, "/");
 }
-function withinCorpus(corpus, abs) {
-  const rel = relative18(corpus, abs);
-  return rel === "" || !rel.startsWith("..") && !isAbsolute(rel);
-}
 function resolveInputPath(corpus, input) {
   const candidates = [];
-  const rawAbs = isAbsolute(input) ? input : join30(corpus, input);
+  const rawAbs = isAbsolute2(input) ? input : join30(corpus, input);
   candidates.push(rawAbs);
   if (!input.endsWith(".md")) candidates.push(`${rawAbs}.md`);
   for (const candidate of candidates) {
     const abs = resolve4(candidate);
-    if (withinCorpus(corpus, abs) && existsSync23(abs)) return abs;
+    if (isWithin(corpus, abs) && existsSync23(abs)) return abs;
   }
   return null;
 }
 function relFromAbs(corpus, abs) {
-  return normalizeRel(relative18(corpus, abs));
+  return normalizeRel(relative17(corpus, abs));
 }
 function aliasesForRel(rel) {
   const aliases = /* @__PURE__ */ new Set();
@@ -4672,13 +4706,13 @@ function extractWikilinks(content) {
   return links;
 }
 function addExistingTarget(corpus, targets, relOrAbs, reason) {
-  const abs = isAbsolute(relOrAbs) ? relOrAbs : join30(corpus, relOrAbs);
+  const abs = isAbsolute2(relOrAbs) ? relOrAbs : join30(corpus, relOrAbs);
   if (!existsSync23(abs)) return;
   const rel = relFromAbs(corpus, abs);
   targets.set(rel, { rel, abs, reason });
 }
 function addSourceTarget(corpus, targets, relOrAbs) {
-  const abs = isAbsolute(relOrAbs) ? relOrAbs : join30(corpus, relOrAbs);
+  const abs = isAbsolute2(relOrAbs) ? relOrAbs : join30(corpus, relOrAbs);
   if (!existsSync23(abs)) return;
   const rel = relFromAbs(corpus, abs);
   if (rel.endsWith("/article.md")) {

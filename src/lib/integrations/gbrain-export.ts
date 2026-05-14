@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import matter from 'gray-matter';
+import { isWithin } from '../paths.js';
 import {
   type GbrainExportManifest,
   type GbrainExportManifestPage,
@@ -51,8 +52,18 @@ function sha256Content(content: Buffer | string): string {
 }
 
 function exportRoot(corpus: string, out?: string): string {
-  if (!out) return join(corpus, '.wiki', 'integrations', 'gbrain-export');
-  return resolve(corpus, out);
+  const wikiIntegrations = join(corpus, '.wiki', 'integrations');
+  if (!out) return join(wikiIntegrations, 'gbrain-export');
+  const resolved = resolve(corpus, out);
+  // 边界守卫：AGENTS.md L6 + DESIGN-NOTES §10 承诺 GBrain 只写
+  // `.wiki/integrations/`。`--out` 接受用户输入后必须强校验，
+  // 否则攻击者用 `--out ../../EVIL` 或绝对路径就能写穿 corpus。
+  if (!isWithin(wikiIntegrations, resolved)) {
+    throw new Error(
+      `gbrain export --out must stay within .wiki/integrations/; got: ${resolved}`,
+    );
+  }
+  return resolved;
 }
 
 function collectKnowledgeMarkdown(corpus: string): {

@@ -4,6 +4,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'nod
 import matter from 'gray-matter';
 import trash from 'trash';
 import { collectMdFiles, extractFrontmatter, findSourceByUrl, requireCorpus } from '../lib/corpus.js';
+import { isWithin } from '../lib/paths.js';
 import { loadIngestState, saveIngestState } from '../lib/ingest-state.js';
 import { todayYMDShanghai, tsCompact } from '../lib/date.js';
 import { createSnapshot } from './snapshot.js';
@@ -62,11 +63,6 @@ function normalizeRel(rel: string): string {
   return toSlash(rel).replace(/^\.\//, '').replace(/\/+/g, '/');
 }
 
-function withinCorpus(corpus: string, abs: string): boolean {
-  const rel = relative(corpus, abs);
-  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
-}
-
 function resolveInputPath(corpus: string, input: string): string | null {
   const candidates = [];
   const rawAbs = isAbsolute(input) ? input : join(corpus, input);
@@ -74,7 +70,7 @@ function resolveInputPath(corpus: string, input: string): string | null {
   if (!input.endsWith('.md')) candidates.push(`${rawAbs}.md`);
   for (const candidate of candidates) {
     const abs = resolve(candidate);
-    if (withinCorpus(corpus, abs) && existsSync(abs)) return abs;
+    if (isWithin(corpus, abs) && existsSync(abs)) return abs;
   }
   return null;
 }
