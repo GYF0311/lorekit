@@ -8,8 +8,9 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import matter from 'gray-matter';
+import { isWithin } from '../paths.js';
 import {
   type GbrainExportManifest,
   type GbrainExportManifestPage,
@@ -51,16 +52,11 @@ function sha256Content(content: Buffer | string): string {
   return 'sha256:' + createHash('sha256').update(content).digest('hex');
 }
 
-function isWithin(parent: string, child: string): boolean {
-  const rel = relative(parent, child);
-  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
-}
-
 function exportRoot(corpus: string, out?: string, allowOutsideCorpus = false): string {
-  if (!out) return join(corpus, '.wiki', 'integrations', 'gbrain-export');
+  const safeRoot = resolve(corpus, '.wiki', 'integrations');
+  if (!out) return join(safeRoot, 'gbrain-export');
   const root = resolve(corpus, out);
   if (!allowOutsideCorpus) {
-    const safeRoot = resolve(corpus, '.wiki', 'integrations');
     if (!isWithin(safeRoot, root)) {
       throw new Error(
         'invalid --out: export directory must stay under .wiki/integrations/ unless --allow-outside-corpus is set',

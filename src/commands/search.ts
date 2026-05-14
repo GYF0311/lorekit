@@ -2,8 +2,9 @@ import type { Command } from 'commander';
 import { readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { warn, out } from '../utils/logger.js';
+import { err, warn, out } from '../utils/logger.js';
 import { requireCorpus, collectMdFiles } from '../lib/corpus.js';
+import { isWithin } from '../lib/paths.js';
 
 interface SearchResult {
   file: string;
@@ -17,6 +18,10 @@ function searchWithRipgrep(
   opts: { type?: string; dir?: string },
 ): SearchResult[] {
   const searchDir = opts.dir ? join(corpus, opts.dir) : corpus;
+  if (opts.dir && !isWithin(corpus, searchDir)) {
+    err(`search --dir must stay within corpus; got: ${opts.dir}`);
+    process.exit(2);
+  }
   const args: string[] = ['--json', '--no-heading', '-i'];
 
   if (opts.type) {
@@ -58,6 +63,10 @@ function searchWithRipgrep(
 
 function searchFallback(query: string, corpus: string, opts: { dir?: string }): SearchResult[] {
   const searchDir = opts.dir ? join(corpus, opts.dir) : corpus;
+  if (opts.dir && !isWithin(corpus, searchDir)) {
+    err(`search --dir must stay within corpus; got: ${opts.dir}`);
+    process.exit(2);
+  }
   const files = collectMdFiles(searchDir);
   const pattern = new RegExp(query, 'i');
   const results: SearchResult[] = [];

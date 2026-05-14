@@ -1,12 +1,13 @@
 import type { Command } from 'commander';
 import { existsSync, mkdirSync, readFileSync, copyFileSync, rmSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, isAbsolute } from 'node:path';
 import { createInterface } from 'node:readline';
 import { tmpdir } from 'node:os';
 import * as tar from 'tar';
 import chalk from 'chalk';
 import { ok, bad, warn, print } from '../utils/logger.js';
 import { requireCorpus } from '../lib/corpus.js';
+import { isWithin } from '../lib/paths.js';
 import { sha256 } from '../utils/fs.js';
 
 interface ManifestEntry {
@@ -91,7 +92,22 @@ export function restoreCommand(program: Command) {
           // Skip if --file is specified and doesn't match
           if (opts.file && entry.path !== opts.file) continue;
 
+          // 边界守卫：恶意 manifest 的 entry.path 可能含 `..` 或绝对路径，
+          // join(corpus, ...) 后 copyFileSync 能写出 corpus（CWE-22）。
+          // 早判一次，dry-run 模式也安全。
+          if (isAbsolute(entry.path) || entry.path.split(/[/\\]/).includes('..')) {
+            bad(`refuse to restore outside corpus: ${entry.path}`);
+            process.exitCode = 1;
+            return;
+          }
+
           const corpusPath = join(corpus, entry.path);
+          if (!isWithin(corpus, corpusPath)) {
+            bad(`refuse to restore outside corpus: ${entry.path}`);
+            process.exitCode = 1;
+            return;
+          }
+
           if (!existsSync(corpusPath)) {
             diffs.push({
               kind: 'MISSING',
@@ -152,6 +168,13 @@ export function restoreCommand(program: Command) {
         for (const d of diffs) {
           const src = join(tmpDir, d.path);
           const dest = join(corpus, d.path);
+          // 双保险：早判已拒过 `..` / 绝对路径，这里 belt-and-suspenders 防御
+          // 任何 join() 后才暴露的越界（例如 d.path 是 symlink 或编码诡计）。
+          if (!isWithin(corpus, dest)) {
+            bad(`refuse to restore outside corpus: ${d.path}`);
+            process.exitCode = 1;
+            return;
+          }
           if (!existsSync(src)) {
             warn(`file not in snapshot archive: ${d.path}`);
             continue;
