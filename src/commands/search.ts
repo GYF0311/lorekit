@@ -30,10 +30,17 @@ function searchWithRipgrep(
   const result = spawnSync('rg', args, {
     encoding: 'utf-8',
     maxBuffer: 10 * 1024 * 1024,
+    // 30s 上限：规避恶意 / 退化 regex 在巨型 corpus 上拖垮 CLI（PR #5 review M3）。
+    // ripgrep 正常扫几 GB markdown 也只要几秒，30s 是宽松值。
+    timeout: 30_000,
   });
 
   if (result.error) {
-    // rg not found
+    // rg 未安装 → 返回空让上层 fallback；
+    // 也可能是 timeout（result.signal === 'SIGTERM'），同样返回空 + 上层 fallback
+    if ((result as { signal?: string }).signal === 'SIGTERM') {
+      warn(`rg timed out after 30s, falling back to built-in scan`);
+    }
     return [];
   }
 
