@@ -7,7 +7,7 @@
  * `lorekit ingest-check`.
  */
 import type { Command } from 'commander';
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { requireCorpus, collectMdFiles, extractFrontmatter } from '../lib/corpus.js';
 import {

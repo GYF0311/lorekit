@@ -2,7 +2,7 @@ import type { Command } from 'commander';
 import { readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { ok, bad, warn, out } from '../utils/logger.js';
+import { warn, out } from '../utils/logger.js';
 import { requireCorpus, collectMdFiles } from '../lib/corpus.js';
 
 interface SearchResult {
