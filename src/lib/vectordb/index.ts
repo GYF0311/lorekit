@@ -1,11 +1,11 @@
 /**
  * vectordb/index.ts — 子模块对外主入口（barrel re-export）
  *
- * 批次 22e strangler fig 第五步：建主入口模块。本文件**不含 runtime 代码**，
- * 仅 re-export 公开 API；实现散在 22a-22d + 22e 的 9 个子文件里。
- *
- * 22e 阶段：本文件目前未被任何调用方 import；commands/vector.ts 仍 dynamic
- * import 旧 src/lib/vectordb.ts。22f 才切换 + 删旧。
+ * v0.4.0：本文件是 vectordb 子模块的公开入口（barrel re-export）；
+ * commands/vector.ts 通过本 barrel dynamic import 9 个公开 API
+ * （openDb / syncFile / buildLayeredIndex / collectFiles / queryFlat /
+ * queryLayered / queryBM25Layered / queryHybrid / getStatus）+ rrfMerge
+ * + 常量 + types。本文件不含 runtime 代码。
  *
  * **公开 surface**（commands/*.ts 真正用到的 API）：
  * - 9 个 value：openDb / syncFile / buildLayeredIndex / collectFiles

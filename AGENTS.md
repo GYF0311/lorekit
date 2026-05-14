@@ -4,7 +4,6 @@
 
 - **当前版本**：v0.4.0
 - **最近完成**：21+22+23+24-fix（拆 fetcher / 拆 vectordb / 清 follow-up / 修 BM25 L0 gate 老 bug）+ 25/26（Obsidian graph filter 新老用户触达 + `lorekit obsidian-tune` + doctor 集成）+ GBrain 只读集成（`lorekit gbrain status/export/sync/doctor/query`，只写 `.wiki/integrations/`）
-- **⚠️ 待 push**：本地 main 领先 origin/main 若干 commits（最新 `a498f1c` docs: 补 CHANGELOG + 修 ARCHITECTURE 过期引用）。上次 push 时 GitHub SSL 连接挂（网络瞬时故障），先生稍后自己 `git push origin main` 收尾，或让你帮他重试 push
 - **待决策（高）**：harness 规则补全 + Read 路径保障 —— 详见 `docs/plans/2026-04-19-route-a-cli-upgrade.md` 与 `docs/plans/2026-04-19-route-b-schema-skill-upgrade.md`
 - **待决策（中）**：综合 wiki schema 升级（按类型分目录 + domains tag + L0 改领域导览图）—— 详见 `docs/DESIGN-NOTES.md` §5.1 + `docs/IDEAS.md` 顶部"schema 升级"条目
 - **新会话接手顺序**：AGENTS.md → docs/CONVENTIONS → docs/ARCHITECTURE → docs/CODEBASE-MAP → docs/DESIGN-NOTES → docs/IDEAS → docs/plans/（~25k tok 完全对齐）
