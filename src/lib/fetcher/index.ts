@@ -30,6 +30,7 @@ import {
   detectSite,
   fetchHtmlL1,
   fetchHtmlL2,
+  PrivateAddressError,
 } from './http.js';
 import { downloadImages, rewriteMarkdownImages } from './images.js';
 import { parseGeneric } from './routes/web.js';
@@ -65,8 +66,21 @@ export async function fetchUrl(url: string, opts: FetchOptions): Promise<FetchRe
     if (detectAntibot(html, site)) {
       html = '';
     }
-  } catch {
-    // L1 失败（HTTP 非 2xx / abort / 网络错误）→ 退 L2 fallback
+  } catch (e) {
+    // SSRF guard 拒绝时直接冒泡为 FetchResult error，不退 L2 fallback
+    // （L2 playwright 同样会被绕过 guard 命中私网，必须显式拒绝）
+    if (e instanceof PrivateAddressError) {
+      return {
+        status: 'error',
+        route: 'rich',
+        url,
+        reason: 'PRIVATE_ADDRESS_BLOCKED',
+        suggest:
+          `target resolves to private address ${e.address}. ` +
+          'Set LOREKIT_FETCH_ALLOW_PRIVATE=1 to allow (local dev only).',
+      };
+    }
+    // 其它 L1 失败（HTTP 非 2xx / abort / 网络错误）→ 退 L2 fallback
     html = '';
   }
 

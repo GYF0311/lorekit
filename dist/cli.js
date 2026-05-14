@@ -2944,9 +2944,15 @@ function searchWithRipgrep(query, corpus, opts) {
   args.push(query, searchDir);
   const result = spawnSync("rg", args, {
     encoding: "utf-8",
-    maxBuffer: 10 * 1024 * 1024
+    maxBuffer: 10 * 1024 * 1024,
+    // 30s 上限：规避恶意 / 退化 regex 在巨型 corpus 上拖垮 CLI（PR #5 review M3）。
+    // ripgrep 正常扫几 GB markdown 也只要几秒，30s 是宽松值。
+    timeout: 3e4
   });
   if (result.error) {
+    if (result.signal === "SIGTERM") {
+      warn(`rg timed out after 30s, falling back to built-in scan`);
+    }
     return [];
   }
   const results = [];
@@ -3242,9 +3248,12 @@ function normalizeDateText(raw) {
 }
 
 // src/lib/fetcher/http.ts
+import { lookup } from "dns/promises";
+import { BlockList, isIP } from "net";
 var UA_IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
 var UA_DESKTOP = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 var HTTP_TIMEOUT_MS = 2e4;
+var MAX_REDIRECTS = 5;
 var ANTIBOT_TRIGGERS = [
   "\u73AF\u5883\u5F02\u5E38",
   "\u8BF7\u5728\u5FAE\u4FE1\u5BA2\u6237\u7AEF\u6253\u5F00",
@@ -3252,6 +3261,73 @@ var ANTIBOT_TRIGGERS = [
   "Just a moment",
   "cf-browser-verification"
 ];
+var PRIVATE_BLOCKS = (() => {
+  const bl = new BlockList();
+  bl.addSubnet("127.0.0.0", 8, "ipv4");
+  bl.addSubnet("10.0.0.0", 8, "ipv4");
+  bl.addSubnet("172.16.0.0", 12, "ipv4");
+  bl.addSubnet("192.168.0.0", 16, "ipv4");
+  bl.addSubnet("169.254.0.0", 16, "ipv4");
+  bl.addSubnet("0.0.0.0", 8, "ipv4");
+  bl.addAddress("::1", "ipv6");
+  bl.addSubnet("fc00::", 7, "ipv6");
+  bl.addSubnet("fe80::", 10, "ipv6");
+  return bl;
+})();
+var PrivateAddressError = class extends Error {
+  constructor(message, host, address) {
+    super(message);
+    this.host = host;
+    this.address = address;
+    this.name = "PrivateAddressError";
+  }
+  host;
+  address;
+  code = "SSRF_PRIVATE_ADDRESS";
+};
+function isPrivateOptOut() {
+  const v = process.env.LOREKIT_FETCH_ALLOW_PRIVATE;
+  return v === "1" || v === "true";
+}
+async function assertPublicAddress(urlStr) {
+  if (isPrivateOptOut()) return;
+  let parsed;
+  try {
+    parsed = new URL(urlStr);
+  } catch {
+    return;
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return;
+  const rawHost = parsed.hostname;
+  const host = rawHost.startsWith("[") && rawHost.endsWith("]") ? rawHost.slice(1, -1) : rawHost;
+  if (!host) return;
+  const ipVersion = isIP(host);
+  if (ipVersion === 4 || ipVersion === 6) {
+    const family2 = ipVersion === 4 ? "ipv4" : "ipv6";
+    if (PRIVATE_BLOCKS.check(host, family2)) {
+      throw new PrivateAddressError(
+        `refusing to fetch private address ${host} (set LOREKIT_FETCH_ALLOW_PRIVATE=1 to override)`,
+        host,
+        host
+      );
+    }
+    return;
+  }
+  let addr;
+  try {
+    addr = await lookup(host);
+  } catch {
+    return;
+  }
+  const family = addr.family === 6 ? "ipv6" : "ipv4";
+  if (PRIVATE_BLOCKS.check(addr.address, family)) {
+    throw new PrivateAddressError(
+      `refusing to fetch ${host} which resolves to private address ${addr.address} (set LOREKIT_FETCH_ALLOW_PRIVATE=1 to override)`,
+      host,
+      addr.address
+    );
+  }
+}
 function detectSite(url) {
   try {
     const host = new URL(url).hostname.toLowerCase();
@@ -3284,13 +3360,33 @@ async function fetchHtmlL1(url, headers) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS);
   try {
-    const res = await fetch(url, {
-      headers,
-      redirect: "follow",
-      signal: controller.signal
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.text();
+    let currentUrl = url;
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      await assertPublicAddress(currentUrl);
+      const res = await fetch(currentUrl, {
+        headers,
+        redirect: "manual",
+        signal: controller.signal
+      });
+      if (res.status >= 300 && res.status < 400) {
+        const loc = res.headers.get("location");
+        if (!loc) {
+          throw new Error(`HTTP ${res.status} without Location header`);
+        }
+        if (hop === MAX_REDIRECTS) {
+          throw new Error(`too many redirects (>${MAX_REDIRECTS}) starting from ${url}`);
+        }
+        currentUrl = new URL(loc, currentUrl).toString();
+        try {
+          await res.arrayBuffer();
+        } catch {
+        }
+        continue;
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.text();
+    }
+    throw new Error(`unreachable: redirect loop exit ${url}`);
   } finally {
     clearTimeout(timer);
   }
@@ -3740,7 +3836,16 @@ async function fetchUrl(url, opts) {
     if (detectAntibot(html, site)) {
       html = "";
     }
-  } catch {
+  } catch (e) {
+    if (e instanceof PrivateAddressError) {
+      return {
+        status: "error",
+        route: "rich",
+        url,
+        reason: "PRIVATE_ADDRESS_BLOCKED",
+        suggest: `target resolves to private address ${e.address}. Set LOREKIT_FETCH_ALLOW_PRIVATE=1 to allow (local dev only).`
+      };
+    }
     html = "";
   }
   if (!html) {
