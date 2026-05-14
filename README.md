@@ -2,7 +2,7 @@
 
 A personal LLM Wiki toolkit — let AI build and maintain your knowledge base.
 
-Based on [Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f), lorekit gives any AI coding agent (Claude Code / Codex / Cursor / Kimi CLI / Aider / Windsurf) a local knowledge-base workflow: **raw sources → LLM compilation → persistent wiki**. Compile once, keep updating — no RAG.
+Based on [Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f), lorekit gives any AI coding agent a local knowledge-base workflow: **raw sources → LLM compilation → persistent wiki**. Compile once, keep updating — no RAG. `lorekit install-skills` currently auto-installs the `wiki-*` skills for Claude Code only; for other agents (Codex / Cursor / Kimi CLI / Aider / Windsurf), the `skills/` directory is plain Markdown — symlink or copy into your agent's skill path.
 
 > **Hand the GitHub link to your AI, say "install this for me" — it reads CLAUDE.md / AGENTS.md and does the rest.**
 
@@ -43,6 +43,7 @@ Three layers:
 | Vector status   | `lorekit vector status` | Inspect the index; returns `mode: text\|vector` recommendation based on `indexed_files` vs `MODE_THRESHOLD_FILES` (default 100)                                       |
 | Directory index | `lorekit index`         | Recursively generate `_INDEX.md` for every subdirectory (including folder-packaged sources like `原料/文章/<slug>/article.md`)                                        |
 | **Sync**        | **`lorekit sync`**      | **One-shot: `index` → `vector sync --layered` → `doctor`; supports `--json` and `--report` for agent-readable step receipts**                                       |
+| Obsidian tune   | `lorekit obsidian-tune` | 老用户升级一键应用 Obsidian graph filter（默认只读检查 / `--write` 备份后写 / `--print` 管道用）                                                                       |
 | GBrain          | `lorekit gbrain <sub>`  | Optional read-only bridge: export `知识库/` into `.wiki/integrations/gbrain-export/`, then call external `gbrain import`; never writes canonical wiki pages             |
 
 > The CLI is named `lorekit`. The 6 Agent Skills keep the `wiki-` prefix (a nod to Karpathy's LLM Wiki): `wiki-ingest` / `wiki-query` / `wiki-fileback` / `wiki-lint` / `wiki-enrich` / `wiki-audit`.
@@ -115,7 +116,7 @@ cd ~/code/lorekit && npm install && npm run build
 npm link
 
 # 4. Verify
-lorekit --version   # → 0.2.0
+lorekit --version   # → 0.4.0
 lorekit             # no-arg invocation shows the brand banner
 
 # 5. Initialize a corpus
