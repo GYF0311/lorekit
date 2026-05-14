@@ -24,7 +24,7 @@ function extractSummary(filePath: string): string {
     if (/^## /.test(line)) break;
     if (line.trim() === '') continue;
 
-    let text = line.trim().replace(/^\*\*[^*]*\*\*\s*/, '');
+    const text = line.trim().replace(/^\*\*[^*]*\*\*\s*/, '');
     const periodMatch = text.match(/^([^。.]*[。.])/);
     if (periodMatch && periodMatch[1].length <= 50) return periodMatch[1];
     return text.slice(0, 50);

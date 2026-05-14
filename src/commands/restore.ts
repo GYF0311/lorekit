@@ -1,11 +1,11 @@
 import type { Command } from 'commander';
 import { existsSync, mkdirSync, readFileSync, copyFileSync, rmSync } from 'node:fs';
-import { join, dirname, relative } from 'node:path';
+import { join, dirname } from 'node:path';
 import { createInterface } from 'node:readline';
 import { tmpdir } from 'node:os';
 import * as tar from 'tar';
 import chalk from 'chalk';
-import { ok, bad, err, warn, print } from '../utils/logger.js';
+import { ok, bad, warn, print } from '../utils/logger.js';
 import { requireCorpus } from '../lib/corpus.js';
 import { sha256 } from '../utils/fs.js';
 

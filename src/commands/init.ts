@@ -1,14 +1,6 @@
 import type { Command } from 'commander';
-import {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  cpSync,
-  readFileSync,
-  writeFileSync,
-  statSync,
-} from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import { existsSync, mkdirSync, readdirSync, cpSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import chalk from 'chalk';
 import { ok, bad, warn, print } from '../utils/logger.js';

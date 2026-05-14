@@ -55,7 +55,7 @@ export function parseWeixin(html: string, baseUrl: string): ParsedDoc {
   const $ = cheerio.load(html);
 
   // Title
-  let title =
+  const title =
     $('h1#activity-name').text().trim() ||
     $('h1.rich_media_title').text().trim() ||
     $('meta[property="og:title"]').attr('content')?.trim() ||

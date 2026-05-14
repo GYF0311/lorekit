@@ -17,7 +17,7 @@ import TurndownService from 'turndown';
  * 保留 word 字符（含中文），其他符号收敛成 `-`，限长 50；空串回退 `untitled`。
  */
 export function slugify(s: string): string {
-  let slug = s.replace(/[^\w\u4e00-\u9fff-]+/g, '-').replace(/^-+|-+$/g, '');
+  const slug = s.replace(/[^\w\u4e00-\u9fff-]+/g, '-').replace(/^-+|-+$/g, '');
   return slug.slice(0, 50) || 'untitled';
 }
 
