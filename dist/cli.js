@@ -3911,6 +3911,7 @@ function nextStepHint(record) {
 }
 
 // src/commands/fetch.ts
+init_logger();
 function suggestResult(route, url, suggest) {
   return { status: "unsupported", route, url, suggest };
 }
@@ -3947,14 +3948,14 @@ function fetchCommand(program2) {
         const state = getIngestRecord(corpus, url);
         if (state && state.status !== "completed") {
           const hint = nextStepHint(state);
-          console.error(
+          err(
             `[lorekit fetch] in-progress ingest detected for ${url}
   status: ${state.status}  steps done: ${state.stepsDone.join(", ") || "(none)"}
   started: ${state.startedAt}
   next step \u2192 ${hint}
   use --force to restart from scratch`
           );
-          console.log(
+          out(
             JSON.stringify({
               status: "in_progress",
               route: "rich",
@@ -3985,10 +3986,10 @@ function fetchCommand(program2) {
           }
         }
         if (duplicate) {
-          console.error(
+          err(
             `[lorekit fetch] duplicate url: ${url} already ingested at ${duplicate.path}` + (duplicate.sourceDate ? ` (source_date: ${duplicate.sourceDate})` : "") + `. Use --force to re-fetch anyway.`
           );
-          console.log(JSON.stringify({ status: "duplicate", route: "rich", url, duplicate }));
+          out(JSON.stringify({ status: "duplicate", route: "rich", url, duplicate }));
           return;
         }
       }
@@ -4023,7 +4024,7 @@ function fetchCommand(program2) {
           workbenchMd: result.markdown
         });
       }
-      console.log(JSON.stringify(result));
+      out(JSON.stringify(result));
       if (result.status === "error") {
         process.exitCode = 1;
       }
