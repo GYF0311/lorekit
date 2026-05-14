@@ -59,7 +59,7 @@ function exportRoot(corpus: string, out?: string, allowOutsideCorpus = false): s
   if (!allowOutsideCorpus) {
     if (!isWithin(safeRoot, root)) {
       throw new Error(
-        'invalid --out: export directory must stay under .wiki/integrations/ unless --allow-outside-corpus is set',
+        'invalid --out: export directory must stay within .wiki/integrations/ unless --allow-outside-corpus is set',
       );
     }
   }

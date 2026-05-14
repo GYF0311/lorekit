@@ -7,7 +7,7 @@
 // - install-skills 走 HOME 覆盖（process.env.HOME 是 install-skills.ts 内唯一目标根），
 //   避免污染用户真实 ~/.claude/skills/
 
-import { test, before, after } from 'node:test';
+import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readdirSync, writeFileSync, lstatSync } from 'node:fs';
 import { join } from 'node:path';
