@@ -5,6 +5,9 @@ dist/
 node_modules/
 plugins/obsidian-audit/main.js
 
+# 临时上游研究快照
+brain/
+
 # 锁文件 / 大型生成物
 package-lock.json
 *.tar.gz

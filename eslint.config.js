@@ -15,6 +15,7 @@ export default tseslint.config(
   {
     ignores: [
       'dist/**',
+      'brain/**',
       'node_modules/**',
       '.claude/**',
       'plugins/obsidian-audit/main.js', // 第三方构建产物

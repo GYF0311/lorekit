@@ -1,0 +1,2 @@
+# Preserve upstream research snapshots without rewriting third-party whitespace.
+brain/** -whitespace
