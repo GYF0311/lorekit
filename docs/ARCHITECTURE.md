@@ -159,6 +159,7 @@ flowchart LR
 | 抽象        | 文件                           | 责任边界                                                                      |
 | ----------- | ------------------------------ | ----------------------------------------------------------------------------- |
 | Corpus      | `lib/corpus.ts`                | 给一个目录，判定它是不是 corpus（看 `.wiki/` 或 `CLAUDE.md`），向上递归找根   |
+| PathRules   | `lib/paths.ts`                 | include / exclude 路径规则 SSOT；`skills/`、`node_modules/` 等工具目录不进入 wiki lint / index / vector 扫描 |
 | Frontmatter | `lib/corpus.ts`                | gray-matter 包装：`extractFrontmatter` / `hasFrontmatter` / `findSourceByUrl` |
 | IngestState | `lib/ingest-state.ts`          | `.wiki/ingest-state.json` 单一事实源；3 个 status × N 个 stepsDone            |
 | Fetcher     | `lib/fetcher/`                 | URL → 本地 markdown + 图片；L1 native fetch，L2 playwright fallback（10 文件子模块，v0.4.0 / 批次 21 拆分） |
@@ -183,6 +184,7 @@ flowchart LR
 | ingest 状态机           | `started` / `completed` / `failed` × `stepsDone[]`  | 加新 step 只需在 `IngestStep` 枚举里加值，状态枚举不动                              |
 | 检索模式阈值            | `MODE_THRESHOLD_FILES = 100`                        | 按 indexed_files 计数，跟随 Karpathy 原文 "moderate scale ~100 sources"             |
 | frontmatter 必填字段    | `templates/default-corpus/系统/frontmatter-spec.md` | 由 `lint` 命令检查（`type` / `title` / `slug` / `created` / `updated`）             |
+| 工具目录隔离            | `lib/paths.ts`                                       | `skills/` 是 Agent workflow packs，`node_modules/` 是依赖内容；默认不按 wiki 页面 lint / index / sync |
 
 ## 外部依赖契约
 

@@ -33,7 +33,7 @@ Three layers:
 | Search          | `lorekit search`        | Text search + vector semantic search (hybrid)                                                                                                                         |
 | Web fetch       | `lorekit fetch <url>`   | Pulls WeChat / generic pages into the workbench; auto-extracts `publishDate`, writes spec-compliant frontmatter, detects duplicate / in-progress URLs from state.json |
 | Ingest state    | `lorekit ingest <sub>`  | `list` / `pending` / `record` / `forget` / `reconcile` — the single source of truth for ingest pipeline progress                                                      |
-| Lint            | `lorekit lint`          | Broken wikilinks, orphan pages, duplicate detection                                                                                                                   |
+| Lint            | `lorekit lint`          | Broken wikilinks, orphan pages, duplicate detection; `--quick` is accepted as a compatibility alias for agent self-checks                                             |
 | Snapshot        | `lorekit snapshot`      | Full-corpus tarball + manifest                                                                                                                                        |
 | Restore         | `lorekit restore`       | Recover missing / changed files from a snapshot                                                                                                                       |
 | Remove          | `lorekit remove`        | Dry-run impact report, then safely move selected sources/pages to OS Trash with provenance-aware cleanup                                                              |
@@ -110,7 +110,7 @@ Optional routes:
 
 For detailed global vs project-local setup, see [`docs/INSTALLATION.md`](docs/INSTALLATION.md).
 
-Project-local install is an isolation choice, not a requirement. In that mode, `skills/*/SKILL.md` lives inside the corpus and `AGENTS.md` provides the short routing descriptions. These project-local skills usually do not appear in Codex's `/` skill preview; the agent reads them on demand through the project rules.
+Project-local install is an isolation choice, not a requirement. In that mode, `skills/*/SKILL.md` lives inside the corpus and `AGENTS.md` provides the short routing descriptions. These project-local skills usually do not appear in Codex's `/` skill preview; the agent reads them on demand through the project rules. lorekit treats `skills/` and `node_modules/` as tooling directories, so lint / index / sync do not treat their markdown as canonical corpus pages.
 
 ## Quick Start
 

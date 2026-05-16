@@ -42,11 +42,11 @@ lorekit/
 | `search.ts`         | 117 | ripgrep 包装（有内置 fallback）                                                                                   |
 | `fetch.ts`          | 183 | URL 路由 → 调 fetcher 子模块，duplicate / in-progress 检测                                                        |
 | `ingest.ts`         | 407 | ingest pipeline state machine：list / pending / record / check / forget / reconcile                               |
-| `dir-index.ts`      | 273 | 递归生成 `_INDEX.md`（原 `commands/index.ts`，批次 17 改名消除歧义）                                              |
+| `dir-index.ts`      | 273 | 递归生成 `_INDEX.md`；复用 `paths.ts` 跳过 `skills/` / `node_modules/` 等工具目录                                  |
 | `sync.ts`           | 204 | 一键链：dir-index → root index → vector sync → doctor；`--json/--report` 输出步骤收据                             |
 | `doctor.ts`         | 469 | corpus 健康检查；human 输出 + `--json` 结构化报告 + 严格 `--section <name>` 检查                                  |
 | `vector.ts`         | 188 | 向量子命令：sync / query（flat / layered / bm25 / hybrid）/ status                                                |
-| `lint.ts`           | 192 | frontmatter / 死链 / 孤岛页扫描                                                                                   |
+| `lint.ts`           | 230 | frontmatter / 死链 / 孤岛页扫描；`--quick` 是 agent 自检兼容别名                                                   |
 | `audit.ts`          | 162 | 反馈条目 CRUD                                                                                                     |
 | `snapshot.ts`       | 108 | tarball 备份                                                                                                      |
 | `restore.ts`        | 170 | 从 tarball 恢复                                                                                                   |
@@ -61,10 +61,10 @@ lorekit/
 
 | 文件              | LoC | 职责                                                                                                                                                                       |
 | ----------------- | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `paths.ts`        | 168 | **统一 exclude / include 路径常量 SSOT**（CONVENTIONS Do Not #11）                                                                                                         |
+| `paths.ts`        | 231 | **统一 exclude / include 路径常量 SSOT**；包含 `skills/`、`node_modules/` 工具目录边界（CONVENTIONS Do Not #11）                                                            |
 | `root-index.ts`   | 196 | merge-refresh `corpus/index.md` 的受控分区                                                                                                                                 |
 | `ingest-state.ts` | 147 | `.wiki/ingest-state.json` 读写，pipeline SSOT                                                                                                                              |
-| `corpus.ts`       | 97  | corpus 发现 + frontmatter 提取                                                                                                                                             |
+| `corpus.ts`       | 98  | corpus 发现 + frontmatter 提取；`collectMdFiles` 跳过全局工具目录                                                                                                          |
 | `chunker.ts`      | 72  | markdown 按 `## heading` 切 chunk                                                                                                                                          |
 | `date.ts`         | 56  | 日期 helper：`pad2` / `dateToYMDUtc` / `tsCompact` 等                                                                                                                      |
 | `ollama.ts`       | 41  | ollama embed API 客户端                                                                                                                                                    |
@@ -91,9 +91,9 @@ lorekit/
 | ------------------------ | --- | -------------------------------------------------------------------------------- |
 | `index.ts`               | 54  | barrel re-export 9 公开 API + rrfMerge + 常量 + type                             |
 | `schema.ts`              | 256 | 常量 + 类型 + DDL + `openDb` + `loadSqlite`                                      |
-| `files.ts`               | 140 | `sha256` / `collectFiles` / `extractPageSummary` 等                              |
+| `files.ts`               | 147 | `sha256` / `collectFiles` / `extractPageSummary` 等；复用全局工具目录排除规则    |
 | `sync.ts`                | 128 | `syncFile` 单文件增量同步                                                        |
-| `build-layered-index.ts` | 283 | `buildLayeredIndex` 全量重建 L0/L1 + parseIndex\* helpers                        |
+| `build-layered-index.ts` | 288 | `buildLayeredIndex` 全量重建 L0/L1 + parseIndex\* helpers，L1 扫描跳过工具目录   |
 | `query-flat.ts`          | 76  | `queryFlat` 单层向量召回                                                         |
 | `query-layered.ts`       | 180 | `queryLayered` L0/L1/L2 三层向量分层                                             |
 | `query-bm25.ts`          | 136 | `queryBM25Layered` BM25 chunk 直查（24-fix 改 flat）+ sanitize                   |

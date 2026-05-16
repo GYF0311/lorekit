@@ -220,6 +220,7 @@ export function lintCommand(program: Command) {
   program
     .command('lint')
     .description('check frontmatter, broken wikilinks, and orphan pages')
+    .option('--quick', 'compatibility alias for the default lint scan', false)
     .action(() => {
       const corpus = requireCorpus();
       const issues = runLint(corpus);

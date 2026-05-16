@@ -19,7 +19,13 @@ import { basename, join, relative } from 'node:path';
 
 import matter from 'gray-matter';
 
-import { vectorIncludeDirs, vectorExcludePrefixes, vectorExcludeNames } from '../paths.js';
+import {
+  hasAlwaysExcludedDirSegment,
+  matchesDirPrefix,
+  vectorIncludeDirs,
+  vectorExcludePrefixes,
+  vectorExcludeNames,
+} from '../paths.js';
 
 // ---------------------------------------------------------------------------
 // 字节层小工具
@@ -69,11 +75,12 @@ export function shouldIndex(rel: string): boolean {
   const parts = rel.split('/');
   if (vectorExcludeNames.has(parts[parts.length - 1])) return false;
   if (!rel.endsWith('.md')) return false;
+  if (hasAlwaysExcludedDirSegment(rel)) return false;
   for (const prefix of vectorExcludePrefixes) {
-    if (rel === prefix || rel.startsWith(prefix + '/')) return false;
+    if (matchesDirPrefix(rel, prefix)) return false;
   }
   for (const inc of vectorIncludeDirs) {
-    if (rel === inc || rel.startsWith(inc + '/')) return true;
+    if (matchesDirPrefix(rel, inc)) return true;
   }
   return false;
 }

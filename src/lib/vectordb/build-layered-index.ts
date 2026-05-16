@@ -26,7 +26,11 @@ import { join, relative } from 'node:path';
 
 import matter from 'gray-matter';
 
-import { vectorExcludePrefixes } from '../paths.js';
+import {
+  hasAlwaysExcludedDirSegment,
+  matchesDirPrefix,
+  vectorExcludePrefixes,
+} from '../paths.js';
 import * as logger from '../../utils/logger.js';
 import { float32ToBuffer } from './files.js';
 import type { Db } from './schema.js';
@@ -142,7 +146,8 @@ function findAllIndexFiles(corpus: string): string[] {
       if (entry.name.startsWith('.')) continue;
       const full = join(dir, entry.name);
       const rel = relative(corpus, full);
-      if (vectorExcludePrefixes.some((p) => rel === p || rel.startsWith(p + '/'))) continue;
+      if (hasAlwaysExcludedDirSegment(rel)) continue;
+      if (vectorExcludePrefixes.some((p) => matchesDirPrefix(rel, p))) continue;
 
       if (entry.isDirectory()) {
         walk(full);

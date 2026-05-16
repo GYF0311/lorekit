@@ -12,9 +12,24 @@ var __export = (target, all) => {
 // src/lib/paths.ts
 import { lstatSync } from "fs";
 import { join as pathJoin, relative as pathRelative, isAbsolute as pathIsAbsolute } from "path";
+function normalizeRelPath(rel) {
+  return rel.replace(/\\/g, "/").replace(/\/+/g, "/").replace(/^\.\//, "");
+}
+function relParts(rel) {
+  return normalizeRelPath(rel).split("/").filter(Boolean);
+}
+function hasAlwaysExcludedDirSegment(rel) {
+  return relParts(rel).some((part) => alwaysExcludeDirNames.has(part));
+}
+function matchesDirPrefix(rel, prefix) {
+  const normalizedRel = normalizeRelPath(rel);
+  const normalizedPrefix = normalizeRelPath(prefix);
+  return normalizedRel === normalizedPrefix || normalizedRel.startsWith(normalizedPrefix + "/");
+}
 function isIndexExcluded(rel) {
+  if (hasAlwaysExcludedDirSegment(rel)) return true;
   for (const prefix of indexExcludeDirPrefixes) {
-    if (rel === prefix || rel.startsWith(prefix + "/")) return true;
+    if (matchesDirPrefix(rel, prefix)) return true;
   }
   return false;
 }
@@ -30,7 +45,7 @@ function isWithin(root, abs) {
   const rel = pathRelative(root, abs);
   return rel === "" || !rel.startsWith("..") && !pathIsAbsolute(rel);
 }
-var alwaysExcludeNames, vectorIncludeDirs, vectorExcludePrefixes, vectorExcludeNames, indexExcludeDirPrefixes, lintSkipFrontmatterBasenames, lintRootOnlySkipBasenames, lintSkipOrphanPrefixes, lintSkipFrontmatterPrefixes, lintSkipBrokenLinkPrefixes, snapshotExcludeNames;
+var alwaysExcludeNames, alwaysExcludeDirNames, vectorIncludeDirs, vectorExcludePrefixes, vectorExcludeNames, indexExcludeDirPrefixes, lintSkipFrontmatterBasenames, lintRootOnlySkipBasenames, lintSkipOrphanPrefixes, lintSkipFrontmatterPrefixes, lintSkipBrokenLinkPrefixes, snapshotExcludeNames;
 var init_paths = __esm({
   "src/lib/paths.ts"() {
     "use strict";
@@ -39,6 +54,7 @@ var init_paths = __esm({
       ".DS_Store",
       "_INDEX.md"
     ]);
+    alwaysExcludeDirNames = /* @__PURE__ */ new Set(["node_modules", "skills"]);
     vectorIncludeDirs = [
       "\u77E5\u8BC6\u5E93",
       "\u6BCF\u65E5",
@@ -62,6 +78,8 @@ var init_paths = __esm({
     indexExcludeDirPrefixes = [
       ".wiki",
       ".git",
+      "node_modules",
+      "skills",
       "_\u5F52\u6863",
       "_\u5DE5\u4F5C\u53F0",
       "\u7CFB\u7EDF",
@@ -109,7 +127,7 @@ var init_logger = __esm({
 // src/lib/vectordb/files.ts
 import { createHash as createHash3 } from "crypto";
 import { readFileSync as readFileSync14, readdirSync as readdirSync8 } from "fs";
-import { basename as basename4, join as join15, relative as relative8 } from "path";
+import { basename as basename5, join as join15, relative as relative8 } from "path";
 import matter3 from "gray-matter";
 function sha2562(filePath) {
   const data = readFileSync14(filePath);
@@ -125,11 +143,12 @@ function shouldIndex(rel) {
   const parts = rel.split("/");
   if (vectorExcludeNames.has(parts[parts.length - 1])) return false;
   if (!rel.endsWith(".md")) return false;
+  if (hasAlwaysExcludedDirSegment(rel)) return false;
   for (const prefix of vectorExcludePrefixes) {
-    if (rel === prefix || rel.startsWith(prefix + "/")) return false;
+    if (matchesDirPrefix(rel, prefix)) return false;
   }
   for (const inc of vectorIncludeDirs) {
-    if (rel === inc || rel.startsWith(inc + "/")) return true;
+    if (matchesDirPrefix(rel, inc)) return true;
   }
   return false;
 }
@@ -333,7 +352,7 @@ __export(chunker_exports, {
   chunkFile: () => chunkFile
 });
 import { readFileSync as readFileSync15 } from "fs";
-import { basename as basename5 } from "path";
+import { basename as basename6 } from "path";
 import matter4 from "gray-matter";
 function chunkFile(filePath, _corpusRoot) {
   const raw = readFileSync15(filePath, "utf-8");
@@ -342,7 +361,7 @@ function chunkFile(filePath, _corpusRoot) {
   const type = fm.type || "";
   if (!title) {
     const m = body.match(/^#\s+(.+)/m);
-    title = m ? m[1].trim() : basename5(filePath, ".md");
+    title = m ? m[1].trim() : basename6(filePath, ".md");
   }
   const parts = body.split(/^(## .+)$/m);
   const sections = [];
@@ -510,7 +529,8 @@ function findAllIndexFiles(corpus) {
       if (entry.name.startsWith(".")) continue;
       const full = join17(dir, entry.name);
       const rel = relative11(corpus, full);
-      if (vectorExcludePrefixes.some((p) => rel === p || rel.startsWith(p + "/"))) continue;
+      if (hasAlwaysExcludedDirSegment(rel)) continue;
+      if (vectorExcludePrefixes.some((p) => matchesDirPrefix(rel, p))) continue;
       if (entry.isDirectory()) {
         walk(full);
       } else if (entry.name === "_INDEX.md") {
@@ -969,7 +989,7 @@ import Database from "better-sqlite3";
 init_paths();
 init_logger();
 import { existsSync, readFileSync, readdirSync } from "fs";
-import { join, dirname } from "path";
+import { join, dirname, basename } from "path";
 import matter from "gray-matter";
 function findCorpus(startDir) {
   let dir = startDir || process.cwd();
@@ -1019,11 +1039,13 @@ function findSourceByUrl(corpus, url) {
 function collectMdFiles(dir, _opts) {
   const results = [];
   if (!existsSync(dir)) return results;
+  if (alwaysExcludeDirNames.has(basename(dir))) return results;
   function walk(d) {
     for (const entry of readdirSync(d, { withFileTypes: true })) {
       if (entry.name.startsWith(".")) continue;
       const full = join(d, entry.name);
       if (entry.isDirectory()) {
+        if (alwaysExcludeDirNames.has(entry.name)) continue;
         walk(full);
       } else if (entry.name.endsWith(".md") && !alwaysExcludeNames.has(entry.name)) {
         results.push(full);
@@ -2162,7 +2184,7 @@ function statsCommand(program2) {
 
 // src/commands/lint.ts
 import { readFileSync as readFileSync9 } from "fs";
-import { relative as relative4, basename } from "path";
+import { relative as relative4, basename as basename2 } from "path";
 import chalk4 from "chalk";
 init_paths();
 init_logger();
@@ -2171,7 +2193,7 @@ function isRootLevel(rel) {
   return !rel.includes("/");
 }
 function shouldSkipFrontmatter(rel) {
-  const base = basename(rel);
+  const base = basename2(rel);
   if (lintSkipFrontmatterBasenames.has(base)) return true;
   if (isRootLevel(rel) && lintRootOnlySkipBasenames.has(base)) return true;
   for (const prefix of lintSkipFrontmatterPrefixes) {
@@ -2180,7 +2202,7 @@ function shouldSkipFrontmatter(rel) {
   return false;
 }
 function shouldSkipOrphan(rel) {
-  const base = basename(rel);
+  const base = basename2(rel);
   if (lintSkipFrontmatterBasenames.has(base)) return true;
   if (isRootLevel(rel) && lintRootOnlySkipBasenames.has(base)) return true;
   for (const prefix of lintSkipOrphanPrefixes) {
@@ -2318,7 +2340,7 @@ lorekit lint \u2014 ${corpus}
 `));
 }
 function lintCommand(program2) {
-  program2.command("lint").description("check frontmatter, broken wikilinks, and orphan pages").action(() => {
+  program2.command("lint").description("check frontmatter, broken wikilinks, and orphan pages").option("--quick", "compatibility alias for the default lint scan", false).action(() => {
     const corpus = requireCorpus();
     const issues = runLint(corpus);
     printLintReport(corpus, issues);
@@ -2328,7 +2350,7 @@ function lintCommand(program2) {
 
 // src/commands/audit.ts
 import { existsSync as existsSync9, mkdirSync as mkdirSync4, readFileSync as readFileSync10, writeFileSync as writeFileSync4 } from "fs";
-import { join as join9, basename as basename2 } from "path";
+import { join as join9, basename as basename3 } from "path";
 
 // src/lib/date.ts
 var SHANGHAI_TZ_OFFSET_MS = 8 * 60 * 60 * 1e3;
@@ -2392,7 +2414,7 @@ function listAudit(root, filter) {
     if (!existsSync9(dir)) continue;
     const files = collectMdFiles(dir);
     for (const f of files) {
-      if (basename2(f) === ".gitkeep") continue;
+      if (basename3(f) === ".gitkeep") continue;
       if (!hasFrontmatter(f)) continue;
       const fm = extractFrontmatter(f);
       const severity = fm.severity ?? "";
@@ -2438,7 +2460,7 @@ function createAudit(root, target, severity, text) {
     err(`severity must be low|medium|high, got: ${severity}`);
     process.exit(2);
   }
-  const slug = basename2(target, ".md").replace(/[\s/]/g, "-").toLowerCase();
+  const slug = basename3(target, ".md").replace(/[\s/]/g, "-").toLowerCase();
   const now = /* @__PURE__ */ new Date();
   const filename = `${tsCompact(now)}-${slug}.md`;
   const tsFm = tsMinute(now);
@@ -2477,7 +2499,7 @@ function auditCommand(program2) {
 
 // src/commands/dir-index.ts
 import { existsSync as existsSync10, readdirSync as readdirSync5, readFileSync as readFileSync11, statSync as statSync4, writeFileSync as writeFileSync5, lstatSync as lstatSync3 } from "fs";
-import { join as join10, basename as basename3, relative as relative5, resolve as resolve3 } from "path";
+import { join as join10, basename as basename4, relative as relative5, resolve as resolve3 } from "path";
 init_paths();
 init_logger();
 function extractSummary(filePath) {
@@ -2517,7 +2539,7 @@ function readEntryFromFile(filePath, slug) {
   } else {
     summary = "\uFF08\u7F3A\u5C11 frontmatter\uFF09";
   }
-  if (!title) title = basename3(filePath, ".md");
+  if (!title) title = basename4(filePath, ".md");
   if (!updated) {
     try {
       updated = dateToYMDLocal(statSync4(filePath).mtime);
@@ -2532,7 +2554,7 @@ function escapeCell(s) {
 }
 function buildIndex(dir, root) {
   const reldir = dir === root ? "" : relative5(root, dir);
-  const dirName = reldir === "" ? basename3(root) : basename3(dir);
+  const dirName = reldir === "" ? basename4(root) : basename4(dir);
   const indexFile = join10(dir, "_INDEX.md");
   let names;
   try {
@@ -4682,7 +4704,7 @@ function obsidianTuneCommand(program2) {
 
 // src/commands/remove.ts
 import { existsSync as existsSync23, mkdirSync as mkdirSync13, readFileSync as readFileSync21, renameSync as renameSync2, writeFileSync as writeFileSync12 } from "fs";
-import { basename as basename6, dirname as dirname6, isAbsolute as isAbsolute2, join as join30, relative as relative15, resolve as resolve4, sep } from "path";
+import { basename as basename7, dirname as dirname6, isAbsolute as isAbsolute2, join as join30, relative as relative15, resolve as resolve4, sep } from "path";
 import matter6 from "gray-matter";
 import trash from "trash";
 init_paths();
@@ -4921,7 +4943,7 @@ async function moveToTrash(paths) {
     mkdirSync13(testTrashDir, { recursive: true });
     for (const p of paths) {
       if (!existsSync23(p)) continue;
-      const dest = join30(testTrashDir, `${tsCompact()}-${basename6(p)}`);
+      const dest = join30(testTrashDir, `${tsCompact()}-${basename7(p)}`);
       renameSync2(p, dest);
     }
     return;

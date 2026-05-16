@@ -29,6 +29,31 @@ export const alwaysExcludeNames: ReadonlySet<string> = new Set([
   '_INDEX.md',
 ]);
 
+/**
+ * 全局排除：任何递归 markdown 扫描都该整枝跳过的目录名。
+ *   - node_modules：包依赖自带 README 不是 corpus 内容
+ *   - skills：项目级 Agent workflow packs，不是 wiki 页面
+ */
+export const alwaysExcludeDirNames: ReadonlySet<string> = new Set(['node_modules', 'skills']);
+
+function normalizeRelPath(rel: string): string {
+  return rel.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\.\//, '');
+}
+
+function relParts(rel: string): string[] {
+  return normalizeRelPath(rel).split('/').filter(Boolean);
+}
+
+export function hasAlwaysExcludedDirSegment(rel: string): boolean {
+  return relParts(rel).some((part) => alwaysExcludeDirNames.has(part));
+}
+
+export function matchesDirPrefix(rel: string, prefix: string): boolean {
+  const normalizedRel = normalizeRelPath(rel);
+  const normalizedPrefix = normalizeRelPath(prefix);
+  return normalizedRel === normalizedPrefix || normalizedRel.startsWith(normalizedPrefix + '/');
+}
+
 // ---------------------------------------------------------------------------
 // 向量库索引（vectordb.ts）专用规则
 // ---------------------------------------------------------------------------
@@ -89,6 +114,8 @@ export const vectorExcludeNames: ReadonlySet<string> = new Set(['.gitkeep', '.DS
 export const indexExcludeDirPrefixes: readonly string[] = [
   '.wiki',
   '.git',
+  'node_modules',
+  'skills',
   '_归档',
   '_工作台',
   '系统',
@@ -100,8 +127,9 @@ export const indexExcludeDirPrefixes: readonly string[] = [
  * 对外暴露的小工具（doctor.ts / commands/dir-index.ts 都用）。
  */
 export function isIndexExcluded(rel: string): boolean {
+  if (hasAlwaysExcludedDirSegment(rel)) return true;
   for (const prefix of indexExcludeDirPrefixes) {
-    if (rel === prefix || rel.startsWith(prefix + '/')) return true;
+    if (matchesDirPrefix(rel, prefix)) return true;
   }
   return false;
 }

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, basename } from 'node:path';
 import matter from 'gray-matter';
-import { alwaysExcludeNames } from './paths.js';
+import { alwaysExcludeNames, alwaysExcludeDirNames } from './paths.js';
 import { debug } from '../utils/logger.js';
 
 export function findCorpus(startDir?: string): string | null {
@@ -79,12 +79,14 @@ export function findSourceByUrl(corpus: string, url: string): string | null {
 export function collectMdFiles(dir: string, _opts?: { excludeIndex?: boolean }): string[] {
   const results: string[] = [];
   if (!existsSync(dir)) return results;
+  if (alwaysExcludeDirNames.has(basename(dir))) return results;
 
   function walk(d: string) {
     for (const entry of readdirSync(d, { withFileTypes: true })) {
       if (entry.name.startsWith('.')) continue;
       const full = join(d, entry.name);
       if (entry.isDirectory()) {
+        if (alwaysExcludeDirNames.has(entry.name)) continue;
         walk(full);
       } else if (entry.name.endsWith('.md') && !alwaysExcludeNames.has(entry.name)) {
         results.push(full);
