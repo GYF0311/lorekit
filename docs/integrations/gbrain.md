@@ -91,3 +91,48 @@ gbrain init
 ```
 
 This is intentionally separate from lorekit install.
+
+## Project-local bridge
+
+This bridge is optional. lorekit is complete without GBrain; use GBrain only when you want graph / hybrid retrieval or multi-hop candidate discovery.
+
+If you choose project-local isolation for a corpus, prefer project-local wrappers over relying on global PATH:
+
+```text
+my-corpus/
+├── bin/
+│   ├── lorekit
+│   └── gbrain
+├── skills/
+│   ├── lorekit-gbrain-query/
+│   ├── lorekit-gbrain-sync-check/
+│   └── lorekit-fileback-after-gbrain/
+└── .wiki/integrations/
+    ├── gbrain-export/
+    └── gbrain/
+```
+
+`bin/lorekit` should set `LOREKIT_GBRAIN_BIN` to the project-local `bin/gbrain`.
+
+`bin/gbrain` should set `GBRAIN_HOME` to `.wiki/integrations/gbrain/`.
+
+This prevents a normal coding project from accidentally using corpus-specific GBrain behavior, and prevents this corpus from writing into a different GBrain home. If you do not need that isolation, a global `gbrain` binary can still be used by `lorekit gbrain ...`; the read/write boundary remains the same.
+
+## Skill mapping
+
+Do not install GBrain's full native skill pack into a lorekit corpus by default.
+
+Recommended mapping:
+
+| Need                             | Use                                                                                 |
+| -------------------------------- | ----------------------------------------------------------------------------------- |
+| Read-only graph/hybrid lookup    | `lorekit-gbrain-query` wrapping `lorekit gbrain query`                              |
+| Bridge status/freshness          | `lorekit-gbrain-sync-check` wrapping `status`, `export --dry-run`, `doctor`, `sync` |
+| Save an insight found via GBrain | `lorekit-fileback-after-gbrain`, then lorekit writes canonical wiki                 |
+| Source-level product research    | `lorekit-gbrain-research`                                                           |
+
+GBrain native mutating skills such as `brain-ops`, `ingest`, `enrich`, `maintain`, and `reports` are useful design references, but should stay disabled for a lorekit corpus unless the user explicitly wants a separate GBrain-native brain.
+
+## Codex note
+
+Project-local skills usually do not appear in Codex's `/` skill preview. Put short trigger descriptions in `AGENTS.md`; Codex will read the project-local `skills/<name>/SKILL.md` when that route is relevant.

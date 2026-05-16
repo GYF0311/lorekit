@@ -2,6 +2,8 @@
 
 30 minutes from zero to an AI coding agent backed by your own LLM Wiki.
 
+Default setup is lorekit-only: global `lorekit` CLI plus global lorekit skills where the agent supports them. Project-local isolation and GBrain are optional routes; see [`INSTALLATION.md`](INSTALLATION.md).
+
 ---
 
 ## 0. What lorekit is
@@ -23,14 +25,14 @@ Pure TypeScript, Node.js-only, usable from any AI coding agent (Claude Code / Co
 
 ### Optional (recommended)
 
-| Tool        | Purpose                    | Install                                    | Verify             |
-| ----------- | -------------------------- | ------------------------------------------ | ------------------ |
-| ripgrep     | Faster text search         | `brew install ripgrep`                     | `rg --version`     |
-| ollama      | Local vector embeddings    | `brew install ollama`                      | `ollama --version` |
-| bge-m3      | Embedding model (EN+ZH)    | `ollama pull bge-m3`                       | `ollama list`      |
-| Bun + GBrain | Optional graph retrieval  | `git clone https://github.com/garrytan/gbrain.git && cd gbrain && bun install && bun link` | `gbrain --version` |
-| Claude Code | Best end-to-end experience | [download](https://claude.com/claude-code) | `claude --version` |
-| Obsidian    | Visual wiki browsing       | [download](https://obsidian.md)            | —                  |
+| Tool         | Purpose                    | Install                                                                                    | Verify             |
+| ------------ | -------------------------- | ------------------------------------------------------------------------------------------ | ------------------ |
+| ripgrep      | Faster text search         | `brew install ripgrep`                                                                     | `rg --version`     |
+| ollama       | Local vector embeddings    | `brew install ollama`                                                                      | `ollama --version` |
+| bge-m3       | Embedding model (EN+ZH)    | `ollama pull bge-m3`                                                                       | `ollama list`      |
+| Bun + GBrain | Optional graph retrieval   | `git clone https://github.com/garrytan/gbrain.git && cd gbrain && bun install && bun link` | `gbrain --version` |
+| Claude Code  | Best end-to-end experience | [download](https://claude.com/claude-code)                                                 | `claude --version` |
+| Obsidian     | Visual wiki browsing       | [download](https://obsidian.md)                                                            | —                  |
 
 **No bash / Python / uv / pip needed.** lorekit is a pure Node.js project and runs on macOS / Linux / Windows.
 
@@ -50,7 +52,7 @@ npm link
 
 ```bash
 lorekit --version
-# → 0.2.0
+# → 0.4.0
 
 lorekit
 # → prints the blue ASCII banner (no-arg invocation shows status)
@@ -82,12 +84,26 @@ After init you have the full corpus skeleton (see README for layout).
 
 ## 4. Install the AI agent skills
 
+### Global skills, default
+
+Claude Code:
+
 ```bash
 lorekit install-skills --target claude-code
-# → symlinks the 6 skills into ~/.claude/skills/
+# → symlinks the wiki-* skills into ~/.claude/skills/
 ```
 
-Restart Claude Code to pick them up. Other agents: point them at the markdown files under `~/code/lorekit/skills/` via their own skill-registration mechanism.
+Restart Claude Code to pick global skills up. Codex can load Markdown skills from `$CODEX_HOME/skills` (default `~/.codex/skills`); other agents should point their skill / rule system at `~/code/lorekit/skills/`.
+
+### Project-local skills, optional isolation
+
+If you want one corpus to carry isolated rules and avoid exposing wiki behavior to other coding projects, put the `wiki-*` skills inside the corpus:
+
+```text
+~/Desktop/my-corpus/skills/
+```
+
+Then keep only a short route table in `AGENTS.md` / `CLAUDE.md`. In Codex, these project-local skills usually do not appear in the `/` skill preview; Codex reads `AGENTS.md` first and loads `skills/<name>/SKILL.md` on demand.
 
 ---
 
@@ -122,7 +138,9 @@ lorekit sync --report                       # writes .wiki/reports/sync/<timesta
 
 ## 6. Optional: export to GBrain
 
-GBrain is optional. Use it only when you want a graph / agent-memory retrieval layer next to lorekit's Markdown wiki. lorekit remains the source of truth; GBrain reads a staging copy.
+GBrain is optional. lorekit alone already handles the base knowledge workflow. Add GBrain only when you want a graph / agent-memory retrieval layer next to lorekit's Markdown wiki. lorekit remains the source of truth; GBrain reads a staging copy.
+
+If you choose project-local isolation, keep GBrain project-local to the corpus through wrappers such as `./bin/lorekit` and `./bin/gbrain`. Do not install GBrain's full native mutating skill set as a corpus default.
 
 ```bash
 cd ~/Desktop/my-corpus
@@ -136,6 +154,8 @@ lorekit gbrain query "..."
 ```
 
 `export` writes only under `.wiki/integrations/gbrain-export/` by default. Custom `--out` paths must stay under `.wiki/integrations/`; pass `--allow-outside-corpus` only for an intentional unsafe target. It skips generated indexes and templates, removes frontmatter `slug`, and records source hashes in `manifest.json`. `sync` checks the external binary before writing staging, calls external `gbrain import`, and writes `.wiki/integrations/gbrain/sync-report.json`. `query` checks corpus/export/sync freshness before calling GBrain; stale state prints `GBrain index may be stale. Run lorekit gbrain sync.` but does not block the query.
+
+When GBrain finds candidates, the final answer should still read canonical pages under `知识库/`. New knowledge is written back through `wiki-fileback` / `wiki-ingest`, not direct GBrain mutating commands.
 
 ---
 

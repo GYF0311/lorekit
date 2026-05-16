@@ -28,7 +28,7 @@ Three layers:
 | --------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Launch screen   | `lorekit`               | No-arg invocation prints the blue logo + corpus status                                                                                                                |
 | Init            | `lorekit init`          | Scaffolds the corpus, deploys the Obsidian plugin, auto-backs up pre-existing content                                                                                 |
-| Doctor          | `lorekit doctor`        | Directory integrity, frontmatter coverage, Obsidian hints, optional integration health; supports `--json` and strict `--section <name>` filters                        |
+| Doctor          | `lorekit doctor`        | Directory integrity, frontmatter coverage, Obsidian hints, optional integration health; supports `--json` and strict `--section <name>` filters                       |
 | Stats           | `lorekit stats`         | Page count, type breakdown                                                                                                                                            |
 | Search          | `lorekit search`        | Text search + vector semantic search (hybrid)                                                                                                                         |
 | Web fetch       | `lorekit fetch <url>`   | Pulls WeChat / generic pages into the workbench; auto-extracts `publishDate`, writes spec-compliant frontmatter, detects duplicate / in-progress URLs from state.json |
@@ -42,9 +42,9 @@ Three layers:
 | Vector query    | `lorekit vector query`  | Search modes: `--layered` (vector), `--bm25` (FTS5), `--hybrid` (both + RRF)                                                                                          |
 | Vector status   | `lorekit vector status` | Inspect the index; returns `mode: text\|vector` recommendation based on `indexed_files` vs `MODE_THRESHOLD_FILES` (default 100)                                       |
 | Directory index | `lorekit index`         | Recursively generate `_INDEX.md` for every subdirectory (including folder-packaged sources like `原料/文章/<slug>/article.md`)                                        |
-| **Sync**        | **`lorekit sync`**      | **One-shot: `index` → `vector sync --layered` → `doctor`; supports `--json` and `--report` for agent-readable step receipts**                                       |
-| Obsidian tune   | `lorekit obsidian-tune` | 老用户升级一键应用 Obsidian graph filter（默认只读检查 / `--write` 备份后写 / `--print` 管道用）                                                                       |
-| GBrain          | `lorekit gbrain <sub>`  | Optional read-only bridge: export `知识库/` into `.wiki/integrations/gbrain-export/`, then call external `gbrain import`; never writes canonical wiki pages             |
+| **Sync**        | **`lorekit sync`**      | **One-shot: `index` → `vector sync --layered` → `doctor`; supports `--json` and `--report` for agent-readable step receipts**                                         |
+| Obsidian tune   | `lorekit obsidian-tune` | 老用户升级一键应用 Obsidian graph filter（默认只读检查 / `--write` 备份后写 / `--print` 管道用）                                                                      |
+| GBrain          | `lorekit gbrain <sub>`  | Optional read-only bridge: export `知识库/` into `.wiki/integrations/gbrain-export/`, then call external `gbrain import`; never writes canonical wiki pages           |
 
 > The CLI is named `lorekit`. The 6 Agent Skills keep the `wiki-` prefix (a nod to Karpathy's LLM Wiki): `wiki-ingest` / `wiki-query` / `wiki-fileback` / `wiki-lint` / `wiki-enrich` / `wiki-audit`.
 
@@ -97,11 +97,33 @@ Only `--step lint` auto-promotes to `completed`. Every other `--step` keeps the 
 
 **Extensibility** — adding a new step (e.g. `embed`) is just appending `"embed"` to `stepsDone`. The status enum stays at three. No switch-case in the caller needs to change.
 
+## Install Routes
+
+Default install is lorekit-only: global `lorekit` CLI plus global lorekit `wiki-*` skills for the agent that supports them. That is enough for the core workflow: ingest, query, fileback, lint, sync, snapshot, and safe remove.
+
+Optional routes:
+
+| Route            | Use when                                                            | Result                                                         |
+| ---------------- | ------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Project-local    | You want one corpus to carry isolated wrappers, rules, and skills   | Other coding projects do not see wiki rules by default         |
+| lorekit + GBrain | You want graph / hybrid retrieval and multi-hop candidate discovery | lorekit remains source of truth; GBrain reads a staging export |
+
+For detailed global vs project-local setup, see [`docs/INSTALLATION.md`](docs/INSTALLATION.md).
+
+Project-local install is an isolation choice, not a requirement. In that mode, `skills/*/SKILL.md` lives inside the corpus and `AGENTS.md` provides the short routing descriptions. These project-local skills usually do not appear in Codex's `/` skill preview; the agent reads them on demand through the project rules.
+
 ## Quick Start
 
 ### Option 1: let AI install it (recommended)
 
-Send the repo link to your AI coding agent and say "install this project." It reads `CLAUDE.md` / `AGENTS.md` and runs: dependency check → clone → build → link → init corpus → install skills.
+Send the repo link to your AI coding agent and say "install this project." If you do not specify anything, the agent should use the default route:
+
+1. clone and build lorekit,
+2. link the `lorekit` CLI globally,
+3. initialize a corpus,
+4. install global lorekit `wiki-*` skills where the target agent supports them.
+
+The agent may ask whether you also want optional project-local isolation and/or optional GBrain enhancement. It then reads `CLAUDE.md` / `AGENTS.md` and runs: dependency check → clone → build → link → init corpus → install skills.
 
 ### Option 2: manual install
 
@@ -122,8 +144,9 @@ lorekit             # no-arg invocation shows the brand banner
 # 5. Initialize a corpus
 lorekit init ~/Desktop/my-corpus
 
-# 6. Install Agent Skills
+# 6. Install Agent Skills globally where supported
 lorekit install-skills --target claude-code
+# Codex: copy/symlink skills/wiki-* into $CODEX_HOME/skills (default ~/.codex/skills)
 
 # 7. Start a conversation from the corpus directory
 cd ~/Desktop/my-corpus
@@ -148,13 +171,13 @@ At that point, stop polishing the tool and use the corpus for 1-2 weeks. The nex
 
 ### Dependencies
 
-| Tool         | Purpose                  | Install                | Required |
-| ------------ | ------------------------ | ---------------------- | -------- |
-| Node.js ≥ 18 | JS runtime               | `brew install node`    | ✅       |
-| git          | Version control          | ships with macOS/Linux | ✅       |
-| ripgrep      | Text-search acceleration | `brew install ripgrep` | Optional |
-| ollama       | Local embedding runtime  | `brew install ollama`  | Optional |
-| bge-m3       | Embedding model          | `ollama pull bge-m3`   | Optional |
+| Tool         | Purpose                  | Install                                                                                    | Required |
+| ------------ | ------------------------ | ------------------------------------------------------------------------------------------ | -------- |
+| Node.js ≥ 18 | JS runtime               | `brew install node`                                                                        | ✅       |
+| git          | Version control          | ships with macOS/Linux                                                                     | ✅       |
+| ripgrep      | Text-search acceleration | `brew install ripgrep`                                                                     | Optional |
+| ollama       | Local embedding runtime  | `brew install ollama`                                                                      | Optional |
+| bge-m3       | Embedding model          | `ollama pull bge-m3`                                                                       | Optional |
 | Bun + GBrain | Graph retrieval bridge   | `git clone https://github.com/garrytan/gbrain.git && cd gbrain && bun install && bun link` | Optional |
 
 **Only Node.js is required.** No bash / Python / uv / pip. lorekit is pure TypeScript, cross-platform (macOS / Linux / Windows).
@@ -188,6 +211,8 @@ lorekit gbrain query "RAG"
 `query` requires a corpus and checks the export manifest + last sync report before calling GBrain. If the export or sync report looks stale, it warns with `GBrain index may be stale. Run lorekit gbrain sync.` but still calls `gbrain query`; use `--no-stale-check` only for debugging noisy freshness checks.
 
 Boundary: GBrain must not write back to `知识库/` or `原料/`. Persisting new knowledge still goes through wiki-fileback / audit / snapshot review.
+
+For project-local wrappers, skill mapping, and install prompts for AI agents, see [`docs/INSTALLATION.md`](docs/INSTALLATION.md) and [`docs/integrations/gbrain.md`](docs/integrations/gbrain.md).
 
 ## Using It
 
