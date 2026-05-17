@@ -1902,6 +1902,16 @@ function countWikilinksOutsideCode(content) {
   }
   return count;
 }
+async function graphHasEdges(binary, slug) {
+  if (!slug) return false;
+  const graph = await runExternalCommand({
+    command: binary,
+    args: ["graph-query", slug, "--direction", "both", "--depth", "1"],
+    timeoutMs: 1e4
+  });
+  if (graph.exitCode !== 0) return false;
+  return /--[a-z-]+->/.test(graph.stdout);
+}
 function exportManifestPath(corpus) {
   return join7(corpus, ".wiki", "integrations", "gbrain-export", "manifest.json");
 }
@@ -2058,6 +2068,7 @@ async function doctorGbrain(corpus) {
   const syncPath = syncReportPath(corpus);
   const manifest = readJsonFile(manifestPath);
   let exportedWikilinkCount = 0;
+  let graphProbeSlug = null;
   if (!manifest) {
     issues.push({
       section: "gbrain",
@@ -2102,7 +2113,11 @@ async function doctorGbrain(corpus) {
       const exportPath = join7(corpus, ".wiki", "integrations", "gbrain-export", page.exportPath);
       if (existsSync7(exportPath)) {
         const staged = readFileSync6(exportPath, "utf-8");
-        exportedWikilinkCount += countWikilinksOutsideCode(staged);
+        const pageWikilinks = countWikilinksOutsideCode(staged);
+        exportedWikilinkCount += pageWikilinks;
+        if (pageWikilinks > 0 && !graphProbeSlug) {
+          graphProbeSlug = page.gbrainSlug ?? slugFromExportPath(page.exportPath);
+        }
       }
     }
   }
@@ -2126,12 +2141,15 @@ async function doctorGbrain(corpus) {
       }
       const linksCreated = extractLinksCreated(report);
       if (exportedWikilinkCount > 0 && linksCreated === 0) {
-        issues.push({
-          section: "gbrain",
-          severity: "warn",
-          message: "GBrain extract created 0 links despite exported wikilinks",
-          recommendation: "Run lorekit gbrain sync and inspect GBrain extract output"
-        });
+        const hasExistingEdges = gbrain.installed ? await graphHasEdges(gbrain.binary, graphProbeSlug) : false;
+        if (!hasExistingEdges) {
+          issues.push({
+            section: "gbrain",
+            severity: "warn",
+            message: "GBrain extract created 0 links despite exported wikilinks",
+            recommendation: "Run lorekit gbrain sync and inspect GBrain extract output"
+          });
+        }
       }
     } catch (e) {
       issues.push({

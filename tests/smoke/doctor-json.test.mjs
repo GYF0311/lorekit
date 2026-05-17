@@ -23,6 +23,22 @@ function fakeGbrain(tmp) {
   return bin;
 }
 
+function fakeGbrainWithGraph(tmp) {
+  const bin = join(tmp, 'fake-gbrain-with-graph');
+  writeFileSync(
+    bin,
+    [
+      '#!/bin/sh',
+      'if [ "$1" = "--version" ]; then echo "gbrain 0.33.0"; exit 0; fi',
+      'if [ "$1" = "graph-query" ]; then echo "[depth 0] concepts/anthropic-harness"; echo "  --mentions-> entities/anthropic (depth 1)"; exit 0; fi',
+      'exit 0',
+      '',
+    ].join('\n'),
+  );
+  chmodSync(bin, 0o755);
+  return bin;
+}
+
 test('doctor --json reports optional GBrain integration warnings without hard failing', () => {
   const corpus = initCorpus();
   try {
@@ -153,6 +169,56 @@ test('doctor --json warns when GBrain extracts 0 links from exported wikilinks',
         (issue) => issue.severity === 'warn' && /extract created 0 links/i.test(issue.message),
       ),
       'zero extracted links is surfaced as an integration warning',
+    );
+  } finally {
+    cleanupTmpDir(corpus);
+  }
+});
+
+test('doctor --json does not warn on 0 newly-created links when graph already has edges', () => {
+  const corpus = initCorpus('lorekit-smoke-doctor-json-gbrain-existing-links-');
+  const bin = fakeGbrainWithGraph(corpus);
+  try {
+    mkdirSync(join(corpus, '知识库', '实体'), { recursive: true });
+    writeFileSync(
+      join(corpus, '知识库', '概念', 'Anthropic-Harness.md'),
+      [
+        '---',
+        'title: Anthropic Harness',
+        'type: concept',
+        '---',
+        '',
+        'Harness links to [[知识库/实体/Anthropic|Anthropic]].',
+        '',
+      ].join('\n'),
+    );
+    writeFileSync(
+      join(corpus, '知识库', '实体', 'Anthropic.md'),
+      ['---', 'title: Anthropic', 'type: entity', '---', '', 'Anthropic note.', ''].join('\n'),
+    );
+    const exportRun = runLorekit(['gbrain', 'export', '--json'], { cwd: corpus });
+    assert.equal(exportRun.status, 0, fmtRun(exportRun, ['gbrain', 'export', '--json'], 'export exit 0'));
+
+    const reportDir = join(corpus, '.wiki', 'integrations', 'gbrain');
+    mkdirSync(reportDir, { recursive: true });
+    writeFileSync(
+      join(reportDir, 'sync-report.json'),
+      JSON.stringify({ status: 'ok', extract: { links_created: 0 } }, null, 2),
+      'utf-8',
+    );
+
+    const args = ['doctor', '--section', 'integrations', '--json'];
+    const r = runLorekit(args, {
+      cwd: corpus,
+      env: { LOREKIT_GBRAIN_BIN: bin },
+    });
+    assert.equal(r.status, 0, fmtRun(r, args, 'existing graph edges exits 0'));
+
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.status, 'ok');
+    assert.ok(
+      parsed.issues.every((issue) => !/extract created 0 links/i.test(issue.message)),
+      'idempotent extract does not warn when graph already has edges',
     );
   } finally {
     cleanupTmpDir(corpus);
