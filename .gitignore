@@ -23,3 +23,8 @@ _INDEX.md
 
 # Claude Code worktrees
 .claude/
+
+# CMAP runtime/candidate artifacts (canonical facts live in .context/*.md and modules)
+.context/generated/
+.context/out/
+.context/inbox/

@@ -1,0 +1,1156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>lorekit cmap view</title>
+  <style>
+    :root { color-scheme: light; --ink: #19201f; --muted: #63706c; --line: #d9dfdc; --wash: #f5f7f6; --accent: #145c4b; --warn: #8a4b00; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: #ffffff; }
+    header { padding: 28px 32px 18px; border-bottom: 1px solid var(--line); background: var(--wash); }
+    main { padding: 24px 32px 40px; max-width: 1180px; margin: 0 auto; }
+    h1 { margin: 0 0 8px; font-size: 28px; line-height: 1.2; }
+    h2 { margin: 28px 0 12px; font-size: 18px; }
+    h3 { margin: 0 0 8px; font-size: 15px; }
+    p, li, td, th { font-size: 14px; line-height: 1.45; }
+    .meta { color: var(--muted); margin: 0; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-top: 16px; }
+    .stat, .module, .panel { border: 1px solid var(--line); border-radius: 8px; padding: 14px; background: #fff; }
+    .stat strong { display: block; font-size: 24px; color: var(--accent); }
+    .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 18px 0 6px; }
+    .toolbar input[type="search"] { min-width: min(420px, 100%); flex: 1 1 280px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 6px; font: inherit; }
+    .toolbar label, summary { cursor: pointer; }
+    .modules { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+    .pill { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; margin: 2px 4px 2px 0; color: var(--muted); font-size: 12px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .compact-list { margin: 6px 0 10px; padding-left: 18px; }
+    button { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; background: #fff; color: var(--ink); font: inherit; font-size: 12px; cursor: pointer; }
+    button:hover { border-color: var(--accent); color: var(--accent); }
+    .is-hidden { display: none !important; }
+    .warning { border-left: 4px solid var(--warn); background: #fff7ed; }
+    table { width: 100%; border-collapse: collapse; border: 1px solid var(--line); }
+    th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+    th { background: var(--wash); }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>lorekit cmap view</h1>
+    <p class="meta">Schema cmap.view_data.v1 · Generated 2026-05-17T10:58:30.805Z · Root lorekit</p>
+    <p class="meta">Canonical source: .context/ · Generated source: .context/generated/ · Source commit 62576ef</p>
+    <div class="grid">
+      <div class="stat"><strong>9</strong><span>Modules</span></div>
+      <div class="stat"><strong>0</strong><span>Evidence</span></div>
+      <div class="stat"><strong>0</strong><span>Candidates</span></div>
+      <div class="stat"><strong>0</strong><span>Warnings</span></div>
+    </div>
+  </header>
+  <main>
+    <section class="toolbar" aria-label="Review filters">
+      <input id="view-search" type="search" placeholder="Search modules, candidates, evidence">
+      <label><input id="filter-stale" type="checkbox"> Stale</label>
+      <label><input id="filter-candidates" type="checkbox"> Has candidates</label>
+      <label><input id="filter-high-risk" type="checkbox"> High risk</label>
+      <label><input id="filter-generated" type="checkbox"> Generated evidence</label>
+    </section>
+    <section>
+      <h2>Overview</h2>
+      <table><tbody><tr><th>Purpose</th><td>Not available</td></tr><tr><th>Active Goal</th><td>把 lorekit 的 `.context` 搭成可用的中文 CMAP 项目地图，并补齐 Obsidian / Review HTML 导出、`AGENTS.md` / `CLAUDE.md` 使用入口。</td></tr><tr><th>Current Task</th><td>将 `/Users/gaoyifan/code/lorekit` 的 CMAP `.context` 搭建完整：正文中文化、模块关系接好、生成 Obsidian / Review HTML，并安全更新 `AGENTS.md` / `CLAUDE.md`。</td></tr><tr><th>Next Step</th><td>人工 review diff；认可后可提交。</td></tr><tr><th>Verified</th><td>Not available</td></tr><tr><th>Last Verified</th><td>2026-05-17：`cmap route` smoke checks 通过；`cmap verify --changed` 为 0 errors / 1 expected warning（`AGENTS.md` 与 `CLAUDE.md` 保持不同入口形态）；`cmap obsidian export --check --out _cmap/lorekit` 通过；`cmap view export --check --out _cmap-view` 通过；`git diff --check` 通过；`npm run verify` 通过（72 tests, 71 pass, 1 skipped）。</td></tr></tbody></table>
+    </section>
+    <section>
+      <h2>Warnings</h2>
+      <p class="meta">No warnings.</p>
+    </section>
+    <section>
+      <h2>Modules</h2>
+      <div class="modules"><article class="module" data-search="cli Cli  cli command commands version banner commander src/cli.ts bin/lorekit.js VERSION package.json dist/** calls: corpus-core, calls: fetch-ingest, calls: sync-search-vector, calls: safety-maintenance, calls: skills-agent, calls: obsidian-gbrain docs-tests-release -&gt; cli (documents), project-map -&gt; cli (guides), skills-agent -&gt; cli (uses)   " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="cli">
+    <h3>Cli</h3>
+    <p class="meta"><code>cli</code> · active · .context/modules/cli.md</p>
+    <p><span class="pill">cli</span><span class="pill">command</span><span class="pill">commands</span><span class="pill">version</span><span class="pill">banner</span><span class="pill">commander</span></p>
+    
+    
+    <p><strong>Paths:</strong> src/cli.ts, bin/lorekit.js, VERSION, package.json, dist/**</p>
+    <p><strong>Relations:</strong> calls: corpus-core, calls: fetch-ingest, calls: sync-search-vector, calls: safety-maintenance, calls: skills-agent, calls: obsidian-gbrain</p>
+    <p><strong>Incoming Relations:</strong> docs-tests-release -&gt; cli (documents), project-map -&gt; cli (guides), skills-agent -&gt; cli (uses)</p>
+    
+    
+    
+    <p><strong>Freshness:</strong> Not available · Not available</p>
+    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module cli">Review module</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module cli --evidence &quot;Reviewed cli&quot;">Mark reviewed</button></div>
+    <button type="button" data-open-module="cli">Details</button>
+  </article><article class="module" data-search="corpus-core Corpus Core  corpus schema paths lint node_modules skills index.md _INDEX logger 路径 边界 src/lib/corpus.ts src/lib/paths.ts src/lib/root-index.ts src/lib/date.ts src/utils/** supports: fetch-ingest, supports: sync-search-vector, supports: safety-maintenance, supports: obsidian-gbrain cli -&gt; corpus-core (calls), docs-tests-release -&gt; corpus-core (documents), fetch-ingest -&gt; corpus-core (depends_on), obsidian-gbrain -&gt; corpus-core (depends_on), project-map -&gt; corpus-core (guides), safety-maintenance -&gt; corpus-core (depends_on), skills-agent -&gt; corpus-core (constrained_by), sync-search-vector -&gt; corpus-core (depends_on)   " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="corpus-core">
+    <h3>Corpus Core</h3>
+    <p class="meta"><code>corpus-core</code> · active · .context/modules/corpus-core.md</p>
+    <p><span class="pill">corpus</span><span class="pill">schema</span><span class="pill">paths</span><span class="pill">lint</span><span class="pill">node_modules</span><span class="pill">skills</span><span class="pill">index.md</span><span class="pill">_INDEX</span><span class="pill">logger</span><span class="pill">路径</span><span class="pill">边界</span></p>
+    
+    
+    <p><strong>Paths:</strong> src/lib/corpus.ts, src/lib/paths.ts, src/lib/root-index.ts, src/lib/date.ts, src/utils/**</p>
+    <p><strong>Relations:</strong> supports: fetch-ingest, supports: sync-search-vector, supports: safety-maintenance, supports: obsidian-gbrain</p>
+    <p><strong>Incoming Relations:</strong> cli -&gt; corpus-core (calls), docs-tests-release -&gt; corpus-core (documents), fetch-ingest -&gt; corpus-core (depends_on), obsidian-gbrain -&gt; corpus-core (depends_on), project-map -&gt; corpus-core (guides), safety-maintenance -&gt; corpus-core (depends_on), skills-agent -&gt; corpus-core (constrained_by), sync-search-vector -&gt; corpus-core (depends_on)</p>
+    
+    
+    
+    <p><strong>Freshness:</strong> Not available · Not available</p>
+    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module corpus-core">Review module</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module corpus-core --evidence &quot;Reviewed corpus-core&quot;">Mark reviewed</button></div>
+    <button type="button" data-open-module="corpus-core">Details</button>
+  </article><article class="module" data-search="docs-tests-release Docs Tests Release  docs documentation tests smoke verify release package changelog 文档 发布 docs/** tests/smoke/** README.md CHANGELOG.md LICENSE eslint.config.js tsconfig.json tsup.config.ts package-lock.json documents: cli, documents: corpus-core, documents: fetch-ingest, documents: sync-search-vector, documents: safety-maintenance, documents: skills-agent, documents: obsidian-gbrain obsidian-gbrain -&gt; docs-tests-release (exports_to), project-map -&gt; docs-tests-release (guides)   " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="docs-tests-release">
+    <h3>Docs Tests Release</h3>
+    <p class="meta"><code>docs-tests-release</code> · active · .context/modules/docs-tests-release.md</p>
+    <p><span class="pill">docs</span><span class="pill">documentation</span><span class="pill">tests</span><span class="pill">smoke</span><span class="pill">verify</span><span class="pill">release</span><span class="pill">package</span><span class="pill">changelog</span><span class="pill">文档</span><span class="pill">发布</span></p>
+    
+    
+    <p><strong>Paths:</strong> docs/**, tests/smoke/**, README.md, CHANGELOG.md, LICENSE, eslint.config.js, tsconfig.json, tsup.config.ts, package-lock.json</p>
+    <p><strong>Relations:</strong> documents: cli, documents: corpus-core, documents: fetch-ingest, documents: sync-search-vector, documents: safety-maintenance, documents: skills-agent, documents: obsidian-gbrain</p>
+    <p><strong>Incoming Relations:</strong> obsidian-gbrain -&gt; docs-tests-release (exports_to), project-map -&gt; docs-tests-release (guides)</p>
+    
+    
+    
+    <p><strong>Freshness:</strong> Not available · Not available</p>
+    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module docs-tests-release">Review module</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module docs-tests-release --evidence &quot;Reviewed docs-tests-release&quot;">Mark reviewed</button></div>
+    <button type="button" data-open-module="docs-tests-release">Details</button>
+  </article><article class="module" data-search="fetch-ingest Fetch Ingest  fetch ingest ingestion 微信 公众号 duplicate in-progress state 抓取 入库 src/commands/fetch.ts src/commands/ingest.ts src/lib/fetcher/** src/lib/ingest-state.ts depends_on: corpus-core, feeds: sync-search-vector, guided_by: skills-agent cli -&gt; fetch-ingest (calls), corpus-core -&gt; fetch-ingest (supports), docs-tests-release -&gt; fetch-ingest (documents), project-map -&gt; fetch-ingest (guides), safety-maintenance -&gt; fetch-ingest (protects), skills-agent -&gt; fetch-ingest (uses), sync-search-vector -&gt; fetch-ingest (consumes)   " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="fetch-ingest">
+    <h3>Fetch Ingest</h3>
+    <p class="meta"><code>fetch-ingest</code> · active · .context/modules/fetch-ingest.md</p>
+    <p><span class="pill">fetch</span><span class="pill">ingest</span><span class="pill">ingestion</span><span class="pill">微信</span><span class="pill">公众号</span><span class="pill">duplicate</span><span class="pill">in-progress</span><span class="pill">state</span><span class="pill">抓取</span><span class="pill">入库</span></p>
+    
+    
+    <p><strong>Paths:</strong> src/commands/fetch.ts, src/commands/ingest.ts, src/lib/fetcher/**, src/lib/ingest-state.ts</p>
+    <p><strong>Relations:</strong> depends_on: corpus-core, feeds: sync-search-vector, guided_by: skills-agent</p>
+    <p><strong>Incoming Relations:</strong> cli -&gt; fetch-ingest (calls), corpus-core -&gt; fetch-ingest (supports), docs-tests-release -&gt; fetch-ingest (documents), project-map -&gt; fetch-ingest (guides), safety-maintenance -&gt; fetch-ingest (protects), skills-agent -&gt; fetch-ingest (uses), sync-search-vector -&gt; fetch-ingest (consumes)</p>
+    
+    
+    
+    <p><strong>Freshness:</strong> Not available · Not available</p>
+    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module fetch-ingest">Review module</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module fetch-ingest --evidence &quot;Reviewed fetch-ingest&quot;">Mark reviewed</button></div>
+    <button type="button" data-open-module="fetch-ingest">Details</button>
+  </article><article class="module" data-search="obsidian-gbrain Obsidian Gbrain  obsidian graph graph filter gbrain integration integrations 视图 图谱 src/commands/obsidian-tune.ts src/lib/obsidian.ts plugins/obsidian-audit/** src/commands/gbrain.ts src/lib/integrations/** docs/integrations/** depends_on: corpus-core, depends_on: safety-maintenance, exports_to: docs-tests-release cli -&gt; obsidian-gbrain (calls), corpus-core -&gt; obsidian-gbrain (supports), docs-tests-release -&gt; obsidian-gbrain (documents), project-map -&gt; obsidian-gbrain (guides)   " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="obsidian-gbrain">
+    <h3>Obsidian Gbrain</h3>
+    <p class="meta"><code>obsidian-gbrain</code> · active · .context/modules/obsidian-gbrain.md</p>
+    <p><span class="pill">obsidian</span><span class="pill">graph</span><span class="pill">graph filter</span><span class="pill">gbrain</span><span class="pill">integration</span><span class="pill">integrations</span><span class="pill">视图</span><span class="pill">图谱</span></p>
+    
+    
+    <p><strong>Paths:</strong> src/commands/obsidian-tune.ts, src/lib/obsidian.ts, plugins/obsidian-audit/**, src/commands/gbrain.ts, src/lib/integrations/**, docs/integrations/**</p>
+    <p><strong>Relations:</strong> depends_on: corpus-core, depends_on: safety-maintenance, exports_to: docs-tests-release</p>
+    <p><strong>Incoming Relations:</strong> cli -&gt; obsidian-gbrain (calls), corpus-core -&gt; obsidian-gbrain (supports), docs-tests-release -&gt; obsidian-gbrain (documents), project-map -&gt; obsidian-gbrain (guides)</p>
+    
+    
+    
+    <p><strong>Freshness:</strong> Not available · Not available</p>
+    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module obsidian-gbrain">Review module</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module obsidian-gbrain --evidence &quot;Reviewed obsidian-gbrain&quot;">Mark reviewed</button></div>
+    <button type="button" data-open-module="obsidian-gbrain">Details</button>
+  </article><article class="module" data-search="project-map Project Map  cmap context .context project map handoff checkpoint AGENTS CLAUDE 接手 项目地图 续接 .context/** .gitignore AGENTS.md CLAUDE.md _cmap/** _cmap-view/** guides: cli, guides: corpus-core, guides: fetch-ingest, guides: sync-search-vector, guides: safety-maintenance, guides: skills-agent, guides: obsidian-gbrain, guides: docs-tests-release Not available   " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="project-map">
+    <h3>Project Map</h3>
+    <p class="meta"><code>project-map</code> · active · .context/modules/project-map.md</p>
+    <p><span class="pill">cmap</span><span class="pill">context</span><span class="pill">.context</span><span class="pill">project map</span><span class="pill">handoff</span><span class="pill">checkpoint</span><span class="pill">AGENTS</span><span class="pill">CLAUDE</span><span class="pill">接手</span><span class="pill">项目地图</span><span class="pill">续接</span></p>
+    
+    
+    <p><strong>Paths:</strong> .context/**, .gitignore, AGENTS.md, CLAUDE.md, _cmap/**, _cmap-view/**</p>
+    <p><strong>Relations:</strong> guides: cli, guides: corpus-core, guides: fetch-ingest, guides: sync-search-vector, guides: safety-maintenance, guides: skills-agent, guides: obsidian-gbrain, guides: docs-tests-release</p>
+    <p><strong>Incoming Relations:</strong> Not available</p>
+    
+    
+    
+    <p><strong>Freshness:</strong> Not available · Not available</p>
+    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module project-map">Review module</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module project-map --evidence &quot;Reviewed project-map&quot;">Mark reviewed</button></div>
+    <button type="button" data-open-module="project-map">Details</button>
+  </article><article class="module" data-search="safety-maintenance Safety Maintenance  doctor lint snapshot restore remove trash audit stats 安全 体检 删除 src/commands/doctor.ts src/commands/lint.ts src/commands/snapshot.ts src/commands/restore.ts src/commands/remove.ts src/commands/audit.ts src/commands/stats.ts depends_on: corpus-core, depends_on: sync-search-vector, protects: fetch-ingest, protects: skills-agent cli -&gt; safety-maintenance (calls), corpus-core -&gt; safety-maintenance (supports), docs-tests-release -&gt; safety-maintenance (documents), obsidian-gbrain -&gt; safety-maintenance (depends_on), project-map -&gt; safety-maintenance (guides), skills-agent -&gt; safety-maintenance (uses), sync-search-vector -&gt; safety-maintenance (checked_by)   " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="safety-maintenance">
+    <h3>Safety Maintenance</h3>
+    <p class="meta"><code>safety-maintenance</code> · active · .context/modules/safety-maintenance.md</p>
+    <p><span class="pill">doctor</span><span class="pill">lint</span><span class="pill">snapshot</span><span class="pill">restore</span><span class="pill">remove</span><span class="pill">trash</span><span class="pill">audit</span><span class="pill">stats</span><span class="pill">安全</span><span class="pill">体检</span><span class="pill">删除</span></p>
+    
+    
+    <p><strong>Paths:</strong> src/commands/doctor.ts, src/commands/lint.ts, src/commands/snapshot.ts, src/commands/restore.ts, src/commands/remove.ts, src/commands/audit.ts, src/commands/stats.ts</p>
+    <p><strong>Relations:</strong> depends_on: corpus-core, depends_on: sync-search-vector, protects: fetch-ingest, protects: skills-agent</p>
+    <p><strong>Incoming Relations:</strong> cli -&gt; safety-maintenance (calls), corpus-core -&gt; safety-maintenance (supports), docs-tests-release -&gt; safety-maintenance (documents), obsidian-gbrain -&gt; safety-maintenance (depends_on), project-map -&gt; safety-maintenance (guides), skills-agent -&gt; safety-maintenance (uses), sync-search-vector -&gt; safety-maintenance (checked_by)</p>
+    
+    
+    
+    <p><strong>Freshness:</strong> Not available · Not available</p>
+    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module safety-maintenance">Review module</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module safety-maintenance --evidence &quot;Reviewed safety-maintenance&quot;">Mark reviewed</button></div>
+    <button type="button" data-open-module="safety-maintenance">Details</button>
+  </article><article class="module" data-search="skills-agent Skills Agent  skill skills wiki-ingest wiki-query install-skills agent AGENTS CLAUDE AI 工作流 skills/** src/commands/install-skills.ts integrations/claude-code/** templates/default-corpus/AGENTS.md templates/default-corpus/CLAUDE.md uses: cli, uses: fetch-ingest, uses: sync-search-vector, uses: safety-maintenance, constrained_by: corpus-core cli -&gt; skills-agent (calls), docs-tests-release -&gt; skills-agent (documents), fetch-ingest -&gt; skills-agent (guided_by), project-map -&gt; skills-agent (guides), safety-maintenance -&gt; skills-agent (protects)   " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="skills-agent">
+    <h3>Skills Agent</h3>
+    <p class="meta"><code>skills-agent</code> · active · .context/modules/skills-agent.md</p>
+    <p><span class="pill">skill</span><span class="pill">skills</span><span class="pill">wiki-ingest</span><span class="pill">wiki-query</span><span class="pill">install-skills</span><span class="pill">agent</span><span class="pill">AGENTS</span><span class="pill">CLAUDE</span><span class="pill">AI</span><span class="pill">工作流</span></p>
+    
+    
+    <p><strong>Paths:</strong> skills/**, src/commands/install-skills.ts, integrations/claude-code/**, templates/default-corpus/AGENTS.md, templates/default-corpus/CLAUDE.md</p>
+    <p><strong>Relations:</strong> uses: cli, uses: fetch-ingest, uses: sync-search-vector, uses: safety-maintenance, constrained_by: corpus-core</p>
+    <p><strong>Incoming Relations:</strong> cli -&gt; skills-agent (calls), docs-tests-release -&gt; skills-agent (documents), fetch-ingest -&gt; skills-agent (guided_by), project-map -&gt; skills-agent (guides), safety-maintenance -&gt; skills-agent (protects)</p>
+    
+    
+    
+    <p><strong>Freshness:</strong> Not available · Not available</p>
+    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module skills-agent">Review module</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module skills-agent --evidence &quot;Reviewed skills-agent&quot;">Mark reviewed</button></div>
+    <button type="button" data-open-module="skills-agent">Details</button>
+  </article><article class="module" data-search="sync-search-vector Sync Search Vector  sync search vector bm25 rrf ollama _INDEX indexed_files 检索 向量 src/commands/dir-index.ts src/commands/sync.ts src/commands/search.ts src/commands/vector.ts src/lib/vectordb/** src/lib/ollama.ts src/lib/chunker.ts depends_on: corpus-core, consumes: fetch-ingest, checked_by: safety-maintenance cli -&gt; sync-search-vector (calls), corpus-core -&gt; sync-search-vector (supports), docs-tests-release -&gt; sync-search-vector (documents), fetch-ingest -&gt; sync-search-vector (feeds), project-map -&gt; sync-search-vector (guides), safety-maintenance -&gt; sync-search-vector (depends_on), skills-agent -&gt; sync-search-vector (uses)   " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="sync-search-vector">
+    <h3>Sync Search Vector</h3>
+    <p class="meta"><code>sync-search-vector</code> · active · .context/modules/sync-search-vector.md</p>
+    <p><span class="pill">sync</span><span class="pill">search</span><span class="pill">vector</span><span class="pill">bm25</span><span class="pill">rrf</span><span class="pill">ollama</span><span class="pill">_INDEX</span><span class="pill">indexed_files</span><span class="pill">检索</span><span class="pill">向量</span></p>
+    
+    
+    <p><strong>Paths:</strong> src/commands/dir-index.ts, src/commands/sync.ts, src/commands/search.ts, src/commands/vector.ts, src/lib/vectordb/**, src/lib/ollama.ts, src/lib/chunker.ts</p>
+    <p><strong>Relations:</strong> depends_on: corpus-core, consumes: fetch-ingest, checked_by: safety-maintenance</p>
+    <p><strong>Incoming Relations:</strong> cli -&gt; sync-search-vector (calls), corpus-core -&gt; sync-search-vector (supports), docs-tests-release -&gt; sync-search-vector (documents), fetch-ingest -&gt; sync-search-vector (feeds), project-map -&gt; sync-search-vector (guides), safety-maintenance -&gt; sync-search-vector (depends_on), skills-agent -&gt; sync-search-vector (uses)</p>
+    
+    
+    
+    <p><strong>Freshness:</strong> Not available · Not available</p>
+    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module sync-search-vector">Review module</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module sync-search-vector --evidence &quot;Reviewed sync-search-vector&quot;">Mark reviewed</button></div>
+    <button type="button" data-open-module="sync-search-vector">Details</button>
+  </article></div>
+    </section>
+    <section>
+      <h2>Canonical Relations</h2>
+      <table><thead><tr><th>From</th><th>Relation</th><th>To</th><th>Relation Explanation</th></tr></thead><tbody><tr><td>cli</td><td>calls</td><td>corpus-core</td><td><span class="meta">Not available</span></td></tr><tr><td>cli</td><td>calls</td><td>fetch-ingest</td><td><span class="meta">Not available</span></td></tr><tr><td>cli</td><td>calls</td><td>sync-search-vector</td><td><span class="meta">Not available</span></td></tr><tr><td>cli</td><td>calls</td><td>safety-maintenance</td><td><span class="meta">Not available</span></td></tr><tr><td>cli</td><td>calls</td><td>skills-agent</td><td><span class="meta">Not available</span></td></tr><tr><td>cli</td><td>calls</td><td>obsidian-gbrain</td><td><span class="meta">Not available</span></td></tr><tr><td>corpus-core</td><td>supports</td><td>fetch-ingest</td><td><span class="meta">Not available</span></td></tr><tr><td>corpus-core</td><td>supports</td><td>sync-search-vector</td><td><span class="meta">Not available</span></td></tr><tr><td>corpus-core</td><td>supports</td><td>safety-maintenance</td><td><span class="meta">Not available</span></td></tr><tr><td>corpus-core</td><td>supports</td><td>obsidian-gbrain</td><td><span class="meta">Not available</span></td></tr><tr><td>docs-tests-release</td><td>documents</td><td>cli</td><td><span class="meta">Not available</span></td></tr><tr><td>docs-tests-release</td><td>documents</td><td>corpus-core</td><td><span class="meta">Not available</span></td></tr><tr><td>docs-tests-release</td><td>documents</td><td>fetch-ingest</td><td><span class="meta">Not available</span></td></tr><tr><td>docs-tests-release</td><td>documents</td><td>sync-search-vector</td><td><span class="meta">Not available</span></td></tr><tr><td>docs-tests-release</td><td>documents</td><td>safety-maintenance</td><td><span class="meta">Not available</span></td></tr><tr><td>docs-tests-release</td><td>documents</td><td>skills-agent</td><td><span class="meta">Not available</span></td></tr><tr><td>docs-tests-release</td><td>documents</td><td>obsidian-gbrain</td><td><span class="meta">Not available</span></td></tr><tr><td>fetch-ingest</td><td>depends_on</td><td>corpus-core</td><td><span class="meta">Not available</span></td></tr><tr><td>fetch-ingest</td><td>feeds</td><td>sync-search-vector</td><td><span class="meta">Not available</span></td></tr><tr><td>fetch-ingest</td><td>guided_by</td><td>skills-agent</td><td><span class="meta">Not available</span></td></tr><tr><td>obsidian-gbrain</td><td>depends_on</td><td>corpus-core</td><td><span class="meta">Not available</span></td></tr><tr><td>obsidian-gbrain</td><td>depends_on</td><td>safety-maintenance</td><td><span class="meta">Not available</span></td></tr><tr><td>obsidian-gbrain</td><td>exports_to</td><td>docs-tests-release</td><td><span class="meta">Not available</span></td></tr><tr><td>project-map</td><td>guides</td><td>cli</td><td><span class="meta">Not available</span></td></tr><tr><td>project-map</td><td>guides</td><td>corpus-core</td><td><span class="meta">Not available</span></td></tr><tr><td>project-map</td><td>guides</td><td>fetch-ingest</td><td><span class="meta">Not available</span></td></tr><tr><td>project-map</td><td>guides</td><td>sync-search-vector</td><td><span class="meta">Not available</span></td></tr><tr><td>project-map</td><td>guides</td><td>safety-maintenance</td><td><span class="meta">Not available</span></td></tr><tr><td>project-map</td><td>guides</td><td>skills-agent</td><td><span class="meta">Not available</span></td></tr><tr><td>project-map</td><td>guides</td><td>obsidian-gbrain</td><td><span class="meta">Not available</span></td></tr><tr><td>project-map</td><td>guides</td><td>docs-tests-release</td><td><span class="meta">Not available</span></td></tr><tr><td>safety-maintenance</td><td>depends_on</td><td>corpus-core</td><td><span class="meta">Not available</span></td></tr><tr><td>safety-maintenance</td><td>depends_on</td><td>sync-search-vector</td><td><span class="meta">Not available</span></td></tr><tr><td>safety-maintenance</td><td>protects</td><td>fetch-ingest</td><td><span class="meta">Not available</span></td></tr><tr><td>safety-maintenance</td><td>protects</td><td>skills-agent</td><td><span class="meta">Not available</span></td></tr><tr><td>skills-agent</td><td>uses</td><td>cli</td><td><span class="meta">Not available</span></td></tr><tr><td>skills-agent</td><td>uses</td><td>fetch-ingest</td><td><span class="meta">Not available</span></td></tr><tr><td>skills-agent</td><td>uses</td><td>sync-search-vector</td><td><span class="meta">Not available</span></td></tr><tr><td>skills-agent</td><td>uses</td><td>safety-maintenance</td><td><span class="meta">Not available</span></td></tr><tr><td>skills-agent</td><td>constrained_by</td><td>corpus-core</td><td><span class="meta">Not available</span></td></tr><tr><td>sync-search-vector</td><td>depends_on</td><td>corpus-core</td><td><span class="meta">Not available</span></td></tr><tr><td>sync-search-vector</td><td>consumes</td><td>fetch-ingest</td><td><span class="meta">Not available</span></td></tr><tr><td>sync-search-vector</td><td>checked_by</td><td>safety-maintenance</td><td><span class="meta">Not available</span></td></tr></tbody></table>
+    </section>
+    <section>
+      <h2>Verification</h2>
+      <table><thead><tr><th>Purpose</th><th>Command</th><th>Expected</th><th>When</th></tr></thead><tbody><tr><td>代码基线</td><td><code>npm run verify</code></td><td>tsc --noEmit、tsup、node --test tests/smoke/*.test.mjs 通过</td><td>声称代码变更完成前</td></tr><tr><td>Lint</td><td><code>npm run lint</code></td><td>exit 0</td><td>release 或 lint 规则交接前</td></tr><tr><td>Build</td><td><code>npm run build</code></td><td>exit 0</td><td>release 或构建相关交接前</td></tr><tr><td>CMAP 结构</td><td><code>cmap verify --changed</code></td><td>0 errors；warnings 必须解释</td><td>收尾 .context 或源码变更前</td></tr><tr><td>Obsidian 导出</td><td><code>cmap obsidian export --check --out _cmap/lorekit</code></td><td>导出层与 .context 一致</td><td>.context 变更并导出后</td></tr><tr><td>Review HTML</td><td><code>cmap view export --check --out _cmap-view</code></td><td>Review HTML 与 .context 一致</td><td>.context 变更并导出后</td></tr><tr><td>空白检查</td><td><code>git diff --check</code></td><td>没有 whitespace errors</td><td>commit 或最终交接前</td></tr></tbody></table><h3>Manual Checks</h3><ul><li>确认 `AGENTS.md` / `CLAUDE.md` 只追加 CMAP 说明，没有覆盖原有规则。</li><li>确认 `_cmap/lorekit` 和 `_cmap-view` 是生成视图，不含新语义事实。</li><li>涉及数据移动命令时，先看 dry-run，再确认 snapshot / Trash 行为。</li><li>JSON 输出要确认 stdout 仍可机器读取，人类提示走 stderr。</li></ul>
+    </section>
+    
+    
+    
+    <dialog id="module-dialog"><button type="button" data-close-dialog>Close</button><h2 id="module-dialog-title">Module</h2><pre id="module-dialog-body"></pre></dialog>
+    <script type="application/json" id="cmap-view-data">{
+  "schema": "cmap.view_data.v1",
+  "generatedAt": "2026-05-17T10:58:30.805Z",
+  "sourceCommit": "62576ef",
+  "projectRootName": "lorekit",
+  "included": {
+    "generated": false,
+    "inbox": false,
+    "freshness": false
+  },
+  "project": {
+    "id": "lorekit",
+    "name": "lorekit"
+  },
+  "overview": {
+    "activeGoal": "把 lorekit 的 `.context` 搭成可用的中文 CMAP 项目地图，并补齐 Obsidian / Review HTML 导出、`AGENTS.md` / `CLAUDE.md` 使用入口。",
+    "currentTask": "将 `/Users/gaoyifan/code/lorekit` 的 CMAP `.context` 搭建完整：正文中文化、模块关系接好、生成 Obsidian / Review HTML，并安全更新 `AGENTS.md` / `CLAUDE.md`。",
+    "nextStep": "人工 review diff；认可后可提交。",
+    "lastVerified": "2026-05-17：`cmap route` smoke checks 通过；`cmap verify --changed` 为 0 errors / 1 expected warning（`AGENTS.md` 与 `CLAUDE.md` 保持不同入口形态）；`cmap obsidian export --check --out _cmap/lorekit` 通过；`cmap view export --check --out _cmap-view` 通过；`git diff --check` 通过；`npm run verify` 通过（72 tests, 71 pass, 1 skipped）。"
+  },
+  "verify": {
+    "requiredCommands": [
+      {
+        "purpose": "代码基线",
+        "command": "npm run verify",
+        "expected": "tsc --noEmit、tsup、node --test tests/smoke/*.test.mjs 通过",
+        "when": "声称代码变更完成前"
+      },
+      {
+        "purpose": "Lint",
+        "command": "npm run lint",
+        "expected": "exit 0",
+        "when": "release 或 lint 规则交接前"
+      },
+      {
+        "purpose": "Build",
+        "command": "npm run build",
+        "expected": "exit 0",
+        "when": "release 或构建相关交接前"
+      },
+      {
+        "purpose": "CMAP 结构",
+        "command": "cmap verify --changed",
+        "expected": "0 errors；warnings 必须解释",
+        "when": "收尾 .context 或源码变更前"
+      },
+      {
+        "purpose": "Obsidian 导出",
+        "command": "cmap obsidian export --check --out _cmap/lorekit",
+        "expected": "导出层与 .context 一致",
+        "when": ".context 变更并导出后"
+      },
+      {
+        "purpose": "Review HTML",
+        "command": "cmap view export --check --out _cmap-view",
+        "expected": "Review HTML 与 .context 一致",
+        "when": ".context 变更并导出后"
+      },
+      {
+        "purpose": "空白检查",
+        "command": "git diff --check",
+        "expected": "没有 whitespace errors",
+        "when": "commit 或最终交接前"
+      }
+    ],
+    "manualChecks": [
+      "确认 `AGENTS.md` / `CLAUDE.md` 只追加 CMAP 说明，没有覆盖原有规则。",
+      "确认 `_cmap/lorekit` 和 `_cmap-view` 是生成视图，不含新语义事实。",
+      "涉及数据移动命令时，先看 dry-run，再确认 snapshot / Trash 行为。",
+      "JSON 输出要确认 stdout 仍可机器读取，人类提示走 stderr。"
+    ]
+  },
+  "summary": {
+    "moduleCount": 9,
+    "evidenceCount": 0,
+    "candidateCount": 0,
+    "warningCount": 0
+  },
+  "modules": [
+    {
+      "id": "cli",
+      "name": "Cli",
+      "docPath": ".context/modules/cli.md",
+      "status": "active",
+      "layer": "Not available",
+      "risk": "Not available",
+      "aliases": [
+        "cli",
+        "command",
+        "commands",
+        "version",
+        "banner",
+        "commander"
+      ],
+      "paths": [
+        "src/cli.ts",
+        "bin/lorekit.js",
+        "VERSION",
+        "package.json",
+        "dist/**"
+      ],
+      "responsibilities": [],
+      "relations": [
+        {
+          "type": "calls",
+          "target": "corpus-core"
+        },
+        {
+          "type": "calls",
+          "target": "fetch-ingest"
+        },
+        {
+          "type": "calls",
+          "target": "sync-search-vector"
+        },
+        {
+          "type": "calls",
+          "target": "safety-maintenance"
+        },
+        {
+          "type": "calls",
+          "target": "skills-agent"
+        },
+        {
+          "type": "calls",
+          "target": "obsidian-gbrain"
+        }
+      ],
+      "incomingRelations": [
+        {
+          "type": "documents",
+          "source": "docs-tests-release"
+        },
+        {
+          "type": "guides",
+          "source": "project-map"
+        },
+        {
+          "type": "uses",
+          "source": "skills-agent"
+        }
+      ],
+      "verifyCommands": [],
+      "relatedCandidates": [],
+      "freshness": {
+        "state": "Not available",
+        "lastReviewedAt": "Not available",
+        "newestGeneratedEvidenceAt": "Not available",
+        "pendingInboxCandidates": []
+      },
+      "suggestedCommands": [
+        {
+          "label": "Review module",
+          "command": "cmap freshness review --module cli"
+        },
+        {
+          "label": "Mark reviewed",
+          "command": "cmap freshness mark-reviewed --module cli --evidence \"Reviewed cli\""
+        }
+      ]
+    },
+    {
+      "id": "corpus-core",
+      "name": "Corpus Core",
+      "docPath": ".context/modules/corpus-core.md",
+      "status": "active",
+      "layer": "Not available",
+      "risk": "Not available",
+      "aliases": [
+        "corpus",
+        "schema",
+        "paths",
+        "lint",
+        "node_modules",
+        "skills",
+        "index.md",
+        "_INDEX",
+        "logger",
+        "路径",
+        "边界"
+      ],
+      "paths": [
+        "src/lib/corpus.ts",
+        "src/lib/paths.ts",
+        "src/lib/root-index.ts",
+        "src/lib/date.ts",
+        "src/utils/**"
+      ],
+      "responsibilities": [],
+      "relations": [
+        {
+          "type": "supports",
+          "target": "fetch-ingest"
+        },
+        {
+          "type": "supports",
+          "target": "sync-search-vector"
+        },
+        {
+          "type": "supports",
+          "target": "safety-maintenance"
+        },
+        {
+          "type": "supports",
+          "target": "obsidian-gbrain"
+        }
+      ],
+      "incomingRelations": [
+        {
+          "type": "calls",
+          "source": "cli"
+        },
+        {
+          "type": "documents",
+          "source": "docs-tests-release"
+        },
+        {
+          "type": "depends_on",
+          "source": "fetch-ingest"
+        },
+        {
+          "type": "depends_on",
+          "source": "obsidian-gbrain"
+        },
+        {
+          "type": "guides",
+          "source": "project-map"
+        },
+        {
+          "type": "depends_on",
+          "source": "safety-maintenance"
+        },
+        {
+          "type": "constrained_by",
+          "source": "skills-agent"
+        },
+        {
+          "type": "depends_on",
+          "source": "sync-search-vector"
+        }
+      ],
+      "verifyCommands": [],
+      "relatedCandidates": [],
+      "freshness": {
+        "state": "Not available",
+        "lastReviewedAt": "Not available",
+        "newestGeneratedEvidenceAt": "Not available",
+        "pendingInboxCandidates": []
+      },
+      "suggestedCommands": [
+        {
+          "label": "Review module",
+          "command": "cmap freshness review --module corpus-core"
+        },
+        {
+          "label": "Mark reviewed",
+          "command": "cmap freshness mark-reviewed --module corpus-core --evidence \"Reviewed corpus-core\""
+        }
+      ]
+    },
+    {
+      "id": "docs-tests-release",
+      "name": "Docs Tests Release",
+      "docPath": ".context/modules/docs-tests-release.md",
+      "status": "active",
+      "layer": "Not available",
+      "risk": "Not available",
+      "aliases": [
+        "docs",
+        "documentation",
+        "tests",
+        "smoke",
+        "verify",
+        "release",
+        "package",
+        "changelog",
+        "文档",
+        "发布"
+      ],
+      "paths": [
+        "docs/**",
+        "tests/smoke/**",
+        "README.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "eslint.config.js",
+        "tsconfig.json",
+        "tsup.config.ts",
+        "package-lock.json"
+      ],
+      "responsibilities": [],
+      "relations": [
+        {
+          "type": "documents",
+          "target": "cli"
+        },
+        {
+          "type": "documents",
+          "target": "corpus-core"
+        },
+        {
+          "type": "documents",
+          "target": "fetch-ingest"
+        },
+        {
+          "type": "documents",
+          "target": "sync-search-vector"
+        },
+        {
+          "type": "documents",
+          "target": "safety-maintenance"
+        },
+        {
+          "type": "documents",
+          "target": "skills-agent"
+        },
+        {
+          "type": "documents",
+          "target": "obsidian-gbrain"
+        }
+      ],
+      "incomingRelations": [
+        {
+          "type": "exports_to",
+          "source": "obsidian-gbrain"
+        },
+        {
+          "type": "guides",
+          "source": "project-map"
+        }
+      ],
+      "verifyCommands": [],
+      "relatedCandidates": [],
+      "freshness": {
+        "state": "Not available",
+        "lastReviewedAt": "Not available",
+        "newestGeneratedEvidenceAt": "Not available",
+        "pendingInboxCandidates": []
+      },
+      "suggestedCommands": [
+        {
+          "label": "Review module",
+          "command": "cmap freshness review --module docs-tests-release"
+        },
+        {
+          "label": "Mark reviewed",
+          "command": "cmap freshness mark-reviewed --module docs-tests-release --evidence \"Reviewed docs-tests-release\""
+        }
+      ]
+    },
+    {
+      "id": "fetch-ingest",
+      "name": "Fetch Ingest",
+      "docPath": ".context/modules/fetch-ingest.md",
+      "status": "active",
+      "layer": "Not available",
+      "risk": "Not available",
+      "aliases": [
+        "fetch",
+        "ingest",
+        "ingestion",
+        "微信",
+        "公众号",
+        "duplicate",
+        "in-progress",
+        "state",
+        "抓取",
+        "入库"
+      ],
+      "paths": [
+        "src/commands/fetch.ts",
+        "src/commands/ingest.ts",
+        "src/lib/fetcher/**",
+        "src/lib/ingest-state.ts"
+      ],
+      "responsibilities": [],
+      "relations": [
+        {
+          "type": "depends_on",
+          "target": "corpus-core"
+        },
+        {
+          "type": "feeds",
+          "target": "sync-search-vector"
+        },
+        {
+          "type": "guided_by",
+          "target": "skills-agent"
+        }
+      ],
+      "incomingRelations": [
+        {
+          "type": "calls",
+          "source": "cli"
+        },
+        {
+          "type": "supports",
+          "source": "corpus-core"
+        },
+        {
+          "type": "documents",
+          "source": "docs-tests-release"
+        },
+        {
+          "type": "guides",
+          "source": "project-map"
+        },
+        {
+          "type": "protects",
+          "source": "safety-maintenance"
+        },
+        {
+          "type": "uses",
+          "source": "skills-agent"
+        },
+        {
+          "type": "consumes",
+          "source": "sync-search-vector"
+        }
+      ],
+      "verifyCommands": [],
+      "relatedCandidates": [],
+      "freshness": {
+        "state": "Not available",
+        "lastReviewedAt": "Not available",
+        "newestGeneratedEvidenceAt": "Not available",
+        "pendingInboxCandidates": []
+      },
+      "suggestedCommands": [
+        {
+          "label": "Review module",
+          "command": "cmap freshness review --module fetch-ingest"
+        },
+        {
+          "label": "Mark reviewed",
+          "command": "cmap freshness mark-reviewed --module fetch-ingest --evidence \"Reviewed fetch-ingest\""
+        }
+      ]
+    },
+    {
+      "id": "obsidian-gbrain",
+      "name": "Obsidian Gbrain",
+      "docPath": ".context/modules/obsidian-gbrain.md",
+      "status": "active",
+      "layer": "Not available",
+      "risk": "Not available",
+      "aliases": [
+        "obsidian",
+        "graph",
+        "graph filter",
+        "gbrain",
+        "integration",
+        "integrations",
+        "视图",
+        "图谱"
+      ],
+      "paths": [
+        "src/commands/obsidian-tune.ts",
+        "src/lib/obsidian.ts",
+        "plugins/obsidian-audit/**",
+        "src/commands/gbrain.ts",
+        "src/lib/integrations/**",
+        "docs/integrations/**"
+      ],
+      "responsibilities": [],
+      "relations": [
+        {
+          "type": "depends_on",
+          "target": "corpus-core"
+        },
+        {
+          "type": "depends_on",
+          "target": "safety-maintenance"
+        },
+        {
+          "type": "exports_to",
+          "target": "docs-tests-release"
+        }
+      ],
+      "incomingRelations": [
+        {
+          "type": "calls",
+          "source": "cli"
+        },
+        {
+          "type": "supports",
+          "source": "corpus-core"
+        },
+        {
+          "type": "documents",
+          "source": "docs-tests-release"
+        },
+        {
+          "type": "guides",
+          "source": "project-map"
+        }
+      ],
+      "verifyCommands": [],
+      "relatedCandidates": [],
+      "freshness": {
+        "state": "Not available",
+        "lastReviewedAt": "Not available",
+        "newestGeneratedEvidenceAt": "Not available",
+        "pendingInboxCandidates": []
+      },
+      "suggestedCommands": [
+        {
+          "label": "Review module",
+          "command": "cmap freshness review --module obsidian-gbrain"
+        },
+        {
+          "label": "Mark reviewed",
+          "command": "cmap freshness mark-reviewed --module obsidian-gbrain --evidence \"Reviewed obsidian-gbrain\""
+        }
+      ]
+    },
+    {
+      "id": "project-map",
+      "name": "Project Map",
+      "docPath": ".context/modules/project-map.md",
+      "status": "active",
+      "layer": "Not available",
+      "risk": "Not available",
+      "aliases": [
+        "cmap",
+        "context",
+        ".context",
+        "project map",
+        "handoff",
+        "checkpoint",
+        "AGENTS",
+        "CLAUDE",
+        "接手",
+        "项目地图",
+        "续接"
+      ],
+      "paths": [
+        ".context/**",
+        ".gitignore",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "_cmap/**",
+        "_cmap-view/**"
+      ],
+      "responsibilities": [],
+      "relations": [
+        {
+          "type": "guides",
+          "target": "cli"
+        },
+        {
+          "type": "guides",
+          "target": "corpus-core"
+        },
+        {
+          "type": "guides",
+          "target": "fetch-ingest"
+        },
+        {
+          "type": "guides",
+          "target": "sync-search-vector"
+        },
+        {
+          "type": "guides",
+          "target": "safety-maintenance"
+        },
+        {
+          "type": "guides",
+          "target": "skills-agent"
+        },
+        {
+          "type": "guides",
+          "target": "obsidian-gbrain"
+        },
+        {
+          "type": "guides",
+          "target": "docs-tests-release"
+        }
+      ],
+      "incomingRelations": [],
+      "verifyCommands": [],
+      "relatedCandidates": [],
+      "freshness": {
+        "state": "Not available",
+        "lastReviewedAt": "Not available",
+        "newestGeneratedEvidenceAt": "Not available",
+        "pendingInboxCandidates": []
+      },
+      "suggestedCommands": [
+        {
+          "label": "Review module",
+          "command": "cmap freshness review --module project-map"
+        },
+        {
+          "label": "Mark reviewed",
+          "command": "cmap freshness mark-reviewed --module project-map --evidence \"Reviewed project-map\""
+        }
+      ]
+    },
+    {
+      "id": "safety-maintenance",
+      "name": "Safety Maintenance",
+      "docPath": ".context/modules/safety-maintenance.md",
+      "status": "active",
+      "layer": "Not available",
+      "risk": "Not available",
+      "aliases": [
+        "doctor",
+        "lint",
+        "snapshot",
+        "restore",
+        "remove",
+        "trash",
+        "audit",
+        "stats",
+        "安全",
+        "体检",
+        "删除"
+      ],
+      "paths": [
+        "src/commands/doctor.ts",
+        "src/commands/lint.ts",
+        "src/commands/snapshot.ts",
+        "src/commands/restore.ts",
+        "src/commands/remove.ts",
+        "src/commands/audit.ts",
+        "src/commands/stats.ts"
+      ],
+      "responsibilities": [],
+      "relations": [
+        {
+          "type": "depends_on",
+          "target": "corpus-core"
+        },
+        {
+          "type": "depends_on",
+          "target": "sync-search-vector"
+        },
+        {
+          "type": "protects",
+          "target": "fetch-ingest"
+        },
+        {
+          "type": "protects",
+          "target": "skills-agent"
+        }
+      ],
+      "incomingRelations": [
+        {
+          "type": "calls",
+          "source": "cli"
+        },
+        {
+          "type": "supports",
+          "source": "corpus-core"
+        },
+        {
+          "type": "documents",
+          "source": "docs-tests-release"
+        },
+        {
+          "type": "depends_on",
+          "source": "obsidian-gbrain"
+        },
+        {
+          "type": "guides",
+          "source": "project-map"
+        },
+        {
+          "type": "uses",
+          "source": "skills-agent"
+        },
+        {
+          "type": "checked_by",
+          "source": "sync-search-vector"
+        }
+      ],
+      "verifyCommands": [],
+      "relatedCandidates": [],
+      "freshness": {
+        "state": "Not available",
+        "lastReviewedAt": "Not available",
+        "newestGeneratedEvidenceAt": "Not available",
+        "pendingInboxCandidates": []
+      },
+      "suggestedCommands": [
+        {
+          "label": "Review module",
+          "command": "cmap freshness review --module safety-maintenance"
+        },
+        {
+          "label": "Mark reviewed",
+          "command": "cmap freshness mark-reviewed --module safety-maintenance --evidence \"Reviewed safety-maintenance\""
+        }
+      ]
+    },
+    {
+      "id": "skills-agent",
+      "name": "Skills Agent",
+      "docPath": ".context/modules/skills-agent.md",
+      "status": "active",
+      "layer": "Not available",
+      "risk": "Not available",
+      "aliases": [
+        "skill",
+        "skills",
+        "wiki-ingest",
+        "wiki-query",
+        "install-skills",
+        "agent",
+        "AGENTS",
+        "CLAUDE",
+        "AI",
+        "工作流"
+      ],
+      "paths": [
+        "skills/**",
+        "src/commands/install-skills.ts",
+        "integrations/claude-code/**",
+        "templates/default-corpus/AGENTS.md",
+        "templates/default-corpus/CLAUDE.md"
+      ],
+      "responsibilities": [],
+      "relations": [
+        {
+          "type": "uses",
+          "target": "cli"
+        },
+        {
+          "type": "uses",
+          "target": "fetch-ingest"
+        },
+        {
+          "type": "uses",
+          "target": "sync-search-vector"
+        },
+        {
+          "type": "uses",
+          "target": "safety-maintenance"
+        },
+        {
+          "type": "constrained_by",
+          "target": "corpus-core"
+        }
+      ],
+      "incomingRelations": [
+        {
+          "type": "calls",
+          "source": "cli"
+        },
+        {
+          "type": "documents",
+          "source": "docs-tests-release"
+        },
+        {
+          "type": "guided_by",
+          "source": "fetch-ingest"
+        },
+        {
+          "type": "guides",
+          "source": "project-map"
+        },
+        {
+          "type": "protects",
+          "source": "safety-maintenance"
+        }
+      ],
+      "verifyCommands": [],
+      "relatedCandidates": [],
+      "freshness": {
+        "state": "Not available",
+        "lastReviewedAt": "Not available",
+        "newestGeneratedEvidenceAt": "Not available",
+        "pendingInboxCandidates": []
+      },
+      "suggestedCommands": [
+        {
+          "label": "Review module",
+          "command": "cmap freshness review --module skills-agent"
+        },
+        {
+          "label": "Mark reviewed",
+          "command": "cmap freshness mark-reviewed --module skills-agent --evidence \"Reviewed skills-agent\""
+        }
+      ]
+    },
+    {
+      "id": "sync-search-vector",
+      "name": "Sync Search Vector",
+      "docPath": ".context/modules/sync-search-vector.md",
+      "status": "active",
+      "layer": "Not available",
+      "risk": "Not available",
+      "aliases": [
+        "sync",
+        "search",
+        "vector",
+        "bm25",
+        "rrf",
+        "ollama",
+        "_INDEX",
+        "indexed_files",
+        "检索",
+        "向量"
+      ],
+      "paths": [
+        "src/commands/dir-index.ts",
+        "src/commands/sync.ts",
+        "src/commands/search.ts",
+        "src/commands/vector.ts",
+        "src/lib/vectordb/**",
+        "src/lib/ollama.ts",
+        "src/lib/chunker.ts"
+      ],
+      "responsibilities": [],
+      "relations": [
+        {
+          "type": "depends_on",
+          "target": "corpus-core"
+        },
+        {
+          "type": "consumes",
+          "target": "fetch-ingest"
+        },
+        {
+          "type": "checked_by",
+          "target": "safety-maintenance"
+        }
+      ],
+      "incomingRelations": [
+        {
+          "type": "calls",
+          "source": "cli"
+        },
+        {
+          "type": "supports",
+          "source": "corpus-core"
+        },
+        {
+          "type": "documents",
+          "source": "docs-tests-release"
+        },
+        {
+          "type": "feeds",
+          "source": "fetch-ingest"
+        },
+        {
+          "type": "guides",
+          "source": "project-map"
+        },
+        {
+          "type": "depends_on",
+          "source": "safety-maintenance"
+        },
+        {
+          "type": "uses",
+          "source": "skills-agent"
+        }
+      ],
+      "verifyCommands": [],
+      "relatedCandidates": [],
+      "freshness": {
+        "state": "Not available",
+        "lastReviewedAt": "Not available",
+        "newestGeneratedEvidenceAt": "Not available",
+        "pendingInboxCandidates": []
+      },
+      "suggestedCommands": [
+        {
+          "label": "Review module",
+          "command": "cmap freshness review --module sync-search-vector"
+        },
+        {
+          "label": "Mark reviewed",
+          "command": "cmap freshness mark-reviewed --module sync-search-vector --evidence \"Reviewed sync-search-vector\""
+        }
+      ]
+    }
+  ],
+  "evidence": [],
+  "candidates": [],
+  "relationCandidates": [],
+  "warnings": []
+}</script>
+    <script>(function () {
+  const dataEl = document.getElementById("cmap-view-data");
+  const data = dataEl ? JSON.parse(dataEl.textContent || "{}") : {};
+  const search = document.getElementById("view-search");
+  const filters = {
+    stale: document.getElementById("filter-stale"),
+    candidates: document.getElementById("filter-candidates"),
+    highRisk: document.getElementById("filter-high-risk"),
+    generated: document.getElementById("filter-generated")
+  };
+  const rows = Array.from(document.querySelectorAll("[data-search]"));
+  function applyFilters() {
+    const query = (search && "value" in search ? String(search.value) : "").toLowerCase();
+    for (const row of rows) {
+      const text = String(row.getAttribute("data-search") || "").toLowerCase();
+      const visible = (!query || text.includes(query))
+        && (!filters.stale.checked || row.getAttribute("data-stale") === "true")
+        && (!filters.candidates.checked || row.getAttribute("data-has-candidate") === "true")
+        && (!filters.highRisk.checked || row.getAttribute("data-high-risk") === "true")
+        && (!filters.generated.checked || row.getAttribute("data-generated") === "true");
+      row.classList.toggle("is-hidden", !visible);
+    }
+  }
+  search && search.addEventListener("input", applyFilters);
+  Object.values(filters).forEach((input) => input && input.addEventListener("change", applyFilters));
+  document.addEventListener("click", async function (event) {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const command = target.getAttribute("data-copy-command");
+    if (command) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(command);
+      }
+      target.textContent = "Copied";
+    }
+    const moduleId = target.getAttribute("data-open-module");
+    if (moduleId) {
+      const module = (data.modules || []).find((item) => item.id === moduleId);
+      const dialog = document.getElementById("module-dialog");
+      const title = document.getElementById("module-dialog-title");
+      const body = document.getElementById("module-dialog-body");
+      if (module && dialog && title && body) {
+        title.textContent = module.name || module.id;
+        body.textContent = JSON.stringify(module, null, 2);
+        dialog.showModal && dialog.showModal();
+      }
+    }
+    if (target.hasAttribute("data-close-dialog")) {
+      const dialog = document.getElementById("module-dialog");
+      dialog && dialog.close && dialog.close();
+    }
+  });
+}());</script>
+  </main>
+</body>
+</html>

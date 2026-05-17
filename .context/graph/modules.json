@@ -1,0 +1,206 @@
+{
+  "cli": {
+    "doc": ".context/modules/cli.md",
+    "paths": [
+      "src/cli.ts",
+      "bin/lorekit.js",
+      "VERSION",
+      "package.json",
+      "dist/**"
+    ],
+    "aliases": [
+      "cli",
+      "command",
+      "commands",
+      "version",
+      "banner",
+      "commander"
+    ]
+  },
+  "corpus-core": {
+    "doc": ".context/modules/corpus-core.md",
+    "paths": [
+      "src/lib/corpus.ts",
+      "src/lib/paths.ts",
+      "src/lib/root-index.ts",
+      "src/lib/date.ts",
+      "src/utils/**"
+    ],
+    "aliases": [
+      "corpus",
+      "schema",
+      "paths",
+      "lint",
+      "node_modules",
+      "skills",
+      "index.md",
+      "_INDEX",
+      "logger",
+      "路径",
+      "边界"
+    ]
+  },
+  "docs-tests-release": {
+    "doc": ".context/modules/docs-tests-release.md",
+    "paths": [
+      "docs/**",
+      "tests/smoke/**",
+      "README.md",
+      "CHANGELOG.md",
+      "LICENSE",
+      "eslint.config.js",
+      "tsconfig.json",
+      "tsup.config.ts",
+      "package-lock.json"
+    ],
+    "aliases": [
+      "docs",
+      "documentation",
+      "tests",
+      "smoke",
+      "verify",
+      "release",
+      "package",
+      "changelog",
+      "文档",
+      "发布"
+    ]
+  },
+  "fetch-ingest": {
+    "doc": ".context/modules/fetch-ingest.md",
+    "paths": [
+      "src/commands/fetch.ts",
+      "src/commands/ingest.ts",
+      "src/lib/fetcher/**",
+      "src/lib/ingest-state.ts"
+    ],
+    "aliases": [
+      "fetch",
+      "ingest",
+      "ingestion",
+      "微信",
+      "公众号",
+      "duplicate",
+      "in-progress",
+      "state",
+      "抓取",
+      "入库"
+    ]
+  },
+  "obsidian-gbrain": {
+    "doc": ".context/modules/obsidian-gbrain.md",
+    "paths": [
+      "src/commands/obsidian-tune.ts",
+      "src/lib/obsidian.ts",
+      "plugins/obsidian-audit/**",
+      "src/commands/gbrain.ts",
+      "src/lib/integrations/**",
+      "docs/integrations/**"
+    ],
+    "aliases": [
+      "obsidian",
+      "graph",
+      "graph filter",
+      "gbrain",
+      "integration",
+      "integrations",
+      "视图",
+      "图谱"
+    ]
+  },
+  "project-map": {
+    "doc": ".context/modules/project-map.md",
+    "paths": [
+      ".context/**",
+      ".gitignore",
+      "AGENTS.md",
+      "CLAUDE.md",
+      "_cmap/**",
+      "_cmap-view/**"
+    ],
+    "aliases": [
+      "cmap",
+      "context",
+      ".context",
+      "project map",
+      "handoff",
+      "checkpoint",
+      "AGENTS",
+      "CLAUDE",
+      "接手",
+      "项目地图",
+      "续接"
+    ]
+  },
+  "safety-maintenance": {
+    "doc": ".context/modules/safety-maintenance.md",
+    "paths": [
+      "src/commands/doctor.ts",
+      "src/commands/lint.ts",
+      "src/commands/snapshot.ts",
+      "src/commands/restore.ts",
+      "src/commands/remove.ts",
+      "src/commands/audit.ts",
+      "src/commands/stats.ts"
+    ],
+    "aliases": [
+      "doctor",
+      "lint",
+      "snapshot",
+      "restore",
+      "remove",
+      "trash",
+      "audit",
+      "stats",
+      "安全",
+      "体检",
+      "删除"
+    ]
+  },
+  "skills-agent": {
+    "doc": ".context/modules/skills-agent.md",
+    "paths": [
+      "skills/**",
+      "src/commands/install-skills.ts",
+      "integrations/claude-code/**",
+      "templates/default-corpus/AGENTS.md",
+      "templates/default-corpus/CLAUDE.md"
+    ],
+    "aliases": [
+      "skill",
+      "skills",
+      "wiki-ingest",
+      "wiki-query",
+      "install-skills",
+      "agent",
+      "AGENTS",
+      "CLAUDE",
+      "AI",
+      "工作流"
+    ]
+  },
+  "sync-search-vector": {
+    "doc": ".context/modules/sync-search-vector.md",
+    "paths": [
+      "src/commands/dir-index.ts",
+      "src/commands/sync.ts",
+      "src/commands/search.ts",
+      "src/commands/vector.ts",
+      "src/lib/vectordb/**",
+      "src/lib/ollama.ts",
+      "src/lib/chunker.ts"
+    ],
+    "aliases": [
+      "sync",
+      "search",
+      "vector",
+      "bm25",
+      "rrf",
+      "ollama",
+      "_INDEX",
+      "indexed_files",
+      "检索",
+      "向量"
+    ]
+  }
+}

@@ -1,0 +1,32 @@
+# cmap deterministic maintenance policy
+# AI can propose semantics; cmap only auto-applies bounded routine/generated updates.
+version: 2
+
+auto_apply:
+  checkpoint.write: true
+  checkpoint.close: true
+  evidence.append: true
+  verification.evidence: true
+  stats.update: true
+
+candidate_only:
+  status.update: true
+  module.alias.add: true
+  module.path.add: true
+  module.semantic.update: true
+  decision.record: true
+  verify.policy.update: true
+
+blocked:
+  code.write: true
+  shell.run: true
+  module.delete: true
+  module.rename: true
+  map.semantic.overwrite: true
+
+thresholds:
+  routine_confidence: 0.75
+  evidence_confidence: 0.70
+  max_inbox_pending: 0
+  max_high_risk: 0
+  generated_evidence_max_entries: 50

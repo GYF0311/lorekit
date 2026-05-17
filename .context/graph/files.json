@@ -1,0 +1,272 @@
+{
+  "src/cli.ts": {
+    "modules": [
+      "cli"
+    ]
+  },
+  "bin/lorekit.js": {
+    "modules": [
+      "cli"
+    ]
+  },
+  "VERSION": {
+    "modules": [
+      "cli"
+    ]
+  },
+  "package.json": {
+    "modules": [
+      "cli"
+    ]
+  },
+  "dist/**": {
+    "modules": [
+      "cli"
+    ]
+  },
+  "src/lib/corpus.ts": {
+    "modules": [
+      "corpus-core"
+    ]
+  },
+  "src/lib/paths.ts": {
+    "modules": [
+      "corpus-core"
+    ]
+  },
+  "src/lib/root-index.ts": {
+    "modules": [
+      "corpus-core"
+    ]
+  },
+  "src/lib/date.ts": {
+    "modules": [
+      "corpus-core"
+    ]
+  },
+  "src/utils/**": {
+    "modules": [
+      "corpus-core"
+    ]
+  },
+  "docs/**": {
+    "modules": [
+      "docs-tests-release"
+    ]
+  },
+  "tests/smoke/**": {
+    "modules": [
+      "docs-tests-release"
+    ]
+  },
+  "README.md": {
+    "modules": [
+      "docs-tests-release"
+    ]
+  },
+  "CHANGELOG.md": {
+    "modules": [
+      "docs-tests-release"
+    ]
+  },
+  "LICENSE": {
+    "modules": [
+      "docs-tests-release"
+    ]
+  },
+  "eslint.config.js": {
+    "modules": [
+      "docs-tests-release"
+    ]
+  },
+  "tsconfig.json": {
+    "modules": [
+      "docs-tests-release"
+    ]
+  },
+  "tsup.config.ts": {
+    "modules": [
+      "docs-tests-release"
+    ]
+  },
+  "package-lock.json": {
+    "modules": [
+      "docs-tests-release"
+    ]
+  },
+  "src/commands/fetch.ts": {
+    "modules": [
+      "fetch-ingest"
+    ]
+  },
+  "src/commands/ingest.ts": {
+    "modules": [
+      "fetch-ingest"
+    ]
+  },
+  "src/lib/fetcher/**": {
+    "modules": [
+      "fetch-ingest"
+    ]
+  },
+  "src/lib/ingest-state.ts": {
+    "modules": [
+      "fetch-ingest"
+    ]
+  },
+  "src/commands/obsidian-tune.ts": {
+    "modules": [
+      "obsidian-gbrain"
+    ]
+  },
+  "src/lib/obsidian.ts": {
+    "modules": [
+      "obsidian-gbrain"
+    ]
+  },
+  "plugins/obsidian-audit/**": {
+    "modules": [
+      "obsidian-gbrain"
+    ]
+  },
+  "src/commands/gbrain.ts": {
+    "modules": [
+      "obsidian-gbrain"
+    ]
+  },
+  "src/lib/integrations/**": {
+    "modules": [
+      "obsidian-gbrain"
+    ]
+  },
+  "docs/integrations/**": {
+    "modules": [
+      "obsidian-gbrain"
+    ]
+  },
+  ".context/**": {
+    "modules": [
+      "project-map"
+    ]
+  },
+  ".gitignore": {
+    "modules": [
+      "project-map"
+    ]
+  },
+  "AGENTS.md": {
+    "modules": [
+      "project-map"
+    ]
+  },
+  "CLAUDE.md": {
+    "modules": [
+      "project-map"
+    ]
+  },
+  "_cmap/**": {
+    "modules": [
+      "project-map"
+    ]
+  },
+  "_cmap-view/**": {
+    "modules": [
+      "project-map"
+    ]
+  },
+  "src/commands/doctor.ts": {
+    "modules": [
+      "safety-maintenance"
+    ]
+  },
+  "src/commands/lint.ts": {
+    "modules": [
+      "safety-maintenance"
+    ]
+  },
+  "src/commands/snapshot.ts": {
+    "modules": [
+      "safety-maintenance"
+    ]
+  },
+  "src/commands/restore.ts": {
+    "modules": [
+      "safety-maintenance"
+    ]
+  },
+  "src/commands/remove.ts": {
+    "modules": [
+      "safety-maintenance"
+    ]
+  },
+  "src/commands/audit.ts": {
+    "modules": [
+      "safety-maintenance"
+    ]
+  },
+  "src/commands/stats.ts": {
+    "modules": [
+      "safety-maintenance"
+    ]
+  },
+  "skills/**": {
+    "modules": [
+      "skills-agent"
+    ]
+  },
+  "src/commands/install-skills.ts": {
+    "modules": [
+      "skills-agent"
+    ]
+  },
+  "integrations/claude-code/**": {
+    "modules": [
+      "skills-agent"
+    ]
+  },
+  "templates/default-corpus/AGENTS.md": {
+    "modules": [
+      "skills-agent"
+    ]
+  },
+  "templates/default-corpus/CLAUDE.md": {
+    "modules": [
+      "skills-agent"
+    ]
+  },
+  "src/commands/dir-index.ts": {
+    "modules": [
+      "sync-search-vector"
+    ]
+  },
+  "src/commands/sync.ts": {
+    "modules": [
+      "sync-search-vector"
+    ]
+  },
+  "src/commands/search.ts": {
+    "modules": [
+      "sync-search-vector"
+    ]
+  },
+  "src/commands/vector.ts": {
+    "modules": [
+      "sync-search-vector"
+    ]
+  },
+  "src/lib/vectordb/**": {
+    "modules": [
+      "sync-search-vector"
+    ]
+  },
+  "src/lib/ollama.ts": {
+    "modules": [
+      "sync-search-vector"
+    ]
+  },
+  "src/lib/chunker.ts": {
+    "modules": [
+      "sync-search-vector"
+    ]
+  }
+}

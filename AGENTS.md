@@ -9,6 +9,26 @@
 - **新会话接手顺序**：AGENTS.md → docs/CONVENTIONS → docs/ARCHITECTURE → docs/CODEBASE-MAP → docs/DESIGN-NOTES → docs/IDEAS → docs/plans/（~25k tok 完全对齐）
 - **历史日志**：`docs/history/`（WORKLOG / REFACTOR-PLAN / DEVLOG，默认不读）
 
+<!-- cmap:start -->
+## CMAP 项目地图（接手时必读）
+
+本仓库已接入 CMAP，`.context` 是 repo-local 项目地图，用来帮助 AI 新会话快速续接上下文；它不替代本文的项目规则。
+
+接手顺序：
+
+1. 先读本文，确认数据安全、文档同步和验证规则。
+2. 读 `.context/CHECKPOINT.md` 看当前任务和最近验证。
+3. 读 `.context/MAP.md` 看模块地图、数据流和路由规则。
+4. 运行 `cmap route "<task>"`，只读取命中的 `.context/modules/<module>.md`，不要默认全量读取 `.context`。
+5. 修改代码、docs 或 `.context` 后，按 `.context/VERIFY.md` 跑验证；收尾至少跑 `cmap verify --changed` 和 `git diff --check`。
+
+可信事实源：`.context/MAP.md`、`.context/CHECKPOINT.md`、`.context/STATUS.md`、`.context/DECISIONS.md`、`.context/VERIFY.md`、`.context/modules/*.md`。
+
+辅助层：`.context/out/`、`.context/inbox/`、`.context/generated/`、`.context/logs/`、`.context/ideas/`、`_cmap/lorekit/`、`_cmap-view/`。这些只做候选、日志或展示，不直接当项目事实。
+
+正文约定：`.context` 的人读正文默认中文；frontmatter key、module id、命令、路径和代码标识符保留英文，保证 `cmap` CLI 可解析。
+<!-- cmap:end -->
+
 ### 给新 AI 的交接提醒（必读）
 
 1. **先跑 `git status` + `git log --oneline origin/main..HEAD`** 确认是否有未 push 的 commits。有就先帮先生 push（如之前 SSL 挂过，就重试 `git push origin main`）

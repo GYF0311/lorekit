@@ -1,0 +1,432 @@
+[
+  {
+    "from": "cli",
+    "to": "corpus-core",
+    "type": "calls",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/cli.md relations.calls includes corpus-core"
+    ]
+  },
+  {
+    "from": "cli",
+    "to": "fetch-ingest",
+    "type": "calls",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/cli.md relations.calls includes fetch-ingest"
+    ]
+  },
+  {
+    "from": "cli",
+    "to": "obsidian-gbrain",
+    "type": "calls",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/cli.md relations.calls includes obsidian-gbrain"
+    ]
+  },
+  {
+    "from": "cli",
+    "to": "safety-maintenance",
+    "type": "calls",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/cli.md relations.calls includes safety-maintenance"
+    ]
+  },
+  {
+    "from": "cli",
+    "to": "skills-agent",
+    "type": "calls",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/cli.md relations.calls includes skills-agent"
+    ]
+  },
+  {
+    "from": "cli",
+    "to": "sync-search-vector",
+    "type": "calls",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/cli.md relations.calls includes sync-search-vector"
+    ]
+  },
+  {
+    "from": "corpus-core",
+    "to": "fetch-ingest",
+    "type": "supports",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/corpus-core.md relations.supports includes fetch-ingest"
+    ]
+  },
+  {
+    "from": "corpus-core",
+    "to": "obsidian-gbrain",
+    "type": "supports",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/corpus-core.md relations.supports includes obsidian-gbrain"
+    ]
+  },
+  {
+    "from": "corpus-core",
+    "to": "safety-maintenance",
+    "type": "supports",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/corpus-core.md relations.supports includes safety-maintenance"
+    ]
+  },
+  {
+    "from": "corpus-core",
+    "to": "sync-search-vector",
+    "type": "supports",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/corpus-core.md relations.supports includes sync-search-vector"
+    ]
+  },
+  {
+    "from": "docs-tests-release",
+    "to": "cli",
+    "type": "documents",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/docs-tests-release.md relations.documents includes cli"
+    ]
+  },
+  {
+    "from": "docs-tests-release",
+    "to": "corpus-core",
+    "type": "documents",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/docs-tests-release.md relations.documents includes corpus-core"
+    ]
+  },
+  {
+    "from": "docs-tests-release",
+    "to": "fetch-ingest",
+    "type": "documents",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/docs-tests-release.md relations.documents includes fetch-ingest"
+    ]
+  },
+  {
+    "from": "docs-tests-release",
+    "to": "obsidian-gbrain",
+    "type": "documents",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/docs-tests-release.md relations.documents includes obsidian-gbrain"
+    ]
+  },
+  {
+    "from": "docs-tests-release",
+    "to": "safety-maintenance",
+    "type": "documents",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/docs-tests-release.md relations.documents includes safety-maintenance"
+    ]
+  },
+  {
+    "from": "docs-tests-release",
+    "to": "skills-agent",
+    "type": "documents",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/docs-tests-release.md relations.documents includes skills-agent"
+    ]
+  },
+  {
+    "from": "docs-tests-release",
+    "to": "sync-search-vector",
+    "type": "documents",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/docs-tests-release.md relations.documents includes sync-search-vector"
+    ]
+  },
+  {
+    "from": "fetch-ingest",
+    "to": "corpus-core",
+    "type": "depends_on",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/fetch-ingest.md relations.depends_on includes corpus-core"
+    ]
+  },
+  {
+    "from": "fetch-ingest",
+    "to": "sync-search-vector",
+    "type": "feeds",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/fetch-ingest.md relations.feeds includes sync-search-vector"
+    ]
+  },
+  {
+    "from": "fetch-ingest",
+    "to": "skills-agent",
+    "type": "guided_by",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/fetch-ingest.md relations.guided_by includes skills-agent"
+    ]
+  },
+  {
+    "from": "obsidian-gbrain",
+    "to": "corpus-core",
+    "type": "depends_on",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/obsidian-gbrain.md relations.depends_on includes corpus-core"
+    ]
+  },
+  {
+    "from": "obsidian-gbrain",
+    "to": "safety-maintenance",
+    "type": "depends_on",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/obsidian-gbrain.md relations.depends_on includes safety-maintenance"
+    ]
+  },
+  {
+    "from": "obsidian-gbrain",
+    "to": "docs-tests-release",
+    "type": "exports_to",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/obsidian-gbrain.md relations.exports_to includes docs-tests-release"
+    ]
+  },
+  {
+    "from": "project-map",
+    "to": "cli",
+    "type": "guides",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/project-map.md relations.guides includes cli"
+    ]
+  },
+  {
+    "from": "project-map",
+    "to": "corpus-core",
+    "type": "guides",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/project-map.md relations.guides includes corpus-core"
+    ]
+  },
+  {
+    "from": "project-map",
+    "to": "docs-tests-release",
+    "type": "guides",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/project-map.md relations.guides includes docs-tests-release"
+    ]
+  },
+  {
+    "from": "project-map",
+    "to": "fetch-ingest",
+    "type": "guides",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/project-map.md relations.guides includes fetch-ingest"
+    ]
+  },
+  {
+    "from": "project-map",
+    "to": "obsidian-gbrain",
+    "type": "guides",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/project-map.md relations.guides includes obsidian-gbrain"
+    ]
+  },
+  {
+    "from": "project-map",
+    "to": "safety-maintenance",
+    "type": "guides",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/project-map.md relations.guides includes safety-maintenance"
+    ]
+  },
+  {
+    "from": "project-map",
+    "to": "skills-agent",
+    "type": "guides",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/project-map.md relations.guides includes skills-agent"
+    ]
+  },
+  {
+    "from": "project-map",
+    "to": "sync-search-vector",
+    "type": "guides",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/project-map.md relations.guides includes sync-search-vector"
+    ]
+  },
+  {
+    "from": "safety-maintenance",
+    "to": "corpus-core",
+    "type": "depends_on",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/safety-maintenance.md relations.depends_on includes corpus-core"
+    ]
+  },
+  {
+    "from": "safety-maintenance",
+    "to": "sync-search-vector",
+    "type": "depends_on",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/safety-maintenance.md relations.depends_on includes sync-search-vector"
+    ]
+  },
+  {
+    "from": "safety-maintenance",
+    "to": "fetch-ingest",
+    "type": "protects",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/safety-maintenance.md relations.protects includes fetch-ingest"
+    ]
+  },
+  {
+    "from": "safety-maintenance",
+    "to": "skills-agent",
+    "type": "protects",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/safety-maintenance.md relations.protects includes skills-agent"
+    ]
+  },
+  {
+    "from": "skills-agent",
+    "to": "corpus-core",
+    "type": "constrained_by",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/skills-agent.md relations.constrained_by includes corpus-core"
+    ]
+  },
+  {
+    "from": "skills-agent",
+    "to": "cli",
+    "type": "uses",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/skills-agent.md relations.uses includes cli"
+    ]
+  },
+  {
+    "from": "skills-agent",
+    "to": "fetch-ingest",
+    "type": "uses",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/skills-agent.md relations.uses includes fetch-ingest"
+    ]
+  },
+  {
+    "from": "skills-agent",
+    "to": "safety-maintenance",
+    "type": "uses",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/skills-agent.md relations.uses includes safety-maintenance"
+    ]
+  },
+  {
+    "from": "skills-agent",
+    "to": "sync-search-vector",
+    "type": "uses",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/skills-agent.md relations.uses includes sync-search-vector"
+    ]
+  },
+  {
+    "from": "sync-search-vector",
+    "to": "safety-maintenance",
+    "type": "checked_by",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/sync-search-vector.md relations.checked_by includes safety-maintenance"
+    ]
+  },
+  {
+    "from": "sync-search-vector",
+    "to": "fetch-ingest",
+    "type": "consumes",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/sync-search-vector.md relations.consumes includes fetch-ingest"
+    ]
+  },
+  {
+    "from": "sync-search-vector",
+    "to": "corpus-core",
+    "type": "depends_on",
+    "source": "module_relations",
+    "confidence": 1,
+    "evidence": [
+      ".context/modules/sync-search-vector.md relations.depends_on includes corpus-core"
+    ]
+  }
+]
