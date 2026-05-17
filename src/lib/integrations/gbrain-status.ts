@@ -20,6 +20,14 @@ export interface GbrainStatusResult {
   errors: string[];
 }
 
+function brainHomeDir(): string {
+  return process.env.GBRAIN_HOME || homedir();
+}
+
+function isBrainInitialized(): boolean {
+  return existsSync(join(brainHomeDir(), '.gbrain'));
+}
+
 export async function getGbrainStatus(): Promise<GbrainStatusResult> {
   const binary = process.env.LOREKIT_GBRAIN_BIN || 'gbrain';
   const errors: string[] = [];
@@ -35,7 +43,7 @@ export async function getGbrainStatus(): Promise<GbrainStatusResult> {
       installed: false,
       binary,
       version: null,
-      brainInitialized: existsSync(join(homedir(), '.gbrain')),
+      brainInitialized: isBrainInitialized(),
       installHint: GBRAIN_INSTALL_HINT,
       errors,
     };
@@ -46,7 +54,7 @@ export async function getGbrainStatus(): Promise<GbrainStatusResult> {
     installed: true,
     binary,
     version,
-    brainInitialized: existsSync(join(homedir(), '.gbrain')),
+    brainInitialized: isBrainInitialized(),
     installHint: GBRAIN_INSTALL_HINT,
     errors,
   };

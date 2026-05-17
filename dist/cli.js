@@ -1335,6 +1335,12 @@ var GBRAIN_INSTALL_HINT = [
   "bun link",
   "gbrain init"
 ].join("\n");
+function brainHomeDir() {
+  return process.env.GBRAIN_HOME || homedir();
+}
+function isBrainInitialized() {
+  return existsSync4(join5(brainHomeDir(), ".gbrain"));
+}
 async function getGbrainStatus() {
   const binary = process.env.LOREKIT_GBRAIN_BIN || "gbrain";
   const errors = [];
@@ -1349,7 +1355,7 @@ async function getGbrainStatus() {
       installed: false,
       binary,
       version: null,
-      brainInitialized: existsSync4(join5(homedir(), ".gbrain")),
+      brainInitialized: isBrainInitialized(),
       installHint: GBRAIN_INSTALL_HINT,
       errors
     };
@@ -1359,7 +1365,7 @@ async function getGbrainStatus() {
     installed: true,
     binary,
     version: version2,
-    brainInitialized: existsSync4(join5(homedir(), ".gbrain")),
+    brainInitialized: isBrainInitialized(),
     installHint: GBRAIN_INSTALL_HINT,
     errors
   };
