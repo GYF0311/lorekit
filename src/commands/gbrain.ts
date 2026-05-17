@@ -38,7 +38,7 @@ export function gbrainCommand(program: Command): void {
 
   cmd
     .command('export')
-    .description('export lorekit 知识库/ pages into a GBrain-safe staging directory')
+    .description('compile lorekit 知识库/ pages into a GBrain-native staging directory')
     .option('--out <dir>', 'export directory relative to corpus; must stay under .wiki/integrations')
     .option('--allow-outside-corpus', 'allow --out outside the default safe export root', false)
     .option('--dry-run', 'preview only; do not write files', false)
@@ -79,7 +79,7 @@ export function gbrainCommand(program: Command): void {
 
   cmd
     .command('sync')
-    .description('export lorekit pages and run gbrain import on the staging directory')
+    .description('export lorekit pages, run gbrain import, then extract graph data')
     .option('--dry-run', 'preview only; do not write export files or call gbrain import', false)
     .option('--json', 'output json', false)
     .option(

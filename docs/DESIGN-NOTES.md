@@ -103,7 +103,7 @@ bug 修复线索：
 - 不加 LLM re-ranker（先生本机跑不动小模型；但可以让主 agent 自己 rerank，属 skill 层）
 - 不加 Query expansion 到 CLI（属 skill 层，让 agent 自己改写 query 调多次 lorekit）
 - 不回归 Karpathy 纯度（删自实现向量栈换 qmd）：代价大于收益（见 §3 模型自由度论证）
-- 不把 GBrain 作为 lorekit runtime dependency，也不 vendor GBrain 源码（见 §10）
+- 不把 GBrain 作为 lorekit runtime dependency，也不 vendor GBrain runtime / engine；仅允许带 attribution 的小型纯 projection 逻辑（见 §10）
 
 ## 7. lorekit 产品定位：个人知识 compilation harness
 
@@ -272,13 +272,15 @@ lorekit 是 Node.js / TypeScript / commander / better-sqlite3 / optional sqlite-
 
 - `lorekit gbrain export` 只读 `知识库/`，只写 `.wiki/integrations/gbrain-export/`
 - export 默认跳过 `_INDEX.md`、local `index.md`、`知识库/模板/`
-- export 移除 frontmatter `slug`，避免 GBrain path-authoritative slug 校验失败
-- export 注入 `lorekit_source_path` / `lorekit_hash` / `lorekit_exported_at`
+- export 把 canonical path 编译成 GBrain-friendly slug，例如 `知识库/概念/RAG.md` -> `concepts/rag`
+- export 只在 staging copy 内重写 wikilink / 常见 frontmatter relation，并规范完整日期 timeline
+- export 移除 frontmatter `slug`，注入 `lorekit_source_path` / `lorekit_hash` / `lorekit_exported_at`
+- export manifest 记录 `gbrainSlug` 和 `reverseMap`，保证 GBrain 候选可回读 canonical `知识库/`
 - export 自定义 `--out` 默认只能写入 `.wiki/integrations/`，`--allow-outside-corpus` 是显式逃生舱
-- `lorekit gbrain sync` 先检查外部 binary，再 export + 调 `gbrain import <export/pages>`，写 `.wiki/integrations/gbrain/sync-report.json`
+- `lorekit gbrain sync` 先检查外部 binary，再 export + 调 `gbrain import <export/pages> --fresh` + `gbrain extract all --source db --include-frontmatter --json`，写 `.wiki/integrations/gbrain/sync-report.json`
 - GBrain 缺失时 `sync` 默认只写失败 report，不刷新 staging；`--export-even-if-missing` 才保留旧的显式 staging refresh 行为
-- `lorekit gbrain query` 默认 require corpus，并检查 manifest / sync report / stale hash；stale 时 warn 但继续查外部索引，`--no-stale-check` 只给调试 noisy guard 用
-- `lorekit doctor --json` 和严格 `doctor --section <name>` 会暴露 GBrain health；缺 binary 是 warn，不让 corpus hard fail，坏 report JSON 是 error
+- `lorekit gbrain query` 默认 require corpus，并检查 manifest / sync report / stale hash；stale 时 warn 但继续查外部索引，候选通过 `reverseMap` 映射回 canonical，`--no-stale-check` 只给调试 noisy guard 用
+- `lorekit doctor --json` 和严格 `doctor --section <name>` 会暴露 GBrain health；缺 binary 是 warn，不让 corpus hard fail，坏 report JSON / 缺 reverseMap 是 error，长期 0 link extraction 是 warn
 - GBrain 未安装时 `status/doctor` 给安装建议，`sync/query` 清晰失败
 
 ### 同步收据

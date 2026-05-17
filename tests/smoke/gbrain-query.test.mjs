@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { runLorekit, mkTmpDir, cleanupTmpDir, fmtRun } from './_util.mjs';
@@ -13,6 +13,33 @@ function seedCorpus(prefix = 'lorekit-smoke-gbrain-query-') {
     join(corpus, '知识库', '概念', 'RAG.md'),
     ['---', 'title: RAG', 'type: concept', '---', '', 'RAG note.', ''].join('\n'),
   );
+  return corpus;
+}
+
+function seedProjectionCorpus() {
+  const corpus = mkTmpDir('lorekit-smoke-gbrain-query-map-');
+  const init = runLorekit(['init', '.'], { cwd: corpus });
+  assert.equal(init.status, 0, fmtRun(init, ['init', '.'], 'init exit 0'));
+  mkdirSync(join(corpus, '知识库', '概念'), { recursive: true });
+  mkdirSync(join(corpus, '知识库', '实体'), { recursive: true });
+  writeFileSync(
+    join(corpus, '知识库', '概念', 'Anthropic-Harness.md'),
+    [
+      '---',
+      'title: Anthropic Harness',
+      'type: concept',
+      '---',
+      '',
+      'Anthropic Harness mentions [[知识库/实体/Anthropic|Anthropic]].',
+      '',
+    ].join('\n'),
+  );
+  writeFileSync(
+    join(corpus, '知识库', '实体', 'Anthropic.md'),
+    ['---', 'title: Anthropic', 'type: entity', '---', '', 'Anthropic note.', ''].join('\n'),
+  );
+  const exportRun = runLorekit(['gbrain', 'export', '--json'], { cwd: corpus });
+  assert.equal(exportRun.status, 0, fmtRun(exportRun, ['gbrain', 'export', '--json'], 'export exit 0'));
   return corpus;
 }
 
@@ -104,6 +131,48 @@ test('gbrain query --no-stale-check allows explicit force query', () => {
     assert.equal(parsed.staleCheck?.skipped, true);
     assert.match(parsed.gbrain.stdout, /query ok: query RAG/);
     assert.match(readFileSync(marker, 'utf-8'), /^query RAG/);
+  } finally {
+    cleanupTmpDir(corpus);
+  }
+});
+
+test('gbrain query maps GBrain slugs back to canonical 知识库 pages', () => {
+  const corpus = seedProjectionCorpus();
+  const marker = join(corpus, 'called.txt');
+  const bin = fakeGbrain(
+    corpus,
+    [
+      '#!/bin/sh',
+      'if [ "$1" = "--version" ]; then echo "gbrain 0.33.0"; exit 0; fi',
+      'echo "$@" > "$LOREKIT_FAKE_GBRAIN_MARKER"',
+      'echo "[0.9000] concepts/anthropic-harness -- Harness context"',
+      'echo "[0.5000] 概念/anthropic-harness -- Legacy slug context"',
+      'echo "[0.1000] unknown/missing -- Missing context"',
+      'exit 0',
+      '',
+    ].join('\n'),
+  );
+  try {
+    const args = ['gbrain', 'query', 'Anthropic Harness', '--json'];
+    const r = runLorekit(args, {
+      cwd: corpus,
+      env: {
+        LOREKIT_GBRAIN_BIN: bin,
+        LOREKIT_FAKE_GBRAIN_MARKER: marker,
+      },
+    });
+    assert.equal(r.status, 0, fmtRun(r, args, 'exit 0'));
+
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.status, 'ok');
+    assert.equal(parsed.candidates[0].gbrainSlug, 'concepts/anthropic-harness');
+    assert.equal(parsed.candidates[0].canonicalPath, '知识库/概念/Anthropic-Harness.md');
+    assert.equal(parsed.candidates[0].canonicalExists, true);
+    assert.equal(parsed.candidates[1].gbrainSlug, '概念/anthropic-harness');
+    assert.equal(parsed.candidates[1].canonicalPath, '知识库/概念/Anthropic-Harness.md');
+    assert.equal(parsed.candidates[1].canonicalExists, true);
+    assert.match(parsed.warnings.join('\n'), /could not map GBrain candidate.*unknown\/missing/);
+    assert.match(readFileSync(marker, 'utf-8'), /^query Anthropic Harness/);
   } finally {
     cleanupTmpDir(corpus);
   }

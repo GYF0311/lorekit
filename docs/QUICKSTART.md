@@ -153,9 +153,9 @@ lorekit gbrain doctor
 lorekit gbrain query "..."
 ```
 
-`export` writes only under `.wiki/integrations/gbrain-export/` by default. Custom `--out` paths must stay under `.wiki/integrations/`; pass `--allow-outside-corpus` only for an intentional unsafe target. It skips generated indexes and templates, removes frontmatter `slug`, and records source hashes in `manifest.json`. `sync` checks the external binary before writing staging, calls external `gbrain import`, and writes `.wiki/integrations/gbrain/sync-report.json`. `query` checks corpus/export/sync freshness before calling GBrain; stale state prints `GBrain index may be stale. Run lorekit gbrain sync.` but does not block the query.
+`export` writes only under `.wiki/integrations/gbrain-export/` by default. Custom `--out` paths must stay under `.wiki/integrations/`; pass `--allow-outside-corpus` only for an intentional unsafe target. It skips generated indexes and templates, projects canonical pages to GBrain slugs such as `concepts/rag`, rewrites staging wikilinks/frontmatter relations, normalizes complete-date timeline bullets, removes frontmatter `slug`, and records source hashes plus `manifest.reverseMap`. `sync` checks the external binary before writing staging, calls external `gbrain import --fresh`, runs `gbrain extract all --source db --include-frontmatter --json`, and writes `.wiki/integrations/gbrain/sync-report.json`. `query` checks corpus/export/sync freshness before calling GBrain; stale state prints `GBrain index may be stale. Run lorekit gbrain sync.` but does not block the query.
 
-When GBrain finds candidates, the final answer should still read canonical pages under `知识库/`. New knowledge is written back through `wiki-fileback` / `wiki-ingest`, not direct GBrain mutating commands.
+When GBrain finds candidates, lorekit maps slugs back through `manifest.reverseMap` and the final answer should still read canonical pages under `知识库/`. New knowledge is written back through `wiki-fileback` / `wiki-ingest`, not direct GBrain mutating commands.
 
 ---
 

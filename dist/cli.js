@@ -128,7 +128,7 @@ var init_logger = __esm({
 import { createHash as createHash3 } from "crypto";
 import { readFileSync as readFileSync14, readdirSync as readdirSync8 } from "fs";
 import { basename as basename5, join as join15, relative as relative8 } from "path";
-import matter3 from "gray-matter";
+import matter4 from "gray-matter";
 function sha2562(filePath) {
   const data = readFileSync14(filePath);
   return createHash3("sha256").update(data).digest("hex");
@@ -353,10 +353,10 @@ __export(chunker_exports, {
 });
 import { readFileSync as readFileSync15 } from "fs";
 import { basename as basename6 } from "path";
-import matter4 from "gray-matter";
+import matter5 from "gray-matter";
 function chunkFile(filePath, _corpusRoot) {
   const raw = readFileSync15(filePath, "utf-8");
-  const { data: fm, content: body } = matter4(raw);
+  const { data: fm, content: body } = matter5(raw);
   let title = fm.title || "";
   const type = fm.type || "";
   if (!title) {
@@ -472,7 +472,7 @@ var init_sync = __esm({
 // src/lib/vectordb/build-layered-index.ts
 import { existsSync as existsSync15, readFileSync as readFileSync16, readdirSync as readdirSync9 } from "fs";
 import { join as join17, relative as relative11 } from "path";
-import matter5 from "gray-matter";
+import matter6 from "gray-matter";
 function parseIndexSections(content) {
   const lines = content.split("\n");
   const sections = [];
@@ -550,7 +550,7 @@ async function buildLayeredIndex(db, corpus, embedFn) {
     info("  L0: corpus/index.md not found, skipped");
   } else {
     const raw = readFileSync16(indexPath, "utf-8");
-    const { content } = matter5(raw);
+    const { content } = matter6(raw);
     const sections = parseIndexSections(content);
     if (sections.length === 0) {
       info("  L0: no sections with entries in index.md, skipped");
@@ -1378,7 +1378,268 @@ import {
   writeFileSync as writeFileSync3
 } from "fs";
 import { dirname as dirname3, join as join6, relative, resolve as resolve2 } from "path";
+import matter3 from "gray-matter";
+
+// src/lib/integrations/gbrain/projection.ts
 import matter2 from "gray-matter";
+var DIRECTORY_KIND_MAP = {
+  "\u6982\u5FF5": { dir: "concepts", kind: "concept" },
+  "\u5B9E\u4F53": { dir: "entities", kind: "entity" },
+  "\u6458\u8981": { dir: "source", kind: "source" },
+  "\u4E13\u9898": { dir: "concepts", kind: "topic" },
+  "\u9879\u76EE": { dir: "projects", kind: "project" },
+  "\u4EBA\u7269": { dir: "people", kind: "person" },
+  "\u7EC4\u7EC7": { dir: "entities", kind: "entity" }
+};
+var GBRAIN_DIRS = /* @__PURE__ */ new Set([
+  "people",
+  "companies",
+  "meetings",
+  "concepts",
+  "deal",
+  "civic",
+  "project",
+  "projects",
+  "source",
+  "media",
+  "yc",
+  "tech",
+  "finance",
+  "personal",
+  "openclaw",
+  "entities"
+]);
+var KIND_DIR_MAP = {
+  company: "companies",
+  organization: "companies",
+  person: "people",
+  people: "people",
+  meeting: "meetings",
+  concept: "concepts",
+  topic: "concepts",
+  entity: "entities",
+  source: "source",
+  media: "media",
+  project: "projects",
+  deal: "deal",
+  civic: "civic",
+  tech: "tech",
+  finance: "finance",
+  personal: "personal",
+  openclaw: "openclaw",
+  yc: "yc"
+};
+var GBRAIN_PAGE_TYPES = /* @__PURE__ */ new Set([
+  "person",
+  "company",
+  "deal",
+  "yc",
+  "civic",
+  "project",
+  "concept",
+  "source",
+  "media",
+  "writing",
+  "analysis",
+  "guide",
+  "hardware",
+  "architecture",
+  "meeting",
+  "note",
+  "email",
+  "slack",
+  "calendar-event",
+  "code",
+  "image",
+  "synthesis"
+]);
+var PAGE_TYPE_ALIASES = {
+  entity: "concept",
+  topic: "concept",
+  organization: "company",
+  organisations: "company",
+  organizations: "company",
+  people: "person",
+  meeting: "meeting",
+  project: "project",
+  source: "source",
+  summary: "source"
+};
+var RELATION_KEYS = /* @__PURE__ */ new Set([
+  "related",
+  "links",
+  "sources",
+  "source",
+  "entities",
+  "concepts",
+  "depends_on",
+  "supports",
+  "contradicts",
+  "see_also"
+]);
+function slugifySegment(segment) {
+  return segment.normalize("NFD").replace(/[\u0300-\u036f]/g, "").normalize("NFC").toLowerCase().replace(/[^a-z0-9.\s_\-\u3040-\u309f\u30a0-\u30ff\u3400-\u9fff\uac00-\ud7af]/g, "").replace(/[\s]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+}
+function normalizeCanonicalRef(ref) {
+  return ref.replace(/\\/g, "/").replace(/\.md$/i, "");
+}
+function withoutKnowledgePrefix(sourcePath) {
+  const normalized = normalizeCanonicalRef(sourcePath);
+  return normalized.startsWith("\u77E5\u8BC6\u5E93/") ? normalized.slice("\u77E5\u8BC6\u5E93/".length).split("/") : [];
+}
+function frontmatterGbrainKind(data) {
+  const gbrain = data.gbrain;
+  if (!gbrain || typeof gbrain !== "object" || Array.isArray(gbrain)) return null;
+  const kind = gbrain.kind;
+  return typeof kind === "string" && kind.trim() ? kind.trim() : null;
+}
+function frontmatterGbrainDir(data) {
+  const gbrain = data.gbrain;
+  if (!gbrain || typeof gbrain !== "object" || Array.isArray(gbrain)) return null;
+  const dir = gbrain.dir;
+  return typeof dir === "string" && dir.trim() ? dir.trim() : null;
+}
+function dirForGbrainConfig(data, kind) {
+  const explicitDir = frontmatterGbrainDir(data);
+  if (explicitDir) {
+    const normalized = slugifySegment(explicitDir);
+    if (GBRAIN_DIRS.has(normalized)) return normalized;
+  }
+  if (!kind) return null;
+  return KIND_DIR_MAP[slugifySegment(kind)] ?? null;
+}
+function pageTypeForGbrain(value) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const normalized = slugifySegment(value);
+  if (GBRAIN_PAGE_TYPES.has(normalized)) return normalized;
+  return PAGE_TYPE_ALIASES[normalized] ?? null;
+}
+function projectedPageType(sourcePath, data) {
+  const explicitKind = frontmatterGbrainKind(data);
+  const fromKind = pageTypeForGbrain(explicitKind);
+  if (fromKind) return fromKind;
+  const fromType = pageTypeForGbrain(data.type);
+  if (fromType) return fromType;
+  const top = withoutKnowledgePrefix(sourcePath)[0] ?? "";
+  return pageTypeForGbrain(DIRECTORY_KIND_MAP[top]?.kind) ?? "concept";
+}
+function projectCanonicalPage(sourcePath, raw) {
+  const parsed = matter2(raw);
+  const data = parsed.data;
+  const parts = withoutKnowledgePrefix(sourcePath);
+  const top = parts[0] ?? "";
+  const rest = parts.slice(1);
+  const mapped = DIRECTORY_KIND_MAP[top] ?? null;
+  const explicitKind = frontmatterGbrainKind(data);
+  const kind = explicitKind ?? mapped?.kind ?? (typeof parsed.data.type === "string" ? parsed.data.type : "note");
+  const dir = mapped?.dir ?? dirForGbrainConfig(data, explicitKind) ?? "concepts";
+  const tailSource = rest.length > 0 ? rest : [top || sourcePath];
+  const tail = tailSource.map((segment, index) => {
+    const rawSegment = index === tailSource.length - 1 ? segment.replace(/\.md$/i, "") : segment;
+    return slugifySegment(rawSegment);
+  }).filter(Boolean).join("/") || "untitled";
+  const gbrainSlug = `${dir}/${tail}`;
+  return {
+    sourcePath,
+    exportPath: `pages/${gbrainSlug}.md`,
+    gbrainSlug,
+    kind
+  };
+}
+function canonicalAliases(sourcePath) {
+  const normalized = normalizeCanonicalRef(sourcePath);
+  const aliases = /* @__PURE__ */ new Set([normalized]);
+  if (!normalized.endsWith(".md")) aliases.add(`${normalized}.md`);
+  if (normalized.startsWith("\u77E5\u8BC6\u5E93/")) {
+    const withoutPrefix = normalized.slice("\u77E5\u8BC6\u5E93/".length);
+    aliases.add(withoutPrefix);
+    aliases.add(`${withoutPrefix}.md`);
+  }
+  return [...aliases];
+}
+function legacyGbrainSlugForSourcePath(sourcePath) {
+  const parts = withoutKnowledgePrefix(sourcePath);
+  if (parts.length === 0) return null;
+  const slug = parts.map((segment, index) => {
+    const rawSegment = index === parts.length - 1 ? segment.replace(/\.md$/i, "") : segment;
+    return slugifySegment(rawSegment);
+  }).filter(Boolean).join("/");
+  return slug || null;
+}
+function rewriteCanonicalString(value, slugMap) {
+  return slugMap.get(normalizeCanonicalRef(value)) ?? value;
+}
+function rewriteRelationValue(value, slugMap) {
+  if (typeof value === "string") return rewriteCanonicalString(value, slugMap);
+  if (Array.isArray(value)) return value.map((item) => rewriteRelationValue(item, slugMap));
+  if (value && typeof value === "object") {
+    const out2 = {};
+    for (const [key, child] of Object.entries(value)) {
+      out2[key] = rewriteRelationValue(child, slugMap);
+    }
+    return out2;
+  }
+  return value;
+}
+function rewriteFrontmatterRelations(data, slugMap) {
+  const out2 = { ...data };
+  for (const key of Object.keys(out2)) {
+    if (RELATION_KEYS.has(key) || key.endsWith("_path") || key.endsWith("_paths")) {
+      out2[key] = rewriteRelationValue(out2[key], slugMap);
+    }
+  }
+  return out2;
+}
+function rewriteWikilinksOutsideCode(content, slugMap) {
+  const lines = content.split("\n");
+  let inFence = false;
+  return lines.map((line) => {
+    if (/^\s*```/.test(line)) {
+      inFence = !inFence;
+      return line;
+    }
+    if (inFence) return line;
+    return line.replace(/\[\[([^\]|#]+)((?:#[^\]|]+)?)(?:\|([^\]]+))?\]\]/g, (match, target, anchor, label) => {
+      const mapped = slugMap.get(normalizeCanonicalRef(String(target)));
+      if (!mapped) return match;
+      const suffix = label === void 0 ? "" : `|${label}`;
+      return `[[${mapped}${anchor ?? ""}${suffix}]]`;
+    });
+  }).join("\n");
+}
+function normalizeTimeline(content) {
+  const lowPrecision = [];
+  const out2 = content.replace(
+    /^(\s*[-*]\s+)(\d{4}-\d{2}(?:-\d{2})?)\s*(?:\||:)\s*(.+)$/gm,
+    (match, prefix, date, text) => {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return `${prefix}**${date}** | ${text}`;
+      }
+      lowPrecision.push(`${date} | ${text}`);
+      return match.includes(":") ? `${prefix}${date} | ${text}` : match;
+    }
+  );
+  return { content: out2, lowPrecision };
+}
+function projectMarkdownForGbrain(opts) {
+  const parsed = matter2(opts.raw);
+  const data = rewriteFrontmatterRelations({ ...parsed.data }, opts.slugMap);
+  delete data.slug;
+  data.type = projectedPageType(opts.sourcePath, data);
+  data.lorekit_source_path = opts.sourcePath;
+  data.lorekit_layer = "artifact";
+  data.lorekit_hash = opts.sourceHash;
+  data.lorekit_exported_at = opts.exportedAt;
+  const linkedContent = rewriteWikilinksOutsideCode(parsed.content, opts.slugMap);
+  const timeline = normalizeTimeline(linkedContent);
+  if (timeline.lowPrecision.length > 0) {
+    data.gbrain_low_precision_timeline = timeline.lowPrecision;
+  }
+  return {
+    markdown: matter2.stringify(timeline.content, data),
+    lowPrecisionTimeline: timeline.lowPrecision
+  };
+}
 
 // src/lib/integrations/manifest.ts
 import { existsSync as existsSync5, readFileSync as readFileSync4, writeFileSync as writeFileSync2 } from "fs";
@@ -1463,22 +1724,40 @@ function ensureFreshExportDir(root, exportedAt) {
     renameSync(current, join6(backupRoot, name));
   }
 }
-function normalizeForGbrain(raw, sourcePath, exportedAt) {
-  const parsed = matter2(raw);
-  const data = { ...parsed.data };
-  delete data.slug;
-  data.lorekit_source_path = sourcePath;
-  data.lorekit_layer = "artifact";
-  data.lorekit_hash = sha256Content(raw);
-  data.lorekit_exported_at = exportedAt;
-  return matter2.stringify(parsed.content, data);
-}
 function pageMeta(raw) {
-  const parsed = matter2(raw);
+  const parsed = matter3(raw);
   return {
     title: typeof parsed.data.title === "string" ? parsed.data.title : null,
     type: typeof parsed.data.type === "string" ? parsed.data.type : null
   };
+}
+function buildPlan(corpus, candidates) {
+  const planned = [];
+  const slugMap = /* @__PURE__ */ new Map();
+  const reverseMap = {};
+  for (const candidate of candidates) {
+    const rawBuffer = readFileSync5(candidate.absPath);
+    const raw = rawBuffer.toString("utf-8");
+    const projection = projectCanonicalPage(candidate.sourcePath, raw);
+    const meta = pageMeta(raw);
+    const stats = statSync2(candidate.absPath);
+    const hash = sha256Content(rawBuffer);
+    planned.push({
+      candidate,
+      raw,
+      projection,
+      title: meta.title,
+      type: meta.type,
+      hash,
+      bytes: stats.size,
+      updatedAt: stats.mtime.toISOString()
+    });
+    for (const alias of canonicalAliases(candidate.sourcePath)) {
+      slugMap.set(alias.replace(/\.md$/i, ""), projection.gbrainSlug);
+    }
+    reverseMap[projection.gbrainSlug] = candidate.sourcePath;
+  }
+  return { planned, slugMap, reverseMap };
 }
 function exportForGbrain(corpus, opts = {}) {
   const dryRun = opts.dryRun ?? false;
@@ -1487,31 +1766,35 @@ function exportForGbrain(corpus, opts = {}) {
   const pagesDir = join6(root, "pages");
   const manifestPath = join6(root, "manifest.json");
   const { candidates, skipped, warnings } = collectKnowledgeMarkdown(corpus);
+  const { planned, slugMap, reverseMap } = buildPlan(corpus, candidates);
   const pages = [];
-  for (const candidate of candidates) {
-    const rawBuffer = readFileSync5(candidate.absPath);
-    const raw = rawBuffer.toString("utf-8");
-    const relUnderKnowledge = toPosixPath(relative(join6(corpus, "\u77E5\u8BC6\u5E93"), candidate.absPath));
-    const exportPath = toPosixPath(join6("pages", relUnderKnowledge));
-    const meta = pageMeta(raw);
+  for (const page of planned) {
     pages.push({
-      sourcePath: candidate.sourcePath,
-      exportPath,
-      title: meta.title,
-      type: meta.type,
-      hash: sha256Content(rawBuffer),
-      bytes: statSync2(candidate.absPath).size,
+      sourcePath: page.candidate.sourcePath,
+      exportPath: page.projection.exportPath,
+      gbrainSlug: page.projection.gbrainSlug,
+      kind: page.projection.kind,
+      updatedAt: page.updatedAt,
+      title: page.title,
+      type: page.type,
+      hash: page.hash,
+      bytes: page.bytes,
       status: "exported"
     });
   }
   if (!dryRun) {
     ensureFreshExportDir(root, exportedAt);
-    for (const candidate of candidates) {
-      const raw = readFileSync5(candidate.absPath, "utf-8");
-      const relUnderKnowledge = relative(join6(corpus, "\u77E5\u8BC6\u5E93"), candidate.absPath);
-      const target = join6(pagesDir, relUnderKnowledge);
+    for (const page of planned) {
+      const target = join6(root, page.projection.exportPath);
       mkdirSync2(dirname3(target), { recursive: true });
-      writeFileSync3(target, normalizeForGbrain(raw, candidate.sourcePath, exportedAt), "utf-8");
+      const projected = projectMarkdownForGbrain({
+        raw: page.raw,
+        sourcePath: page.candidate.sourcePath,
+        exportedAt,
+        sourceHash: page.hash,
+        slugMap
+      });
+      writeFileSync3(target, projected.markdown, "utf-8");
     }
     const manifest = {
       version: 1,
@@ -1521,7 +1804,8 @@ function exportForGbrain(corpus, opts = {}) {
       exportedAt,
       pages,
       skipped,
-      warnings
+      warnings,
+      reverseMap
     };
     writeJsonFile(manifestPath, manifest);
     writeFileSync3(
@@ -1548,7 +1832,8 @@ function exportForGbrain(corpus, opts = {}) {
     pagesSkipped: skipped.length,
     pages,
     skipped,
-    warnings
+    warnings,
+    reverseMap
   };
 }
 
@@ -1561,8 +1846,97 @@ function writeSyncReport(corpus, result) {
   mkdirSync3(join7(corpus, ".wiki", "integrations", "gbrain"), { recursive: true });
   writeJsonFile(path, result);
 }
+function importArgs(pagesDir) {
+  return ["import", pagesDir, "--fresh"];
+}
 function commandSummary(binary, pagesDir) {
-  return [binary, "import", pagesDir];
+  return [binary, ...importArgs(pagesDir)];
+}
+function externalSummary(binary, version2, command, result) {
+  return {
+    binary,
+    version: version2,
+    command,
+    exitCode: result.exitCode,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    durationMs: result.durationMs
+  };
+}
+function parseJsonObject(raw) {
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+function extractLinksCreated(report) {
+  if (!report || typeof report !== "object" || Array.isArray(report)) return null;
+  const direct = report.links_created;
+  if (typeof direct === "number") return direct;
+  const nested = report.extract;
+  if (!nested || typeof nested !== "object" || Array.isArray(nested)) return null;
+  const value = nested.links_created;
+  return typeof value === "number" ? value : null;
+}
+function countWikilinksOutsideCode(content) {
+  let count = 0;
+  let inFence = false;
+  for (const line of content.split("\n")) {
+    if (/^\s*```/.test(line)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) continue;
+    count += line.match(/\[\[[^\]]+\]\]/g)?.length ?? 0;
+  }
+  return count;
+}
+function exportManifestPath(corpus) {
+  return join7(corpus, ".wiki", "integrations", "gbrain-export", "manifest.json");
+}
+function slugFromExportPath(exportPath) {
+  if (!exportPath.startsWith("pages/")) return null;
+  const withoutRoot = exportPath.slice("pages/".length);
+  return withoutRoot.replace(/\.md$/i, "");
+}
+function loadReverseMap(corpus) {
+  const manifest = readJsonFile(exportManifestPath(corpus));
+  const map = /* @__PURE__ */ new Map();
+  if (!manifest) return map;
+  for (const [slug, sourcePath] of Object.entries(manifest.reverseMap ?? {})) {
+    if (typeof sourcePath === "string") map.set(slug, sourcePath);
+  }
+  for (const page of manifest.pages ?? []) {
+    if (page.gbrainSlug) map.set(page.gbrainSlug, page.sourcePath);
+    const slug = slugFromExportPath(page.exportPath);
+    if (slug && !map.has(slug)) map.set(slug, page.sourcePath);
+    const legacySlug = legacyGbrainSlugForSourcePath(page.sourcePath);
+    if (legacySlug && !map.has(legacySlug)) map.set(legacySlug, page.sourcePath);
+  }
+  return map;
+}
+function parseGbrainQueryCandidates(corpus, stdoutText) {
+  const reverseMap = loadReverseMap(corpus);
+  const candidates = [];
+  for (const line of stdoutText.split("\n")) {
+    const m = /^\[(\d+(?:\.\d+)?)\]\s+(\S+)\s+--\s*(.*)$/.exec(line.trim());
+    if (!m) continue;
+    const gbrainSlug = m[2];
+    const canonicalPath = reverseMap.get(gbrainSlug) ?? null;
+    candidates.push({
+      gbrainSlug,
+      canonicalPath,
+      canonicalExists: canonicalPath ? existsSync7(join7(corpus, canonicalPath)) : false,
+      score: Number.parseFloat(m[1]),
+      snippet: m[3] ?? ""
+    });
+  }
+  return candidates;
 }
 async function syncGbrain(corpus, opts = {}) {
   const dryRun = opts.dryRun ?? false;
@@ -1578,6 +1952,8 @@ async function syncGbrain(corpus, opts = {}) {
       export: exportResult2,
       gbrain: null,
       gbrainImport: { skipped: true, reason: "dry-run" },
+      gbrainExtract: null,
+      extract: null,
       warnings: exportResult2.warnings,
       errors: []
     };
@@ -1594,6 +1970,8 @@ async function syncGbrain(corpus, opts = {}) {
       export: exportResult2,
       gbrain: null,
       gbrainImport: { skipped: true, reason: "gbrain-missing" },
+      gbrainExtract: null,
+      extract: null,
       warnings: exportResult2?.warnings ?? [],
       errors: ["gbrain is not installed", ...gbrainStatus.errors]
     };
@@ -1602,30 +1980,59 @@ async function syncGbrain(corpus, opts = {}) {
   }
   const exportResult = exportForGbrain(corpus, { dryRun: false });
   const importCommand = commandSummary(gbrainStatus.binary, exportResult.pagesDir);
-  const external = await runExternalCommand({
+  const importExternal = await runExternalCommand({
     command: gbrainStatus.binary,
-    args: ["import", exportResult.pagesDir],
+    args: importArgs(exportResult.pagesDir),
     cwd: corpus,
     timeoutMs: 12e4
   });
+  const importSummary = externalSummary(
+    gbrainStatus.binary,
+    gbrainStatus.version,
+    importCommand,
+    importExternal
+  );
+  let extractSummary2 = null;
+  let extractResult = null;
+  const warnings = [...exportResult.warnings];
+  const errors = [];
+  if (importExternal.exitCode !== 0) {
+    errors.push(importExternal.error || importExternal.stderr || "gbrain import failed");
+  } else {
+    const extractArgs = ["extract", "all", "--source", "db", "--include-frontmatter", "--json"];
+    const extractCommand = [gbrainStatus.binary, ...extractArgs];
+    const extractExternal = await runExternalCommand({
+      command: gbrainStatus.binary,
+      args: extractArgs,
+      cwd: corpus,
+      timeoutMs: 12e4
+    });
+    extractSummary2 = externalSummary(
+      gbrainStatus.binary,
+      gbrainStatus.version,
+      extractCommand,
+      extractExternal
+    );
+    extractResult = parseJsonObject(extractExternal.stdout);
+    if (extractExternal.exitCode !== 0) {
+      errors.push(extractExternal.error || extractExternal.stderr || "gbrain extract failed");
+    } else if (!extractResult) {
+      warnings.push("gbrain extract completed but did not return parseable JSON");
+    }
+  }
   const result = {
-    status: external.exitCode === 0 ? "ok" : "error",
+    status: errors.length === 0 ? "ok" : "error",
     dryRun: false,
     startedAt,
     finishedAt: (/* @__PURE__ */ new Date()).toISOString(),
     corpus,
     export: exportResult,
-    gbrain: {
-      binary: gbrainStatus.binary,
-      version: gbrainStatus.version,
-      command: importCommand,
-      exitCode: external.exitCode,
-      stdout: external.stdout,
-      stderr: external.stderr,
-      durationMs: external.durationMs
-    },
-    warnings: exportResult.warnings,
-    errors: external.exitCode === 0 ? [] : [external.error || external.stderr || "gbrain import failed"]
+    gbrain: importSummary,
+    gbrainImport: importSummary,
+    gbrainExtract: extractSummary2,
+    extract: extractResult,
+    warnings,
+    errors
   };
   writeSyncReport(corpus, result);
   return result;
@@ -1644,6 +2051,7 @@ async function doctorGbrain(corpus) {
   const manifestPath = join7(corpus, ".wiki", "integrations", "gbrain-export", "manifest.json");
   const syncPath = syncReportPath(corpus);
   const manifest = readJsonFile(manifestPath);
+  let exportedWikilinkCount = 0;
   if (!manifest) {
     issues.push({
       section: "gbrain",
@@ -1652,6 +2060,19 @@ async function doctorGbrain(corpus) {
       recommendation: "Run lorekit gbrain export"
     });
   } else {
+    const reverseMap = manifest.reverseMap ?? {};
+    const missingReverseMapping = manifest.pages.filter((page) => {
+      const slug = page.gbrainSlug ?? slugFromExportPath(page.exportPath);
+      return !slug || reverseMap[slug] !== page.sourcePath;
+    });
+    if (missingReverseMapping.length > 0) {
+      issues.push({
+        section: "gbrain",
+        severity: "error",
+        message: "GBrain export manifest is missing reverse mapping",
+        recommendation: "Run lorekit gbrain export to regenerate manifest.reverseMap"
+      });
+    }
     for (const page of manifest.pages) {
       const sourcePath = join7(corpus, page.sourcePath);
       if (!existsSync7(sourcePath)) {
@@ -1672,6 +2093,11 @@ async function doctorGbrain(corpus) {
           recommendation: "Run lorekit gbrain export or lorekit gbrain sync"
         });
       }
+      const exportPath = join7(corpus, ".wiki", "integrations", "gbrain-export", page.exportPath);
+      if (existsSync7(exportPath)) {
+        const staged = readFileSync6(exportPath, "utf-8");
+        exportedWikilinkCount += countWikilinksOutsideCode(staged);
+      }
     }
   }
   if (!existsSync7(syncPath)) {
@@ -1690,6 +2116,15 @@ async function doctorGbrain(corpus) {
           severity: "warn",
           message: "Last GBrain sync did not finish successfully",
           recommendation: "Inspect .wiki/integrations/gbrain/sync-report.json and rerun sync"
+        });
+      }
+      const linksCreated = extractLinksCreated(report);
+      if (exportedWikilinkCount > 0 && linksCreated === 0) {
+        issues.push({
+          section: "gbrain",
+          severity: "warn",
+          message: "GBrain extract created 0 links despite exported wikilinks",
+          recommendation: "Run lorekit gbrain sync and inspect GBrain extract output"
         });
       }
     } catch (e) {
@@ -1726,6 +2161,7 @@ async function queryGbrain(corpus, text, opts = {}) {
         message,
         staleCheck: { skipped: false, status: check.status, issues: check.issues },
         gbrain: null,
+        candidates: [],
         warnings: check.issues.map((i) => i.message),
         errors: ["gbrain is not installed", ...check.gbrain.errors]
       };
@@ -1743,6 +2179,7 @@ async function queryGbrain(corpus, text, opts = {}) {
       message,
       staleCheck: { skipped: !shouldCheck, status: null, issues: [] },
       gbrain: null,
+      candidates: [],
       warnings: [],
       errors: ["gbrain is not installed", ...status.errors]
     };
@@ -1754,15 +2191,19 @@ async function queryGbrain(corpus, text, opts = {}) {
   const r = await runExternalCommand({
     command: status.binary,
     args: ["query", text],
+    cwd: corpus,
     timeoutMs: 12e4
   });
+  const candidates = parseGbrainQueryCandidates(corpus, r.stdout);
+  const mappingWarnings = candidates.filter((candidate) => !candidate.canonicalPath).map((candidate) => `could not map GBrain candidate to canonical page: ${candidate.gbrainSlug}`);
   return {
     status: r.exitCode === 0 ? "ok" : "error",
     source: "gbrain",
     message,
     staleCheck: { skipped: !shouldCheck, status: staleStatus, issues: staleIssues },
     gbrain: r,
-    warnings: staleWarnings,
+    candidates,
+    warnings: [...staleWarnings, ...mappingWarnings],
     errors: r.exitCode === 0 ? [] : [r.error || r.stderr || "gbrain query failed"]
   };
 }
@@ -4705,7 +5146,7 @@ function obsidianTuneCommand(program2) {
 // src/commands/remove.ts
 import { existsSync as existsSync23, mkdirSync as mkdirSync13, readFileSync as readFileSync21, renameSync as renameSync2, writeFileSync as writeFileSync12 } from "fs";
 import { basename as basename7, dirname as dirname6, isAbsolute as isAbsolute2, join as join30, relative as relative15, resolve as resolve4, sep } from "path";
-import matter6 from "gray-matter";
+import matter7 from "gray-matter";
 import trash from "trash";
 init_paths();
 init_logger();
@@ -4794,7 +5235,7 @@ function collectSourceUrls(corpus, targets) {
   return [...urls];
 }
 function addSourcesFromSummary(corpus, targets, summaryAbs) {
-  const parsed = matter6(readText(summaryAbs));
+  const parsed = matter7(readText(summaryAbs));
   const sources = Array.isArray(parsed.data.sources) ? parsed.data.sources : [];
   for (const source of sources) {
     if (typeof source !== "string") continue;
@@ -4832,7 +5273,7 @@ function compiledTruthSnippets(content, aliases, input) {
 }
 function rewritePageForRemoval(corpus, file, aliases) {
   const rel = relFromAbs(corpus, file);
-  const parsed = matter6(readText(file));
+  const parsed = matter7(readText(file));
   const removedSources = [];
   let sourceCountBefore;
   let sourceCountAfter;
@@ -4868,7 +5309,7 @@ function rewritePageForRemoval(corpus, file, aliases) {
   });
   if (removedLines.length > 0) parsed.data.updated = todayYMDShanghai();
   const changed = removedLines.length > 0 || removedSources.length > 0;
-  const nextContent = changed ? matter6.stringify(nextLines.join("\n"), parsed.data) : readText(file);
+  const nextContent = changed ? matter7.stringify(nextLines.join("\n"), parsed.data) : readText(file);
   return {
     nextContent,
     change: changed ? {
@@ -5072,7 +5513,7 @@ function gbrainCommand(program2) {
       print(result.installHint);
     }
   });
-  cmd.command("export").description("export lorekit \u77E5\u8BC6\u5E93/ pages into a GBrain-safe staging directory").option("--out <dir>", "export directory relative to corpus; must stay under .wiki/integrations").option("--allow-outside-corpus", "allow --out outside the default safe export root", false).option("--dry-run", "preview only; do not write files", false).option("--json", "output json", false).action(
+  cmd.command("export").description("compile lorekit \u77E5\u8BC6\u5E93/ pages into a GBrain-native staging directory").option("--out <dir>", "export directory relative to corpus; must stay under .wiki/integrations").option("--allow-outside-corpus", "allow --out outside the default safe export root", false).option("--dry-run", "preview only; do not write files", false).option("--json", "output json", false).action(
     (opts) => {
       const corpus = requireCorpus();
       let result;
@@ -5100,7 +5541,7 @@ function gbrainCommand(program2) {
       for (const w of result.warnings) warn(w);
     }
   );
-  cmd.command("sync").description("export lorekit pages and run gbrain import on the staging directory").option("--dry-run", "preview only; do not write export files or call gbrain import", false).option("--json", "output json", false).option(
+  cmd.command("sync").description("export lorekit pages, run gbrain import, then extract graph data").option("--dry-run", "preview only; do not write export files or call gbrain import", false).option("--json", "output json", false).option(
     "--export-even-if-missing",
     "refresh staging export even when the gbrain binary is missing",
     false

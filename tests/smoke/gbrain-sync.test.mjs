@@ -62,8 +62,9 @@ test('gbrain sync writes success report after invoking gbrain import', () => {
     [
       '#!/bin/sh',
       'if [ "$1" = "--version" ]; then echo "gbrain 0.33.0"; exit 0; fi',
-      'echo "$@" > "$LOREKIT_FAKE_GBRAIN_MARKER"',
-      'echo "import ok"',
+      'echo "$@" >> "$LOREKIT_FAKE_GBRAIN_MARKER"',
+      'if [ "$1" = "import" ]; then echo "import ok"; exit 0; fi',
+      'if [ "$1" = "extract" ]; then echo "{\\"links_created\\":1,\\"timeline_entries_created\\":1,\\"pages_processed\\":1}"; exit 0; fi',
       'exit 0',
       '',
     ].join('\n'),
@@ -79,15 +80,18 @@ test('gbrain sync writes success report after invoking gbrain import', () => {
     });
     assert.equal(r.status, 0, fmtRun(r, args, 'exit 0'));
 
-    const called = readFileSync(marker, 'utf-8').trim();
-    assert.match(called, /^import .*gbrain-export\/pages$/);
+    const calls = readFileSync(marker, 'utf-8').trim().split('\n');
+    assert.match(calls[0], /^import .*gbrain-export\/pages --fresh$/);
+    assert.equal(calls[1], 'extract all --source db --include-frontmatter --json');
 
     const reportPath = join(corpus, '.wiki', 'integrations', 'gbrain', 'sync-report.json');
     assert.equal(existsSync(reportPath), true, 'sync report exists');
     const report = JSON.parse(readFileSync(reportPath, 'utf-8'));
     assert.equal(report.status, 'ok');
-    assert.equal(report.gbrain.exitCode, 0);
-    assert.match(report.gbrain.stdout, /import ok/);
+    assert.equal(report.gbrainImport.exitCode, 0);
+    assert.match(report.gbrainImport.stdout, /import ok/);
+    assert.equal(report.gbrainExtract.exitCode, 0);
+    assert.equal(report.extract.links_created, 1);
   } finally {
     cleanupTmpDir(corpus);
   }

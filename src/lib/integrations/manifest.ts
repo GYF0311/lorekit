@@ -3,6 +3,9 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 export interface GbrainExportManifestPage {
   sourcePath: string;
   exportPath: string;
+  gbrainSlug?: string;
+  kind?: string | null;
+  updatedAt?: string;
   title: string | null;
   type: string | null;
   hash: string;
@@ -24,6 +27,7 @@ export interface GbrainExportManifest {
   pages: GbrainExportManifestPage[];
   skipped: GbrainExportManifestSkipped[];
   warnings: string[];
+  reverseMap?: Record<string, string>;
 }
 
 export function writeJsonFile(path: string, data: unknown): void {

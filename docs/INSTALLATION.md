@@ -186,8 +186,10 @@ cd ~/Desktop/my-corpus
 
 ```text
 知识库/ canonical pages
-  -> .wiki/integrations/gbrain-export/pages/
-  -> gbrain import
+  -> lorekit gbrain export
+  -> .wiki/integrations/gbrain-export/pages/ + manifest.reverseMap
+  -> gbrain import --fresh
+  -> gbrain extract all --source db --include-frontmatter --json
   -> .wiki/integrations/gbrain/ derived index
 ```
 

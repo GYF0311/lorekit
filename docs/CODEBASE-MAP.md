@@ -107,9 +107,10 @@ lorekit/
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
 | `process.ts`       | `spawn` 外部命令封装；不走 shell interpolation，捕获 stdout/stderr/exitCode/timeout                                                   |
 | `gbrain-status.ts` | 探测 `gbrain --version`，未安装时输出 clone + bun install + bun link + init 建议                                                      |
-| `gbrain-export.ts` | 将 `知识库/` 导出为 GBrain-safe staging：跳过 index/template，限制默认 export root，移除 `slug`，注入 lorekit metadata，生成 manifest |
+| `gbrain-export.ts` | 将 `知识库/` 导出为 GBrain-native staging：跳过 index/template，限制默认 export root，写 projected pages + reverse manifest |
+| `gbrain/projection.ts` | GBrain projection 编译器：canonical path -> slug，staging wikilink/frontmatter rewrite，timeline normalize，MIT-attributed slug 思路 |
 | `manifest.ts`      | GBrain export manifest 类型与 JSON 读写 helper                                                                                        |
-| `gbrain.ts`        | sync/doctor/query 编排：写 sync-report、检查 manifest stale、query 前 freshness warning、缺 binary 时避免默认刷新 staging             |
+| `gbrain.ts`        | sync/doctor/query 编排：import + extract all、写 sync-report、检查 reverseMap/stale/0-link、query 候选映射回 canonical                 |
 
 ## src/utils/ 详单
 

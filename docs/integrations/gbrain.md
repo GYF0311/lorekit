@@ -9,7 +9,7 @@ GBrain  = graph + hybrid retrieval index
 
 ## Boundary
 
-- Do not vendor GBrain source into lorekit.
+- Do not vendor GBrain runtime / engine into lorekit. Small MIT-attributed pure projection helpers are allowed when they keep the bridge file-first and dependency-light.
 - Do not add GBrain to `package.json` dependencies.
 - Do not let GBrain write `知识库/` or `原料/`.
 - Persisting new knowledge still goes through wiki-fileback / audit / snapshot.
@@ -33,7 +33,7 @@ lorekit gbrain query "..." --no-stale-check
 
 `status` checks the external `gbrain` binary. Use `LOREKIT_GBRAIN_BIN=/path/to/gbrain` to test another binary.
 
-`export` reads `知识库/**/*.md`, skips `_INDEX.md`, local `index.md`, and `知识库/模板/`, then writes GBrain-safe Markdown under:
+`export` reads `知识库/**/*.md`, skips `_INDEX.md`, local `index.md`, and `知识库/模板/`, then compiles a GBrain-native staging copy under:
 
 ```text
 .wiki/integrations/gbrain-export/
@@ -51,12 +51,17 @@ lorekit_hash:
 lorekit_exported_at:
 ```
 
+It also projects canonical paths into GBrain-friendly slugs, for example `知识库/概念/Anthropic-Harness.md` becomes `concepts/anthropic-harness` and `知识库/实体/Anthropic.md` becomes `entities/anthropic`. The manifest records both directions: each page has `sourcePath`, `exportPath`, `gbrainSlug`, `kind`, `hash`, and `updatedAt`; `manifest.reverseMap` maps GBrain slugs back to canonical `知识库/` paths.
+
+During staging only, lorekit rewrites canonical wikilinks and common frontmatter relation fields to projected slugs. It also maps Lorekit page types into GBrain `PageType` values where needed, for example `gbrain.kind: company` becomes staged `type: company`. Timeline bullets such as `- 2026-04-13 | event` are normalized to GBrain's bold-date form. Month-precision timeline lines are preserved and recorded in `gbrain_low_precision_timeline` for review.
+
 Custom `--out` paths are intentionally constrained: by default they must stay under `.wiki/integrations/`. Use `--allow-outside-corpus` only for an explicit unsafe export target.
 
 `sync` first checks that the external GBrain binary is installed, then exports and runs:
 
 ```bash
-gbrain import .wiki/integrations/gbrain-export/pages
+gbrain import .wiki/integrations/gbrain-export/pages --fresh
+gbrain extract all --source db --include-frontmatter --json
 ```
 
 and writes:
@@ -67,16 +72,16 @@ and writes:
 
 If GBrain is missing, `sync` writes a failure report without refreshing `.wiki/integrations/gbrain-export/`. Use `--export-even-if-missing` only when you explicitly want to refresh staging despite the missing binary.
 
-`doctor` checks binary availability, export manifest presence, stale hashes, and last sync status. Main `lorekit doctor` also exposes this optional integration section via:
+`doctor` checks binary availability, export manifest presence, reverse manifest completeness, stale hashes, last sync status, and the suspicious case where exported wikilinks exist but GBrain extraction keeps producing 0 links. Main `lorekit doctor` also exposes this optional integration section via:
 
 ```bash
 lorekit doctor --section integrations
 lorekit doctor --json
 ```
 
-GBrain is optional: missing binary is a warning, not a hard corpus failure. Unreadable integration state, such as a broken sync report JSON, is a hard error.
+GBrain is optional: missing binary is a warning, not a hard corpus failure. Unreadable integration state or a manifest without reverse mapping is a hard error.
 
-`query` requires running inside a lorekit corpus. By default it checks the export manifest and last sync report before calling `gbrain query`. If that state looks stale, it warns with `GBrain index may be stale. Run lorekit gbrain sync.` but still queries the external index. Use `--no-stale-check` only for intentional debugging or recovery.
+`query` requires running inside a lorekit corpus. By default it checks the export manifest and last sync report before calling `gbrain query`. If that state looks stale, it warns with `GBrain index may be stale. Run lorekit gbrain sync.` but still queries the external index. Candidates are mapped through `manifest.reverseMap` so final context points back to canonical `知识库/` pages, never `.wiki/integrations/gbrain-export/`. Use `--no-stale-check` only for intentional debugging or recovery.
 
 ## Install GBrain
 

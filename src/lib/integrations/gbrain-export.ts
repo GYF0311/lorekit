@@ -12,6 +12,12 @@ import { dirname, join, relative, resolve } from 'node:path';
 import matter from 'gray-matter';
 import { isWithin } from '../paths.js';
 import {
+  canonicalAliases,
+  projectCanonicalPage,
+  projectMarkdownForGbrain,
+  type GbrainProjection,
+} from './gbrain/projection.js';
+import {
   type GbrainExportManifest,
   type GbrainExportManifestPage,
   type GbrainExportManifestSkipped,
@@ -37,11 +43,23 @@ export interface GbrainExportResult {
   pages: GbrainExportManifestPage[];
   skipped: GbrainExportManifestSkipped[];
   warnings: string[];
+  reverseMap: Record<string, string>;
 }
 
 interface Candidate {
   absPath: string;
   sourcePath: string;
+}
+
+interface PlannedPage {
+  candidate: Candidate;
+  raw: string;
+  projection: GbrainProjection;
+  title: string | null;
+  type: string | null;
+  hash: string;
+  bytes: number;
+  updatedAt: string;
 }
 
 function toPosixPath(path: string): string {
@@ -130,23 +148,47 @@ function ensureFreshExportDir(root: string, exportedAt: string): void {
   }
 }
 
-function normalizeForGbrain(raw: string, sourcePath: string, exportedAt: string): string {
-  const parsed = matter(raw);
-  const data: Record<string, unknown> = { ...parsed.data };
-  delete data.slug;
-  data.lorekit_source_path = sourcePath;
-  data.lorekit_layer = 'artifact';
-  data.lorekit_hash = sha256Content(raw);
-  data.lorekit_exported_at = exportedAt;
-  return matter.stringify(parsed.content, data);
-}
-
 function pageMeta(raw: string): { title: string | null; type: string | null } {
   const parsed = matter(raw);
   return {
     title: typeof parsed.data.title === 'string' ? parsed.data.title : null,
     type: typeof parsed.data.type === 'string' ? parsed.data.type : null,
   };
+}
+
+function buildPlan(corpus: string, candidates: Candidate[]): {
+  planned: PlannedPage[];
+  slugMap: Map<string, string>;
+  reverseMap: Record<string, string>;
+} {
+  const planned: PlannedPage[] = [];
+  const slugMap = new Map<string, string>();
+  const reverseMap: Record<string, string> = {};
+
+  for (const candidate of candidates) {
+    const rawBuffer = readFileSync(candidate.absPath);
+    const raw = rawBuffer.toString('utf-8');
+    const projection = projectCanonicalPage(candidate.sourcePath, raw);
+    const meta = pageMeta(raw);
+    const stats = statSync(candidate.absPath);
+    const hash = sha256Content(rawBuffer);
+    planned.push({
+      candidate,
+      raw,
+      projection,
+      title: meta.title,
+      type: meta.type,
+      hash,
+      bytes: stats.size,
+      updatedAt: stats.mtime.toISOString(),
+    });
+    for (const alias of canonicalAliases(candidate.sourcePath)) {
+      slugMap.set(alias.replace(/\.md$/i, ''), projection.gbrainSlug);
+    }
+    reverseMap[projection.gbrainSlug] = candidate.sourcePath;
+  }
+
+  return { planned, slugMap, reverseMap };
 }
 
 export function exportForGbrain(corpus: string, opts: GbrainExportOptions = {}): GbrainExportResult {
@@ -156,33 +198,37 @@ export function exportForGbrain(corpus: string, opts: GbrainExportOptions = {}):
   const pagesDir = join(root, 'pages');
   const manifestPath = join(root, 'manifest.json');
   const { candidates, skipped, warnings } = collectKnowledgeMarkdown(corpus);
+  const { planned, slugMap, reverseMap } = buildPlan(corpus, candidates);
 
   const pages: GbrainExportManifestPage[] = [];
-  for (const candidate of candidates) {
-    const rawBuffer = readFileSync(candidate.absPath);
-    const raw = rawBuffer.toString('utf-8');
-    const relUnderKnowledge = toPosixPath(relative(join(corpus, '知识库'), candidate.absPath));
-    const exportPath = toPosixPath(join('pages', relUnderKnowledge));
-    const meta = pageMeta(raw);
+  for (const page of planned) {
     pages.push({
-      sourcePath: candidate.sourcePath,
-      exportPath,
-      title: meta.title,
-      type: meta.type,
-      hash: sha256Content(rawBuffer),
-      bytes: statSync(candidate.absPath).size,
+      sourcePath: page.candidate.sourcePath,
+      exportPath: page.projection.exportPath,
+      gbrainSlug: page.projection.gbrainSlug,
+      kind: page.projection.kind,
+      updatedAt: page.updatedAt,
+      title: page.title,
+      type: page.type,
+      hash: page.hash,
+      bytes: page.bytes,
       status: 'exported',
     });
   }
 
   if (!dryRun) {
     ensureFreshExportDir(root, exportedAt);
-    for (const candidate of candidates) {
-      const raw = readFileSync(candidate.absPath, 'utf-8');
-      const relUnderKnowledge = relative(join(corpus, '知识库'), candidate.absPath);
-      const target = join(pagesDir, relUnderKnowledge);
+    for (const page of planned) {
+      const target = join(root, page.projection.exportPath);
       mkdirSync(dirname(target), { recursive: true });
-      writeFileSync(target, normalizeForGbrain(raw, candidate.sourcePath, exportedAt), 'utf-8');
+      const projected = projectMarkdownForGbrain({
+        raw: page.raw,
+        sourcePath: page.candidate.sourcePath,
+        exportedAt,
+        sourceHash: page.hash,
+        slugMap,
+      });
+      writeFileSync(target, projected.markdown, 'utf-8');
     }
     const manifest: GbrainExportManifest = {
       version: 1,
@@ -193,6 +239,7 @@ export function exportForGbrain(corpus: string, opts: GbrainExportOptions = {}):
       pages,
       skipped,
       warnings,
+      reverseMap,
     };
     writeJsonFile(manifestPath, manifest);
     writeFileSync(
@@ -221,5 +268,6 @@ export function exportForGbrain(corpus: string, opts: GbrainExportOptions = {}):
     pages,
     skipped,
     warnings,
+    reverseMap,
   };
 }

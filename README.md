@@ -20,7 +20,7 @@ Three layers:
 - **Artifact layer** (`知识库/`): the compiled wiki — cross-linked, synthesized, continuously updated
 - **Schema** (`CLAUDE.md` / `AGENTS.md`): per-corpus configuration, co-maintained by human + LLM
 
-> **Data safety**: lorekit has zero tolerance for data loss. Existing notes are backed up before init; `原料/` is immutable; no `rm` is ever used — deletions go through `trash` (recoverable from macOS Trash). See the data-safety rules in CLAUDE.md.
+> **Data safety**: lorekit has zero tolerance for data loss. Existing notes are backed up before init; `原料/` is immutable; no `rm` is ever used — deletions go through `trash` (recoverable from macOS Trash). See the data-safety rules in `AGENTS.md` and `docs/INSTALLATION.md`.
 
 ## Feature Map
 
@@ -44,7 +44,7 @@ Three layers:
 | Directory index | `lorekit index`         | Recursively generate `_INDEX.md` for every subdirectory (including folder-packaged sources like `原料/文章/<slug>/article.md`)                                        |
 | **Sync**        | **`lorekit sync`**      | **One-shot: `index` → `vector sync --layered` → `doctor`; supports `--json` and `--report` for agent-readable step receipts**                                         |
 | Obsidian tune   | `lorekit obsidian-tune` | 老用户升级一键应用 Obsidian graph filter（默认只读检查 / `--write` 备份后写 / `--print` 管道用）                                                                      |
-| GBrain          | `lorekit gbrain <sub>`  | Optional read-only bridge: export `知识库/` into `.wiki/integrations/gbrain-export/`, then call external `gbrain import`; never writes canonical wiki pages           |
+| GBrain          | `lorekit gbrain <sub>`  | Optional read-only bridge: compile `知识库/` into GBrain-native staging, then call external import/extract; never writes canonical wiki pages                     |
 
 > The CLI is named `lorekit`. The 6 Agent Skills keep the `wiki-` prefix (a nod to Karpathy's LLM Wiki): `wiki-ingest` / `wiki-query` / `wiki-fileback` / `wiki-lint` / `wiki-enrich` / `wiki-audit`.
 
@@ -193,7 +193,7 @@ lorekit writes 知识库/
 GBrain reads an exported staging copy
 ```
 
-No GBrain code is vendored into lorekit, and GBrain is not a `package.json` dependency. The bridge only shells out to an installed `gbrain` binary.
+No GBrain runtime / engine is vendored into lorekit, and GBrain is not a `package.json` dependency. lorekit only keeps a small projection compiler plus an external `gbrain` process boundary.
 
 ```bash
 cd ~/Desktop/my-corpus
@@ -206,9 +206,11 @@ lorekit gbrain doctor
 lorekit gbrain query "RAG"
 ```
 
-`export` writes only under `.wiki/integrations/gbrain-export/` by default. Custom `--out` paths must stay under `.wiki/integrations/`; pass `--allow-outside-corpus` only when you intentionally want an unsafe export target. `export` skips `_INDEX.md`, local `index.md`, and `知识库/模板/`, removes frontmatter `slug`, and injects `lorekit_source_path`, `lorekit_hash`, and `lorekit_exported_at`. `sync` first checks the external GBrain binary, then exports and runs `gbrain import <export/pages>`, writing `.wiki/integrations/gbrain/sync-report.json`. If the binary is missing, `sync` writes a failure report without refreshing staging unless `--export-even-if-missing` is explicit.
+`export` writes only under `.wiki/integrations/gbrain-export/` by default. Custom `--out` paths must stay under `.wiki/integrations/`; pass `--allow-outside-corpus` only when you intentionally want an unsafe export target. `export` skips `_INDEX.md`, local `index.md`, and `知识库/模板/`, projects canonical pages to slugs such as `concepts/rag`, rewrites staging wikilinks/frontmatter relations to those slugs, normalizes complete-date timeline bullets, removes frontmatter `slug`, and injects `lorekit_source_path`, `lorekit_hash`, and `lorekit_exported_at`. `manifest.reverseMap` maps GBrain slugs back to canonical `知识库/` paths.
 
-`query` requires a corpus and checks the export manifest + last sync report before calling GBrain. If the export or sync report looks stale, it warns with `GBrain index may be stale. Run lorekit gbrain sync.` but still calls `gbrain query`; use `--no-stale-check` only for debugging noisy freshness checks.
+`sync` first checks the external GBrain binary, then exports, runs `gbrain import <export/pages> --fresh`, and runs `gbrain extract all --source db --include-frontmatter --json`, writing `.wiki/integrations/gbrain/sync-report.json`. If the binary is missing, `sync` writes a failure report without refreshing staging unless `--export-even-if-missing` is explicit.
+
+`query` requires a corpus and checks the export manifest + last sync report before calling GBrain. If the export or sync report looks stale, it warns with `GBrain index may be stale. Run lorekit gbrain sync.` but still calls `gbrain query`; candidates are mapped back through `manifest.reverseMap` so answers and context can cite canonical `知识库/` pages. Use `--no-stale-check` only for debugging noisy freshness checks.
 
 Boundary: GBrain must not write back to `知识库/` or `原料/`. Persisting new knowledge still goes through wiki-fileback / audit / snapshot review.
 
