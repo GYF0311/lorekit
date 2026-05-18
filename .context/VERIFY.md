@@ -3,7 +3,7 @@ cmap_version: 0.1
 context_type: verify
 project: lorekit
 source_commit: 62576ef
-updated_at: 2026-05-17T10:44:32Z
+updated_at: 2026-05-17T14:34:56Z
 confidence: ai-drafted
 ---
 # Verification
@@ -18,10 +18,10 @@ confidence: ai-drafted
 | Build | `npm run build` | exit 0 | release 或构建相关交接前 |
 | CMAP 结构 | `cmap verify --changed` | 0 errors；warnings 必须解释 | 收尾 `.context` 或源码变更前 |
 | Obsidian 导出 | `cmap obsidian export --check --out _cmap/lorekit` | 导出层与 `.context` 一致 | `.context` 变更并导出后 |
-| Review HTML | `cmap view export --check --out _cmap-view` | Review HTML 与 `.context` 一致 | `.context` 变更并导出后 |
+| Review HTML | `cmap view export --check --ui-lang zh-CN --out _cmap-view` | 中文 Review HTML 与 `.context` 一致 | `.context` 变更并导出后 |
 | 空白检查 | `git diff --check` | 没有 whitespace errors | commit 或最终交接前 |
 
-## 模块专项检查
+## Module-specific Checks
 | 模块 | 命令 | 人工检查 |
 |---|---|---|
 | project-map | `cmap route "<task>"` + `cmap verify --changed` | `.context` 正文中文，frontmatter 可被工具解析；入口文件未被覆盖 |
@@ -34,7 +34,7 @@ confidence: ai-drafted
 | obsidian-gbrain | 相关 Obsidian/GBrain smoke tests | GBrain 仍只写 staging/report，不写回 canonical wiki |
 | docs-tests-release | `npm run verify` + docs diff review | 用户可见行为已更新到现有永久文档 |
 
-## 可选命令
+## Optional Commands
 - `npm run lint`
 - `npm run format:check`
 - Targeted `node --test tests/smoke/<name>.test.mjs`
@@ -49,8 +49,8 @@ confidence: ai-drafted
 - 涉及数据移动命令时，先看 dry-run，再确认 snapshot / Trash 行为。
 - JSON 输出要确认 stdout 仍可机器读取，人类提示走 stderr。
 
-## 已知不稳定点
+## Known Flaky Checks
 Vector / Ollama 检查依赖本机可选服务和 native deps。验证文本层行为时，优先 targeted tests 或 `--skip-vector`。
 
-## 环境假设
+## Environment Assumptions
 本机应有 Node.js >= 18、npm、git、ripgrep。Ollama、`sqlite-vec`、GBrain、Playwright 都是可选集成；缺失时应清晰降级或报错。

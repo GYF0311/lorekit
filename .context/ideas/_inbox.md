@@ -6,6 +6,6 @@ source_commit: 62576ef
 updated_at: 2026-05-17T10:44:32Z
 confidence: low
 ---
-# 想法收件箱
+# Idea Inbox
 
 当前没有新的 CMAP 原始想法。这里是低可信过程层，不是项目事实源。

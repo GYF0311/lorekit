@@ -6,6 +6,6 @@ source_commit: 62576ef
 updated_at: 2026-05-17T10:44:32Z
 confidence: low
 ---
-# 已拒绝想法
+# Rejected Ideas
 
 暂无。

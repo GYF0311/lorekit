@@ -6,7 +6,7 @@ source_commit: 62576ef
 updated_at: 2026-05-17T10:44:32Z
 confidence: medium
 ---
-# 术语表
+# Glossary
 
 | 术语 | 含义 |
 |---|---|

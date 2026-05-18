@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>lorekit cmap view</title>
+  <title>lorekit cmap 审阅页</title>
   <style>
     :root { color-scheme: light; --ink: #19201f; --muted: #63706c; --line: #d9dfdc; --wash: #f5f7f6; --accent: #145c4b; --warn: #8a4b00; }
     * { box-sizing: border-box; }
@@ -25,6 +25,13 @@
     .pill { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; margin: 2px 4px 2px 0; color: var(--muted); font-size: 12px; }
     .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
     .compact-list { margin: 6px 0 10px; padding-left: 18px; }
+    .section-stack { display: grid; gap: 12px; }
+    .context-file, .module-detail { margin: 10px 0; }
+    .markdown-block { white-space: normal; overflow-wrap: anywhere; }
+    .markdown-block pre, pre.markdown-raw { white-space: pre-wrap; overflow-x: auto; background: var(--wash); border: 1px solid var(--line); border-radius: 6px; padding: 10px; }
+    .markdown-block ul { margin: 6px 0 10px; padding-left: 18px; }
+    dialog { max-width: min(920px, calc(100vw - 32px)); width: 860px; border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
+    dialog::backdrop { background: rgba(15, 23, 42, 0.28); }
     button { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; background: #fff; color: var(--ink); font: inherit; font-size: 12px; cursor: pointer; }
     button:hover { border-color: var(--accent); color: var(--accent); }
     .is-hidden { display: none !important; }
@@ -37,187 +44,421 @@
 </head>
 <body>
   <header>
-    <h1>lorekit cmap view</h1>
-    <p class="meta">Schema cmap.view_data.v1 · Generated 2026-05-17T10:58:30.805Z · Root lorekit</p>
-    <p class="meta">Canonical source: .context/ · Generated source: .context/generated/ · Source commit 62576ef</p>
+    <h1>lorekit cmap 审阅页</h1>
+    <p class="meta">Schema cmap.view_data.v1 · 生成时间 2026-05-18T04:30:47.167Z · 项目根目录 lorekit</p>
+    <p class="meta">可信来源: .context/ · 生成来源: .context/generated/ · 来源提交 26f32e4</p>
     <div class="grid">
-      <div class="stat"><strong>9</strong><span>Modules</span></div>
-      <div class="stat"><strong>0</strong><span>Evidence</span></div>
-      <div class="stat"><strong>0</strong><span>Candidates</span></div>
-      <div class="stat"><strong>0</strong><span>Warnings</span></div>
+      <div class="stat"><strong>9</strong><span>模块</span></div>
+      <div class="stat"><strong>0</strong><span>证据</span></div>
+      <div class="stat"><strong>0</strong><span>候选</span></div>
+      <div class="stat"><strong>0</strong><span>提醒</span></div>
     </div>
   </header>
   <main>
-    <section class="toolbar" aria-label="Review filters">
-      <input id="view-search" type="search" placeholder="Search modules, candidates, evidence">
-      <label><input id="filter-stale" type="checkbox"> Stale</label>
-      <label><input id="filter-candidates" type="checkbox"> Has candidates</label>
-      <label><input id="filter-high-risk" type="checkbox"> High risk</label>
-      <label><input id="filter-generated" type="checkbox"> Generated evidence</label>
+    <section class="toolbar" aria-label="审阅筛选">
+      <input id="view-search" type="search" placeholder="搜索模块、候选和证据">
+      <label><input id="filter-stale" type="checkbox"> 过期</label>
+      <label><input id="filter-candidates" type="checkbox"> 有候选</label>
+      <label><input id="filter-high-risk" type="checkbox"> 高风险</label>
+      <label><input id="filter-generated" type="checkbox"> 生成证据</label>
     </section>
     <section>
-      <h2>Overview</h2>
-      <table><tbody><tr><th>Purpose</th><td>Not available</td></tr><tr><th>Active Goal</th><td>把 lorekit 的 `.context` 搭成可用的中文 CMAP 项目地图，并补齐 Obsidian / Review HTML 导出、`AGENTS.md` / `CLAUDE.md` 使用入口。</td></tr><tr><th>Current Task</th><td>将 `/Users/gaoyifan/code/lorekit` 的 CMAP `.context` 搭建完整：正文中文化、模块关系接好、生成 Obsidian / Review HTML，并安全更新 `AGENTS.md` / `CLAUDE.md`。</td></tr><tr><th>Next Step</th><td>人工 review diff；认可后可提交。</td></tr><tr><th>Verified</th><td>Not available</td></tr><tr><th>Last Verified</th><td>2026-05-17：`cmap route` smoke checks 通过；`cmap verify --changed` 为 0 errors / 1 expected warning（`AGENTS.md` 与 `CLAUDE.md` 保持不同入口形态）；`cmap obsidian export --check --out _cmap/lorekit` 通过；`cmap view export --check --out _cmap-view` 通过；`git diff --check` 通过；`npm run verify` 通过（72 tests, 71 pass, 1 skipped）。</td></tr></tbody></table>
+      <h2>概览</h2>
+      <table><tbody><tr><th>职责</th><td>lorekit 是一个个人 LLM Wiki 工具包。它让 AI agent 把网页、笔记、会议、录音等原料整理成可长期复用的本地知识库，同时用确定性的 CLI 负责文件、状态、索引、检索、备份、恢复和安全删除。</td></tr><tr><th>当前目标</th><td>把 lorekit 的 `.context` 搭成可用的中文 CMAP 项目地图，并补齐 Obsidian / Review HTML 导出、`AGENTS.md` / `CLAUDE.md` 使用入口。</td></tr><tr><th>当前任务</th><td>将 `/Users/gaoyifan/code/lorekit` 的 CMAP `.context` 搭建完整：正文中文化、模块关系接好、生成 Obsidian / Review HTML，并安全更新 `AGENTS.md` / `CLAUDE.md`。</td></tr><tr><th>下一步</th><td>提交并推送已验证的 CMAP / AGENTS 更新。</td></tr><tr><th>已验证</th><td>`git status --short --branch` before adoption: `main...origin/main`, clean.</td></tr><tr><th>最近验证</th><td>2026-05-18：`cmap route &quot;push CMAP and AGENTS context changes&quot;` 通过；`cmap verify --changed` 为 0 errors / 1 expected warning（`AGENTS.md` 与 `CLAUDE.md` 保持不同入口形态）；`cmap obsidian export --check --out _cmap/lorekit` 通过；`cmap view export --check --ui-lang zh-CN --out _cmap-view` 通过；`git diff --check` 通过；`npm run verify` 通过（79 tests, 78 pass, 1 skipped）。</td></tr></tbody></table>
     </section>
     <section>
-      <h2>Warnings</h2>
-      <p class="meta">No warnings.</p>
+      <h2>提醒</h2>
+      <p class="meta">没有提醒。</p>
     </section>
     <section>
-      <h2>Modules</h2>
-      <div class="modules"><article class="module" data-search="cli Cli  cli command commands version banner commander src/cli.ts bin/lorekit.js VERSION package.json dist/** calls: corpus-core, calls: fetch-ingest, calls: sync-search-vector, calls: safety-maintenance, calls: skills-agent, calls: obsidian-gbrain docs-tests-release -&gt; cli (documents), project-map -&gt; cli (guides), skills-agent -&gt; cli (uses)   " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="cli">
+      <h2>模块</h2>
+      <div class="modules"><article class="module" data-search="cli Cli 注册 &#96;lorekit&#96; 命令面，读取版本信息，展示无参数 banner，并统一 commander 的退出码语义。 cli command commands version banner commander src/cli.ts bin/lorekit.js VERSION package.json dist/** calls: corpus-core, calls: fetch-ingest, calls: sync-search-vector, calls: safety-maintenance, calls: skills-agent, calls: obsidian-gbrain docs-tests-release -&gt; cli (documents), project-map -&gt; cli (guides), skills-agent -&gt; cli (uses)  项目是 ESM TypeScript，运行时 Node.js &gt;= 18。 无参数 &#96;lorekit&#96; 显示 banner 和 best-effort corpus/vector 状态。 commander 参数/用法错误退出 &#96;2&#96;；运行时错误退出 &#96;1&#96;。 源码里人类输出统一走 &#96;src/utils/logger.ts&#96;，不要新增直接 &#96;console.log&#96;。 &#96;dist/&#96; 不手工改；改源码后跑 &#96;npm run build&#96;。 &#96;docs/CONVENTIONS.md&#96;：stdout/stderr、logger、exit code 规则。 &#96;docs/CODEBASE-MAP.md&#96;：命令归属。 具体命令文件：&#96;src/commands/&lt;name&gt;.ts&#96;。 Purpose 注册 &#96;lorekit&#96; 命令面，读取版本信息，展示无参数 banner，并统一 commander 的退出码语义。 Owned Paths - &#96;src/cli.ts&#96;
+- &#96;bin/lorekit.js&#96;
+- &#96;VERSION&#96;
+- &#96;package.json&#96;
+- &#96;dist/&#96; build output, regenerated by &#96;npm run build&#96; Key Contracts - 项目是 ESM TypeScript，运行时 Node.js &gt;= 18。
+- 无参数 &#96;lorekit&#96; 显示 banner 和 best-effort corpus/vector 状态。
+- commander 参数/用法错误退出 &#96;2&#96;；运行时错误退出 &#96;1&#96;。
+- 源码里人类输出统一走 &#96;src/utils/logger.ts&#96;，不要新增直接 &#96;console.log&#96;。
+- &#96;dist/&#96; 不手工改；改源码后跑 &#96;npm run build&#96;。 Module Relationships - 调用 &#96;corpus-core&#96;、&#96;fetch-ingest&#96;、&#96;sync-search-vector&#96;、&#96;safety-maintenance&#96;、&#96;skills-agent&#96;、&#96;obsidian-gbrain&#96;。
+- 命令行为变化通常还要看 &#96;docs-tests-release&#96;。 Read Next - &#96;docs/CONVENTIONS.md&#96;：stdout/stderr、logger、exit code 规则。
+- &#96;docs/CODEBASE-MAP.md&#96;：命令归属。
+- 具体命令文件：&#96;src/commands/&lt;name&gt;.ts&#96;。 Tests / Verification - &#96;npm run verify&#96;
+- &#96;node dist/cli.js --help&#96;：构建后确认命令注册。 npm run verify node dist/cli.js --help " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="cli">
     <h3>Cli</h3>
     <p class="meta"><code>cli</code> · active · .context/modules/cli.md</p>
-    <p><span class="pill">cli</span><span class="pill">command</span><span class="pill">commands</span><span class="pill">version</span><span class="pill">banner</span><span class="pill">commander</span></p>
+    <p><strong>别名:</strong> <span class="pill">cli</span><span class="pill">command</span><span class="pill">commands</span><span class="pill">version</span><span class="pill">banner</span><span class="pill">commander</span></p>
+    <p><strong>职责:</strong> 注册 `lorekit` 命令面，读取版本信息，展示无参数 banner，并统一 commander 的退出码语义。</p>
     
+    <div><strong>关键契约:</strong><ul class="compact-list"><li>项目是 ESM TypeScript，运行时 Node.js &gt;= 18。</li><li>无参数 `lorekit` 显示 banner 和 best-effort corpus/vector 状态。</li><li>commander 参数/用法错误退出 `2`；运行时错误退出 `1`。</li></ul></div>
+    <p><strong>读什么:</strong> <code>docs/CONVENTIONS.md</code>：stdout/stderr、logger、exit code 规则。, <code>docs/CODEBASE-MAP.md</code>：命令归属。, 具体命令文件：<code>src/commands/&lt;name&gt;.ts</code>。</p>
+    <p><strong>负责路径:</strong> src/cli.ts, bin/lorekit.js, VERSION, package.json, dist/**</p>
+    <p><strong>关系:</strong> calls: corpus-core, calls: fetch-ingest, calls: sync-search-vector, calls: safety-maintenance, calls: skills-agent, calls: obsidian-gbrain</p>
+    <p><strong>被哪些模块引用:</strong> docs-tests-release -&gt; cli (documents), project-map -&gt; cli (guides), skills-agent -&gt; cli (uses)</p>
     
-    <p><strong>Paths:</strong> src/cli.ts, bin/lorekit.js, VERSION, package.json, dist/**</p>
-    <p><strong>Relations:</strong> calls: corpus-core, calls: fetch-ingest, calls: sync-search-vector, calls: safety-maintenance, calls: skills-agent, calls: obsidian-gbrain</p>
-    <p><strong>Incoming Relations:</strong> docs-tests-release -&gt; cli (documents), project-map -&gt; cli (guides), skills-agent -&gt; cli (uses)</p>
-    
-    
+    <p><strong>模块验证:</strong> <code>npm run verify</code>, <code>node dist/cli.js --help</code></p>
     
     <p><strong>Freshness:</strong> Not available · Not available</p>
-    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module cli">Review module</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module cli --evidence &quot;Reviewed cli&quot;">Mark reviewed</button></div>
-    <button type="button" data-open-module="cli">Details</button>
-  </article><article class="module" data-search="corpus-core Corpus Core  corpus schema paths lint node_modules skills index.md _INDEX logger 路径 边界 src/lib/corpus.ts src/lib/paths.ts src/lib/root-index.ts src/lib/date.ts src/utils/** supports: fetch-ingest, supports: sync-search-vector, supports: safety-maintenance, supports: obsidian-gbrain cli -&gt; corpus-core (calls), docs-tests-release -&gt; corpus-core (documents), fetch-ingest -&gt; corpus-core (depends_on), obsidian-gbrain -&gt; corpus-core (depends_on), project-map -&gt; corpus-core (guides), safety-maintenance -&gt; corpus-core (depends_on), skills-agent -&gt; corpus-core (constrained_by), sync-search-vector -&gt; corpus-core (depends_on)   " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="corpus-core">
+    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module cli">审阅模块</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module cli --evidence &quot;Reviewed cli&quot;">标记已审阅</button></div>
+    <button type="button" data-open-module="cli">查看详情</button>
+  </article><article class="module" data-search="corpus-core Corpus Core 定义 lorekit 如何发现 corpus、解析 frontmatter、执行路径 include/exclude 规则、刷新 root index，并提供共享日志/文件系统工具。 corpus schema paths lint node_modules skills index.md _INDEX logger 路径 边界 src/lib/corpus.ts src/lib/paths.ts src/lib/root-index.ts src/lib/date.ts src/utils/** supports: fetch-ingest, supports: sync-search-vector, supports: safety-maintenance, supports: obsidian-gbrain cli -&gt; corpus-core (calls), docs-tests-release -&gt; corpus-core (documents), fetch-ingest -&gt; corpus-core (depends_on), obsidian-gbrain -&gt; corpus-core (depends_on), project-map -&gt; corpus-core (guides), safety-maintenance -&gt; corpus-core (depends_on), skills-agent -&gt; corpus-core (constrained_by), sync-search-vector -&gt; corpus-core (depends_on)  &#96;src/lib/paths.ts&#96; 是 scan / index / lint / vector / snapshot 边界的单一事实源。 &#96;skills/&#96; 和 &#96;node_modules/&#96; 是工具目录，不是 corpus 页面。 &#96;原料/&#96;、&#96;知识库/&#96;、&#96;_工作台/&#96;、&#96;系统/&#96;、&#96;反馈/&#96;、&#96;.wiki/&#96; 是 schema 级目录名，不要随手重命名。 root &#96;index.md&#96; 通过 controlled regions merge-refresh，必须保留人类手写摘要。 logger 是源码输出唯一入口。 &#96;docs/ARCHITECTURE.md&#96; 的 Core abstractions / Schema constraints。 &#96;docs/CONVENTIONS.md&#96; Do Not #8 和 #11。 Purpose 定义 lorekit 如何发现 corpus、解析 frontmatter、执行路径 include/exclude 规则、刷新 root index，并提供共享日志/文件系统工具。 Owned Paths - &#96;src/lib/corpus.ts&#96;
+- &#96;src/lib/paths.ts&#96;
+- &#96;src/lib/root-index.ts&#96;
+- &#96;src/lib/date.ts&#96;
+- &#96;src/utils/fs.ts&#96;
+- &#96;src/utils/logger.ts&#96; Key Contracts - &#96;src/lib/paths.ts&#96; 是 scan / index / lint / vector / snapshot 边界的单一事实源。
+- &#96;skills/&#96; 和 &#96;node_modules/&#96; 是工具目录，不是 corpus 页面。
+- &#96;原料/&#96;、&#96;知识库/&#96;、&#96;_工作台/&#96;、&#96;系统/&#96;、&#96;反馈/&#96;、&#96;.wiki/&#96; 是 schema 级目录名，不要随手重命名。
+- root &#96;index.md&#96; 通过 controlled regions merge-refresh，必须保留人类手写摘要。
+- logger 是源码输出唯一入口。 Module Relationships - 支撑 &#96;fetch-ingest&#96;、&#96;sync-search-vector&#96;、&#96;safety-maintenance&#96;、&#96;obsidian-gbrain&#96;。
+- 如果扫描边界变了，通常也要更新 &#96;docs-tests-release&#96; 的测试/文档。 Read Next - &#96;docs/ARCHITECTURE.md&#96; 的 Core abstractions / Schema constraints。
+- &#96;docs/CONVENTIONS.md&#96; Do Not #8 和 #11。 Tests / Verification - 路径规则变化要有 targeted smoke test，并跑 &#96;npm run verify&#96;。
+- 扫描边界 bug 要用 fixture 复现，例如包含 &#96;skills/&#96; / &#96;node_modules/&#96;。  " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="corpus-core">
     <h3>Corpus Core</h3>
     <p class="meta"><code>corpus-core</code> · active · .context/modules/corpus-core.md</p>
-    <p><span class="pill">corpus</span><span class="pill">schema</span><span class="pill">paths</span><span class="pill">lint</span><span class="pill">node_modules</span><span class="pill">skills</span><span class="pill">index.md</span><span class="pill">_INDEX</span><span class="pill">logger</span><span class="pill">路径</span><span class="pill">边界</span></p>
+    <p><strong>别名:</strong> <span class="pill">corpus</span><span class="pill">schema</span><span class="pill">paths</span><span class="pill">lint</span><span class="pill">node_modules</span><span class="pill">skills</span><span class="pill">index.md</span><span class="pill">_INDEX</span><span class="pill">logger</span><span class="pill">路径</span><span class="pill">边界</span></p>
+    <p><strong>职责:</strong> 定义 lorekit 如何发现 corpus、解析 frontmatter、执行路径 include/exclude 规则、刷新 root index，并提供共享日志/文件系统工具。</p>
     
-    
-    <p><strong>Paths:</strong> src/lib/corpus.ts, src/lib/paths.ts, src/lib/root-index.ts, src/lib/date.ts, src/utils/**</p>
-    <p><strong>Relations:</strong> supports: fetch-ingest, supports: sync-search-vector, supports: safety-maintenance, supports: obsidian-gbrain</p>
-    <p><strong>Incoming Relations:</strong> cli -&gt; corpus-core (calls), docs-tests-release -&gt; corpus-core (documents), fetch-ingest -&gt; corpus-core (depends_on), obsidian-gbrain -&gt; corpus-core (depends_on), project-map -&gt; corpus-core (guides), safety-maintenance -&gt; corpus-core (depends_on), skills-agent -&gt; corpus-core (constrained_by), sync-search-vector -&gt; corpus-core (depends_on)</p>
+    <div><strong>关键契约:</strong><ul class="compact-list"><li>`src/lib/paths.ts` 是 scan / index / lint / vector / snapshot 边界的单一事实源。</li><li>`skills/` 和 `node_modules/` 是工具目录，不是 corpus 页面。</li><li>`原料/`、`知识库/`、`_工作台/`、`系统/`、`反馈/`、`.wiki/` 是 schema 级目录名，不要随手重命名。</li></ul></div>
+    <p><strong>读什么:</strong> <code>docs/ARCHITECTURE.md</code> 的 Core abstractions / Schema constraints。, <code>docs/CONVENTIONS.md</code> Do Not #8 和 #11。</p>
+    <p><strong>负责路径:</strong> src/lib/corpus.ts, src/lib/paths.ts, src/lib/root-index.ts, src/lib/date.ts, src/utils/**</p>
+    <p><strong>关系:</strong> supports: fetch-ingest, supports: sync-search-vector, supports: safety-maintenance, supports: obsidian-gbrain</p>
+    <p><strong>被哪些模块引用:</strong> cli -&gt; corpus-core (calls), docs-tests-release -&gt; corpus-core (documents), fetch-ingest -&gt; corpus-core (depends_on), obsidian-gbrain -&gt; corpus-core (depends_on), project-map -&gt; corpus-core (guides), safety-maintenance -&gt; corpus-core (depends_on), skills-agent -&gt; corpus-core (constrained_by), sync-search-vector -&gt; corpus-core (depends_on)</p>
     
     
     
     <p><strong>Freshness:</strong> Not available · Not available</p>
-    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module corpus-core">Review module</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module corpus-core --evidence &quot;Reviewed corpus-core&quot;">Mark reviewed</button></div>
-    <button type="button" data-open-module="corpus-core">Details</button>
-  </article><article class="module" data-search="docs-tests-release Docs Tests Release  docs documentation tests smoke verify release package changelog 文档 发布 docs/** tests/smoke/** README.md CHANGELOG.md LICENSE eslint.config.js tsconfig.json tsup.config.ts package-lock.json documents: cli, documents: corpus-core, documents: fetch-ingest, documents: sync-search-vector, documents: safety-maintenance, documents: skills-agent, documents: obsidian-gbrain obsidian-gbrain -&gt; docs-tests-release (exports_to), project-map -&gt; docs-tests-release (guides)   " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="docs-tests-release">
+    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module corpus-core">审阅模块</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module corpus-core --evidence &quot;Reviewed corpus-core&quot;">标记已审阅</button></div>
+    <button type="button" data-open-module="corpus-core">查看详情</button>
+  </article><article class="module" data-search="docs-tests-release Docs Tests Release 维护贡献者文档、smoke tests、构建脚本、changelog/version 规则和发布前验证。 docs documentation tests smoke verify release package changelog 文档 发布 docs/** tests/smoke/** README.md CHANGELOG.md LICENSE eslint.config.js tsconfig.json tsup.config.ts package-lock.json documents: cli, documents: corpus-core, documents: fetch-ingest, documents: sync-search-vector, documents: safety-maintenance, documents: skills-agent, documents: obsidian-gbrain obsidian-gbrain -&gt; docs-tests-release (exports_to), project-map -&gt; docs-tests-release (guides)  新命令、新 skill、跨文件行为变化，只要用户可见，就要在同一 commit 更新 docs。 永久文档各司其职：&#96;README&#96;、&#96;AGENTS&#96;、&#96;CONVENTIONS&#96;、&#96;ARCHITECTURE&#96;、&#96;CODEBASE-MAP&#96;、&#96;DESIGN-NOTES&#96;、&#96;CHANGELOG&#96;、&#96;IDEAS&#96;。 smoke tests 用 Node 内置 &#96;node:test&#96;；新增命令或高风险行为必须加 targeted tests。 &#96;VERSION&#96; 不手工改，用 &#96;npm version&#96;。 新增 docs/ 前必须先对照 &#96;docs/CONVENTIONS.md&#96; §13，避免文档膨胀。 &#96;docs/CONVENTIONS.md&#96; §13。 &#96;docs/CODEBASE-MAP.md&#96;。 &#96;package.json&#96; scripts。 Purpose 维护贡献者文档、smoke tests、构建脚本、changelog/version 规则和发布前验证。 Owned Paths - &#96;docs/**&#96;
+- &#96;tests/smoke/**&#96;
+- &#96;README.md&#96;
+- &#96;CHANGELOG.md&#96;
+- &#96;LICENSE&#96;
+- &#96;eslint.config.js&#96;
+- &#96;tsconfig.json&#96;
+- &#96;tsup.config.ts&#96;
+- &#96;package-lock.json&#96; Key Contracts - 新命令、新 skill、跨文件行为变化，只要用户可见，就要在同一 commit 更新 docs。
+- 永久文档各司其职：&#96;README&#96;、&#96;AGENTS&#96;、&#96;CONVENTIONS&#96;、&#96;ARCHITECTURE&#96;、&#96;CODEBASE-MAP&#96;、&#96;DESIGN-NOTES&#96;、&#96;CHANGELOG&#96;、&#96;IDEAS&#96;。
+- smoke tests 用 Node 内置 &#96;node:test&#96;；新增命令或高风险行为必须加 targeted tests。
+- &#96;VERSION&#96; 不手工改，用 &#96;npm version&#96;。
+- 新增 docs/ 前必须先对照 &#96;docs/CONVENTIONS.md&#96; §13，避免文档膨胀。 Module Relationships - 记录和验证其他模块的用户可见行为。
+- 如果模块边界或目录结构变了，优先更新 &#96;docs/ARCHITECTURE.md&#96; 和 &#96;docs/CODEBASE-MAP.md&#96;。 Read Next - &#96;docs/CONVENTIONS.md&#96; §13。
+- &#96;docs/CODEBASE-MAP.md&#96;。
+- &#96;package.json&#96; scripts。 Tests / Verification - &#96;npm run verify&#96;
+- Targeted &#96;node --test tests/smoke/&lt;test&gt;.mjs&#96;
+- &#96;git diff --check&#96; npm run verify git diff --check " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="docs-tests-release">
     <h3>Docs Tests Release</h3>
     <p class="meta"><code>docs-tests-release</code> · active · .context/modules/docs-tests-release.md</p>
-    <p><span class="pill">docs</span><span class="pill">documentation</span><span class="pill">tests</span><span class="pill">smoke</span><span class="pill">verify</span><span class="pill">release</span><span class="pill">package</span><span class="pill">changelog</span><span class="pill">文档</span><span class="pill">发布</span></p>
+    <p><strong>别名:</strong> <span class="pill">docs</span><span class="pill">documentation</span><span class="pill">tests</span><span class="pill">smoke</span><span class="pill">verify</span><span class="pill">release</span><span class="pill">package</span><span class="pill">changelog</span><span class="pill">文档</span><span class="pill">发布</span></p>
+    <p><strong>职责:</strong> 维护贡献者文档、smoke tests、构建脚本、changelog/version 规则和发布前验证。</p>
     
+    <div><strong>关键契约:</strong><ul class="compact-list"><li>新命令、新 skill、跨文件行为变化，只要用户可见，就要在同一 commit 更新 docs。</li><li>永久文档各司其职：`README`、`AGENTS`、`CONVENTIONS`、`ARCHITECTURE`、`CODEBASE-MAP`、`DESIGN-NOTES`、`CHANGELOG`、`IDEAS`。</li><li>smoke tests 用 Node 内置 `node:test`；新增命令或高风险行为必须加 targeted tests。</li></ul></div>
+    <p><strong>读什么:</strong> <code>docs/CONVENTIONS.md</code> §13。, <code>docs/CODEBASE-MAP.md</code>。, <code>package.json</code> scripts。</p>
+    <p><strong>负责路径:</strong> docs/**, tests/smoke/**, README.md, CHANGELOG.md, LICENSE, eslint.config.js, tsconfig.json, tsup.config.ts, package-lock.json</p>
+    <p><strong>关系:</strong> documents: cli, documents: corpus-core, documents: fetch-ingest, documents: sync-search-vector, documents: safety-maintenance, documents: skills-agent, documents: obsidian-gbrain</p>
+    <p><strong>被哪些模块引用:</strong> obsidian-gbrain -&gt; docs-tests-release (exports_to), project-map -&gt; docs-tests-release (guides)</p>
     
-    <p><strong>Paths:</strong> docs/**, tests/smoke/**, README.md, CHANGELOG.md, LICENSE, eslint.config.js, tsconfig.json, tsup.config.ts, package-lock.json</p>
-    <p><strong>Relations:</strong> documents: cli, documents: corpus-core, documents: fetch-ingest, documents: sync-search-vector, documents: safety-maintenance, documents: skills-agent, documents: obsidian-gbrain</p>
-    <p><strong>Incoming Relations:</strong> obsidian-gbrain -&gt; docs-tests-release (exports_to), project-map -&gt; docs-tests-release (guides)</p>
-    
-    
+    <p><strong>模块验证:</strong> <code>npm run verify</code>, <code>git diff --check</code></p>
     
     <p><strong>Freshness:</strong> Not available · Not available</p>
-    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module docs-tests-release">Review module</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module docs-tests-release --evidence &quot;Reviewed docs-tests-release&quot;">Mark reviewed</button></div>
-    <button type="button" data-open-module="docs-tests-release">Details</button>
-  </article><article class="module" data-search="fetch-ingest Fetch Ingest  fetch ingest ingestion 微信 公众号 duplicate in-progress state 抓取 入库 src/commands/fetch.ts src/commands/ingest.ts src/lib/fetcher/** src/lib/ingest-state.ts depends_on: corpus-core, feeds: sync-search-vector, guided_by: skills-agent cli -&gt; fetch-ingest (calls), corpus-core -&gt; fetch-ingest (supports), docs-tests-release -&gt; fetch-ingest (documents), project-map -&gt; fetch-ingest (guides), safety-maintenance -&gt; fetch-ingest (protects), skills-agent -&gt; fetch-ingest (uses), sync-search-vector -&gt; fetch-ingest (consumes)   " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="fetch-ingest">
+    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module docs-tests-release">审阅模块</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module docs-tests-release --evidence &quot;Reviewed docs-tests-release&quot;">标记已审阅</button></div>
+    <button type="button" data-open-module="docs-tests-release">查看详情</button>
+  </article><article class="module" data-search="fetch-ingest Fetch Ingest 把外部来源抓到工作台，并记录每个来源在 ingest pipeline 中走到哪一步。 fetch ingest ingestion 微信 公众号 duplicate in-progress state 抓取 入库 src/commands/fetch.ts src/commands/ingest.ts src/lib/fetcher/** src/lib/ingest-state.ts depends_on: corpus-core, feeds: sync-search-vector, guided_by: skills-agent cli -&gt; fetch-ingest (calls), corpus-core -&gt; fetch-ingest (supports), docs-tests-release -&gt; fetch-ingest (documents), project-map -&gt; fetch-ingest (guides), safety-maintenance -&gt; fetch-ingest (protects), skills-agent -&gt; fetch-ingest (uses), sync-search-vector -&gt; fetch-ingest (consumes)  &#96;lorekit fetch &lt;url&gt;&#96; 把抓取结果写到 &#96;_工作台/收件/&#96;，并记录 &#96;status: started&#96;、&#96;stepsDone: [fetch]&#96;。 &#96;.wiki/ingest-state.json&#96; 是 duplicate / in-progress / completed / failed 的 pipeline SSOT。 fetch route 覆盖 generic web、WeChat、GitHub doc、Gist。 最终归档位置和 wiki synthesis 由 AI skills 决定，不由 fetcher 决定。 工作台 frontmatter 和正式 wiki frontmatter 可不同；lint 规则要尊重这个阶段边界。 &#96;README.md&#96; 的 Ingest Pipeline。 &#96;docs/ARCHITECTURE.md&#96; 的 Ingest flow。 &#96;skills/wiki-ingest/SKILL.md&#96;。 Purpose 把外部来源抓到工作台，并记录每个来源在 ingest pipeline 中走到哪一步。 Owned Paths - &#96;src/commands/fetch.ts&#96;
+- &#96;src/commands/ingest.ts&#96;
+- &#96;src/lib/fetcher/**&#96;
+- &#96;src/lib/ingest-state.ts&#96; Key Contracts - &#96;lorekit fetch &lt;url&gt;&#96; 把抓取结果写到 &#96;_工作台/收件/&#96;，并记录 &#96;status: started&#96;、&#96;stepsDone: [fetch]&#96;。
+- &#96;.wiki/ingest-state.json&#96; 是 duplicate / in-progress / completed / failed 的 pipeline SSOT。
+- fetch route 覆盖 generic web、WeChat、GitHub doc、Gist。
+- 最终归档位置和 wiki synthesis 由 AI skills 决定，不由 fetcher 决定。
+- 工作台 frontmatter 和正式 wiki frontmatter 可不同；lint 规则要尊重这个阶段边界。 Module Relationships - 依赖 &#96;corpus-core&#96; 的 corpus 发现、frontmatter、路径规则。
+- 产物流向 &#96;sync-search-vector&#96;。
+- agent 侧流程由 &#96;skills-agent&#96; 的 &#96;wiki-ingest&#96; 约束。 Read Next - &#96;README.md&#96; 的 Ingest Pipeline。
+- &#96;docs/ARCHITECTURE.md&#96; 的 Ingest flow。
+- &#96;skills/wiki-ingest/SKILL.md&#96;。 Tests / Verification - &#96;node --test tests/smoke/fetch-mock.test.mjs tests/smoke/ingest-record.test.mjs&#96;
+- &#96;npm run verify&#96; node --test tests/smoke/fetch-mock.test.mjs tests/smoke/ingest-record.test.mjs npm run verify " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="fetch-ingest">
     <h3>Fetch Ingest</h3>
     <p class="meta"><code>fetch-ingest</code> · active · .context/modules/fetch-ingest.md</p>
-    <p><span class="pill">fetch</span><span class="pill">ingest</span><span class="pill">ingestion</span><span class="pill">微信</span><span class="pill">公众号</span><span class="pill">duplicate</span><span class="pill">in-progress</span><span class="pill">state</span><span class="pill">抓取</span><span class="pill">入库</span></p>
+    <p><strong>别名:</strong> <span class="pill">fetch</span><span class="pill">ingest</span><span class="pill">ingestion</span><span class="pill">微信</span><span class="pill">公众号</span><span class="pill">duplicate</span><span class="pill">in-progress</span><span class="pill">state</span><span class="pill">抓取</span><span class="pill">入库</span></p>
+    <p><strong>职责:</strong> 把外部来源抓到工作台，并记录每个来源在 ingest pipeline 中走到哪一步。</p>
     
+    <div><strong>关键契约:</strong><ul class="compact-list"><li>`lorekit fetch &lt;url&gt;` 把抓取结果写到 `_工作台/收件/`，并记录 `status: started`、`stepsDone: [fetch]`。</li><li>`.wiki/ingest-state.json` 是 duplicate / in-progress / completed / failed 的 pipeline SSOT。</li><li>fetch route 覆盖 generic web、WeChat、GitHub doc、Gist。</li></ul></div>
+    <p><strong>读什么:</strong> <code>README.md</code> 的 Ingest Pipeline。, <code>docs/ARCHITECTURE.md</code> 的 Ingest flow。, <code>skills/wiki-ingest/SKILL.md</code>。</p>
+    <p><strong>负责路径:</strong> src/commands/fetch.ts, src/commands/ingest.ts, src/lib/fetcher/**, src/lib/ingest-state.ts</p>
+    <p><strong>关系:</strong> depends_on: corpus-core, feeds: sync-search-vector, guided_by: skills-agent</p>
+    <p><strong>被哪些模块引用:</strong> cli -&gt; fetch-ingest (calls), corpus-core -&gt; fetch-ingest (supports), docs-tests-release -&gt; fetch-ingest (documents), project-map -&gt; fetch-ingest (guides), safety-maintenance -&gt; fetch-ingest (protects), skills-agent -&gt; fetch-ingest (uses), sync-search-vector -&gt; fetch-ingest (consumes)</p>
     
-    <p><strong>Paths:</strong> src/commands/fetch.ts, src/commands/ingest.ts, src/lib/fetcher/**, src/lib/ingest-state.ts</p>
-    <p><strong>Relations:</strong> depends_on: corpus-core, feeds: sync-search-vector, guided_by: skills-agent</p>
-    <p><strong>Incoming Relations:</strong> cli -&gt; fetch-ingest (calls), corpus-core -&gt; fetch-ingest (supports), docs-tests-release -&gt; fetch-ingest (documents), project-map -&gt; fetch-ingest (guides), safety-maintenance -&gt; fetch-ingest (protects), skills-agent -&gt; fetch-ingest (uses), sync-search-vector -&gt; fetch-ingest (consumes)</p>
-    
-    
+    <p><strong>模块验证:</strong> <code>node --test tests/smoke/fetch-mock.test.mjs tests/smoke/ingest-record.test.mjs</code>, <code>npm run verify</code></p>
     
     <p><strong>Freshness:</strong> Not available · Not available</p>
-    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module fetch-ingest">Review module</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module fetch-ingest --evidence &quot;Reviewed fetch-ingest&quot;">Mark reviewed</button></div>
-    <button type="button" data-open-module="fetch-ingest">Details</button>
-  </article><article class="module" data-search="obsidian-gbrain Obsidian Gbrain  obsidian graph graph filter gbrain integration integrations 视图 图谱 src/commands/obsidian-tune.ts src/lib/obsidian.ts plugins/obsidian-audit/** src/commands/gbrain.ts src/lib/integrations/** docs/integrations/** depends_on: corpus-core, depends_on: safety-maintenance, exports_to: docs-tests-release cli -&gt; obsidian-gbrain (calls), corpus-core -&gt; obsidian-gbrain (supports), docs-tests-release -&gt; obsidian-gbrain (documents), project-map -&gt; obsidian-gbrain (guides)   " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="obsidian-gbrain">
+    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module fetch-ingest">审阅模块</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module fetch-ingest --evidence &quot;Reviewed fetch-ingest&quot;">标记已审阅</button></div>
+    <button type="button" data-open-module="fetch-ingest">查看详情</button>
+  </article><article class="module" data-search="obsidian-gbrain Obsidian Gbrain 提供 canonical corpus 周围的可选集成：Obsidian graph tuning / audit plugin，以及 GBrain 只读 staging / sync / query。 obsidian graph graph filter gbrain integration integrations 视图 图谱 src/commands/obsidian-tune.ts src/lib/obsidian.ts plugins/obsidian-audit/** src/commands/gbrain.ts src/lib/integrations/** docs/integrations/** depends_on: corpus-core, depends_on: safety-maintenance, exports_to: docs-tests-release cli -&gt; obsidian-gbrain (calls), corpus-core -&gt; obsidian-gbrain (supports), docs-tests-release -&gt; obsidian-gbrain (documents), project-map -&gt; obsidian-gbrain (guides)  Obsidian graph tuning 不能覆盖用户已有 &#96;.obsidian/&#96; 设置，除非明确走 safe write / backup 路径。 GBrain 相对 &#96;知识库/&#96; 和 &#96;原料/&#96; 是只读 integration。 GBrain export 默认只写 &#96;.wiki/integrations/gbrain-export/&#96; staging，并记录 manifest / sync reports。 外部进程调用不能用 shell interpolation。 CMAP 的 &#96;_cmap/lorekit&#96; 和 &#96;_cmap-view&#96; 是 review/read-only 视图；其中 &#96;_cmap-view&#96; 用 &#96;--ui-lang zh-CN&#96; 导出中文 UI，不是新的事实源。 &#96;docs/ARCHITECTURE.md&#96; 的 GBrain integration flow。 &#96;README.md&#96; 的 Optional GBrain Bridge。 &#96;tests/smoke/gbrain-*.test.mjs&#96;。 Purpose 提供 canonical corpus 周围的可选集成：Obsidian graph tuning / audit plugin，以及 GBrain 只读 staging / sync / query。 Owned Paths - &#96;src/commands/obsidian-tune.ts&#96;
+- &#96;src/lib/obsidian.ts&#96;
+- &#96;plugins/obsidian-audit/**&#96;
+- &#96;src/commands/gbrain.ts&#96;
+- &#96;src/lib/integrations/**&#96;
+- &#96;docs/integrations/**&#96; Key Contracts - Obsidian graph tuning 不能覆盖用户已有 &#96;.obsidian/&#96; 设置，除非明确走 safe write / backup 路径。
+- GBrain 相对 &#96;知识库/&#96; 和 &#96;原料/&#96; 是只读 integration。
+- GBrain export 默认只写 &#96;.wiki/integrations/gbrain-export/&#96; staging，并记录 manifest / sync reports。
+- 外部进程调用不能用 shell interpolation。
+- CMAP 的 &#96;_cmap/lorekit&#96; 和 &#96;_cmap-view&#96; 是 review/read-only 视图；其中 &#96;_cmap-view&#96; 用 &#96;--ui-lang zh-CN&#96; 导出中文 UI，不是新的事实源。 Module Relationships - 依赖 &#96;corpus-core&#96; 的路径边界。
+- 依赖 &#96;safety-maintenance&#96; 的 safe write / doctor 思路。
+- 导出的文档/视图需要由 &#96;docs-tests-release&#96; 的验证规则覆盖。 Read Next - &#96;docs/ARCHITECTURE.md&#96; 的 GBrain integration flow。
+- &#96;README.md&#96; 的 Optional GBrain Bridge。
+- &#96;tests/smoke/gbrain-*.test.mjs&#96;。 Tests / Verification - &#96;node --test tests/smoke/gbrain-status.test.mjs tests/smoke/gbrain-export.test.mjs tests/smoke/gbrain-sync.test.mjs tests/smoke/gbrain-query.test.mjs&#96;
+- Obsidian 变更要覆盖 safe-write 行为。
+- CMAP 视图变更跑 &#96;cmap obsidian export --check --out _cmap/lorekit&#96; 和 &#96;cmap view export --check --ui-lang zh-CN --out _cmap-view&#96;。 node --test tests/smoke/gbrain-status.test.mjs tests/smoke/gbrain-export.test.mjs tests/smoke/gbrain-sync.test.mjs tests/smoke/gbrain-query.test.mjs " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="obsidian-gbrain">
     <h3>Obsidian Gbrain</h3>
     <p class="meta"><code>obsidian-gbrain</code> · active · .context/modules/obsidian-gbrain.md</p>
-    <p><span class="pill">obsidian</span><span class="pill">graph</span><span class="pill">graph filter</span><span class="pill">gbrain</span><span class="pill">integration</span><span class="pill">integrations</span><span class="pill">视图</span><span class="pill">图谱</span></p>
+    <p><strong>别名:</strong> <span class="pill">obsidian</span><span class="pill">graph</span><span class="pill">graph filter</span><span class="pill">gbrain</span><span class="pill">integration</span><span class="pill">integrations</span><span class="pill">视图</span><span class="pill">图谱</span></p>
+    <p><strong>职责:</strong> 提供 canonical corpus 周围的可选集成：Obsidian graph tuning / audit plugin，以及 GBrain 只读 staging / sync / query。</p>
     
+    <div><strong>关键契约:</strong><ul class="compact-list"><li>Obsidian graph tuning 不能覆盖用户已有 `.obsidian/` 设置，除非明确走 safe write / backup 路径。</li><li>GBrain 相对 `知识库/` 和 `原料/` 是只读 integration。</li><li>GBrain export 默认只写 `.wiki/integrations/gbrain-export/` staging，并记录 manifest / sync reports。</li></ul></div>
+    <p><strong>读什么:</strong> <code>docs/ARCHITECTURE.md</code> 的 GBrain integration flow。, <code>README.md</code> 的 Optional GBrain Bridge。, <code>tests/smoke/gbrain-*.test.mjs</code>。</p>
+    <p><strong>负责路径:</strong> src/commands/obsidian-tune.ts, src/lib/obsidian.ts, plugins/obsidian-audit/**, src/commands/gbrain.ts, src/lib/integrations/**, docs/integrations/**</p>
+    <p><strong>关系:</strong> depends_on: corpus-core, depends_on: safety-maintenance, exports_to: docs-tests-release</p>
+    <p><strong>被哪些模块引用:</strong> cli -&gt; obsidian-gbrain (calls), corpus-core -&gt; obsidian-gbrain (supports), docs-tests-release -&gt; obsidian-gbrain (documents), project-map -&gt; obsidian-gbrain (guides)</p>
     
-    <p><strong>Paths:</strong> src/commands/obsidian-tune.ts, src/lib/obsidian.ts, plugins/obsidian-audit/**, src/commands/gbrain.ts, src/lib/integrations/**, docs/integrations/**</p>
-    <p><strong>Relations:</strong> depends_on: corpus-core, depends_on: safety-maintenance, exports_to: docs-tests-release</p>
-    <p><strong>Incoming Relations:</strong> cli -&gt; obsidian-gbrain (calls), corpus-core -&gt; obsidian-gbrain (supports), docs-tests-release -&gt; obsidian-gbrain (documents), project-map -&gt; obsidian-gbrain (guides)</p>
-    
-    
+    <p><strong>模块验证:</strong> <code>node --test tests/smoke/gbrain-status.test.mjs tests/smoke/gbrain-export.test.mjs tests/smoke/gbrain-sync.test.mjs tests/smoke/gbrain-query.test.mjs</code></p>
     
     <p><strong>Freshness:</strong> Not available · Not available</p>
-    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module obsidian-gbrain">Review module</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module obsidian-gbrain --evidence &quot;Reviewed obsidian-gbrain&quot;">Mark reviewed</button></div>
-    <button type="button" data-open-module="obsidian-gbrain">Details</button>
-  </article><article class="module" data-search="project-map Project Map  cmap context .context project map handoff checkpoint AGENTS CLAUDE 接手 项目地图 续接 .context/** .gitignore AGENTS.md CLAUDE.md _cmap/** _cmap-view/** guides: cli, guides: corpus-core, guides: fetch-ingest, guides: sync-search-vector, guides: safety-maintenance, guides: skills-agent, guides: obsidian-gbrain, guides: docs-tests-release Not available   " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="project-map">
+    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module obsidian-gbrain">审阅模块</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module obsidian-gbrain --evidence &quot;Reviewed obsidian-gbrain&quot;">标记已审阅</button></div>
+    <button type="button" data-open-module="obsidian-gbrain">查看详情</button>
+  </article><article class="module" data-search="project-map Project Map 维护 lorekit 仓库本地的 CMAP 项目地图、当前检查点、模块路由、Obsidian / Review HTML 导出和 AI 交接入口。它补充项目规则，但不替代 &#96;AGENTS.md&#96; / &#96;CLAUDE.md&#96;。 cmap context .context project map handoff checkpoint AGENTS CLAUDE 接手 项目地图 续接 .context/** .gitignore AGENTS.md CLAUDE.md _cmap/** _cmap-view/** guides: cli, guides: corpus-core, guides: fetch-ingest, guides: sync-search-vector, guides: safety-maintenance, guides: skills-agent, guides: obsidian-gbrain, guides: docs-tests-release 暂无  &#96;AGENTS.md&#96; 和 &#96;CLAUDE.md&#96; 是 host entrypoints，必须保留原内容；只能追加 CMAP 说明或 marker block。 &#96;.context/MAP.md&#96;、&#96;.context/CHECKPOINT.md&#96;、&#96;.context/STATUS.md&#96;、&#96;.context/DECISIONS.md&#96;、&#96;.context/VERIFY.md&#96;、&#96;.context/modules/*.md&#96; 是 CMAP canonical facts。 &#96;.context/out/&#96;、&#96;.context/inbox/&#96;、&#96;.context/generated/&#96;、&#96;.context/logs/&#96;、&#96;.context/ideas/&#96; 是辅助层或过程层，未经提升不能当事实源。 &#96;_cmap/lorekit&#96; 是 Obsidian-friendly 导出；&#96;_cmap-view&#96; 是中文 Review HTML 导出；它们只读展示 &#96;.context&#96;。 &#96;.context&#96; 正文默认中文；frontmatter key、module id、命令和代码标识符保留英文。  Purpose 维护 lorekit 仓库本地的 CMAP 项目地图、当前检查点、模块路由、Obsidian / Review HTML 导出和 AI 交接入口。它补充项目规则，但不替代 &#96;AGENTS.md&#96; / &#96;CLAUDE.md&#96;。 Owned Paths - &#96;.context/**&#96;
+- &#96;.gitignore&#96;
+- &#96;AGENTS.md&#96;
+- &#96;CLAUDE.md&#96;
+- &#96;_cmap/**&#96;
+- &#96;_cmap-view/**&#96; Key Contracts - &#96;AGENTS.md&#96; 和 &#96;CLAUDE.md&#96; 是 host entrypoints，必须保留原内容；只能追加 CMAP 说明或 marker block。
+- &#96;.context/MAP.md&#96;、&#96;.context/CHECKPOINT.md&#96;、&#96;.context/STATUS.md&#96;、&#96;.context/DECISIONS.md&#96;、&#96;.context/VERIFY.md&#96;、&#96;.context/modules/*.md&#96; 是 CMAP canonical facts。
+- &#96;.context/out/&#96;、&#96;.context/inbox/&#96;、&#96;.context/generated/&#96;、&#96;.context/logs/&#96;、&#96;.context/ideas/&#96; 是辅助层或过程层，未经提升不能当事实源。
+- &#96;_cmap/lorekit&#96; 是 Obsidian-friendly 导出；&#96;_cmap-view&#96; 是中文 Review HTML 导出；它们只读展示 &#96;.context&#96;。
+- &#96;.context&#96; 正文默认中文；frontmatter key、module id、命令和代码标识符保留英文。 Common Tasks - “接手项目 / 看项目地图 / 续接上下文”：读本模块。
+- “生成 obsidian / view html”：读本模块，再跑 &#96;cmap obsidian export&#96; / &#96;cmap view export --ui-lang zh-CN&#96;。
+- “改 AGENTS/CLAUDE 入口”：只做追加，先看 diff。 Module Relationships - &#96;guides&#96; 所有模块：本模块负责把任务路由到对应模块。 Tests / Verification - &#96;cmap route &quot;&lt;task&gt;&quot;&#96;
+- &#96;cmap verify --changed&#96;
+- &#96;cmap obsidian export --check --out _cmap/lorekit&#96;
+- &#96;cmap view export --check --ui-lang zh-CN --out _cmap-view&#96;
+- &#96;git diff --check&#96; cmap route &quot;&lt;task&gt;&quot; cmap verify --changed cmap obsidian export --check --out _cmap/lorekit cmap view export --check --ui-lang zh-CN --out _cmap-view git diff --check " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="project-map">
     <h3>Project Map</h3>
     <p class="meta"><code>project-map</code> · active · .context/modules/project-map.md</p>
-    <p><span class="pill">cmap</span><span class="pill">context</span><span class="pill">.context</span><span class="pill">project map</span><span class="pill">handoff</span><span class="pill">checkpoint</span><span class="pill">AGENTS</span><span class="pill">CLAUDE</span><span class="pill">接手</span><span class="pill">项目地图</span><span class="pill">续接</span></p>
+    <p><strong>别名:</strong> <span class="pill">cmap</span><span class="pill">context</span><span class="pill">.context</span><span class="pill">project map</span><span class="pill">handoff</span><span class="pill">checkpoint</span><span class="pill">AGENTS</span><span class="pill">CLAUDE</span><span class="pill">接手</span><span class="pill">项目地图</span><span class="pill">续接</span></p>
+    <p><strong>职责:</strong> 维护 lorekit 仓库本地的 CMAP 项目地图、当前检查点、模块路由、Obsidian / Review HTML 导出和 AI 交接入口。它补充项目规则，但不替代 `AGENTS.md` / `CLAUDE.md`。</p>
     
+    <div><strong>关键契约:</strong><ul class="compact-list"><li>`AGENTS.md` 和 `CLAUDE.md` 是 host entrypoints，必须保留原内容；只能追加 CMAP 说明或 marker block。</li><li>`.context/MAP.md`、`.context/CHECKPOINT.md`、`.context/STATUS.md`、`.context/DECISIONS.md`、`.context/VERIFY.md`、`.context/modules/*.md` 是 CMAP canonical facts。</li><li>`.context/out/`、`.context/inbox/`、`.context/generated/`、`.context/logs/`、`.context/ideas/` 是辅助层或过程层，未经提升不能当事实源。</li></ul></div>
     
-    <p><strong>Paths:</strong> .context/**, .gitignore, AGENTS.md, CLAUDE.md, _cmap/**, _cmap-view/**</p>
-    <p><strong>Relations:</strong> guides: cli, guides: corpus-core, guides: fetch-ingest, guides: sync-search-vector, guides: safety-maintenance, guides: skills-agent, guides: obsidian-gbrain, guides: docs-tests-release</p>
-    <p><strong>Incoming Relations:</strong> Not available</p>
+    <p><strong>负责路径:</strong> .context/**, .gitignore, AGENTS.md, CLAUDE.md, _cmap/**, _cmap-view/**</p>
+    <p><strong>关系:</strong> guides: cli, guides: corpus-core, guides: fetch-ingest, guides: sync-search-vector, guides: safety-maintenance, guides: skills-agent, guides: obsidian-gbrain, guides: docs-tests-release</p>
+    <p><strong>被哪些模块引用:</strong> 暂无</p>
     
-    
+    <p><strong>模块验证:</strong> <code>cmap route &quot;&lt;task&gt;&quot;</code>, <code>cmap verify --changed</code>, <code>cmap obsidian export --check --out _cmap/lorekit</code>, <code>cmap view export --check --ui-lang zh-CN --out _cmap-view</code>, <code>git diff --check</code></p>
     
     <p><strong>Freshness:</strong> Not available · Not available</p>
-    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module project-map">Review module</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module project-map --evidence &quot;Reviewed project-map&quot;">Mark reviewed</button></div>
-    <button type="button" data-open-module="project-map">Details</button>
-  </article><article class="module" data-search="safety-maintenance Safety Maintenance  doctor lint snapshot restore remove trash audit stats 安全 体检 删除 src/commands/doctor.ts src/commands/lint.ts src/commands/snapshot.ts src/commands/restore.ts src/commands/remove.ts src/commands/audit.ts src/commands/stats.ts depends_on: corpus-core, depends_on: sync-search-vector, protects: fetch-ingest, protects: skills-agent cli -&gt; safety-maintenance (calls), corpus-core -&gt; safety-maintenance (supports), docs-tests-release -&gt; safety-maintenance (documents), obsidian-gbrain -&gt; safety-maintenance (depends_on), project-map -&gt; safety-maintenance (guides), skills-agent -&gt; safety-maintenance (uses), sync-search-vector -&gt; safety-maintenance (checked_by)   " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="safety-maintenance">
+    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module project-map">审阅模块</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module project-map --evidence &quot;Reviewed project-map&quot;">标记已审阅</button></div>
+    <button type="button" data-open-module="project-map">查看详情</button>
+  </article><article class="module" data-search="safety-maintenance Safety Maintenance 通过 doctor / lint / snapshot / restore / remove / audit / stats 保护 corpus 完整性和可恢复性。 doctor lint snapshot restore remove trash audit stats 安全 体检 删除 src/commands/doctor.ts src/commands/lint.ts src/commands/snapshot.ts src/commands/restore.ts src/commands/remove.ts src/commands/audit.ts src/commands/stats.ts depends_on: corpus-core, depends_on: sync-search-vector, protects: fetch-ingest, protects: skills-agent cli -&gt; safety-maintenance (calls), corpus-core -&gt; safety-maintenance (supports), docs-tests-release -&gt; safety-maintenance (documents), obsidian-gbrain -&gt; safety-maintenance (depends_on), project-map -&gt; safety-maintenance (guides), skills-agent -&gt; safety-maintenance (uses), sync-search-vector -&gt; safety-maintenance (checked_by)  &#96;remove&#96; 默认 dry-run。&#96;--apply&#96; 必须先 snapshot，再用 &#96;trash&#96; package 移到 OS Trash，之后 prune vector records，并按需 sync/lint。 删除按 provenance，不按关键词；&#96;Compiled Truth&#96; 只报告人工复核，不自动改写。 &#96;snapshot&#96; / &#96;restore&#96; 是数据安全原语，不能为了方便削弱。 &#96;doctor --json&#96; 和 &#96;doctor --section &lt;name&gt;&#96; 支持机器可读和严格 section 检查。 &#96;lint --quick&#96; 是 agent 自检兼容 alias，保留。 &#96;docs/ARCHITECTURE.md&#96; 的 Remove flow。 &#96;docs/DESIGN-NOTES.md&#96; 关于 remove 只做来源归因级联的章节。 &#96;docs/CONVENTIONS.md&#96; 数据安全与 Do Not #14/#15。 Purpose 通过 doctor / lint / snapshot / restore / remove / audit / stats 保护 corpus 完整性和可恢复性。 Owned Paths - &#96;src/commands/doctor.ts&#96;
+- &#96;src/commands/lint.ts&#96;
+- &#96;src/commands/snapshot.ts&#96;
+- &#96;src/commands/restore.ts&#96;
+- &#96;src/commands/remove.ts&#96;
+- &#96;src/commands/audit.ts&#96;
+- &#96;src/commands/stats.ts&#96; Key Contracts - &#96;remove&#96; 默认 dry-run。&#96;--apply&#96; 必须先 snapshot，再用 &#96;trash&#96; package 移到 OS Trash，之后 prune vector records，并按需 sync/lint。
+- 删除按 provenance，不按关键词；&#96;Compiled Truth&#96; 只报告人工复核，不自动改写。
+- &#96;snapshot&#96; / &#96;restore&#96; 是数据安全原语，不能为了方便削弱。
+- &#96;doctor --json&#96; 和 &#96;doctor --section &lt;name&gt;&#96; 支持机器可读和严格 section 检查。
+- &#96;lint --quick&#96; 是 agent 自检兼容 alias，保留。 Module Relationships - 依赖 &#96;corpus-core&#96; 的路径/边界。
+- 依赖 &#96;sync-search-vector&#96; 的 index/vector 状态。
+- 保护 &#96;fetch-ingest&#96; 和 &#96;skills-agent&#96; 产生或维护的内容。 Read Next - &#96;docs/ARCHITECTURE.md&#96; 的 Remove flow。
+- &#96;docs/DESIGN-NOTES.md&#96; 关于 remove 只做来源归因级联的章节。
+- &#96;docs/CONVENTIONS.md&#96; 数据安全与 Do Not #14/#15。 Tests / Verification - &#96;node --test tests/smoke/remove.test.mjs tests/smoke/restore-boundary.test.mjs&#96;
+- 相关 lint / doctor / snapshot smoke tests。
+- &#96;npm run verify&#96;. node --test tests/smoke/remove.test.mjs tests/smoke/restore-boundary.test.mjs npm run verify " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="safety-maintenance">
     <h3>Safety Maintenance</h3>
     <p class="meta"><code>safety-maintenance</code> · active · .context/modules/safety-maintenance.md</p>
-    <p><span class="pill">doctor</span><span class="pill">lint</span><span class="pill">snapshot</span><span class="pill">restore</span><span class="pill">remove</span><span class="pill">trash</span><span class="pill">audit</span><span class="pill">stats</span><span class="pill">安全</span><span class="pill">体检</span><span class="pill">删除</span></p>
+    <p><strong>别名:</strong> <span class="pill">doctor</span><span class="pill">lint</span><span class="pill">snapshot</span><span class="pill">restore</span><span class="pill">remove</span><span class="pill">trash</span><span class="pill">audit</span><span class="pill">stats</span><span class="pill">安全</span><span class="pill">体检</span><span class="pill">删除</span></p>
+    <p><strong>职责:</strong> 通过 doctor / lint / snapshot / restore / remove / audit / stats 保护 corpus 完整性和可恢复性。</p>
     
+    <div><strong>关键契约:</strong><ul class="compact-list"><li>`remove` 默认 dry-run。`--apply` 必须先 snapshot，再用 `trash` package 移到 OS Trash，之后 prune vector records，并按需 sync/lint。</li><li>删除按 provenance，不按关键词；`Compiled Truth` 只报告人工复核，不自动改写。</li><li>`snapshot` / `restore` 是数据安全原语，不能为了方便削弱。</li></ul></div>
+    <p><strong>读什么:</strong> <code>docs/ARCHITECTURE.md</code> 的 Remove flow。, <code>docs/DESIGN-NOTES.md</code> 关于 remove 只做来源归因级联的章节。, <code>docs/CONVENTIONS.md</code> 数据安全与 Do Not #14/#15。</p>
+    <p><strong>负责路径:</strong> src/commands/doctor.ts, src/commands/lint.ts, src/commands/snapshot.ts, src/commands/restore.ts, src/commands/remove.ts, src/commands/audit.ts, src/commands/stats.ts</p>
+    <p><strong>关系:</strong> depends_on: corpus-core, depends_on: sync-search-vector, protects: fetch-ingest, protects: skills-agent</p>
+    <p><strong>被哪些模块引用:</strong> cli -&gt; safety-maintenance (calls), corpus-core -&gt; safety-maintenance (supports), docs-tests-release -&gt; safety-maintenance (documents), obsidian-gbrain -&gt; safety-maintenance (depends_on), project-map -&gt; safety-maintenance (guides), skills-agent -&gt; safety-maintenance (uses), sync-search-vector -&gt; safety-maintenance (checked_by)</p>
     
-    <p><strong>Paths:</strong> src/commands/doctor.ts, src/commands/lint.ts, src/commands/snapshot.ts, src/commands/restore.ts, src/commands/remove.ts, src/commands/audit.ts, src/commands/stats.ts</p>
-    <p><strong>Relations:</strong> depends_on: corpus-core, depends_on: sync-search-vector, protects: fetch-ingest, protects: skills-agent</p>
-    <p><strong>Incoming Relations:</strong> cli -&gt; safety-maintenance (calls), corpus-core -&gt; safety-maintenance (supports), docs-tests-release -&gt; safety-maintenance (documents), obsidian-gbrain -&gt; safety-maintenance (depends_on), project-map -&gt; safety-maintenance (guides), skills-agent -&gt; safety-maintenance (uses), sync-search-vector -&gt; safety-maintenance (checked_by)</p>
-    
-    
+    <p><strong>模块验证:</strong> <code>node --test tests/smoke/remove.test.mjs tests/smoke/restore-boundary.test.mjs</code>, <code>npm run verify</code></p>
     
     <p><strong>Freshness:</strong> Not available · Not available</p>
-    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module safety-maintenance">Review module</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module safety-maintenance --evidence &quot;Reviewed safety-maintenance&quot;">Mark reviewed</button></div>
-    <button type="button" data-open-module="safety-maintenance">Details</button>
-  </article><article class="module" data-search="skills-agent Skills Agent  skill skills wiki-ingest wiki-query install-skills agent AGENTS CLAUDE AI 工作流 skills/** src/commands/install-skills.ts integrations/claude-code/** templates/default-corpus/AGENTS.md templates/default-corpus/CLAUDE.md uses: cli, uses: fetch-ingest, uses: sync-search-vector, uses: safety-maintenance, constrained_by: corpus-core cli -&gt; skills-agent (calls), docs-tests-release -&gt; skills-agent (documents), fetch-ingest -&gt; skills-agent (guided_by), project-map -&gt; skills-agent (guides), safety-maintenance -&gt; skills-agent (protects)   " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="skills-agent">
+    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module safety-maintenance">审阅模块</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module safety-maintenance --evidence &quot;Reviewed safety-maintenance&quot;">标记已审阅</button></div>
+    <button type="button" data-open-module="safety-maintenance">查看详情</button>
+  </article><article class="module" data-search="skills-agent Skills Agent 定义 &#96;wiki-*&#96; markdown skills，告诉 AI agent 如何使用 lorekit 的确定性 CLI 原语完成 ingest / query / fileback / lint / output / audit / remove 等工作流。 skill skills wiki-ingest wiki-query install-skills agent AGENTS CLAUDE AI 工作流 skills/** src/commands/install-skills.ts integrations/claude-code/** templates/default-corpus/AGENTS.md templates/default-corpus/CLAUDE.md uses: cli, uses: fetch-ingest, uses: sync-search-vector, uses: safety-maintenance, constrained_by: corpus-core cli -&gt; skills-agent (calls), docs-tests-release -&gt; skills-agent (documents), fetch-ingest -&gt; skills-agent (guided_by), project-map -&gt; skills-agent (guides), safety-maintenance -&gt; skills-agent (protects)  CLI 保持 thin + deterministic；语义工作流放在 markdown skills。 &#96;lorekit install-skills&#96; 当前主要支持 Claude Code 全局安装；其他 agent 可 copy/symlink markdown skill folders。 project-local skills 是工具，不是 canonical corpus pages；lint/index/vector 不能把它们扫成 wiki 内容。 skill 不能承诺不存在的 CLI 命令或参数。 skill 规则应保持通用，不把 lorekit 项目自身的临时边界写进用户 corpus skill。 &#96;README.md&#96; install routes 和 feature map。 &#96;docs/ARCHITECTURE.md&#96; design philosophy。 相关 &#96;skills/wiki-*&#96; 目录。 Purpose 定义 &#96;wiki-*&#96; markdown skills，告诉 AI agent 如何使用 lorekit 的确定性 CLI 原语完成 ingest / query / fileback / lint / output / audit / remove 等工作流。 Owned Paths - &#96;skills/wiki-*/SKILL.md&#96;
+- &#96;skills/wiki-*/_INDEX.md&#96;
+- &#96;src/commands/install-skills.ts&#96;
+- &#96;integrations/claude-code/**&#96;
+- &#96;templates/default-corpus/AGENTS.md&#96;
+- &#96;templates/default-corpus/CLAUDE.md&#96; Key Contracts - CLI 保持 thin + deterministic；语义工作流放在 markdown skills。
+- &#96;lorekit install-skills&#96; 当前主要支持 Claude Code 全局安装；其他 agent 可 copy/symlink markdown skill folders。
+- project-local skills 是工具，不是 canonical corpus pages；lint/index/vector 不能把它们扫成 wiki 内容。
+- skill 不能承诺不存在的 CLI 命令或参数。
+- skill 规则应保持通用，不把 lorekit 项目自身的临时边界写进用户 corpus skill。 Module Relationships - 使用 &#96;cli&#96; 暴露的命令。
+- 调用 &#96;fetch-ingest&#96;、&#96;sync-search-vector&#96;、&#96;safety-maintenance&#96;。
+- 受 &#96;corpus-core&#96; 的 schema/path 约束。 Read Next - &#96;README.md&#96; install routes 和 feature map。
+- &#96;docs/ARCHITECTURE.md&#96; design philosophy。
+- 相关 &#96;skills/wiki-*&#96; 目录。 Tests / Verification - 人工从头到尾读变更 skill。
+- 如果 skill 引用了改动后的 CLI 行为，跑对应 targeted CLI tests。
+- 如果伴随代码变更，跑 &#96;npm run verify&#96;。  " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="skills-agent">
     <h3>Skills Agent</h3>
     <p class="meta"><code>skills-agent</code> · active · .context/modules/skills-agent.md</p>
-    <p><span class="pill">skill</span><span class="pill">skills</span><span class="pill">wiki-ingest</span><span class="pill">wiki-query</span><span class="pill">install-skills</span><span class="pill">agent</span><span class="pill">AGENTS</span><span class="pill">CLAUDE</span><span class="pill">AI</span><span class="pill">工作流</span></p>
+    <p><strong>别名:</strong> <span class="pill">skill</span><span class="pill">skills</span><span class="pill">wiki-ingest</span><span class="pill">wiki-query</span><span class="pill">install-skills</span><span class="pill">agent</span><span class="pill">AGENTS</span><span class="pill">CLAUDE</span><span class="pill">AI</span><span class="pill">工作流</span></p>
+    <p><strong>职责:</strong> 定义 `wiki-*` markdown skills，告诉 AI agent 如何使用 lorekit 的确定性 CLI 原语完成 ingest / query / fileback / lint / output / audit / remove 等工作流。</p>
     
-    
-    <p><strong>Paths:</strong> skills/**, src/commands/install-skills.ts, integrations/claude-code/**, templates/default-corpus/AGENTS.md, templates/default-corpus/CLAUDE.md</p>
-    <p><strong>Relations:</strong> uses: cli, uses: fetch-ingest, uses: sync-search-vector, uses: safety-maintenance, constrained_by: corpus-core</p>
-    <p><strong>Incoming Relations:</strong> cli -&gt; skills-agent (calls), docs-tests-release -&gt; skills-agent (documents), fetch-ingest -&gt; skills-agent (guided_by), project-map -&gt; skills-agent (guides), safety-maintenance -&gt; skills-agent (protects)</p>
+    <div><strong>关键契约:</strong><ul class="compact-list"><li>CLI 保持 thin + deterministic；语义工作流放在 markdown skills。</li><li>`lorekit install-skills` 当前主要支持 Claude Code 全局安装；其他 agent 可 copy/symlink markdown skill folders。</li><li>project-local skills 是工具，不是 canonical corpus pages；lint/index/vector 不能把它们扫成 wiki 内容。</li></ul></div>
+    <p><strong>读什么:</strong> <code>README.md</code> install routes 和 feature map。, <code>docs/ARCHITECTURE.md</code> design philosophy。, 相关 <code>skills/wiki-*</code> 目录。</p>
+    <p><strong>负责路径:</strong> skills/**, src/commands/install-skills.ts, integrations/claude-code/**, templates/default-corpus/AGENTS.md, templates/default-corpus/CLAUDE.md</p>
+    <p><strong>关系:</strong> uses: cli, uses: fetch-ingest, uses: sync-search-vector, uses: safety-maintenance, constrained_by: corpus-core</p>
+    <p><strong>被哪些模块引用:</strong> cli -&gt; skills-agent (calls), docs-tests-release -&gt; skills-agent (documents), fetch-ingest -&gt; skills-agent (guided_by), project-map -&gt; skills-agent (guides), safety-maintenance -&gt; skills-agent (protects)</p>
     
     
     
     <p><strong>Freshness:</strong> Not available · Not available</p>
-    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module skills-agent">Review module</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module skills-agent --evidence &quot;Reviewed skills-agent&quot;">Mark reviewed</button></div>
-    <button type="button" data-open-module="skills-agent">Details</button>
-  </article><article class="module" data-search="sync-search-vector Sync Search Vector  sync search vector bm25 rrf ollama _INDEX indexed_files 检索 向量 src/commands/dir-index.ts src/commands/sync.ts src/commands/search.ts src/commands/vector.ts src/lib/vectordb/** src/lib/ollama.ts src/lib/chunker.ts depends_on: corpus-core, consumes: fetch-ingest, checked_by: safety-maintenance cli -&gt; sync-search-vector (calls), corpus-core -&gt; sync-search-vector (supports), docs-tests-release -&gt; sync-search-vector (documents), fetch-ingest -&gt; sync-search-vector (feeds), project-map -&gt; sync-search-vector (guides), safety-maintenance -&gt; sync-search-vector (depends_on), skills-agent -&gt; sync-search-vector (uses)   " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="sync-search-vector">
+    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module skills-agent">审阅模块</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module skills-agent --evidence &quot;Reviewed skills-agent&quot;">标记已审阅</button></div>
+    <button type="button" data-open-module="skills-agent">查看详情</button>
+  </article><article class="module" data-search="sync-search-vector Sync Search Vector 维护文本索引、root index、文本搜索，以及可选 vector / BM25 / RRF 检索。 sync search vector bm25 rrf ollama _INDEX indexed_files 检索 向量 src/commands/dir-index.ts src/commands/sync.ts src/commands/search.ts src/commands/vector.ts src/lib/vectordb/** src/lib/ollama.ts src/lib/chunker.ts depends_on: corpus-core, consumes: fetch-ingest, checked_by: safety-maintenance cli -&gt; sync-search-vector (calls), corpus-core -&gt; sync-search-vector (supports), docs-tests-release -&gt; sync-search-vector (documents), fetch-ingest -&gt; sync-search-vector (feeds), project-map -&gt; sync-search-vector (guides), safety-maintenance -&gt; sync-search-vector (depends_on), skills-agent -&gt; sync-search-vector (uses)  &#96;lorekit sync&#96; 顺序是 &#96;_INDEX.md&#96; refresh -&gt; root &#96;index.md&#96; merge -&gt; vector sync unless skipped -&gt; doctor。 &#96;lorekit sync --skip-vector&#96; 是本机向量/Ollama 环境不稳定时的重要收尾路径。 vector retrieval 是可选能力；小中规模 corpus 仍应支持 Read-first index 导航。 BM25 chunk direct search 和 vector layered search 是两条路径；不要无证据恢复硬 BM25 L0 gate。 &#96;MODE_THRESHOLD_FILES&#96; 按 indexed file count 推荐 text / vector 模式。 &#96;docs/DESIGN-NOTES.md&#96; 关于 L0/L1/L2/L3 和 BM25 L0 gate 失败的章节。 &#96;docs/ARCHITECTURE.md&#96; 的 Query flow。 Purpose 维护文本索引、root index、文本搜索，以及可选 vector / BM25 / RRF 检索。 Owned Paths - &#96;src/commands/dir-index.ts&#96;
+- &#96;src/commands/sync.ts&#96;
+- &#96;src/commands/search.ts&#96;
+- &#96;src/commands/vector.ts&#96;
+- &#96;src/lib/vectordb/**&#96;
+- &#96;src/lib/ollama.ts&#96;
+- &#96;src/lib/chunker.ts&#96; Key Contracts - &#96;lorekit sync&#96; 顺序是 &#96;_INDEX.md&#96; refresh -&gt; root &#96;index.md&#96; merge -&gt; vector sync unless skipped -&gt; doctor。
+- &#96;lorekit sync --skip-vector&#96; 是本机向量/Ollama 环境不稳定时的重要收尾路径。
+- vector retrieval 是可选能力；小中规模 corpus 仍应支持 Read-first index 导航。
+- BM25 chunk direct search 和 vector layered search 是两条路径；不要无证据恢复硬 BM25 L0 gate。
+- &#96;MODE_THRESHOLD_FILES&#96; 按 indexed file count 推荐 text / vector 模式。 Module Relationships - 依赖 &#96;corpus-core&#96; 的路径规则和 root index。
+- 消费 &#96;fetch-ingest&#96; 编译后的 wiki 页面。
+- 结果和健康状态由 &#96;safety-maintenance&#96; 检查。 Read Next - &#96;docs/DESIGN-NOTES.md&#96; 关于 L0/L1/L2/L3 和 BM25 L0 gate 失败的章节。
+- &#96;docs/ARCHITECTURE.md&#96; 的 Query flow。 Tests / Verification - &#96;tests/smoke/vectordb-*.test.mjs&#96; 里的相关测试。
+- &#96;npm run verify&#96;.
+- 真实 corpus 收尾时，如果 vector service 无关，优先考虑 &#96;lorekit sync --skip-vector&#96;。 tests/smoke/vectordb-*.test.mjs npm run verify " data-stale="false" data-has-candidate="false" data-high-risk="false" data-generated="false" data-module-id="sync-search-vector">
     <h3>Sync Search Vector</h3>
     <p class="meta"><code>sync-search-vector</code> · active · .context/modules/sync-search-vector.md</p>
-    <p><span class="pill">sync</span><span class="pill">search</span><span class="pill">vector</span><span class="pill">bm25</span><span class="pill">rrf</span><span class="pill">ollama</span><span class="pill">_INDEX</span><span class="pill">indexed_files</span><span class="pill">检索</span><span class="pill">向量</span></p>
+    <p><strong>别名:</strong> <span class="pill">sync</span><span class="pill">search</span><span class="pill">vector</span><span class="pill">bm25</span><span class="pill">rrf</span><span class="pill">ollama</span><span class="pill">_INDEX</span><span class="pill">indexed_files</span><span class="pill">检索</span><span class="pill">向量</span></p>
+    <p><strong>职责:</strong> 维护文本索引、root index、文本搜索，以及可选 vector / BM25 / RRF 检索。</p>
     
+    <div><strong>关键契约:</strong><ul class="compact-list"><li>`lorekit sync` 顺序是 `_INDEX.md` refresh -&gt; root `index.md` merge -&gt; vector sync unless skipped -&gt; doctor。</li><li>`lorekit sync --skip-vector` 是本机向量/Ollama 环境不稳定时的重要收尾路径。</li><li>vector retrieval 是可选能力；小中规模 corpus 仍应支持 Read-first index 导航。</li></ul></div>
+    <p><strong>读什么:</strong> <code>docs/DESIGN-NOTES.md</code> 关于 L0/L1/L2/L3 和 BM25 L0 gate 失败的章节。, <code>docs/ARCHITECTURE.md</code> 的 Query flow。</p>
+    <p><strong>负责路径:</strong> src/commands/dir-index.ts, src/commands/sync.ts, src/commands/search.ts, src/commands/vector.ts, src/lib/vectordb/**, src/lib/ollama.ts, src/lib/chunker.ts</p>
+    <p><strong>关系:</strong> depends_on: corpus-core, consumes: fetch-ingest, checked_by: safety-maintenance</p>
+    <p><strong>被哪些模块引用:</strong> cli -&gt; sync-search-vector (calls), corpus-core -&gt; sync-search-vector (supports), docs-tests-release -&gt; sync-search-vector (documents), fetch-ingest -&gt; sync-search-vector (feeds), project-map -&gt; sync-search-vector (guides), safety-maintenance -&gt; sync-search-vector (depends_on), skills-agent -&gt; sync-search-vector (uses)</p>
     
-    <p><strong>Paths:</strong> src/commands/dir-index.ts, src/commands/sync.ts, src/commands/search.ts, src/commands/vector.ts, src/lib/vectordb/**, src/lib/ollama.ts, src/lib/chunker.ts</p>
-    <p><strong>Relations:</strong> depends_on: corpus-core, consumes: fetch-ingest, checked_by: safety-maintenance</p>
-    <p><strong>Incoming Relations:</strong> cli -&gt; sync-search-vector (calls), corpus-core -&gt; sync-search-vector (supports), docs-tests-release -&gt; sync-search-vector (documents), fetch-ingest -&gt; sync-search-vector (feeds), project-map -&gt; sync-search-vector (guides), safety-maintenance -&gt; sync-search-vector (depends_on), skills-agent -&gt; sync-search-vector (uses)</p>
-    
-    
+    <p><strong>模块验证:</strong> <code>tests/smoke/vectordb-*.test.mjs</code>, <code>npm run verify</code></p>
     
     <p><strong>Freshness:</strong> Not available · Not available</p>
-    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module sync-search-vector">Review module</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module sync-search-vector --evidence &quot;Reviewed sync-search-vector&quot;">Mark reviewed</button></div>
-    <button type="button" data-open-module="sync-search-vector">Details</button>
+    <div class="actions"><button type="button" data-copy-command="cmap freshness review --module sync-search-vector">审阅模块</button><button type="button" data-copy-command="cmap freshness mark-reviewed --module sync-search-vector --evidence &quot;Reviewed sync-search-vector&quot;">标记已审阅</button></div>
+    <button type="button" data-open-module="sync-search-vector">查看详情</button>
   </article></div>
     </section>
     <section>
-      <h2>Canonical Relations</h2>
-      <table><thead><tr><th>From</th><th>Relation</th><th>To</th><th>Relation Explanation</th></tr></thead><tbody><tr><td>cli</td><td>calls</td><td>corpus-core</td><td><span class="meta">Not available</span></td></tr><tr><td>cli</td><td>calls</td><td>fetch-ingest</td><td><span class="meta">Not available</span></td></tr><tr><td>cli</td><td>calls</td><td>sync-search-vector</td><td><span class="meta">Not available</span></td></tr><tr><td>cli</td><td>calls</td><td>safety-maintenance</td><td><span class="meta">Not available</span></td></tr><tr><td>cli</td><td>calls</td><td>skills-agent</td><td><span class="meta">Not available</span></td></tr><tr><td>cli</td><td>calls</td><td>obsidian-gbrain</td><td><span class="meta">Not available</span></td></tr><tr><td>corpus-core</td><td>supports</td><td>fetch-ingest</td><td><span class="meta">Not available</span></td></tr><tr><td>corpus-core</td><td>supports</td><td>sync-search-vector</td><td><span class="meta">Not available</span></td></tr><tr><td>corpus-core</td><td>supports</td><td>safety-maintenance</td><td><span class="meta">Not available</span></td></tr><tr><td>corpus-core</td><td>supports</td><td>obsidian-gbrain</td><td><span class="meta">Not available</span></td></tr><tr><td>docs-tests-release</td><td>documents</td><td>cli</td><td><span class="meta">Not available</span></td></tr><tr><td>docs-tests-release</td><td>documents</td><td>corpus-core</td><td><span class="meta">Not available</span></td></tr><tr><td>docs-tests-release</td><td>documents</td><td>fetch-ingest</td><td><span class="meta">Not available</span></td></tr><tr><td>docs-tests-release</td><td>documents</td><td>sync-search-vector</td><td><span class="meta">Not available</span></td></tr><tr><td>docs-tests-release</td><td>documents</td><td>safety-maintenance</td><td><span class="meta">Not available</span></td></tr><tr><td>docs-tests-release</td><td>documents</td><td>skills-agent</td><td><span class="meta">Not available</span></td></tr><tr><td>docs-tests-release</td><td>documents</td><td>obsidian-gbrain</td><td><span class="meta">Not available</span></td></tr><tr><td>fetch-ingest</td><td>depends_on</td><td>corpus-core</td><td><span class="meta">Not available</span></td></tr><tr><td>fetch-ingest</td><td>feeds</td><td>sync-search-vector</td><td><span class="meta">Not available</span></td></tr><tr><td>fetch-ingest</td><td>guided_by</td><td>skills-agent</td><td><span class="meta">Not available</span></td></tr><tr><td>obsidian-gbrain</td><td>depends_on</td><td>corpus-core</td><td><span class="meta">Not available</span></td></tr><tr><td>obsidian-gbrain</td><td>depends_on</td><td>safety-maintenance</td><td><span class="meta">Not available</span></td></tr><tr><td>obsidian-gbrain</td><td>exports_to</td><td>docs-tests-release</td><td><span class="meta">Not available</span></td></tr><tr><td>project-map</td><td>guides</td><td>cli</td><td><span class="meta">Not available</span></td></tr><tr><td>project-map</td><td>guides</td><td>corpus-core</td><td><span class="meta">Not available</span></td></tr><tr><td>project-map</td><td>guides</td><td>fetch-ingest</td><td><span class="meta">Not available</span></td></tr><tr><td>project-map</td><td>guides</td><td>sync-search-vector</td><td><span class="meta">Not available</span></td></tr><tr><td>project-map</td><td>guides</td><td>safety-maintenance</td><td><span class="meta">Not available</span></td></tr><tr><td>project-map</td><td>guides</td><td>skills-agent</td><td><span class="meta">Not available</span></td></tr><tr><td>project-map</td><td>guides</td><td>obsidian-gbrain</td><td><span class="meta">Not available</span></td></tr><tr><td>project-map</td><td>guides</td><td>docs-tests-release</td><td><span class="meta">Not available</span></td></tr><tr><td>safety-maintenance</td><td>depends_on</td><td>corpus-core</td><td><span class="meta">Not available</span></td></tr><tr><td>safety-maintenance</td><td>depends_on</td><td>sync-search-vector</td><td><span class="meta">Not available</span></td></tr><tr><td>safety-maintenance</td><td>protects</td><td>fetch-ingest</td><td><span class="meta">Not available</span></td></tr><tr><td>safety-maintenance</td><td>protects</td><td>skills-agent</td><td><span class="meta">Not available</span></td></tr><tr><td>skills-agent</td><td>uses</td><td>cli</td><td><span class="meta">Not available</span></td></tr><tr><td>skills-agent</td><td>uses</td><td>fetch-ingest</td><td><span class="meta">Not available</span></td></tr><tr><td>skills-agent</td><td>uses</td><td>sync-search-vector</td><td><span class="meta">Not available</span></td></tr><tr><td>skills-agent</td><td>uses</td><td>safety-maintenance</td><td><span class="meta">Not available</span></td></tr><tr><td>skills-agent</td><td>constrained_by</td><td>corpus-core</td><td><span class="meta">Not available</span></td></tr><tr><td>sync-search-vector</td><td>depends_on</td><td>corpus-core</td><td><span class="meta">Not available</span></td></tr><tr><td>sync-search-vector</td><td>consumes</td><td>fetch-ingest</td><td><span class="meta">Not available</span></td></tr><tr><td>sync-search-vector</td><td>checked_by</td><td>safety-maintenance</td><td><span class="meta">Not available</span></td></tr></tbody></table>
+      <h2>可信模块关系</h2>
+      <table><thead><tr><th>从</th><th>关系</th><th>到</th><th>关系说明</th></tr></thead><tbody><tr><td>cli</td><td>calls</td><td>corpus-core</td><td><span class="meta">暂无</span></td></tr><tr><td>cli</td><td>calls</td><td>fetch-ingest</td><td><span class="meta">暂无</span></td></tr><tr><td>cli</td><td>calls</td><td>sync-search-vector</td><td><span class="meta">暂无</span></td></tr><tr><td>cli</td><td>calls</td><td>safety-maintenance</td><td><span class="meta">暂无</span></td></tr><tr><td>cli</td><td>calls</td><td>skills-agent</td><td><span class="meta">暂无</span></td></tr><tr><td>cli</td><td>calls</td><td>obsidian-gbrain</td><td><span class="meta">暂无</span></td></tr><tr><td>corpus-core</td><td>supports</td><td>fetch-ingest</td><td><span class="meta">暂无</span></td></tr><tr><td>corpus-core</td><td>supports</td><td>sync-search-vector</td><td><span class="meta">暂无</span></td></tr><tr><td>corpus-core</td><td>supports</td><td>safety-maintenance</td><td><span class="meta">暂无</span></td></tr><tr><td>corpus-core</td><td>supports</td><td>obsidian-gbrain</td><td><span class="meta">暂无</span></td></tr><tr><td>docs-tests-release</td><td>documents</td><td>cli</td><td><span class="meta">暂无</span></td></tr><tr><td>docs-tests-release</td><td>documents</td><td>corpus-core</td><td><span class="meta">暂无</span></td></tr><tr><td>docs-tests-release</td><td>documents</td><td>fetch-ingest</td><td><span class="meta">暂无</span></td></tr><tr><td>docs-tests-release</td><td>documents</td><td>sync-search-vector</td><td><span class="meta">暂无</span></td></tr><tr><td>docs-tests-release</td><td>documents</td><td>safety-maintenance</td><td><span class="meta">暂无</span></td></tr><tr><td>docs-tests-release</td><td>documents</td><td>skills-agent</td><td><span class="meta">暂无</span></td></tr><tr><td>docs-tests-release</td><td>documents</td><td>obsidian-gbrain</td><td><span class="meta">暂无</span></td></tr><tr><td>fetch-ingest</td><td>depends_on</td><td>corpus-core</td><td><span class="meta">暂无</span></td></tr><tr><td>fetch-ingest</td><td>feeds</td><td>sync-search-vector</td><td><span class="meta">暂无</span></td></tr><tr><td>fetch-ingest</td><td>guided_by</td><td>skills-agent</td><td><span class="meta">暂无</span></td></tr><tr><td>obsidian-gbrain</td><td>depends_on</td><td>corpus-core</td><td><span class="meta">暂无</span></td></tr><tr><td>obsidian-gbrain</td><td>depends_on</td><td>safety-maintenance</td><td><span class="meta">暂无</span></td></tr><tr><td>obsidian-gbrain</td><td>exports_to</td><td>docs-tests-release</td><td><span class="meta">暂无</span></td></tr><tr><td>project-map</td><td>guides</td><td>cli</td><td><span class="meta">暂无</span></td></tr><tr><td>project-map</td><td>guides</td><td>corpus-core</td><td><span class="meta">暂无</span></td></tr><tr><td>project-map</td><td>guides</td><td>fetch-ingest</td><td><span class="meta">暂无</span></td></tr><tr><td>project-map</td><td>guides</td><td>sync-search-vector</td><td><span class="meta">暂无</span></td></tr><tr><td>project-map</td><td>guides</td><td>safety-maintenance</td><td><span class="meta">暂无</span></td></tr><tr><td>project-map</td><td>guides</td><td>skills-agent</td><td><span class="meta">暂无</span></td></tr><tr><td>project-map</td><td>guides</td><td>obsidian-gbrain</td><td><span class="meta">暂无</span></td></tr><tr><td>project-map</td><td>guides</td><td>docs-tests-release</td><td><span class="meta">暂无</span></td></tr><tr><td>safety-maintenance</td><td>depends_on</td><td>corpus-core</td><td><span class="meta">暂无</span></td></tr><tr><td>safety-maintenance</td><td>depends_on</td><td>sync-search-vector</td><td><span class="meta">暂无</span></td></tr><tr><td>safety-maintenance</td><td>protects</td><td>fetch-ingest</td><td><span class="meta">暂无</span></td></tr><tr><td>safety-maintenance</td><td>protects</td><td>skills-agent</td><td><span class="meta">暂无</span></td></tr><tr><td>skills-agent</td><td>uses</td><td>cli</td><td><span class="meta">暂无</span></td></tr><tr><td>skills-agent</td><td>uses</td><td>fetch-ingest</td><td><span class="meta">暂无</span></td></tr><tr><td>skills-agent</td><td>uses</td><td>sync-search-vector</td><td><span class="meta">暂无</span></td></tr><tr><td>skills-agent</td><td>uses</td><td>safety-maintenance</td><td><span class="meta">暂无</span></td></tr><tr><td>skills-agent</td><td>constrained_by</td><td>corpus-core</td><td><span class="meta">暂无</span></td></tr><tr><td>sync-search-vector</td><td>depends_on</td><td>corpus-core</td><td><span class="meta">暂无</span></td></tr><tr><td>sync-search-vector</td><td>consumes</td><td>fetch-ingest</td><td><span class="meta">暂无</span></td></tr><tr><td>sync-search-vector</td><td>checked_by</td><td>safety-maintenance</td><td><span class="meta">暂无</span></td></tr></tbody></table>
     </section>
     <section>
-      <h2>Verification</h2>
-      <table><thead><tr><th>Purpose</th><th>Command</th><th>Expected</th><th>When</th></tr></thead><tbody><tr><td>代码基线</td><td><code>npm run verify</code></td><td>tsc --noEmit、tsup、node --test tests/smoke/*.test.mjs 通过</td><td>声称代码变更完成前</td></tr><tr><td>Lint</td><td><code>npm run lint</code></td><td>exit 0</td><td>release 或 lint 规则交接前</td></tr><tr><td>Build</td><td><code>npm run build</code></td><td>exit 0</td><td>release 或构建相关交接前</td></tr><tr><td>CMAP 结构</td><td><code>cmap verify --changed</code></td><td>0 errors；warnings 必须解释</td><td>收尾 .context 或源码变更前</td></tr><tr><td>Obsidian 导出</td><td><code>cmap obsidian export --check --out _cmap/lorekit</code></td><td>导出层与 .context 一致</td><td>.context 变更并导出后</td></tr><tr><td>Review HTML</td><td><code>cmap view export --check --out _cmap-view</code></td><td>Review HTML 与 .context 一致</td><td>.context 变更并导出后</td></tr><tr><td>空白检查</td><td><code>git diff --check</code></td><td>没有 whitespace errors</td><td>commit 或最终交接前</td></tr></tbody></table><h3>Manual Checks</h3><ul><li>确认 `AGENTS.md` / `CLAUDE.md` 只追加 CMAP 说明，没有覆盖原有规则。</li><li>确认 `_cmap/lorekit` 和 `_cmap-view` 是生成视图，不含新语义事实。</li><li>涉及数据移动命令时，先看 dry-run，再确认 snapshot / Trash 行为。</li><li>JSON 输出要确认 stdout 仍可机器读取，人类提示走 stderr。</li></ul>
+      <h2>验证</h2>
+      <table><thead><tr><th>职责</th><th>命令</th><th>预期</th><th>何时运行</th></tr></thead><tbody><tr><td>代码基线</td><td><code>npm run verify</code></td><td>tsc --noEmit、tsup、node --test tests/smoke/*.test.mjs 通过</td><td>声称代码变更完成前</td></tr><tr><td>Lint</td><td><code>npm run lint</code></td><td>exit 0</td><td>release 或 lint 规则交接前</td></tr><tr><td>Build</td><td><code>npm run build</code></td><td>exit 0</td><td>release 或构建相关交接前</td></tr><tr><td>CMAP 结构</td><td><code>cmap verify --changed</code></td><td>0 errors；warnings 必须解释</td><td>收尾 .context 或源码变更前</td></tr><tr><td>Obsidian 导出</td><td><code>cmap obsidian export --check --out _cmap/lorekit</code></td><td>导出层与 .context 一致</td><td>.context 变更并导出后</td></tr><tr><td>Review HTML</td><td><code>cmap view export --check --ui-lang zh-CN --out _cmap-view</code></td><td>中文 Review HTML 与 .context 一致</td><td>.context 变更并导出后</td></tr><tr><td>空白检查</td><td><code>git diff --check</code></td><td>没有 whitespace errors</td><td>commit 或最终交接前</td></tr></tbody></table><h3>人工检查</h3><ul><li>确认 `AGENTS.md` / `CLAUDE.md` 只追加 CMAP 说明，没有覆盖原有规则。</li><li>确认 `_cmap/lorekit` 和 `_cmap-view` 是生成视图，不含新语义事实。</li><li>涉及数据移动命令时，先看 dry-run，再确认 snapshot / Trash 行为。</li><li>JSON 输出要确认 stdout 仍可机器读取，人类提示走 stderr。</li></ul>
+    </section>
+    <section>
+      <h2>可信 .context 文件</h2>
+      <div class="section-stack"><details class="panel context-file">
+    <summary><strong>.context/MAP.md</strong> · Project Map</summary>
+    <section><h3>Purpose</h3><div class="markdown-block"><p>lorekit 是一个个人 LLM Wiki 工具包。它让 AI agent 把网页、笔记、会议、录音等原料整理成可长期复用的本地知识库，同时用确定性的 CLI 负责文件、状态、索引、检索、备份、恢复和安全删除。</p><p>核心边界：AI 负责语义判断和 wiki 编译，lorekit CLI 负责可验证、可回滚、可重复的确定性操作。</p></div></section><section><h3>Tech Stack &amp; Runtime</h3><div class="markdown-block"><ul><li>TypeScript ESM，Node.js &gt;= 18，<code>commander</code> 做 CLI，<code>tsup</code> 负责构建。</li><li>Runtime dependencies：<code>chalk</code>、<code>cheerio</code>、<code>turndown</code>、<code>gray-matter</code>、<code>tar</code>、<code>trash</code>、<code>better-sqlite3</code>。</li><li>Optional dependencies / services：<code>sqlite-vec</code>、Ollama + <code>bge-m3</code>、外部 <code>gbrain</code> CLI。</li><li>测试使用 Node 内置 <code>node:test</code>，主要集中在 <code>tests/smoke/</code>。</li><li>构建产物在 <code>dist/</code>，不要手工改，跑 <code>npm run build</code> 生成。</li></ul></div></section><section><h3>Entry Points</h3><div class="markdown-block"><ul><li>人类入口：<code>README.md</code>、<code>docs/QUICKSTART.md</code>、<code>docs/INSTALLATION.md</code>。</li><li>AI 入口：<code>AGENTS.md</code>；<code>CLAUDE.md</code> 目前转发到 <code>@./AGENTS.md</code>，但本轮会补一段 CMAP 快速入口。</li><li>贡献者入口：<code>docs/CONVENTIONS.md</code>、<code>docs/ARCHITECTURE.md</code>、<code>docs/CODEBASE-MAP.md</code>、<code>docs/DESIGN-NOTES.md</code>、<code>docs/IDEAS.md</code>。</li><li>CLI 入口：<code>bin/lorekit.js</code> -&gt; <code>dist/cli.js</code>；源码入口是 <code>src/cli.ts</code>。</li><li>项目地图入口：<code>.context/CHECKPOINT.md</code> -&gt; <code>.context/MAP.md</code> -&gt; <code>cmap route &quot;&lt;task&gt;&quot;</code> -&gt; <code>.context/modules/&lt;module&gt;.md</code>。</li></ul></div></section><section><h3>Module Map</h3><div class="markdown-block"><p>| 模块 | 职责 | 路径 | 文档 | 别名 | |---|---|---|---|---| | project-map | repo-local CMAP 记忆、AI 交接入口、模块关系、Obsidian/View 导出 | <code>.context/**</code>, <code>AGENTS.md</code>, <code>CLAUDE.md</code>, <code>_cmap/**</code>, <code>_cmap-view/**</code> | <code>.context/modules/project-map.md</code> | cmap, context, handoff, 接手 | | cli | 注册命令、展示 banner、读取版本、统一 commander 退出码 | <code>src/cli.ts</code>, <code>bin/lorekit.js</code>, <code>VERSION</code>, <code>package.json</code>, <code>dist/**</code> | <code>.context/modules/cli.md</code> | command, version, banner | | corpus-core | 识别 corpus、维护 schema/path 边界、root index 和通用工具 | <code>src/lib/corpus.ts</code>, <code>src/lib/paths.ts</code>, <code>src/lib/root-index.ts</code>, <code>src/lib/date.ts</code>, <code>src/utils/**</code> | <code>.context/modules/corpus-core.md</code> | schema, paths, index, logger | | fetch-ingest | 抓取外部来源，并跟踪 URL -&gt; 原料 -&gt; wiki 的 ingest 进度 | <code>src/commands/fetch.ts</code>, <code>src/commands/ingest.ts</code>, <code>src/lib/fetcher/**</code>, <code>src/lib/ingest-state.ts</code> | <code>.context/modules/fetch-ingest.md</code> | fetch, ingest, state machine, WeChat | | sync-search-vector | 刷新 <code>_INDEX.md</code> / root index，提供文本搜索、向量、BM25、RRF 检索 | <code>src/commands/dir-index.ts</code>, <code>src/commands/sync.ts</code>, <code>src/commands/search.ts</code>, <code>src/commands/vector.ts</code>, <code>src/lib/vectordb/**</code>, <code>src/lib/ollama.ts</code>, <code>src/lib/chunker.ts</code> | <code>.context/modules/sync-search-vector.md</code> | index, sync, search, vector, BM25, RRF | | safety-maintenance | doctor/lint/snapshot/restore/remove/audit/stats 等安全维护命令 | <code>src/commands/doctor.ts</code>, <code>src/commands/lint.ts</code>, <code>src/commands/snapshot.ts</code>, <code>src/commands/restore.ts</code>, <code>src/commands/remove.ts</code>, <code>src/commands/audit.ts</code>, <code>src/commands/stats.ts</code> | <code>.context/modules/safety-maintenance.md</code> | doctor, lint, snapshot, restore, remove, audit | | skills-agent | <code>wiki-*</code> markdown skills 与 AI 侧工作流约束 | <code>skills/**</code>, <code>integrations/claude-code/**</code>, <code>templates/default-corpus/AGENTS.md</code>, <code>templates/default-corpus/CLAUDE.md</code>, <code>src/commands/install-skills.ts</code> | <code>.context/modules/skills-agent.md</code> | wiki skills, agent workflows, install-skills | | obsidian-gbrain | Obsidian 图谱配置 / 插件，以及 GBrain 只读 staging/export/sync/query | <code>src/commands/obsidian-tune.ts</code>, <code>src/lib/obsidian.ts</code>, <code>plugins/obsidian-audit/**</code>, <code>src/commands/gbrain.ts</code>, <code>src/lib/integrations/**</code>, <code>docs/integrations/**</code> | <code>.context/modules/obsidian-gbrain.md</code> | Obsidian, graph, GBrain, integration | | docs-tests-release | 永久文档、smoke tests、构建配置、发布与变更记录 | <code>docs/**</code>, <code>tests/smoke/**</code>, <code>README.md</code>, <code>CHANGELOG.md</code>, <code>eslint.config.js</code>, <code>tsconfig.json</code>, <code>tsup.config.ts</code>, <code>package-lock.json</code> | <code>.context/modules/docs-tests-release.md</code> | docs, tests, verify, release |</p></div></section><section><h3>Natural Language Route</h3><div class="markdown-block"><p>| 用户说法 | 模块 | 优先阅读 | |---|---|---| | 接手 / cmap / .context / 项目地图 / AGENTS / CLAUDE | project-map | <code>.context/modules/project-map.md</code> | | 加命令 / CLI 输出 / 版本 / banner / commander | cli | <code>.context/modules/cli.md</code> | | schema / 路径排除 / node_modules 被扫 / skills 被扫 / index.md | corpus-core | <code>.context/modules/corpus-core.md</code> | | 抓网页 / 微信公众号 / fetch / ingest / duplicate / in-progress | fetch-ingest | <code>.context/modules/fetch-ingest.md</code> | | sync / _INDEX / search / vector / BM25 / RRF / Ollama | sync-search-vector | <code>.context/modules/sync-search-vector.md</code> | | doctor / lint / snapshot / restore / remove / trash / audit | safety-maintenance | <code>.context/modules/safety-maintenance.md</code> | | wiki skill / install-skills / agent 接手 / project-local skills | skills-agent | <code>.context/modules/skills-agent.md</code> | | Obsidian / graph filter / GBrain / integrations | obsidian-gbrain | <code>.context/modules/obsidian-gbrain.md</code> | | 文档同步 / smoke test / verify / release / package scripts | docs-tests-release | <code>.context/modules/docs-tests-release.md</code> |</p></div></section><section><h3>Module Relationships</h3><div class="markdown-block"><ul><li><code>project-map</code> 是 repo-local 项目地图层，负责告诉 AI 先读哪里、怎么路由、哪些 <code>.context</code> 文件可信。它不替代 <code>AGENTS.md</code> / <code>CLAUDE.md</code>，只补长期项目续接。</li><li><code>cli</code> 是所有命令入口，调用各 <code>src/commands/*</code>；命令再调用 <code>corpus-core</code>、<code>fetch-ingest</code>、<code>sync-search-vector</code>、<code>safety-maintenance</code> 和 integration 模块。</li><li><code>corpus-core</code> 是路径、schema、logger、root index 的共享底座；其他模块遇到扫描边界时优先复用这里。</li><li><code>fetch-ingest</code> 负责从外部来源进入工作台和 <code>.wiki/ingest-state.json</code>；AI skills 再把它编译成 wiki。</li><li><code>sync-search-vector</code> 负责把 wiki 结果转成 <code>_INDEX.md</code>、root <code>index.md</code>、向量库和搜索结果。</li><li><code>safety-maintenance</code> 在高风险操作前后提供 snapshot、doctor、lint、restore、remove 等护栏。</li><li><code>skills-agent</code> 是语义工作流层；CLI 不调用 LLM，AI 行为由 markdown skills 约束。</li><li><code>obsidian-gbrain</code> 是外部阅读/检索视图层，只读或 staging，不应回写 <code>知识库/</code> / <code>原料/</code> 的事实。</li><li><code>docs-tests-release</code> 保证用户可见能力与文档、测试、构建、发布状态同步。</li></ul></div></section><section><h3>Data Flow</h3><div class="markdown-block"><p>1. 用户给 URL / 文本 / 文件线索。 2. <code>lorekit fetch</code> 把来源抓到 <code>_工作台/收件/</code>，并在 <code>.wiki/ingest-state.json</code> 写入 <code>started + stepsDone=[fetch]</code>。 3. AI 根据 <code>wiki-ingest</code> 把来源归档到 <code>原料/</code>，再编译或更新 <code>知识库/</code> 页面。 4. <code>lorekit ingest record/check</code> 记录 <code>archive/wiki/lint</code> 步骤，避免断点后丢状态。 5. <code>lorekit sync</code> 刷新 <code>_INDEX.md</code>、root <code>index.md</code>、可选 vector DB，并跑 doctor。 6. 用户查询时，AI 先 Read <code>index.md</code> / <code>_INDEX.md</code> / 具体页面；规模变大后可用 <code>lorekit vector query --hybrid</code> 辅助。 7. 输出、复盘或对外材料再通过 skill 判断是否 fileback 回 <code>知识库/</code>。</p></div></section><section><h3>State / Storage</h3><div class="markdown-block"><ul><li>corpus 里的 canonical data：<code>原料/</code>、<code>知识库/</code>、root <code>index.md</code>、root <code>log.md</code>、corpus 内的 <code>AGENTS.md</code> / <code>CLAUDE.md</code>。</li><li>corpus 里的 runtime metadata：<code>.wiki/ingest-state.json</code>、<code>.wiki/vector.sqlite</code>、<code>.wiki/reports/</code>、<code>.wiki/snapshots/</code>、<code>.wiki/integrations/</code>。</li><li>lorekit 仓库自己的项目地图：<code>.context/</code>。</li><li><code>.context</code> canonical facts：<code>MAP.md</code>、<code>CHECKPOINT.md</code>、<code>STATUS.md</code>、<code>DECISIONS.md</code>、<code>VERIFY.md</code>、<code>modules/*.md</code>。</li><li><code>.context/out/</code>、<code>.context/inbox/</code>、<code>.context/generated/</code>、<code>.context/logs/</code>、<code>.context/ideas/</code> 是辅助层或过程层，不直接当项目事实。</li><li>Obsidian 导出默认在 <code>_cmap/lorekit/</code>，中文 Review HTML 默认在 <code>_cmap-view/</code>。</li></ul></div></section><section><h3>External Integrations</h3><div class="markdown-block"><ul><li>Web fetch：原生 HTTP + HTML parse；必要时走可选 Playwright fallback。</li><li>Obsidian：读取 markdown corpus，<code>obsidian-tune</code> 写 graph filter，<code>plugins/obsidian-audit</code> 支持反馈。</li><li>Ollama / <code>sqlite-vec</code>：可选向量检索，不应阻塞纯文本层。</li><li>GBrain：外部 CLI，只读读取 <code>.wiki/integrations/gbrain-export/</code> staging；不得直接改 canonical wiki。</li><li>CMAP Review HTML / Obsidian export：从 <code>.context</code> 渲染视图，不重新做语义判断。</li></ul></div></section><section><h3>Risk Areas</h3><div class="markdown-block"><ul><li>数据安全：禁止不可逆删除用户内容；<code>remove</code> 必须保留 snapshot + Trash + provenance-aware cleanup。</li><li>路径边界：新增排除目录必须集中到 <code>src/lib/paths.ts</code>，不要在各命令里散落硬编码。</li><li>stdout/stderr：JSON / machine-readable 输出必须保持可管道；人类提示走 stderr。</li><li>向量环境：Ollama/native deps 失败不能拖死文本层工作流，除非当前任务明确是 vector。</li><li>docs drift：新命令、新 skill、跨文件行为变动要同步 README/docs/ARCHITECTURE/CODEBASE-MAP/DESIGN-NOTES/QUICKSTART。</li><li>CMAP drift：改 <code>.context</code> 后要刷新 <code>_cmap/lorekit</code> 和 <code>_cmap-view</code>，再跑 check。</li><li>入口文件：<code>AGENTS.md</code> / <code>CLAUDE.md</code> 只能追加或 marker merge，不做整文件覆盖。</li></ul></div></section><section><h3>Verification Summary</h3><div class="markdown-block"><ul><li>代码基线：<code>npm run verify</code>。</li><li>CMAP 路由：<code>cmap route &quot;&lt;task&gt;&quot;</code>。</li><li>CMAP 结构：<code>cmap verify --changed</code>，必要时加 <code>--coverage</code> / <code>--stale</code> / <code>--freshness</code>。</li><li>Obsidian 视图：<code>cmap obsidian export --out _cmap/lorekit</code> 后跑 <code>cmap obsidian export --check --out _cmap/lorekit</code>。</li><li>Review HTML：<code>cmap view export --ui-lang zh-CN --out _cmap-view</code> 后跑 <code>cmap view export --check --ui-lang zh-CN --out _cmap-view</code>。</li><li>收尾：<code>git diff --check</code>。</li></ul></div></section><section><h3>Handoff Notes</h3><div class="markdown-block"><p>后续 AI 先读 <code>AGENTS.md</code>，再读 <code>.context/CHECKPOINT.md</code> 和 <code>.context/MAP.md</code>。不要一上来全量读 <code>.context</code>；先用 <code>cmap route &quot;&lt;task&gt;&quot;</code> 找模块，再读对应 <code>.context/modules/*.md</code>。</p></div></section>
+  </details><details class="panel context-file">
+    <summary><strong>.context/CHECKPOINT.md</strong> · Current Checkpoint</summary>
+    <section><h3>Current Task</h3><div class="markdown-block"><p>将 <code>/Users/gaoyifan/code/lorekit</code> 的 CMAP <code>.context</code> 搭建完整：正文中文化、模块关系接好、生成 Obsidian / Review HTML，并安全更新 <code>AGENTS.md</code> / <code>CLAUDE.md</code>。</p></div></section><section><h3>Current Hypothesis</h3><div class="markdown-block"><p>这是已有项目，最稳的路径不是直接 <code>cmap bootstrap</code> 覆盖式接管，而是：先把 <code>.context</code> 作为 repo-local 项目地图搭好，再用手工 patch 追加入口说明，最后生成视图并跑 check。</p></div></section><section><h3>Changed Files</h3><div class="markdown-block"><p><code>.context/</code> 已创建并中文化；<code>AGENTS.md</code> 和 <code>CLAUDE.md</code> 已追加 CMAP 使用说明；<code>.context/graph/</code>、<code>_cmap/lorekit/</code> 已生成；<code>_cmap-view/</code> 已用 <code>--ui-lang zh-CN</code> 重建为中文 Review HTML。</p></div></section><section><h3>Verified</h3><div class="markdown-block"><ul><li><code>git status --short --branch</code> before adoption: <code>main...origin/main</code>, clean.</li><li><code>git log --oneline origin/main..HEAD</code> before adoption: empty.</li><li><code>cmap version</code>: <code>0.2.2</code>.</li><li><code>cmap adopt</code>: created 13 skeleton files plus <code>ADOPTION.md</code>.</li><li><code>cmap route &quot;接手 lorekit 项目&quot;</code>: matched <code>project-map</code>.</li><li><code>cmap route &quot;修复 lorekit lint 扫描 node_modules skills 路径问题&quot;</code>: matched <code>corpus-core</code>, <code>safety-maintenance</code>, and <code>skills-agent</code>.</li><li><code>cmap verify --changed</code>: 0 errors, 1 expected warning (<code>AGENTS.md</code> and <code>CLAUDE.md</code> differ because <code>CLAUDE.md</code> delegates to <code>AGENTS.md</code>).</li><li><code>git diff --check</code>: passed.</li><li><code>npm run verify</code>: passed (<code>79</code> tests, <code>78</code> pass, <code>1</code> skipped for sqlite-vec-present path).</li><li><code>cmap graph build</code>: wrote <code>.context/graph/modules.json</code>, <code>files.json</code>, <code>edges.json</code>, <code>graph.meta.json</code>.</li><li><code>cmap obsidian export --out _cmap/lorekit</code>: exported 14 files.</li><li><code>cmap view export --out _cmap-view</code>: exported <code>_cmap-view/index.html</code>.</li><li><code>cmap view export --ui-lang zh-CN --out _cmap-view</code>: exported Chinese UI review page.</li><li><code>cmap obsidian export --check --out _cmap/lorekit</code>: up to date.</li><li><code>cmap view export --check --ui-lang zh-CN --out _cmap-view</code>: up to date.</li><li>Final <code>npm run verify</code>: passed (<code>79</code> tests, <code>78</code> pass, <code>1</code> skipped).</li></ul></div></section><section><h3>Failed / Pending</h3><div class="markdown-block"><p><code>cmap verify --changed</code> 仍提示 1 个 warning：<code>AGENTS.md and CLAUDE.md differ</code>。这是预期状态，因为 <code>CLAUDE.md</code> 只保留短入口和 CMAP 摘要，不复制整份 <code>AGENTS.md</code>。</p></div></section><section><h3>Next Step</h3><div class="markdown-block"><p>提交并推送已验证的 CMAP / AGENTS 更新。</p></div></section><section><h3>Do Not Redo</h3><div class="markdown-block"><p>不要为了消除 <code>AGENTS.md and CLAUDE.md differ</code> warning 强行复制整份 <code>AGENTS.md</code> 到 <code>CLAUDE.md</code>。不要把 <code>_cmap/</code>、<code>_cmap-view/</code>、<code>.context/generated/</code> 当 canonical facts。</p></div></section>
+  </details><details class="panel context-file">
+    <summary><strong>.context/STATUS.md</strong> · Status</summary>
+    <section><h3>Active Goal</h3><div class="markdown-block"><p>把 lorekit 的 <code>.context</code> 搭成可用的中文 CMAP 项目地图，并补齐 Obsidian / Review HTML 导出、<code>AGENTS.md</code> / <code>CLAUDE.md</code> 使用入口。</p></div></section><section><h3>Done Recently</h3><div class="markdown-block"><ul><li>已确认 <code>main</code> 对齐 <code>origin/main</code>，开始时没有未 push commit。</li><li>已运行 <code>cmap adopt</code>，生成 <code>.context</code> skeleton 和 <code>.context/ADOPTION.md</code>。</li><li>已阅读 <code>AGENTS.md</code>、<code>README.md</code>、<code>docs/CONVENTIONS.md</code>、<code>docs/ARCHITECTURE.md</code>、<code>docs/CODEBASE-MAP.md</code>、<code>docs/DESIGN-NOTES.md</code>、<code>docs/IDEAS.md</code> 与代表性源码。</li><li>已建立 9 个模块：<code>project-map</code>、<code>cli</code>、<code>corpus-core</code>、<code>fetch-ingest</code>、<code>sync-search-vector</code>、<code>safety-maintenance</code>、<code>skills-agent</code>、<code>obsidian-gbrain</code>、<code>docs-tests-release</code>。</li><li>已将 <code>.context</code> 正文中文化，同时保留 CMAP 必需英文结构标题和 frontmatter key。</li><li>已生成 <code>.context/graph/*.json</code>、<code>_cmap/lorekit/</code> 和 <code>_cmap-view/index.html</code>。</li><li>已在 <code>AGENTS.md</code> 和 <code>CLAUDE.md</code> 追加中文 CMAP 使用入口。</li><li>已用新版 <code>cmap view export --ui-lang zh-CN --out _cmap-view</code> 重建中文 Review HTML。</li><li>已在 2026-05-18 重新跑完 CMAP checks、<code>git diff --check</code> 和 <code>npm run verify</code>。</li></ul></div></section><section><h3>Left Off</h3><div class="markdown-block"><p>CMAP / AGENTS 更新已复核并通过验证，剩余事项是提交并推送到 <code>origin/main</code>。</p></div></section><section><h3>Next Steps</h3><div class="markdown-block"><p>1. 提交本轮 <code>.context</code>、<code>_cmap</code>、<code>_cmap-view</code> 和 <code>AGENTS.md</code> 变更。 2. 普通 push 到 <code>origin/main</code>。</p></div></section><section><h3>Changed Files</h3><div class="markdown-block"><ul><li><code>.context/**</code></li><li><code>AGENTS.md</code></li><li><code>CLAUDE.md</code></li><li><code>_cmap/lorekit/**</code></li><li><code>_cmap-view/index.html</code></li></ul></div></section><section><h3>Risks</h3><div class="markdown-block"><ul><li><code>AGENTS.md</code> / <code>CLAUDE.md</code> 不能覆盖，只能保留原内容并追加 CMAP 入口说明。</li><li><code>_cmap/lorekit</code> 和 <code>_cmap-view</code> 是生成视图，不能倒灌成 canonical facts。</li><li><code>.context</code> 是 repo-local 项目地图，不替代 docs/ 的长期架构文档。</li><li>Review HTML 当前是项目理解页，不重做源码语义推断；UI 语言固定用 <code>--ui-lang zh-CN</code> 生成。</li></ul></div></section><section><h3>Last Verified</h3><div class="markdown-block"><p>2026-05-18：<code>cmap route &quot;push CMAP and AGENTS context changes&quot;</code> 通过；<code>cmap verify --changed</code> 为 0 errors / 1 expected warning（<code>AGENTS.md</code> 与 <code>CLAUDE.md</code> 保持不同入口形态）；<code>cmap obsidian export --check --out _cmap/lorekit</code> 通过；<code>cmap view export --check --ui-lang zh-CN --out _cmap-view</code> 通过；<code>git diff --check</code> 通过；<code>npm run verify</code> 通过（79 tests, 78 pass, 1 skipped）。</p></div></section>
+  </details><details class="panel context-file">
+    <summary><strong>.context/DECISIONS.md</strong> · Decisions</summary>
+    <section><h3>2026-05-17 — Build .context first, append entrypoints safely</h3><div class="markdown-block"><p>**Context:** 仓库已有内容很重的 <code>AGENTS.md</code>，<code>CLAUDE.md</code> 目前是一行 <code>@./AGENTS.md</code> 转发。先生明确提醒不要错误覆盖这两个入口文件。 **Decision:** 先用 <code>.context</code> 建 CMAP 项目地图；入口文件只用 <code>apply_patch</code> 追加简短中文说明，不运行会直接写入的 <code>bootstrap</code>。 **Why:** <code>bootstrap</code> 没有 dry-run，虽然当前 install 语义是 marker merge，但手工 patch 更容易审阅，也更符合先生对入口文件安全的要求。 **Impact:** <code>.context</code> 可以立刻成为项目续接地图；入口文件仍保留原规则，只多一个 CMAP 读取顺序。 **Revisit if:** 后续希望完全改成标准 <code>&lt;!-- cmap:start --&gt;</code> marker block。</p></div></section><section><h3>2026-05-17 — Keep lorekit CLI deterministic and LLM-free</h3><div class="markdown-block"><p>**Context:** lorekit 的架构核心是 thin CLI + fat skills。CLI 提供文件系统、状态、索引、检索和安全操作；AI skills 负责语义判断。 **Decision:** CMAP 模块边界保留这条分工。语义工作流归 <code>skills-agent</code>；确定性实现归 <code>cli</code>、<code>corpus-core</code>、<code>fetch-ingest</code>、<code>sync-search-vector</code>、<code>safety-maintenance</code> 等模块。 **Why:** 这是 lorekit 的产品边界，能防止它滑向 RAG app、workflow OS 或 autonomous daemon。 **Impact:** 新需求先判断是 skill 规则、CLI 原语、docs 更新，还是 corpus 使用侧反馈。 **Revisit if:** lorekit 明确改变定位，从本地 LLM Wiki toolkit 变成 agent runtime 或服务端系统。</p></div></section><section><h3>2026-05-17 — Chinese body, English structural fields</h3><div class="markdown-block"><p>**Context:** 先生要求本项目 <code>.context</code> 的正文内容是中文，但 <code>cmap</code> CLI 依赖 frontmatter 字段读取 module id、aliases、paths、relations。 **Decision:** Markdown 正文、交接说明、模块说明用中文；frontmatter key、module id、路径、命令、代码标识符保持英文。 **Why:** 这样既方便人读，也不破坏工具解析。 **Impact:** 后续更新 <code>.context</code> 时默认中文正文；不要把 frontmatter 字段翻译成中文。 **Revisit if:** <code>cmap</code> CLI 未来支持本地化 frontmatter schema。</p></div></section>
+  </details><details class="panel context-file">
+    <summary><strong>.context/VERIFY.md</strong> · Verification</summary>
+    <section><h3>Required Commands</h3><div class="markdown-block"><p>| Purpose | Command | Expected | When | |---|---|---|---| | 代码基线 | <code>npm run verify</code> | <code>tsc --noEmit</code>、<code>tsup</code>、<code>node --test tests/smoke/*.test.mjs</code> 通过 | 声称代码变更完成前 | | Lint | <code>npm run lint</code> | exit 0 | release 或 lint 规则交接前 | | Build | <code>npm run build</code> | exit 0 | release 或构建相关交接前 | | CMAP 结构 | <code>cmap verify --changed</code> | 0 errors；warnings 必须解释 | 收尾 <code>.context</code> 或源码变更前 | | Obsidian 导出 | <code>cmap obsidian export --check --out _cmap/lorekit</code> | 导出层与 <code>.context</code> 一致 | <code>.context</code> 变更并导出后 | | Review HTML | <code>cmap view export --check --ui-lang zh-CN --out _cmap-view</code> | 中文 Review HTML 与 <code>.context</code> 一致 | <code>.context</code> 变更并导出后 | | 空白检查 | <code>git diff --check</code> | 没有 whitespace errors | commit 或最终交接前 |</p></div></section><section><h3>Module-specific Checks</h3><div class="markdown-block"><p>| 模块 | 命令 | 人工检查 | |---|---|---| | project-map | <code>cmap route &quot;&lt;task&gt;&quot;</code> + <code>cmap verify --changed</code> | <code>.context</code> 正文中文，frontmatter 可被工具解析；入口文件未被覆盖 | | cli | <code>node dist/cli.js --help</code> after build | 命令列表包含新增/修改的命令 | | corpus-core | 相关路径规则 smoke test | 新路径/排除规则集中在 <code>src/lib/paths.ts</code> | | fetch-ingest | <code>node --test tests/smoke/fetch-mock.test.mjs tests/smoke/ingest-record.test.mjs</code> | state transitions、duplicate、in-progress 行为仍明确 | | sync-search-vector | 相关 vector/search smoke tests | 非 vector 任务不被可选向量环境阻塞 | | safety-maintenance | 相关 <code>doctor/lint/snapshot/restore/remove</code> smoke tests | <code>remove</code> 保持 snapshot + Trash + provenance 边界 | | skills-agent | 人工读改动的 <code>skills/*/SKILL.md</code> | skill 不承诺不存在的 CLI 能力 | | obsidian-gbrain | 相关 Obsidian/GBrain smoke tests | GBrain 仍只写 staging/report，不写回 canonical wiki | | docs-tests-release | <code>npm run verify</code> + docs diff review | 用户可见行为已更新到现有永久文档 |</p></div></section><section><h3>Optional Commands</h3><div class="markdown-block"><ul><li><code>npm run lint</code></li><li><code>npm run format:check</code></li><li>Targeted <code>node --test tests/smoke/&lt;name&gt;.test.mjs</code></li><li><code>lorekit doctor --json</code> inside a real corpus when changing corpus health semantics</li><li><code>cmap verify --coverage</code></li><li><code>cmap verify --stale</code></li><li><code>cmap verify --freshness</code></li></ul></div></section><section><h3>Manual Verification</h3><div class="markdown-block"><ul><li>确认 <code>AGENTS.md</code> / <code>CLAUDE.md</code> 只追加 CMAP 说明，没有覆盖原有规则。</li><li>确认 <code>_cmap/lorekit</code> 和 <code>_cmap-view</code> 是生成视图，不含新语义事实。</li><li>涉及数据移动命令时，先看 dry-run，再确认 snapshot / Trash 行为。</li><li>JSON 输出要确认 stdout 仍可机器读取，人类提示走 stderr。</li></ul></div></section><section><h3>Known Flaky Checks</h3><div class="markdown-block"><p>Vector / Ollama 检查依赖本机可选服务和 native deps。验证文本层行为时，优先 targeted tests 或 <code>--skip-vector</code>。</p></div></section><section><h3>Environment Assumptions</h3><div class="markdown-block"><p>本机应有 Node.js &gt;= 18、npm、git、ripgrep。Ollama、<code>sqlite-vec</code>、GBrain、Playwright 都是可选集成；缺失时应清晰降级或报错。</p></div></section>
+  </details></div>
+    </section>
+    <section>
+      <h2>辅助层</h2>
+      <p class="meta">生成证据、freshness 和 inbox 候选默认隐藏。重新导出时加 --include-support，或按需加具体 include 选项即可显示。</p>
     </section>
     
     
     
-    <dialog id="module-dialog"><button type="button" data-close-dialog>Close</button><h2 id="module-dialog-title">Module</h2><pre id="module-dialog-body"></pre></dialog>
+    <dialog id="module-dialog"><button type="button" data-close-dialog>关闭</button><h2 id="module-dialog-title">模块详情</h2><div id="module-dialog-body"></div></dialog>
+    <div hidden><template data-module-detail="cli"><div class="section-stack">
+    <p class="meta"><code>.context/modules/cli.md</code></p>
+    <section class="module-detail"><h3>Purpose</h3><div class="markdown-block"><p>注册 <code>lorekit</code> 命令面，读取版本信息，展示无参数 banner，并统一 commander 的退出码语义。</p></div></section><section class="module-detail"><h3>Owned Paths</h3><div class="markdown-block"><ul><li><code>src/cli.ts</code></li><li><code>bin/lorekit.js</code></li><li><code>VERSION</code></li><li><code>package.json</code></li><li><code>dist/</code> build output, regenerated by <code>npm run build</code></li></ul></div></section><section class="module-detail"><h3>Key Contracts</h3><div class="markdown-block"><ul><li>项目是 ESM TypeScript，运行时 Node.js &gt;= 18。</li><li>无参数 <code>lorekit</code> 显示 banner 和 best-effort corpus/vector 状态。</li><li>commander 参数/用法错误退出 <code>2</code>；运行时错误退出 <code>1</code>。</li><li>源码里人类输出统一走 <code>src/utils/logger.ts</code>，不要新增直接 <code>console.log</code>。</li><li><code>dist/</code> 不手工改；改源码后跑 <code>npm run build</code>。</li></ul></div></section><section class="module-detail"><h3>Module Relationships</h3><div class="markdown-block"><ul><li>调用 <code>corpus-core</code>、<code>fetch-ingest</code>、<code>sync-search-vector</code>、<code>safety-maintenance</code>、<code>skills-agent</code>、<code>obsidian-gbrain</code>。</li><li>命令行为变化通常还要看 <code>docs-tests-release</code>。</li></ul></div></section><section class="module-detail"><h3>Read Next</h3><div class="markdown-block"><ul><li><code>docs/CONVENTIONS.md</code>：stdout/stderr、logger、exit code 规则。</li><li><code>docs/CODEBASE-MAP.md</code>：命令归属。</li><li>具体命令文件：<code>src/commands/&lt;name&gt;.ts</code>。</li></ul></div></section><section class="module-detail"><h3>Tests / Verification</h3><div class="markdown-block"><ul><li><code>npm run verify</code></li><li><code>node dist/cli.js --help</code>：构建后确认命令注册。</li></ul></div></section>
+    <section class="module-detail">
+      <h3>负责路径</h3>
+      <p>src/cli.ts, bin/lorekit.js, VERSION, package.json, dist/**</p>
+    </section>
+  </div></template><template data-module-detail="corpus-core"><div class="section-stack">
+    <p class="meta"><code>.context/modules/corpus-core.md</code></p>
+    <section class="module-detail"><h3>Purpose</h3><div class="markdown-block"><p>定义 lorekit 如何发现 corpus、解析 frontmatter、执行路径 include/exclude 规则、刷新 root index，并提供共享日志/文件系统工具。</p></div></section><section class="module-detail"><h3>Owned Paths</h3><div class="markdown-block"><ul><li><code>src/lib/corpus.ts</code></li><li><code>src/lib/paths.ts</code></li><li><code>src/lib/root-index.ts</code></li><li><code>src/lib/date.ts</code></li><li><code>src/utils/fs.ts</code></li><li><code>src/utils/logger.ts</code></li></ul></div></section><section class="module-detail"><h3>Key Contracts</h3><div class="markdown-block"><ul><li><code>src/lib/paths.ts</code> 是 scan / index / lint / vector / snapshot 边界的单一事实源。</li><li><code>skills/</code> 和 <code>node_modules/</code> 是工具目录，不是 corpus 页面。</li><li><code>原料/</code>、<code>知识库/</code>、<code>_工作台/</code>、<code>系统/</code>、<code>反馈/</code>、<code>.wiki/</code> 是 schema 级目录名，不要随手重命名。</li><li>root <code>index.md</code> 通过 controlled regions merge-refresh，必须保留人类手写摘要。</li><li>logger 是源码输出唯一入口。</li></ul></div></section><section class="module-detail"><h3>Module Relationships</h3><div class="markdown-block"><ul><li>支撑 <code>fetch-ingest</code>、<code>sync-search-vector</code>、<code>safety-maintenance</code>、<code>obsidian-gbrain</code>。</li><li>如果扫描边界变了，通常也要更新 <code>docs-tests-release</code> 的测试/文档。</li></ul></div></section><section class="module-detail"><h3>Read Next</h3><div class="markdown-block"><ul><li><code>docs/ARCHITECTURE.md</code> 的 Core abstractions / Schema constraints。</li><li><code>docs/CONVENTIONS.md</code> Do Not #8 和 #11。</li></ul></div></section><section class="module-detail"><h3>Tests / Verification</h3><div class="markdown-block"><ul><li>路径规则变化要有 targeted smoke test，并跑 <code>npm run verify</code>。</li><li>扫描边界 bug 要用 fixture 复现，例如包含 <code>skills/</code> / <code>node_modules/</code>。</li></ul></div></section>
+    <section class="module-detail">
+      <h3>负责路径</h3>
+      <p>src/lib/corpus.ts, src/lib/paths.ts, src/lib/root-index.ts, src/lib/date.ts, src/utils/**</p>
+    </section>
+  </div></template><template data-module-detail="docs-tests-release"><div class="section-stack">
+    <p class="meta"><code>.context/modules/docs-tests-release.md</code></p>
+    <section class="module-detail"><h3>Purpose</h3><div class="markdown-block"><p>维护贡献者文档、smoke tests、构建脚本、changelog/version 规则和发布前验证。</p></div></section><section class="module-detail"><h3>Owned Paths</h3><div class="markdown-block"><ul><li><code>docs/**</code></li><li><code>tests/smoke/**</code></li><li><code>README.md</code></li><li><code>CHANGELOG.md</code></li><li><code>LICENSE</code></li><li><code>eslint.config.js</code></li><li><code>tsconfig.json</code></li><li><code>tsup.config.ts</code></li><li><code>package-lock.json</code></li></ul></div></section><section class="module-detail"><h3>Key Contracts</h3><div class="markdown-block"><ul><li>新命令、新 skill、跨文件行为变化，只要用户可见，就要在同一 commit 更新 docs。</li><li>永久文档各司其职：<code>README</code>、<code>AGENTS</code>、<code>CONVENTIONS</code>、<code>ARCHITECTURE</code>、<code>CODEBASE-MAP</code>、<code>DESIGN-NOTES</code>、<code>CHANGELOG</code>、<code>IDEAS</code>。</li><li>smoke tests 用 Node 内置 <code>node:test</code>；新增命令或高风险行为必须加 targeted tests。</li><li><code>VERSION</code> 不手工改，用 <code>npm version</code>。</li><li>新增 docs/ 前必须先对照 <code>docs/CONVENTIONS.md</code> §13，避免文档膨胀。</li></ul></div></section><section class="module-detail"><h3>Module Relationships</h3><div class="markdown-block"><ul><li>记录和验证其他模块的用户可见行为。</li><li>如果模块边界或目录结构变了，优先更新 <code>docs/ARCHITECTURE.md</code> 和 <code>docs/CODEBASE-MAP.md</code>。</li></ul></div></section><section class="module-detail"><h3>Read Next</h3><div class="markdown-block"><ul><li><code>docs/CONVENTIONS.md</code> §13。</li><li><code>docs/CODEBASE-MAP.md</code>。</li><li><code>package.json</code> scripts。</li></ul></div></section><section class="module-detail"><h3>Tests / Verification</h3><div class="markdown-block"><ul><li><code>npm run verify</code></li><li>Targeted <code>node --test tests/smoke/&lt;test&gt;.mjs</code></li><li><code>git diff --check</code></li></ul></div></section>
+    <section class="module-detail">
+      <h3>负责路径</h3>
+      <p>docs/**, tests/smoke/**, README.md, CHANGELOG.md, LICENSE, eslint.config.js, tsconfig.json, tsup.config.ts, package-lock.json</p>
+    </section>
+  </div></template><template data-module-detail="fetch-ingest"><div class="section-stack">
+    <p class="meta"><code>.context/modules/fetch-ingest.md</code></p>
+    <section class="module-detail"><h3>Purpose</h3><div class="markdown-block"><p>把外部来源抓到工作台，并记录每个来源在 ingest pipeline 中走到哪一步。</p></div></section><section class="module-detail"><h3>Owned Paths</h3><div class="markdown-block"><ul><li><code>src/commands/fetch.ts</code></li><li><code>src/commands/ingest.ts</code></li><li><code>src/lib/fetcher/**</code></li><li><code>src/lib/ingest-state.ts</code></li></ul></div></section><section class="module-detail"><h3>Key Contracts</h3><div class="markdown-block"><ul><li><code>lorekit fetch &lt;url&gt;</code> 把抓取结果写到 <code>_工作台/收件/</code>，并记录 <code>status: started</code>、<code>stepsDone: [fetch]</code>。</li><li><code>.wiki/ingest-state.json</code> 是 duplicate / in-progress / completed / failed 的 pipeline SSOT。</li><li>fetch route 覆盖 generic web、WeChat、GitHub doc、Gist。</li><li>最终归档位置和 wiki synthesis 由 AI skills 决定，不由 fetcher 决定。</li><li>工作台 frontmatter 和正式 wiki frontmatter 可不同；lint 规则要尊重这个阶段边界。</li></ul></div></section><section class="module-detail"><h3>Module Relationships</h3><div class="markdown-block"><ul><li>依赖 <code>corpus-core</code> 的 corpus 发现、frontmatter、路径规则。</li><li>产物流向 <code>sync-search-vector</code>。</li><li>agent 侧流程由 <code>skills-agent</code> 的 <code>wiki-ingest</code> 约束。</li></ul></div></section><section class="module-detail"><h3>Read Next</h3><div class="markdown-block"><ul><li><code>README.md</code> 的 Ingest Pipeline。</li><li><code>docs/ARCHITECTURE.md</code> 的 Ingest flow。</li><li><code>skills/wiki-ingest/SKILL.md</code>。</li></ul></div></section><section class="module-detail"><h3>Tests / Verification</h3><div class="markdown-block"><ul><li><code>node --test tests/smoke/fetch-mock.test.mjs tests/smoke/ingest-record.test.mjs</code></li><li><code>npm run verify</code></li></ul></div></section>
+    <section class="module-detail">
+      <h3>负责路径</h3>
+      <p>src/commands/fetch.ts, src/commands/ingest.ts, src/lib/fetcher/**, src/lib/ingest-state.ts</p>
+    </section>
+  </div></template><template data-module-detail="obsidian-gbrain"><div class="section-stack">
+    <p class="meta"><code>.context/modules/obsidian-gbrain.md</code></p>
+    <section class="module-detail"><h3>Purpose</h3><div class="markdown-block"><p>提供 canonical corpus 周围的可选集成：Obsidian graph tuning / audit plugin，以及 GBrain 只读 staging / sync / query。</p></div></section><section class="module-detail"><h3>Owned Paths</h3><div class="markdown-block"><ul><li><code>src/commands/obsidian-tune.ts</code></li><li><code>src/lib/obsidian.ts</code></li><li><code>plugins/obsidian-audit/**</code></li><li><code>src/commands/gbrain.ts</code></li><li><code>src/lib/integrations/**</code></li><li><code>docs/integrations/**</code></li></ul></div></section><section class="module-detail"><h3>Key Contracts</h3><div class="markdown-block"><ul><li>Obsidian graph tuning 不能覆盖用户已有 <code>.obsidian/</code> 设置，除非明确走 safe write / backup 路径。</li><li>GBrain 相对 <code>知识库/</code> 和 <code>原料/</code> 是只读 integration。</li><li>GBrain export 默认只写 <code>.wiki/integrations/gbrain-export/</code> staging，并记录 manifest / sync reports。</li><li>外部进程调用不能用 shell interpolation。</li><li>CMAP 的 <code>_cmap/lorekit</code> 和 <code>_cmap-view</code> 是 review/read-only 视图；其中 <code>_cmap-view</code> 用 <code>--ui-lang zh-CN</code> 导出中文 UI，不是新的事实源。</li></ul></div></section><section class="module-detail"><h3>Module Relationships</h3><div class="markdown-block"><ul><li>依赖 <code>corpus-core</code> 的路径边界。</li><li>依赖 <code>safety-maintenance</code> 的 safe write / doctor 思路。</li><li>导出的文档/视图需要由 <code>docs-tests-release</code> 的验证规则覆盖。</li></ul></div></section><section class="module-detail"><h3>Read Next</h3><div class="markdown-block"><ul><li><code>docs/ARCHITECTURE.md</code> 的 GBrain integration flow。</li><li><code>README.md</code> 的 Optional GBrain Bridge。</li><li><code>tests/smoke/gbrain-*.test.mjs</code>。</li></ul></div></section><section class="module-detail"><h3>Tests / Verification</h3><div class="markdown-block"><ul><li><code>node --test tests/smoke/gbrain-status.test.mjs tests/smoke/gbrain-export.test.mjs tests/smoke/gbrain-sync.test.mjs tests/smoke/gbrain-query.test.mjs</code></li><li>Obsidian 变更要覆盖 safe-write 行为。</li><li>CMAP 视图变更跑 <code>cmap obsidian export --check --out _cmap/lorekit</code> 和 <code>cmap view export --check --ui-lang zh-CN --out _cmap-view</code>。</li></ul></div></section>
+    <section class="module-detail">
+      <h3>负责路径</h3>
+      <p>src/commands/obsidian-tune.ts, src/lib/obsidian.ts, plugins/obsidian-audit/**, src/commands/gbrain.ts, src/lib/integrations/**, docs/integrations/**</p>
+    </section>
+  </div></template><template data-module-detail="project-map"><div class="section-stack">
+    <p class="meta"><code>.context/modules/project-map.md</code></p>
+    <section class="module-detail"><h3>Purpose</h3><div class="markdown-block"><p>维护 lorekit 仓库本地的 CMAP 项目地图、当前检查点、模块路由、Obsidian / Review HTML 导出和 AI 交接入口。它补充项目规则，但不替代 <code>AGENTS.md</code> / <code>CLAUDE.md</code>。</p></div></section><section class="module-detail"><h3>Owned Paths</h3><div class="markdown-block"><ul><li><code>.context/**</code></li><li><code>.gitignore</code></li><li><code>AGENTS.md</code></li><li><code>CLAUDE.md</code></li><li><code>_cmap/**</code></li><li><code>_cmap-view/**</code></li></ul></div></section><section class="module-detail"><h3>Key Contracts</h3><div class="markdown-block"><ul><li><code>AGENTS.md</code> 和 <code>CLAUDE.md</code> 是 host entrypoints，必须保留原内容；只能追加 CMAP 说明或 marker block。</li><li><code>.context/MAP.md</code>、<code>.context/CHECKPOINT.md</code>、<code>.context/STATUS.md</code>、<code>.context/DECISIONS.md</code>、<code>.context/VERIFY.md</code>、<code>.context/modules/*.md</code> 是 CMAP canonical facts。</li><li><code>.context/out/</code>、<code>.context/inbox/</code>、<code>.context/generated/</code>、<code>.context/logs/</code>、<code>.context/ideas/</code> 是辅助层或过程层，未经提升不能当事实源。</li><li><code>_cmap/lorekit</code> 是 Obsidian-friendly 导出；<code>_cmap-view</code> 是中文 Review HTML 导出；它们只读展示 <code>.context</code>。</li><li><code>.context</code> 正文默认中文；frontmatter key、module id、命令和代码标识符保留英文。</li></ul></div></section><section class="module-detail"><h3>Common Tasks</h3><div class="markdown-block"><ul><li>“接手项目 / 看项目地图 / 续接上下文”：读本模块。</li><li>“生成 obsidian / view html”：读本模块，再跑 <code>cmap obsidian export</code> / <code>cmap view export --ui-lang zh-CN</code>。</li><li>“改 AGENTS/CLAUDE 入口”：只做追加，先看 diff。</li></ul></div></section><section class="module-detail"><h3>Module Relationships</h3><div class="markdown-block"><ul><li><code>guides</code> 所有模块：本模块负责把任务路由到对应模块。</li></ul></div></section><section class="module-detail"><h3>Tests / Verification</h3><div class="markdown-block"><ul><li><code>cmap route &quot;&lt;task&gt;&quot;</code></li><li><code>cmap verify --changed</code></li><li><code>cmap obsidian export --check --out _cmap/lorekit</code></li><li><code>cmap view export --check --ui-lang zh-CN --out _cmap-view</code></li><li><code>git diff --check</code></li></ul></div></section>
+    <section class="module-detail">
+      <h3>负责路径</h3>
+      <p>.context/**, .gitignore, AGENTS.md, CLAUDE.md, _cmap/**, _cmap-view/**</p>
+    </section>
+  </div></template><template data-module-detail="safety-maintenance"><div class="section-stack">
+    <p class="meta"><code>.context/modules/safety-maintenance.md</code></p>
+    <section class="module-detail"><h3>Purpose</h3><div class="markdown-block"><p>通过 doctor / lint / snapshot / restore / remove / audit / stats 保护 corpus 完整性和可恢复性。</p></div></section><section class="module-detail"><h3>Owned Paths</h3><div class="markdown-block"><ul><li><code>src/commands/doctor.ts</code></li><li><code>src/commands/lint.ts</code></li><li><code>src/commands/snapshot.ts</code></li><li><code>src/commands/restore.ts</code></li><li><code>src/commands/remove.ts</code></li><li><code>src/commands/audit.ts</code></li><li><code>src/commands/stats.ts</code></li></ul></div></section><section class="module-detail"><h3>Key Contracts</h3><div class="markdown-block"><ul><li><code>remove</code> 默认 dry-run。<code>--apply</code> 必须先 snapshot，再用 <code>trash</code> package 移到 OS Trash，之后 prune vector records，并按需 sync/lint。</li><li>删除按 provenance，不按关键词；<code>Compiled Truth</code> 只报告人工复核，不自动改写。</li><li><code>snapshot</code> / <code>restore</code> 是数据安全原语，不能为了方便削弱。</li><li><code>doctor --json</code> 和 <code>doctor --section &lt;name&gt;</code> 支持机器可读和严格 section 检查。</li><li><code>lint --quick</code> 是 agent 自检兼容 alias，保留。</li></ul></div></section><section class="module-detail"><h3>Module Relationships</h3><div class="markdown-block"><ul><li>依赖 <code>corpus-core</code> 的路径/边界。</li><li>依赖 <code>sync-search-vector</code> 的 index/vector 状态。</li><li>保护 <code>fetch-ingest</code> 和 <code>skills-agent</code> 产生或维护的内容。</li></ul></div></section><section class="module-detail"><h3>Read Next</h3><div class="markdown-block"><ul><li><code>docs/ARCHITECTURE.md</code> 的 Remove flow。</li><li><code>docs/DESIGN-NOTES.md</code> 关于 remove 只做来源归因级联的章节。</li><li><code>docs/CONVENTIONS.md</code> 数据安全与 Do Not #14/#15。</li></ul></div></section><section class="module-detail"><h3>Tests / Verification</h3><div class="markdown-block"><ul><li><code>node --test tests/smoke/remove.test.mjs tests/smoke/restore-boundary.test.mjs</code></li><li>相关 lint / doctor / snapshot smoke tests。</li><li><code>npm run verify</code>.</li></ul></div></section>
+    <section class="module-detail">
+      <h3>负责路径</h3>
+      <p>src/commands/doctor.ts, src/commands/lint.ts, src/commands/snapshot.ts, src/commands/restore.ts, src/commands/remove.ts, src/commands/audit.ts, src/commands/stats.ts</p>
+    </section>
+  </div></template><template data-module-detail="skills-agent"><div class="section-stack">
+    <p class="meta"><code>.context/modules/skills-agent.md</code></p>
+    <section class="module-detail"><h3>Purpose</h3><div class="markdown-block"><p>定义 <code>wiki-*</code> markdown skills，告诉 AI agent 如何使用 lorekit 的确定性 CLI 原语完成 ingest / query / fileback / lint / output / audit / remove 等工作流。</p></div></section><section class="module-detail"><h3>Owned Paths</h3><div class="markdown-block"><ul><li><code>skills/wiki-*/SKILL.md</code></li><li><code>skills/wiki-*/_INDEX.md</code></li><li><code>src/commands/install-skills.ts</code></li><li><code>integrations/claude-code/**</code></li><li><code>templates/default-corpus/AGENTS.md</code></li><li><code>templates/default-corpus/CLAUDE.md</code></li></ul></div></section><section class="module-detail"><h3>Key Contracts</h3><div class="markdown-block"><ul><li>CLI 保持 thin + deterministic；语义工作流放在 markdown skills。</li><li><code>lorekit install-skills</code> 当前主要支持 Claude Code 全局安装；其他 agent 可 copy/symlink markdown skill folders。</li><li>project-local skills 是工具，不是 canonical corpus pages；lint/index/vector 不能把它们扫成 wiki 内容。</li><li>skill 不能承诺不存在的 CLI 命令或参数。</li><li>skill 规则应保持通用，不把 lorekit 项目自身的临时边界写进用户 corpus skill。</li></ul></div></section><section class="module-detail"><h3>Module Relationships</h3><div class="markdown-block"><ul><li>使用 <code>cli</code> 暴露的命令。</li><li>调用 <code>fetch-ingest</code>、<code>sync-search-vector</code>、<code>safety-maintenance</code>。</li><li>受 <code>corpus-core</code> 的 schema/path 约束。</li></ul></div></section><section class="module-detail"><h3>Read Next</h3><div class="markdown-block"><ul><li><code>README.md</code> install routes 和 feature map。</li><li><code>docs/ARCHITECTURE.md</code> design philosophy。</li><li>相关 <code>skills/wiki-*</code> 目录。</li></ul></div></section><section class="module-detail"><h3>Tests / Verification</h3><div class="markdown-block"><ul><li>人工从头到尾读变更 skill。</li><li>如果 skill 引用了改动后的 CLI 行为，跑对应 targeted CLI tests。</li><li>如果伴随代码变更，跑 <code>npm run verify</code>。</li></ul></div></section>
+    <section class="module-detail">
+      <h3>负责路径</h3>
+      <p>skills/**, src/commands/install-skills.ts, integrations/claude-code/**, templates/default-corpus/AGENTS.md, templates/default-corpus/CLAUDE.md</p>
+    </section>
+  </div></template><template data-module-detail="sync-search-vector"><div class="section-stack">
+    <p class="meta"><code>.context/modules/sync-search-vector.md</code></p>
+    <section class="module-detail"><h3>Purpose</h3><div class="markdown-block"><p>维护文本索引、root index、文本搜索，以及可选 vector / BM25 / RRF 检索。</p></div></section><section class="module-detail"><h3>Owned Paths</h3><div class="markdown-block"><ul><li><code>src/commands/dir-index.ts</code></li><li><code>src/commands/sync.ts</code></li><li><code>src/commands/search.ts</code></li><li><code>src/commands/vector.ts</code></li><li><code>src/lib/vectordb/**</code></li><li><code>src/lib/ollama.ts</code></li><li><code>src/lib/chunker.ts</code></li></ul></div></section><section class="module-detail"><h3>Key Contracts</h3><div class="markdown-block"><ul><li><code>lorekit sync</code> 顺序是 <code>_INDEX.md</code> refresh -&gt; root <code>index.md</code> merge -&gt; vector sync unless skipped -&gt; doctor。</li><li><code>lorekit sync --skip-vector</code> 是本机向量/Ollama 环境不稳定时的重要收尾路径。</li><li>vector retrieval 是可选能力；小中规模 corpus 仍应支持 Read-first index 导航。</li><li>BM25 chunk direct search 和 vector layered search 是两条路径；不要无证据恢复硬 BM25 L0 gate。</li><li><code>MODE_THRESHOLD_FILES</code> 按 indexed file count 推荐 text / vector 模式。</li></ul></div></section><section class="module-detail"><h3>Module Relationships</h3><div class="markdown-block"><ul><li>依赖 <code>corpus-core</code> 的路径规则和 root index。</li><li>消费 <code>fetch-ingest</code> 编译后的 wiki 页面。</li><li>结果和健康状态由 <code>safety-maintenance</code> 检查。</li></ul></div></section><section class="module-detail"><h3>Read Next</h3><div class="markdown-block"><ul><li><code>docs/DESIGN-NOTES.md</code> 关于 L0/L1/L2/L3 和 BM25 L0 gate 失败的章节。</li><li><code>docs/ARCHITECTURE.md</code> 的 Query flow。</li></ul></div></section><section class="module-detail"><h3>Tests / Verification</h3><div class="markdown-block"><ul><li><code>tests/smoke/vectordb-*.test.mjs</code> 里的相关测试。</li><li><code>npm run verify</code>.</li><li>真实 corpus 收尾时，如果 vector service 无关，优先考虑 <code>lorekit sync --skip-vector</code>。</li></ul></div></section>
+    <section class="module-detail">
+      <h3>负责路径</h3>
+      <p>src/commands/dir-index.ts, src/commands/sync.ts, src/commands/search.ts, src/commands/vector.ts, src/lib/vectordb/**, src/lib/ollama.ts, src/lib/chunker.ts</p>
+    </section>
+  </div></template></div>
     <script type="application/json" id="cmap-view-data">{
   "schema": "cmap.view_data.v1",
-  "generatedAt": "2026-05-17T10:58:30.805Z",
-  "sourceCommit": "62576ef",
+  "generatedAt": "2026-05-18T04:30:47.167Z",
+  "sourceCommit": "26f32e4",
   "projectRootName": "lorekit",
   "included": {
     "generated": false,
@@ -229,10 +470,12 @@
     "name": "lorekit"
   },
   "overview": {
+    "purpose": "lorekit 是一个个人 LLM Wiki 工具包。它让 AI agent 把网页、笔记、会议、录音等原料整理成可长期复用的本地知识库，同时用确定性的 CLI 负责文件、状态、索引、检索、备份、恢复和安全删除。",
     "activeGoal": "把 lorekit 的 `.context` 搭成可用的中文 CMAP 项目地图，并补齐 Obsidian / Review HTML 导出、`AGENTS.md` / `CLAUDE.md` 使用入口。",
     "currentTask": "将 `/Users/gaoyifan/code/lorekit` 的 CMAP `.context` 搭建完整：正文中文化、模块关系接好、生成 Obsidian / Review HTML，并安全更新 `AGENTS.md` / `CLAUDE.md`。",
-    "nextStep": "人工 review diff；认可后可提交。",
-    "lastVerified": "2026-05-17：`cmap route` smoke checks 通过；`cmap verify --changed` 为 0 errors / 1 expected warning（`AGENTS.md` 与 `CLAUDE.md` 保持不同入口形态）；`cmap obsidian export --check --out _cmap/lorekit` 通过；`cmap view export --check --out _cmap-view` 通过；`git diff --check` 通过；`npm run verify` 通过（72 tests, 71 pass, 1 skipped）。"
+    "nextStep": "提交并推送已验证的 CMAP / AGENTS 更新。",
+    "verified": "`git status --short --branch` before adoption: `main...origin/main`, clean.",
+    "lastVerified": "2026-05-18：`cmap route \"push CMAP and AGENTS context changes\"` 通过；`cmap verify --changed` 为 0 errors / 1 expected warning（`AGENTS.md` 与 `CLAUDE.md` 保持不同入口形态）；`cmap obsidian export --check --out _cmap/lorekit` 通过；`cmap view export --check --ui-lang zh-CN --out _cmap-view` 通过；`git diff --check` 通过；`npm run verify` 通过（79 tests, 78 pass, 1 skipped）。"
   },
   "verify": {
     "requiredCommands": [
@@ -268,8 +511,8 @@
       },
       {
         "purpose": "Review HTML",
-        "command": "cmap view export --check --out _cmap-view",
-        "expected": "Review HTML 与 .context 一致",
+        "command": "cmap view export --check --ui-lang zh-CN --out _cmap-view",
+        "expected": "中文 Review HTML 与 .context 一致",
         "when": ".context 变更并导出后"
       },
       {
@@ -286,6 +529,183 @@
       "JSON 输出要确认 stdout 仍可机器读取，人类提示走 stderr。"
     ]
   },
+  "contextFiles": [
+    {
+      "path": ".context/MAP.md",
+      "title": "Project Map",
+      "body": "# Project Map\n\n\u003e 中文项目地图。英文标题是 CMAP CLI 的结构锚点，正文以中文为准。\n\n## Purpose\nlorekit 是一个个人 LLM Wiki 工具包。它让 AI agent 把网页、笔记、会议、录音等原料整理成可长期复用的本地知识库，同时用确定性的 CLI 负责文件、状态、索引、检索、备份、恢复和安全删除。\n\n核心边界：AI 负责语义判断和 wiki 编译，lorekit CLI 负责可验证、可回滚、可重复的确定性操作。\n\n## Tech Stack \u0026 Runtime\n- TypeScript ESM，Node.js \u003e= 18，`commander` 做 CLI，`tsup` 负责构建。\n- Runtime dependencies：`chalk`、`cheerio`、`turndown`、`gray-matter`、`tar`、`trash`、`better-sqlite3`。\n- Optional dependencies / services：`sqlite-vec`、Ollama + `bge-m3`、外部 `gbrain` CLI。\n- 测试使用 Node 内置 `node:test`，主要集中在 `tests/smoke/`。\n- 构建产物在 `dist/`，不要手工改，跑 `npm run build` 生成。\n\n## Entry Points\n- 人类入口：`README.md`、`docs/QUICKSTART.md`、`docs/INSTALLATION.md`。\n- AI 入口：`AGENTS.md`；`CLAUDE.md` 目前转发到 `@./AGENTS.md`，但本轮会补一段 CMAP 快速入口。\n- 贡献者入口：`docs/CONVENTIONS.md`、`docs/ARCHITECTURE.md`、`docs/CODEBASE-MAP.md`、`docs/DESIGN-NOTES.md`、`docs/IDEAS.md`。\n- CLI 入口：`bin/lorekit.js` -\u003e `dist/cli.js`；源码入口是 `src/cli.ts`。\n- 项目地图入口：`.context/CHECKPOINT.md` -\u003e `.context/MAP.md` -\u003e `cmap route \"\u003ctask\u003e\"` -\u003e `.context/modules/\u003cmodule\u003e.md`。\n\n## Module Map\n| 模块 | 职责 | 路径 | 文档 | 别名 |\n|---|---|---|---|---|\n| project-map | repo-local CMAP 记忆、AI 交接入口、模块关系、Obsidian/View 导出 | `.context/**`, `AGENTS.md`, `CLAUDE.md`, `_cmap/**`, `_cmap-view/**` | `.context/modules/project-map.md` | cmap, context, handoff, 接手 |\n| cli | 注册命令、展示 banner、读取版本、统一 commander 退出码 | `src/cli.ts`, `bin/lorekit.js`, `VERSION`, `package.json`, `dist/**` | `.context/modules/cli.md` | command, version, banner |\n| corpus-core | 识别 corpus、维护 schema/path 边界、root index 和通用工具 | `src/lib/corpus.ts`, `src/lib/paths.ts`, `src/lib/root-index.ts`, `src/lib/date.ts`, `src/utils/**` | `.context/modules/corpus-core.md` | schema, paths, index, logger |\n| fetch-ingest | 抓取外部来源，并跟踪 URL -\u003e 原料 -\u003e wiki 的 ingest 进度 | `src/commands/fetch.ts`, `src/commands/ingest.ts`, `src/lib/fetcher/**`, `src/lib/ingest-state.ts` | `.context/modules/fetch-ingest.md` | fetch, ingest, state machine, WeChat |\n| sync-search-vector | 刷新 `_INDEX.md` / root index，提供文本搜索、向量、BM25、RRF 检索 | `src/commands/dir-index.ts`, `src/commands/sync.ts`, `src/commands/search.ts`, `src/commands/vector.ts`, `src/lib/vectordb/**`, `src/lib/ollama.ts`, `src/lib/chunker.ts` | `.context/modules/sync-search-vector.md` | index, sync, search, vector, BM25, RRF |\n| safety-maintenance | doctor/lint/snapshot/restore/remove/audit/stats 等安全维护命令 | `src/commands/doctor.ts`, `src/commands/lint.ts`, `src/commands/snapshot.ts`, `src/commands/restore.ts`, `src/commands/remove.ts`, `src/commands/audit.ts`, `src/commands/stats.ts` | `.context/modules/safety-maintenance.md` | doctor, lint, snapshot, restore, remove, audit |\n| skills-agent | `wiki-*` markdown skills 与 AI 侧工作流约束 | `skills/**`, `integrations/claude-code/**`, `templates/default-corpus/AGENTS.md`, `templates/default-corpus/CLAUDE.md`, `src/commands/install-skills.ts` | `.context/modules/skills-agent.md` | wiki skills, agent workflows, install-skills |\n| obsidian-gbrain | Obsidian 图谱配置 / 插件，以及 GBrain 只读 staging/export/sync/query | `src/commands/obsidian-tune.ts`, `src/lib/obsidian.ts`, `plugins/obsidian-audit/**`, `src/commands/gbrain.ts`, `src/lib/integrations/**`, `docs/integrations/**` | `.context/modules/obsidian-gbrain.md` | Obsidian, graph, GBrain, integration |\n| docs-tests-release | 永久文档、smoke tests、构建配置、发布与变更记录 | `docs/**`, `tests/smoke/**`, `README.md`, `CHANGELOG.md`, `eslint.config.js`, `tsconfig.json`, `tsup.config.ts`, `package-lock.json` | `.context/modules/docs-tests-release.md` | docs, tests, verify, release |\n\n## Natural Language Route\n| 用户说法 | 模块 | 优先阅读 |\n|---|---|---|\n| 接手 / cmap / .context / 项目地图 / AGENTS / CLAUDE | project-map | `.context/modules/project-map.md` |\n| 加命令 / CLI 输出 / 版本 / banner / commander | cli | `.context/modules/cli.md` |\n| schema / 路径排除 / node_modules 被扫 / skills 被扫 / index.md | corpus-core | `.context/modules/corpus-core.md` |\n| 抓网页 / 微信公众号 / fetch / ingest / duplicate / in-progress | fetch-ingest | `.context/modules/fetch-ingest.md` |\n| sync / _INDEX / search / vector / BM25 / RRF / Ollama | sync-search-vector | `.context/modules/sync-search-vector.md` |\n| doctor / lint / snapshot / restore / remove / trash / audit | safety-maintenance | `.context/modules/safety-maintenance.md` |\n| wiki skill / install-skills / agent 接手 / project-local skills | skills-agent | `.context/modules/skills-agent.md` |\n| Obsidian / graph filter / GBrain / integrations | obsidian-gbrain | `.context/modules/obsidian-gbrain.md` |\n| 文档同步 / smoke test / verify / release / package scripts | docs-tests-release | `.context/modules/docs-tests-release.md` |\n\n## Module Relationships\n- `project-map` 是 repo-local 项目地图层，负责告诉 AI 先读哪里、怎么路由、哪些 `.context` 文件可信。它不替代 `AGENTS.md` / `CLAUDE.md`，只补长期项目续接。\n- `cli` 是所有命令入口，调用各 `src/commands/*`；命令再调用 `corpus-core`、`fetch-ingest`、`sync-search-vector`、`safety-maintenance` 和 integration 模块。\n- `corpus-core` 是路径、schema、logger、root index 的共享底座；其他模块遇到扫描边界时优先复用这里。\n- `fetch-ingest` 负责从外部来源进入工作台和 `.wiki/ingest-state.json`；AI skills 再把它编译成 wiki。\n- `sync-search-vector` 负责把 wiki 结果转成 `_INDEX.md`、root `index.md`、向量库和搜索结果。\n- `safety-maintenance` 在高风险操作前后提供 snapshot、doctor、lint、restore、remove 等护栏。\n- `skills-agent` 是语义工作流层；CLI 不调用 LLM，AI 行为由 markdown skills 约束。\n- `obsidian-gbrain` 是外部阅读/检索视图层，只读或 staging，不应回写 `知识库/` / `原料/` 的事实。\n- `docs-tests-release` 保证用户可见能力与文档、测试、构建、发布状态同步。\n\n## Data Flow\n1. 用户给 URL / 文本 / 文件线索。\n2. `lorekit fetch` 把来源抓到 `_工作台/收件/`，并在 `.wiki/ingest-state.json` 写入 `started + stepsDone=[fetch]`。\n3. AI 根据 `wiki-ingest` 把来源归档到 `原料/`，再编译或更新 `知识库/` 页面。\n4. `lorekit ingest record/check` 记录 `archive/wiki/lint` 步骤，避免断点后丢状态。\n5. `lorekit sync` 刷新 `_INDEX.md`、root `index.md`、可选 vector DB，并跑 doctor。\n6. 用户查询时，AI 先 Read `index.md` / `_INDEX.md` / 具体页面；规模变大后可用 `lorekit vector query --hybrid` 辅助。\n7. 输出、复盘或对外材料再通过 skill 判断是否 fileback 回 `知识库/`。\n\n## State / Storage\n- corpus 里的 canonical data：`原料/`、`知识库/`、root `index.md`、root `log.md`、corpus 内的 `AGENTS.md` / `CLAUDE.md`。\n- corpus 里的 runtime metadata：`.wiki/ingest-state.json`、`.wiki/vector.sqlite`、`.wiki/reports/`、`.wiki/snapshots/`、`.wiki/integrations/`。\n- lorekit 仓库自己的项目地图：`.context/`。\n- `.context` canonical facts：`MAP.md`、`CHECKPOINT.md`、`STATUS.md`、`DECISIONS.md`、`VERIFY.md`、`modules/*.md`。\n- `.context/out/`、`.context/inbox/`、`.context/generated/`、`.context/logs/`、`.context/ideas/` 是辅助层或过程层，不直接当项目事实。\n- Obsidian 导出默认在 `_cmap/lorekit/`，中文 Review HTML 默认在 `_cmap-view/`。\n\n## External Integrations\n- Web fetch：原生 HTTP + HTML parse；必要时走可选 Playwright fallback。\n- Obsidian：读取 markdown corpus，`obsidian-tune` 写 graph filter，`plugins/obsidian-audit` 支持反馈。\n- Ollama / `sqlite-vec`：可选向量检索，不应阻塞纯文本层。\n- GBrain：外部 CLI，只读读取 `.wiki/integrations/gbrain-export/` staging；不得直接改 canonical wiki。\n- CMAP Review HTML / Obsidian export：从 `.context` 渲染视图，不重新做语义判断。\n\n## Risk Areas\n- 数据安全：禁止不可逆删除用户内容；`remove` 必须保留 snapshot + Trash + provenance-aware cleanup。\n- 路径边界：新增排除目录必须集中到 `src/lib/paths.ts`，不要在各命令里散落硬编码。\n- stdout/stderr：JSON / machine-readable 输出必须保持可管道；人类提示走 stderr。\n- 向量环境：Ollama/native deps 失败不能拖死文本层工作流，除非当前任务明确是 vector。\n- docs drift：新命令、新 skill、跨文件行为变动要同步 README/docs/ARCHITECTURE/CODEBASE-MAP/DESIGN-NOTES/QUICKSTART。\n- CMAP drift：改 `.context` 后要刷新 `_cmap/lorekit` 和 `_cmap-view`，再跑 check。\n- 入口文件：`AGENTS.md` / `CLAUDE.md` 只能追加或 marker merge，不做整文件覆盖。\n\n## Verification Summary\n- 代码基线：`npm run verify`。\n- CMAP 路由：`cmap route \"\u003ctask\u003e\"`。\n- CMAP 结构：`cmap verify --changed`，必要时加 `--coverage` / `--stale` / `--freshness`。\n- Obsidian 视图：`cmap obsidian export --out _cmap/lorekit` 后跑 `cmap obsidian export --check --out _cmap/lorekit`。\n- Review HTML：`cmap view export --ui-lang zh-CN --out _cmap-view` 后跑 `cmap view export --check --ui-lang zh-CN --out _cmap-view`。\n- 收尾：`git diff --check`。\n\n## Handoff Notes\n后续 AI 先读 `AGENTS.md`，再读 `.context/CHECKPOINT.md` 和 `.context/MAP.md`。不要一上来全量读 `.context`；先用 `cmap route \"\u003ctask\u003e\"` 找模块，再读对应 `.context/modules/*.md`。",
+      "sections": [
+        {
+          "heading": "Purpose",
+          "body": "lorekit 是一个个人 LLM Wiki 工具包。它让 AI agent 把网页、笔记、会议、录音等原料整理成可长期复用的本地知识库，同时用确定性的 CLI 负责文件、状态、索引、检索、备份、恢复和安全删除。\n\n核心边界：AI 负责语义判断和 wiki 编译，lorekit CLI 负责可验证、可回滚、可重复的确定性操作。"
+        },
+        {
+          "heading": "Tech Stack \u0026 Runtime",
+          "body": "- TypeScript ESM，Node.js \u003e= 18，`commander` 做 CLI，`tsup` 负责构建。\n- Runtime dependencies：`chalk`、`cheerio`、`turndown`、`gray-matter`、`tar`、`trash`、`better-sqlite3`。\n- Optional dependencies / services：`sqlite-vec`、Ollama + `bge-m3`、外部 `gbrain` CLI。\n- 测试使用 Node 内置 `node:test`，主要集中在 `tests/smoke/`。\n- 构建产物在 `dist/`，不要手工改，跑 `npm run build` 生成。"
+        },
+        {
+          "heading": "Entry Points",
+          "body": "- 人类入口：`README.md`、`docs/QUICKSTART.md`、`docs/INSTALLATION.md`。\n- AI 入口：`AGENTS.md`；`CLAUDE.md` 目前转发到 `@./AGENTS.md`，但本轮会补一段 CMAP 快速入口。\n- 贡献者入口：`docs/CONVENTIONS.md`、`docs/ARCHITECTURE.md`、`docs/CODEBASE-MAP.md`、`docs/DESIGN-NOTES.md`、`docs/IDEAS.md`。\n- CLI 入口：`bin/lorekit.js` -\u003e `dist/cli.js`；源码入口是 `src/cli.ts`。\n- 项目地图入口：`.context/CHECKPOINT.md` -\u003e `.context/MAP.md` -\u003e `cmap route \"\u003ctask\u003e\"` -\u003e `.context/modules/\u003cmodule\u003e.md`。"
+        },
+        {
+          "heading": "Module Map",
+          "body": "| 模块 | 职责 | 路径 | 文档 | 别名 |\n|---|---|---|---|---|\n| project-map | repo-local CMAP 记忆、AI 交接入口、模块关系、Obsidian/View 导出 | `.context/**`, `AGENTS.md`, `CLAUDE.md`, `_cmap/**`, `_cmap-view/**` | `.context/modules/project-map.md` | cmap, context, handoff, 接手 |\n| cli | 注册命令、展示 banner、读取版本、统一 commander 退出码 | `src/cli.ts`, `bin/lorekit.js`, `VERSION`, `package.json`, `dist/**` | `.context/modules/cli.md` | command, version, banner |\n| corpus-core | 识别 corpus、维护 schema/path 边界、root index 和通用工具 | `src/lib/corpus.ts`, `src/lib/paths.ts`, `src/lib/root-index.ts`, `src/lib/date.ts`, `src/utils/**` | `.context/modules/corpus-core.md` | schema, paths, index, logger |\n| fetch-ingest | 抓取外部来源，并跟踪 URL -\u003e 原料 -\u003e wiki 的 ingest 进度 | `src/commands/fetch.ts`, `src/commands/ingest.ts`, `src/lib/fetcher/**`, `src/lib/ingest-state.ts` | `.context/modules/fetch-ingest.md` | fetch, ingest, state machine, WeChat |\n| sync-search-vector | 刷新 `_INDEX.md` / root index，提供文本搜索、向量、BM25、RRF 检索 | `src/commands/dir-index.ts`, `src/commands/sync.ts`, `src/commands/search.ts`, `src/commands/vector.ts`, `src/lib/vectordb/**`, `src/lib/ollama.ts`, `src/lib/chunker.ts` | `.context/modules/sync-search-vector.md` | index, sync, search, vector, BM25, RRF |\n| safety-maintenance | doctor/lint/snapshot/restore/remove/audit/stats 等安全维护命令 | `src/commands/doctor.ts`, `src/commands/lint.ts`, `src/commands/snapshot.ts`, `src/commands/restore.ts`, `src/commands/remove.ts`, `src/commands/audit.ts`, `src/commands/stats.ts` | `.context/modules/safety-maintenance.md` | doctor, lint, snapshot, restore, remove, audit |\n| skills-agent | `wiki-*` markdown skills 与 AI 侧工作流约束 | `skills/**`, `integrations/claude-code/**`, `templates/default-corpus/AGENTS.md`, `templates/default-corpus/CLAUDE.md`, `src/commands/install-skills.ts` | `.context/modules/skills-agent.md` | wiki skills, agent workflows, install-skills |\n| obsidian-gbrain | Obsidian 图谱配置 / 插件，以及 GBrain 只读 staging/export/sync/query | `src/commands/obsidian-tune.ts`, `src/lib/obsidian.ts`, `plugins/obsidian-audit/**`, `src/commands/gbrain.ts`, `src/lib/integrations/**`, `docs/integrations/**` | `.context/modules/obsidian-gbrain.md` | Obsidian, graph, GBrain, integration |\n| docs-tests-release | 永久文档、smoke tests、构建配置、发布与变更记录 | `docs/**`, `tests/smoke/**`, `README.md`, `CHANGELOG.md`, `eslint.config.js`, `tsconfig.json`, `tsup.config.ts`, `package-lock.json` | `.context/modules/docs-tests-release.md` | docs, tests, verify, release |"
+        },
+        {
+          "heading": "Natural Language Route",
+          "body": "| 用户说法 | 模块 | 优先阅读 |\n|---|---|---|\n| 接手 / cmap / .context / 项目地图 / AGENTS / CLAUDE | project-map | `.context/modules/project-map.md` |\n| 加命令 / CLI 输出 / 版本 / banner / commander | cli | `.context/modules/cli.md` |\n| schema / 路径排除 / node_modules 被扫 / skills 被扫 / index.md | corpus-core | `.context/modules/corpus-core.md` |\n| 抓网页 / 微信公众号 / fetch / ingest / duplicate / in-progress | fetch-ingest | `.context/modules/fetch-ingest.md` |\n| sync / _INDEX / search / vector / BM25 / RRF / Ollama | sync-search-vector | `.context/modules/sync-search-vector.md` |\n| doctor / lint / snapshot / restore / remove / trash / audit | safety-maintenance | `.context/modules/safety-maintenance.md` |\n| wiki skill / install-skills / agent 接手 / project-local skills | skills-agent | `.context/modules/skills-agent.md` |\n| Obsidian / graph filter / GBrain / integrations | obsidian-gbrain | `.context/modules/obsidian-gbrain.md` |\n| 文档同步 / smoke test / verify / release / package scripts | docs-tests-release | `.context/modules/docs-tests-release.md` |"
+        },
+        {
+          "heading": "Module Relationships",
+          "body": "- `project-map` 是 repo-local 项目地图层，负责告诉 AI 先读哪里、怎么路由、哪些 `.context` 文件可信。它不替代 `AGENTS.md` / `CLAUDE.md`，只补长期项目续接。\n- `cli` 是所有命令入口，调用各 `src/commands/*`；命令再调用 `corpus-core`、`fetch-ingest`、`sync-search-vector`、`safety-maintenance` 和 integration 模块。\n- `corpus-core` 是路径、schema、logger、root index 的共享底座；其他模块遇到扫描边界时优先复用这里。\n- `fetch-ingest` 负责从外部来源进入工作台和 `.wiki/ingest-state.json`；AI skills 再把它编译成 wiki。\n- `sync-search-vector` 负责把 wiki 结果转成 `_INDEX.md`、root `index.md`、向量库和搜索结果。\n- `safety-maintenance` 在高风险操作前后提供 snapshot、doctor、lint、restore、remove 等护栏。\n- `skills-agent` 是语义工作流层；CLI 不调用 LLM，AI 行为由 markdown skills 约束。\n- `obsidian-gbrain` 是外部阅读/检索视图层，只读或 staging，不应回写 `知识库/` / `原料/` 的事实。\n- `docs-tests-release` 保证用户可见能力与文档、测试、构建、发布状态同步。"
+        },
+        {
+          "heading": "Data Flow",
+          "body": "1. 用户给 URL / 文本 / 文件线索。\n2. `lorekit fetch` 把来源抓到 `_工作台/收件/`，并在 `.wiki/ingest-state.json` 写入 `started + stepsDone=[fetch]`。\n3. AI 根据 `wiki-ingest` 把来源归档到 `原料/`，再编译或更新 `知识库/` 页面。\n4. `lorekit ingest record/check` 记录 `archive/wiki/lint` 步骤，避免断点后丢状态。\n5. `lorekit sync` 刷新 `_INDEX.md`、root `index.md`、可选 vector DB，并跑 doctor。\n6. 用户查询时，AI 先 Read `index.md` / `_INDEX.md` / 具体页面；规模变大后可用 `lorekit vector query --hybrid` 辅助。\n7. 输出、复盘或对外材料再通过 skill 判断是否 fileback 回 `知识库/`。"
+        },
+        {
+          "heading": "State / Storage",
+          "body": "- corpus 里的 canonical data：`原料/`、`知识库/`、root `index.md`、root `log.md`、corpus 内的 `AGENTS.md` / `CLAUDE.md`。\n- corpus 里的 runtime metadata：`.wiki/ingest-state.json`、`.wiki/vector.sqlite`、`.wiki/reports/`、`.wiki/snapshots/`、`.wiki/integrations/`。\n- lorekit 仓库自己的项目地图：`.context/`。\n- `.context` canonical facts：`MAP.md`、`CHECKPOINT.md`、`STATUS.md`、`DECISIONS.md`、`VERIFY.md`、`modules/*.md`。\n- `.context/out/`、`.context/inbox/`、`.context/generated/`、`.context/logs/`、`.context/ideas/` 是辅助层或过程层，不直接当项目事实。\n- Obsidian 导出默认在 `_cmap/lorekit/`，中文 Review HTML 默认在 `_cmap-view/`。"
+        },
+        {
+          "heading": "External Integrations",
+          "body": "- Web fetch：原生 HTTP + HTML parse；必要时走可选 Playwright fallback。\n- Obsidian：读取 markdown corpus，`obsidian-tune` 写 graph filter，`plugins/obsidian-audit` 支持反馈。\n- Ollama / `sqlite-vec`：可选向量检索，不应阻塞纯文本层。\n- GBrain：外部 CLI，只读读取 `.wiki/integrations/gbrain-export/` staging；不得直接改 canonical wiki。\n- CMAP Review HTML / Obsidian export：从 `.context` 渲染视图，不重新做语义判断。"
+        },
+        {
+          "heading": "Risk Areas",
+          "body": "- 数据安全：禁止不可逆删除用户内容；`remove` 必须保留 snapshot + Trash + provenance-aware cleanup。\n- 路径边界：新增排除目录必须集中到 `src/lib/paths.ts`，不要在各命令里散落硬编码。\n- stdout/stderr：JSON / machine-readable 输出必须保持可管道；人类提示走 stderr。\n- 向量环境：Ollama/native deps 失败不能拖死文本层工作流，除非当前任务明确是 vector。\n- docs drift：新命令、新 skill、跨文件行为变动要同步 README/docs/ARCHITECTURE/CODEBASE-MAP/DESIGN-NOTES/QUICKSTART。\n- CMAP drift：改 `.context` 后要刷新 `_cmap/lorekit` 和 `_cmap-view`，再跑 check。\n- 入口文件：`AGENTS.md` / `CLAUDE.md` 只能追加或 marker merge，不做整文件覆盖。"
+        },
+        {
+          "heading": "Verification Summary",
+          "body": "- 代码基线：`npm run verify`。\n- CMAP 路由：`cmap route \"\u003ctask\u003e\"`。\n- CMAP 结构：`cmap verify --changed`，必要时加 `--coverage` / `--stale` / `--freshness`。\n- Obsidian 视图：`cmap obsidian export --out _cmap/lorekit` 后跑 `cmap obsidian export --check --out _cmap/lorekit`。\n- Review HTML：`cmap view export --ui-lang zh-CN --out _cmap-view` 后跑 `cmap view export --check --ui-lang zh-CN --out _cmap-view`。\n- 收尾：`git diff --check`。"
+        },
+        {
+          "heading": "Handoff Notes",
+          "body": "后续 AI 先读 `AGENTS.md`，再读 `.context/CHECKPOINT.md` 和 `.context/MAP.md`。不要一上来全量读 `.context`；先用 `cmap route \"\u003ctask\u003e\"` 找模块，再读对应 `.context/modules/*.md`。"
+        }
+      ]
+    },
+    {
+      "path": ".context/CHECKPOINT.md",
+      "title": "Current Checkpoint",
+      "body": "# Current Checkpoint\n\n\u003e 中文检查点。英文标题是 CMAP CLI 的结构锚点，正文以中文为准。\n\n## Current Task\n将 `/Users/gaoyifan/code/lorekit` 的 CMAP `.context` 搭建完整：正文中文化、模块关系接好、生成 Obsidian / Review HTML，并安全更新 `AGENTS.md` / `CLAUDE.md`。\n\n## Current Hypothesis\n这是已有项目，最稳的路径不是直接 `cmap bootstrap` 覆盖式接管，而是：先把 `.context` 作为 repo-local 项目地图搭好，再用手工 patch 追加入口说明，最后生成视图并跑 check。\n\n## Changed Files\n`.context/` 已创建并中文化；`AGENTS.md` 和 `CLAUDE.md` 已追加 CMAP 使用说明；`.context/graph/`、`_cmap/lorekit/` 已生成；`_cmap-view/` 已用 `--ui-lang zh-CN` 重建为中文 Review HTML。\n\n## Verified\n- `git status --short --branch` before adoption: `main...origin/main`, clean.\n- `git log --oneline origin/main..HEAD` before adoption: empty.\n- `cmap version`: `0.2.2`.\n- `cmap adopt`: created 13 skeleton files plus `ADOPTION.md`.\n- `cmap route \"接手 lorekit 项目\"`: matched `project-map`.\n- `cmap route \"修复 lorekit lint 扫描 node_modules skills 路径问题\"`: matched `corpus-core`, `safety-maintenance`, and `skills-agent`.\n- `cmap verify --changed`: 0 errors, 1 expected warning (`AGENTS.md` and `CLAUDE.md` differ because `CLAUDE.md` delegates to `AGENTS.md`).\n- `git diff --check`: passed.\n- `npm run verify`: passed (`79` tests, `78` pass, `1` skipped for sqlite-vec-present path).\n- `cmap graph build`: wrote `.context/graph/modules.json`, `files.json`, `edges.json`, `graph.meta.json`.\n- `cmap obsidian export --out _cmap/lorekit`: exported 14 files.\n- `cmap view export --out _cmap-view`: exported `_cmap-view/index.html`.\n- `cmap view export --ui-lang zh-CN --out _cmap-view`: exported Chinese UI review page.\n- `cmap obsidian export --check --out _cmap/lorekit`: up to date.\n- `cmap view export --check --ui-lang zh-CN --out _cmap-view`: up to date.\n- Final `npm run verify`: passed (`79` tests, `78` pass, `1` skipped).\n\n## Failed / Pending\n`cmap verify --changed` 仍提示 1 个 warning：`AGENTS.md and CLAUDE.md differ`。这是预期状态，因为 `CLAUDE.md` 只保留短入口和 CMAP 摘要，不复制整份 `AGENTS.md`。\n\n## Next Step\n提交并推送已验证的 CMAP / AGENTS 更新。\n\n## Do Not Redo\n不要为了消除 `AGENTS.md and CLAUDE.md differ` warning 强行复制整份 `AGENTS.md` 到 `CLAUDE.md`。不要把 `_cmap/`、`_cmap-view/`、`.context/generated/` 当 canonical facts。",
+      "sections": [
+        {
+          "heading": "Current Task",
+          "body": "将 `/Users/gaoyifan/code/lorekit` 的 CMAP `.context` 搭建完整：正文中文化、模块关系接好、生成 Obsidian / Review HTML，并安全更新 `AGENTS.md` / `CLAUDE.md`。"
+        },
+        {
+          "heading": "Current Hypothesis",
+          "body": "这是已有项目，最稳的路径不是直接 `cmap bootstrap` 覆盖式接管，而是：先把 `.context` 作为 repo-local 项目地图搭好，再用手工 patch 追加入口说明，最后生成视图并跑 check。"
+        },
+        {
+          "heading": "Changed Files",
+          "body": "`.context/` 已创建并中文化；`AGENTS.md` 和 `CLAUDE.md` 已追加 CMAP 使用说明；`.context/graph/`、`_cmap/lorekit/` 已生成；`_cmap-view/` 已用 `--ui-lang zh-CN` 重建为中文 Review HTML。"
+        },
+        {
+          "heading": "Verified",
+          "body": "- `git status --short --branch` before adoption: `main...origin/main`, clean.\n- `git log --oneline origin/main..HEAD` before adoption: empty.\n- `cmap version`: `0.2.2`.\n- `cmap adopt`: created 13 skeleton files plus `ADOPTION.md`.\n- `cmap route \"接手 lorekit 项目\"`: matched `project-map`.\n- `cmap route \"修复 lorekit lint 扫描 node_modules skills 路径问题\"`: matched `corpus-core`, `safety-maintenance`, and `skills-agent`.\n- `cmap verify --changed`: 0 errors, 1 expected warning (`AGENTS.md` and `CLAUDE.md` differ because `CLAUDE.md` delegates to `AGENTS.md`).\n- `git diff --check`: passed.\n- `npm run verify`: passed (`79` tests, `78` pass, `1` skipped for sqlite-vec-present path).\n- `cmap graph build`: wrote `.context/graph/modules.json`, `files.json`, `edges.json`, `graph.meta.json`.\n- `cmap obsidian export --out _cmap/lorekit`: exported 14 files.\n- `cmap view export --out _cmap-view`: exported `_cmap-view/index.html`.\n- `cmap view export --ui-lang zh-CN --out _cmap-view`: exported Chinese UI review page.\n- `cmap obsidian export --check --out _cmap/lorekit`: up to date.\n- `cmap view export --check --ui-lang zh-CN --out _cmap-view`: up to date.\n- Final `npm run verify`: passed (`79` tests, `78` pass, `1` skipped)."
+        },
+        {
+          "heading": "Failed / Pending",
+          "body": "`cmap verify --changed` 仍提示 1 个 warning：`AGENTS.md and CLAUDE.md differ`。这是预期状态，因为 `CLAUDE.md` 只保留短入口和 CMAP 摘要，不复制整份 `AGENTS.md`。"
+        },
+        {
+          "heading": "Next Step",
+          "body": "提交并推送已验证的 CMAP / AGENTS 更新。"
+        },
+        {
+          "heading": "Do Not Redo",
+          "body": "不要为了消除 `AGENTS.md and CLAUDE.md differ` warning 强行复制整份 `AGENTS.md` 到 `CLAUDE.md`。不要把 `_cmap/`、`_cmap-view/`、`.context/generated/` 当 canonical facts。"
+        }
+      ]
+    },
+    {
+      "path": ".context/STATUS.md",
+      "title": "Status",
+      "body": "# Status\n\n\u003e 中文状态页。英文标题是 CMAP CLI 的结构锚点，正文以中文为准。\n\n## Active Goal\n把 lorekit 的 `.context` 搭成可用的中文 CMAP 项目地图，并补齐 Obsidian / Review HTML 导出、`AGENTS.md` / `CLAUDE.md` 使用入口。\n\n## Done Recently\n- 已确认 `main` 对齐 `origin/main`，开始时没有未 push commit。\n- 已运行 `cmap adopt`，生成 `.context` skeleton 和 `.context/ADOPTION.md`。\n- 已阅读 `AGENTS.md`、`README.md`、`docs/CONVENTIONS.md`、`docs/ARCHITECTURE.md`、`docs/CODEBASE-MAP.md`、`docs/DESIGN-NOTES.md`、`docs/IDEAS.md` 与代表性源码。\n- 已建立 9 个模块：`project-map`、`cli`、`corpus-core`、`fetch-ingest`、`sync-search-vector`、`safety-maintenance`、`skills-agent`、`obsidian-gbrain`、`docs-tests-release`。\n- 已将 `.context` 正文中文化，同时保留 CMAP 必需英文结构标题和 frontmatter key。\n- 已生成 `.context/graph/*.json`、`_cmap/lorekit/` 和 `_cmap-view/index.html`。\n- 已在 `AGENTS.md` 和 `CLAUDE.md` 追加中文 CMAP 使用入口。\n- 已用新版 `cmap view export --ui-lang zh-CN --out _cmap-view` 重建中文 Review HTML。\n- 已在 2026-05-18 重新跑完 CMAP checks、`git diff --check` 和 `npm run verify`。\n\n## Left Off\nCMAP / AGENTS 更新已复核并通过验证，剩余事项是提交并推送到 `origin/main`。\n\n## Next Steps\n1. 提交本轮 `.context`、`_cmap`、`_cmap-view` 和 `AGENTS.md` 变更。\n2. 普通 push 到 `origin/main`。\n\n## Changed Files\n- `.context/**`\n- `AGENTS.md`\n- `CLAUDE.md`\n- `_cmap/lorekit/**`\n- `_cmap-view/index.html`\n\n## Risks\n- `AGENTS.md` / `CLAUDE.md` 不能覆盖，只能保留原内容并追加 CMAP 入口说明。\n- `_cmap/lorekit` 和 `_cmap-view` 是生成视图，不能倒灌成 canonical facts。\n- `.context` 是 repo-local 项目地图，不替代 docs/ 的长期架构文档。\n- Review HTML 当前是项目理解页，不重做源码语义推断；UI 语言固定用 `--ui-lang zh-CN` 生成。\n\n## Last Verified\n2026-05-18：`cmap route \"push CMAP and AGENTS context changes\"` 通过；`cmap verify --changed` 为 0 errors / 1 expected warning（`AGENTS.md` 与 `CLAUDE.md` 保持不同入口形态）；`cmap obsidian export --check --out _cmap/lorekit` 通过；`cmap view export --check --ui-lang zh-CN --out _cmap-view` 通过；`git diff --check` 通过；`npm run verify` 通过（79 tests, 78 pass, 1 skipped）。",
+      "sections": [
+        {
+          "heading": "Active Goal",
+          "body": "把 lorekit 的 `.context` 搭成可用的中文 CMAP 项目地图，并补齐 Obsidian / Review HTML 导出、`AGENTS.md` / `CLAUDE.md` 使用入口。"
+        },
+        {
+          "heading": "Done Recently",
+          "body": "- 已确认 `main` 对齐 `origin/main`，开始时没有未 push commit。\n- 已运行 `cmap adopt`，生成 `.context` skeleton 和 `.context/ADOPTION.md`。\n- 已阅读 `AGENTS.md`、`README.md`、`docs/CONVENTIONS.md`、`docs/ARCHITECTURE.md`、`docs/CODEBASE-MAP.md`、`docs/DESIGN-NOTES.md`、`docs/IDEAS.md` 与代表性源码。\n- 已建立 9 个模块：`project-map`、`cli`、`corpus-core`、`fetch-ingest`、`sync-search-vector`、`safety-maintenance`、`skills-agent`、`obsidian-gbrain`、`docs-tests-release`。\n- 已将 `.context` 正文中文化，同时保留 CMAP 必需英文结构标题和 frontmatter key。\n- 已生成 `.context/graph/*.json`、`_cmap/lorekit/` 和 `_cmap-view/index.html`。\n- 已在 `AGENTS.md` 和 `CLAUDE.md` 追加中文 CMAP 使用入口。\n- 已用新版 `cmap view export --ui-lang zh-CN --out _cmap-view` 重建中文 Review HTML。\n- 已在 2026-05-18 重新跑完 CMAP checks、`git diff --check` 和 `npm run verify`。"
+        },
+        {
+          "heading": "Left Off",
+          "body": "CMAP / AGENTS 更新已复核并通过验证，剩余事项是提交并推送到 `origin/main`。"
+        },
+        {
+          "heading": "Next Steps",
+          "body": "1. 提交本轮 `.context`、`_cmap`、`_cmap-view` 和 `AGENTS.md` 变更。\n2. 普通 push 到 `origin/main`。"
+        },
+        {
+          "heading": "Changed Files",
+          "body": "- `.context/**`\n- `AGENTS.md`\n- `CLAUDE.md`\n- `_cmap/lorekit/**`\n- `_cmap-view/index.html`"
+        },
+        {
+          "heading": "Risks",
+          "body": "- `AGENTS.md` / `CLAUDE.md` 不能覆盖，只能保留原内容并追加 CMAP 入口说明。\n- `_cmap/lorekit` 和 `_cmap-view` 是生成视图，不能倒灌成 canonical facts。\n- `.context` 是 repo-local 项目地图，不替代 docs/ 的长期架构文档。\n- Review HTML 当前是项目理解页，不重做源码语义推断；UI 语言固定用 `--ui-lang zh-CN` 生成。"
+        },
+        {
+          "heading": "Last Verified",
+          "body": "2026-05-18：`cmap route \"push CMAP and AGENTS context changes\"` 通过；`cmap verify --changed` 为 0 errors / 1 expected warning（`AGENTS.md` 与 `CLAUDE.md` 保持不同入口形态）；`cmap obsidian export --check --out _cmap/lorekit` 通过；`cmap view export --check --ui-lang zh-CN --out _cmap-view` 通过；`git diff --check` 通过；`npm run verify` 通过（79 tests, 78 pass, 1 skipped）。"
+        }
+      ]
+    },
+    {
+      "path": ".context/DECISIONS.md",
+      "title": "Decisions",
+      "body": "# Decisions\n\n## 2026-05-17 — Build .context first, append entrypoints safely\n\n**Context:** 仓库已有内容很重的 `AGENTS.md`，`CLAUDE.md` 目前是一行 `@./AGENTS.md` 转发。先生明确提醒不要错误覆盖这两个入口文件。\n**Decision:** 先用 `.context` 建 CMAP 项目地图；入口文件只用 `apply_patch` 追加简短中文说明，不运行会直接写入的 `bootstrap`。\n**Why:** `bootstrap` 没有 dry-run，虽然当前 install 语义是 marker merge，但手工 patch 更容易审阅，也更符合先生对入口文件安全的要求。\n**Impact:** `.context` 可以立刻成为项目续接地图；入口文件仍保留原规则，只多一个 CMAP 读取顺序。\n**Revisit if:** 后续希望完全改成标准 `\u003c!-- cmap:start --\u003e` marker block。\n\n## 2026-05-17 — Keep lorekit CLI deterministic and LLM-free\n\n**Context:** lorekit 的架构核心是 thin CLI + fat skills。CLI 提供文件系统、状态、索引、检索和安全操作；AI skills 负责语义判断。\n**Decision:** CMAP 模块边界保留这条分工。语义工作流归 `skills-agent`；确定性实现归 `cli`、`corpus-core`、`fetch-ingest`、`sync-search-vector`、`safety-maintenance` 等模块。\n**Why:** 这是 lorekit 的产品边界，能防止它滑向 RAG app、workflow OS 或 autonomous daemon。\n**Impact:** 新需求先判断是 skill 规则、CLI 原语、docs 更新，还是 corpus 使用侧反馈。\n**Revisit if:** lorekit 明确改变定位，从本地 LLM Wiki toolkit 变成 agent runtime 或服务端系统。\n\n## 2026-05-17 — Chinese body, English structural fields\n\n**Context:** 先生要求本项目 `.context` 的正文内容是中文，但 `cmap` CLI 依赖 frontmatter 字段读取 module id、aliases、paths、relations。\n**Decision:** Markdown 正文、交接说明、模块说明用中文；frontmatter key、module id、路径、命令、代码标识符保持英文。\n**Why:** 这样既方便人读，也不破坏工具解析。\n**Impact:** 后续更新 `.context` 时默认中文正文；不要把 frontmatter 字段翻译成中文。\n**Revisit if:** `cmap` CLI 未来支持本地化 frontmatter schema。",
+      "sections": [
+        {
+          "heading": "2026-05-17 — Build .context first, append entrypoints safely",
+          "body": "**Context:** 仓库已有内容很重的 `AGENTS.md`，`CLAUDE.md` 目前是一行 `@./AGENTS.md` 转发。先生明确提醒不要错误覆盖这两个入口文件。\n**Decision:** 先用 `.context` 建 CMAP 项目地图；入口文件只用 `apply_patch` 追加简短中文说明，不运行会直接写入的 `bootstrap`。\n**Why:** `bootstrap` 没有 dry-run，虽然当前 install 语义是 marker merge，但手工 patch 更容易审阅，也更符合先生对入口文件安全的要求。\n**Impact:** `.context` 可以立刻成为项目续接地图；入口文件仍保留原规则，只多一个 CMAP 读取顺序。\n**Revisit if:** 后续希望完全改成标准 `\u003c!-- cmap:start --\u003e` marker block。"
+        },
+        {
+          "heading": "2026-05-17 — Keep lorekit CLI deterministic and LLM-free",
+          "body": "**Context:** lorekit 的架构核心是 thin CLI + fat skills。CLI 提供文件系统、状态、索引、检索和安全操作；AI skills 负责语义判断。\n**Decision:** CMAP 模块边界保留这条分工。语义工作流归 `skills-agent`；确定性实现归 `cli`、`corpus-core`、`fetch-ingest`、`sync-search-vector`、`safety-maintenance` 等模块。\n**Why:** 这是 lorekit 的产品边界，能防止它滑向 RAG app、workflow OS 或 autonomous daemon。\n**Impact:** 新需求先判断是 skill 规则、CLI 原语、docs 更新，还是 corpus 使用侧反馈。\n**Revisit if:** lorekit 明确改变定位，从本地 LLM Wiki toolkit 变成 agent runtime 或服务端系统。"
+        },
+        {
+          "heading": "2026-05-17 — Chinese body, English structural fields",
+          "body": "**Context:** 先生要求本项目 `.context` 的正文内容是中文，但 `cmap` CLI 依赖 frontmatter 字段读取 module id、aliases、paths、relations。\n**Decision:** Markdown 正文、交接说明、模块说明用中文；frontmatter key、module id、路径、命令、代码标识符保持英文。\n**Why:** 这样既方便人读，也不破坏工具解析。\n**Impact:** 后续更新 `.context` 时默认中文正文；不要把 frontmatter 字段翻译成中文。\n**Revisit if:** `cmap` CLI 未来支持本地化 frontmatter schema。"
+        }
+      ]
+    },
+    {
+      "path": ".context/VERIFY.md",
+      "title": "Verification",
+      "body": "# Verification\n\n\u003e 中文验证页。英文标题是 CMAP CLI 的结构锚点，正文以中文为准。\n\n## Required Commands\n| Purpose | Command | Expected | When |\n|---|---|---|---|\n| 代码基线 | `npm run verify` | `tsc --noEmit`、`tsup`、`node --test tests/smoke/*.test.mjs` 通过 | 声称代码变更完成前 |\n| Lint | `npm run lint` | exit 0 | release 或 lint 规则交接前 |\n| Build | `npm run build` | exit 0 | release 或构建相关交接前 |\n| CMAP 结构 | `cmap verify --changed` | 0 errors；warnings 必须解释 | 收尾 `.context` 或源码变更前 |\n| Obsidian 导出 | `cmap obsidian export --check --out _cmap/lorekit` | 导出层与 `.context` 一致 | `.context` 变更并导出后 |\n| Review HTML | `cmap view export --check --ui-lang zh-CN --out _cmap-view` | 中文 Review HTML 与 `.context` 一致 | `.context` 变更并导出后 |\n| 空白检查 | `git diff --check` | 没有 whitespace errors | commit 或最终交接前 |\n\n## Module-specific Checks\n| 模块 | 命令 | 人工检查 |\n|---|---|---|\n| project-map | `cmap route \"\u003ctask\u003e\"` + `cmap verify --changed` | `.context` 正文中文，frontmatter 可被工具解析；入口文件未被覆盖 |\n| cli | `node dist/cli.js --help` after build | 命令列表包含新增/修改的命令 |\n| corpus-core | 相关路径规则 smoke test | 新路径/排除规则集中在 `src/lib/paths.ts` |\n| fetch-ingest | `node --test tests/smoke/fetch-mock.test.mjs tests/smoke/ingest-record.test.mjs` | state transitions、duplicate、in-progress 行为仍明确 |\n| sync-search-vector | 相关 vector/search smoke tests | 非 vector 任务不被可选向量环境阻塞 |\n| safety-maintenance | 相关 `doctor/lint/snapshot/restore/remove` smoke tests | `remove` 保持 snapshot + Trash + provenance 边界 |\n| skills-agent | 人工读改动的 `skills/*/SKILL.md` | skill 不承诺不存在的 CLI 能力 |\n| obsidian-gbrain | 相关 Obsidian/GBrain smoke tests | GBrain 仍只写 staging/report，不写回 canonical wiki |\n| docs-tests-release | `npm run verify` + docs diff review | 用户可见行为已更新到现有永久文档 |\n\n## Optional Commands\n- `npm run lint`\n- `npm run format:check`\n- Targeted `node --test tests/smoke/\u003cname\u003e.test.mjs`\n- `lorekit doctor --json` inside a real corpus when changing corpus health semantics\n- `cmap verify --coverage`\n- `cmap verify --stale`\n- `cmap verify --freshness`\n\n## Manual Verification\n- 确认 `AGENTS.md` / `CLAUDE.md` 只追加 CMAP 说明，没有覆盖原有规则。\n- 确认 `_cmap/lorekit` 和 `_cmap-view` 是生成视图，不含新语义事实。\n- 涉及数据移动命令时，先看 dry-run，再确认 snapshot / Trash 行为。\n- JSON 输出要确认 stdout 仍可机器读取，人类提示走 stderr。\n\n## Known Flaky Checks\nVector / Ollama 检查依赖本机可选服务和 native deps。验证文本层行为时，优先 targeted tests 或 `--skip-vector`。\n\n## Environment Assumptions\n本机应有 Node.js \u003e= 18、npm、git、ripgrep。Ollama、`sqlite-vec`、GBrain、Playwright 都是可选集成；缺失时应清晰降级或报错。",
+      "sections": [
+        {
+          "heading": "Required Commands",
+          "body": "| Purpose | Command | Expected | When |\n|---|---|---|---|\n| 代码基线 | `npm run verify` | `tsc --noEmit`、`tsup`、`node --test tests/smoke/*.test.mjs` 通过 | 声称代码变更完成前 |\n| Lint | `npm run lint` | exit 0 | release 或 lint 规则交接前 |\n| Build | `npm run build` | exit 0 | release 或构建相关交接前 |\n| CMAP 结构 | `cmap verify --changed` | 0 errors；warnings 必须解释 | 收尾 `.context` 或源码变更前 |\n| Obsidian 导出 | `cmap obsidian export --check --out _cmap/lorekit` | 导出层与 `.context` 一致 | `.context` 变更并导出后 |\n| Review HTML | `cmap view export --check --ui-lang zh-CN --out _cmap-view` | 中文 Review HTML 与 `.context` 一致 | `.context` 变更并导出后 |\n| 空白检查 | `git diff --check` | 没有 whitespace errors | commit 或最终交接前 |"
+        },
+        {
+          "heading": "Module-specific Checks",
+          "body": "| 模块 | 命令 | 人工检查 |\n|---|---|---|\n| project-map | `cmap route \"\u003ctask\u003e\"` + `cmap verify --changed` | `.context` 正文中文，frontmatter 可被工具解析；入口文件未被覆盖 |\n| cli | `node dist/cli.js --help` after build | 命令列表包含新增/修改的命令 |\n| corpus-core | 相关路径规则 smoke test | 新路径/排除规则集中在 `src/lib/paths.ts` |\n| fetch-ingest | `node --test tests/smoke/fetch-mock.test.mjs tests/smoke/ingest-record.test.mjs` | state transitions、duplicate、in-progress 行为仍明确 |\n| sync-search-vector | 相关 vector/search smoke tests | 非 vector 任务不被可选向量环境阻塞 |\n| safety-maintenance | 相关 `doctor/lint/snapshot/restore/remove` smoke tests | `remove` 保持 snapshot + Trash + provenance 边界 |\n| skills-agent | 人工读改动的 `skills/*/SKILL.md` | skill 不承诺不存在的 CLI 能力 |\n| obsidian-gbrain | 相关 Obsidian/GBrain smoke tests | GBrain 仍只写 staging/report，不写回 canonical wiki |\n| docs-tests-release | `npm run verify` + docs diff review | 用户可见行为已更新到现有永久文档 |"
+        },
+        {
+          "heading": "Optional Commands",
+          "body": "- `npm run lint`\n- `npm run format:check`\n- Targeted `node --test tests/smoke/\u003cname\u003e.test.mjs`\n- `lorekit doctor --json` inside a real corpus when changing corpus health semantics\n- `cmap verify --coverage`\n- `cmap verify --stale`\n- `cmap verify --freshness`"
+        },
+        {
+          "heading": "Manual Verification",
+          "body": "- 确认 `AGENTS.md` / `CLAUDE.md` 只追加 CMAP 说明，没有覆盖原有规则。\n- 确认 `_cmap/lorekit` 和 `_cmap-view` 是生成视图，不含新语义事实。\n- 涉及数据移动命令时，先看 dry-run，再确认 snapshot / Trash 行为。\n- JSON 输出要确认 stdout 仍可机器读取，人类提示走 stderr。"
+        },
+        {
+          "heading": "Known Flaky Checks",
+          "body": "Vector / Ollama 检查依赖本机可选服务和 native deps。验证文本层行为时，优先 targeted tests 或 `--skip-vector`。"
+        },
+        {
+          "heading": "Environment Assumptions",
+          "body": "本机应有 Node.js \u003e= 18、npm、git、ripgrep。Ollama、`sqlite-vec`、GBrain、Playwright 都是可选集成；缺失时应清晰降级或报错。"
+        }
+      ]
+    }
+  ],
   "summary": {
     "moduleCount": 9,
     "evidenceCount": 0,
@@ -315,7 +735,46 @@
         "package.json",
         "dist/**"
       ],
+      "description": "注册 `lorekit` 命令面，读取版本信息，展示无参数 banner，并统一 commander 的退出码语义。",
       "responsibilities": [],
+      "keyContracts": [
+        "项目是 ESM TypeScript，运行时 Node.js \u003e= 18。",
+        "无参数 `lorekit` 显示 banner 和 best-effort corpus/vector 状态。",
+        "commander 参数/用法错误退出 `2`；运行时错误退出 `1`。",
+        "源码里人类输出统一走 `src/utils/logger.ts`，不要新增直接 `console.log`。",
+        "`dist/` 不手工改；改源码后跑 `npm run build`。"
+      ],
+      "readNext": [
+        "`docs/CONVENTIONS.md`：stdout/stderr、logger、exit code 规则。",
+        "`docs/CODEBASE-MAP.md`：命令归属。",
+        "具体命令文件：`src/commands/\u003cname\u003e.ts`。"
+      ],
+      "sections": [
+        {
+          "heading": "Purpose",
+          "body": "注册 `lorekit` 命令面，读取版本信息，展示无参数 banner，并统一 commander 的退出码语义。"
+        },
+        {
+          "heading": "Owned Paths",
+          "body": "- `src/cli.ts`\n- `bin/lorekit.js`\n- `VERSION`\n- `package.json`\n- `dist/` build output, regenerated by `npm run build`"
+        },
+        {
+          "heading": "Key Contracts",
+          "body": "- 项目是 ESM TypeScript，运行时 Node.js \u003e= 18。\n- 无参数 `lorekit` 显示 banner 和 best-effort corpus/vector 状态。\n- commander 参数/用法错误退出 `2`；运行时错误退出 `1`。\n- 源码里人类输出统一走 `src/utils/logger.ts`，不要新增直接 `console.log`。\n- `dist/` 不手工改；改源码后跑 `npm run build`。"
+        },
+        {
+          "heading": "Module Relationships",
+          "body": "- 调用 `corpus-core`、`fetch-ingest`、`sync-search-vector`、`safety-maintenance`、`skills-agent`、`obsidian-gbrain`。\n- 命令行为变化通常还要看 `docs-tests-release`。"
+        },
+        {
+          "heading": "Read Next",
+          "body": "- `docs/CONVENTIONS.md`：stdout/stderr、logger、exit code 规则。\n- `docs/CODEBASE-MAP.md`：命令归属。\n- 具体命令文件：`src/commands/\u003cname\u003e.ts`。"
+        },
+        {
+          "heading": "Tests / Verification",
+          "body": "- `npm run verify`\n- `node dist/cli.js --help`：构建后确认命令注册。"
+        }
+      ],
       "relations": [
         {
           "type": "calls",
@@ -356,7 +815,10 @@
           "source": "skills-agent"
         }
       ],
-      "verifyCommands": [],
+      "verifyCommands": [
+        "npm run verify",
+        "node dist/cli.js --help"
+      ],
       "relatedCandidates": [],
       "freshness": {
         "state": "Not available",
@@ -402,7 +864,45 @@
         "src/lib/date.ts",
         "src/utils/**"
       ],
+      "description": "定义 lorekit 如何发现 corpus、解析 frontmatter、执行路径 include/exclude 规则、刷新 root index，并提供共享日志/文件系统工具。",
       "responsibilities": [],
+      "keyContracts": [
+        "`src/lib/paths.ts` 是 scan / index / lint / vector / snapshot 边界的单一事实源。",
+        "`skills/` 和 `node_modules/` 是工具目录，不是 corpus 页面。",
+        "`原料/`、`知识库/`、`_工作台/`、`系统/`、`反馈/`、`.wiki/` 是 schema 级目录名，不要随手重命名。",
+        "root `index.md` 通过 controlled regions merge-refresh，必须保留人类手写摘要。",
+        "logger 是源码输出唯一入口。"
+      ],
+      "readNext": [
+        "`docs/ARCHITECTURE.md` 的 Core abstractions / Schema constraints。",
+        "`docs/CONVENTIONS.md` Do Not #8 和 #11。"
+      ],
+      "sections": [
+        {
+          "heading": "Purpose",
+          "body": "定义 lorekit 如何发现 corpus、解析 frontmatter、执行路径 include/exclude 规则、刷新 root index，并提供共享日志/文件系统工具。"
+        },
+        {
+          "heading": "Owned Paths",
+          "body": "- `src/lib/corpus.ts`\n- `src/lib/paths.ts`\n- `src/lib/root-index.ts`\n- `src/lib/date.ts`\n- `src/utils/fs.ts`\n- `src/utils/logger.ts`"
+        },
+        {
+          "heading": "Key Contracts",
+          "body": "- `src/lib/paths.ts` 是 scan / index / lint / vector / snapshot 边界的单一事实源。\n- `skills/` 和 `node_modules/` 是工具目录，不是 corpus 页面。\n- `原料/`、`知识库/`、`_工作台/`、`系统/`、`反馈/`、`.wiki/` 是 schema 级目录名，不要随手重命名。\n- root `index.md` 通过 controlled regions merge-refresh，必须保留人类手写摘要。\n- logger 是源码输出唯一入口。"
+        },
+        {
+          "heading": "Module Relationships",
+          "body": "- 支撑 `fetch-ingest`、`sync-search-vector`、`safety-maintenance`、`obsidian-gbrain`。\n- 如果扫描边界变了，通常也要更新 `docs-tests-release` 的测试/文档。"
+        },
+        {
+          "heading": "Read Next",
+          "body": "- `docs/ARCHITECTURE.md` 的 Core abstractions / Schema constraints。\n- `docs/CONVENTIONS.md` Do Not #8 和 #11。"
+        },
+        {
+          "heading": "Tests / Verification",
+          "body": "- 路径规则变化要有 targeted smoke test，并跑 `npm run verify`。\n- 扫描边界 bug 要用 fixture 复现，例如包含 `skills/` / `node_modules/`。"
+        }
+      ],
       "relations": [
         {
           "type": "supports",
@@ -504,7 +1004,46 @@
         "tsup.config.ts",
         "package-lock.json"
       ],
+      "description": "维护贡献者文档、smoke tests、构建脚本、changelog/version 规则和发布前验证。",
       "responsibilities": [],
+      "keyContracts": [
+        "新命令、新 skill、跨文件行为变化，只要用户可见，就要在同一 commit 更新 docs。",
+        "永久文档各司其职：`README`、`AGENTS`、`CONVENTIONS`、`ARCHITECTURE`、`CODEBASE-MAP`、`DESIGN-NOTES`、`CHANGELOG`、`IDEAS`。",
+        "smoke tests 用 Node 内置 `node:test`；新增命令或高风险行为必须加 targeted tests。",
+        "`VERSION` 不手工改，用 `npm version`。",
+        "新增 docs/ 前必须先对照 `docs/CONVENTIONS.md` §13，避免文档膨胀。"
+      ],
+      "readNext": [
+        "`docs/CONVENTIONS.md` §13。",
+        "`docs/CODEBASE-MAP.md`。",
+        "`package.json` scripts。"
+      ],
+      "sections": [
+        {
+          "heading": "Purpose",
+          "body": "维护贡献者文档、smoke tests、构建脚本、changelog/version 规则和发布前验证。"
+        },
+        {
+          "heading": "Owned Paths",
+          "body": "- `docs/**`\n- `tests/smoke/**`\n- `README.md`\n- `CHANGELOG.md`\n- `LICENSE`\n- `eslint.config.js`\n- `tsconfig.json`\n- `tsup.config.ts`\n- `package-lock.json`"
+        },
+        {
+          "heading": "Key Contracts",
+          "body": "- 新命令、新 skill、跨文件行为变化，只要用户可见，就要在同一 commit 更新 docs。\n- 永久文档各司其职：`README`、`AGENTS`、`CONVENTIONS`、`ARCHITECTURE`、`CODEBASE-MAP`、`DESIGN-NOTES`、`CHANGELOG`、`IDEAS`。\n- smoke tests 用 Node 内置 `node:test`；新增命令或高风险行为必须加 targeted tests。\n- `VERSION` 不手工改，用 `npm version`。\n- 新增 docs/ 前必须先对照 `docs/CONVENTIONS.md` §13，避免文档膨胀。"
+        },
+        {
+          "heading": "Module Relationships",
+          "body": "- 记录和验证其他模块的用户可见行为。\n- 如果模块边界或目录结构变了，优先更新 `docs/ARCHITECTURE.md` 和 `docs/CODEBASE-MAP.md`。"
+        },
+        {
+          "heading": "Read Next",
+          "body": "- `docs/CONVENTIONS.md` §13。\n- `docs/CODEBASE-MAP.md`。\n- `package.json` scripts。"
+        },
+        {
+          "heading": "Tests / Verification",
+          "body": "- `npm run verify`\n- Targeted `node --test tests/smoke/\u003ctest\u003e.mjs`\n- `git diff --check`"
+        }
+      ],
       "relations": [
         {
           "type": "documents",
@@ -545,7 +1084,10 @@
           "source": "project-map"
         }
       ],
-      "verifyCommands": [],
+      "verifyCommands": [
+        "npm run verify",
+        "git diff --check"
+      ],
       "relatedCandidates": [],
       "freshness": {
         "state": "Not available",
@@ -589,7 +1131,46 @@
         "src/lib/fetcher/**",
         "src/lib/ingest-state.ts"
       ],
+      "description": "把外部来源抓到工作台，并记录每个来源在 ingest pipeline 中走到哪一步。",
       "responsibilities": [],
+      "keyContracts": [
+        "`lorekit fetch \u003curl\u003e` 把抓取结果写到 `_工作台/收件/`，并记录 `status: started`、`stepsDone: [fetch]`。",
+        "`.wiki/ingest-state.json` 是 duplicate / in-progress / completed / failed 的 pipeline SSOT。",
+        "fetch route 覆盖 generic web、WeChat、GitHub doc、Gist。",
+        "最终归档位置和 wiki synthesis 由 AI skills 决定，不由 fetcher 决定。",
+        "工作台 frontmatter 和正式 wiki frontmatter 可不同；lint 规则要尊重这个阶段边界。"
+      ],
+      "readNext": [
+        "`README.md` 的 Ingest Pipeline。",
+        "`docs/ARCHITECTURE.md` 的 Ingest flow。",
+        "`skills/wiki-ingest/SKILL.md`。"
+      ],
+      "sections": [
+        {
+          "heading": "Purpose",
+          "body": "把外部来源抓到工作台，并记录每个来源在 ingest pipeline 中走到哪一步。"
+        },
+        {
+          "heading": "Owned Paths",
+          "body": "- `src/commands/fetch.ts`\n- `src/commands/ingest.ts`\n- `src/lib/fetcher/**`\n- `src/lib/ingest-state.ts`"
+        },
+        {
+          "heading": "Key Contracts",
+          "body": "- `lorekit fetch \u003curl\u003e` 把抓取结果写到 `_工作台/收件/`，并记录 `status: started`、`stepsDone: [fetch]`。\n- `.wiki/ingest-state.json` 是 duplicate / in-progress / completed / failed 的 pipeline SSOT。\n- fetch route 覆盖 generic web、WeChat、GitHub doc、Gist。\n- 最终归档位置和 wiki synthesis 由 AI skills 决定，不由 fetcher 决定。\n- 工作台 frontmatter 和正式 wiki frontmatter 可不同；lint 规则要尊重这个阶段边界。"
+        },
+        {
+          "heading": "Module Relationships",
+          "body": "- 依赖 `corpus-core` 的 corpus 发现、frontmatter、路径规则。\n- 产物流向 `sync-search-vector`。\n- agent 侧流程由 `skills-agent` 的 `wiki-ingest` 约束。"
+        },
+        {
+          "heading": "Read Next",
+          "body": "- `README.md` 的 Ingest Pipeline。\n- `docs/ARCHITECTURE.md` 的 Ingest flow。\n- `skills/wiki-ingest/SKILL.md`。"
+        },
+        {
+          "heading": "Tests / Verification",
+          "body": "- `node --test tests/smoke/fetch-mock.test.mjs tests/smoke/ingest-record.test.mjs`\n- `npm run verify`"
+        }
+      ],
       "relations": [
         {
           "type": "depends_on",
@@ -634,7 +1215,10 @@
           "source": "sync-search-vector"
         }
       ],
-      "verifyCommands": [],
+      "verifyCommands": [
+        "node --test tests/smoke/fetch-mock.test.mjs tests/smoke/ingest-record.test.mjs",
+        "npm run verify"
+      ],
       "relatedCandidates": [],
       "freshness": {
         "state": "Not available",
@@ -678,7 +1262,46 @@
         "src/lib/integrations/**",
         "docs/integrations/**"
       ],
+      "description": "提供 canonical corpus 周围的可选集成：Obsidian graph tuning / audit plugin，以及 GBrain 只读 staging / sync / query。",
       "responsibilities": [],
+      "keyContracts": [
+        "Obsidian graph tuning 不能覆盖用户已有 `.obsidian/` 设置，除非明确走 safe write / backup 路径。",
+        "GBrain 相对 `知识库/` 和 `原料/` 是只读 integration。",
+        "GBrain export 默认只写 `.wiki/integrations/gbrain-export/` staging，并记录 manifest / sync reports。",
+        "外部进程调用不能用 shell interpolation。",
+        "CMAP 的 `_cmap/lorekit` 和 `_cmap-view` 是 review/read-only 视图；其中 `_cmap-view` 用 `--ui-lang zh-CN` 导出中文 UI，不是新的事实源。"
+      ],
+      "readNext": [
+        "`docs/ARCHITECTURE.md` 的 GBrain integration flow。",
+        "`README.md` 的 Optional GBrain Bridge。",
+        "`tests/smoke/gbrain-*.test.mjs`。"
+      ],
+      "sections": [
+        {
+          "heading": "Purpose",
+          "body": "提供 canonical corpus 周围的可选集成：Obsidian graph tuning / audit plugin，以及 GBrain 只读 staging / sync / query。"
+        },
+        {
+          "heading": "Owned Paths",
+          "body": "- `src/commands/obsidian-tune.ts`\n- `src/lib/obsidian.ts`\n- `plugins/obsidian-audit/**`\n- `src/commands/gbrain.ts`\n- `src/lib/integrations/**`\n- `docs/integrations/**`"
+        },
+        {
+          "heading": "Key Contracts",
+          "body": "- Obsidian graph tuning 不能覆盖用户已有 `.obsidian/` 设置，除非明确走 safe write / backup 路径。\n- GBrain 相对 `知识库/` 和 `原料/` 是只读 integration。\n- GBrain export 默认只写 `.wiki/integrations/gbrain-export/` staging，并记录 manifest / sync reports。\n- 外部进程调用不能用 shell interpolation。\n- CMAP 的 `_cmap/lorekit` 和 `_cmap-view` 是 review/read-only 视图；其中 `_cmap-view` 用 `--ui-lang zh-CN` 导出中文 UI，不是新的事实源。"
+        },
+        {
+          "heading": "Module Relationships",
+          "body": "- 依赖 `corpus-core` 的路径边界。\n- 依赖 `safety-maintenance` 的 safe write / doctor 思路。\n- 导出的文档/视图需要由 `docs-tests-release` 的验证规则覆盖。"
+        },
+        {
+          "heading": "Read Next",
+          "body": "- `docs/ARCHITECTURE.md` 的 GBrain integration flow。\n- `README.md` 的 Optional GBrain Bridge。\n- `tests/smoke/gbrain-*.test.mjs`。"
+        },
+        {
+          "heading": "Tests / Verification",
+          "body": "- `node --test tests/smoke/gbrain-status.test.mjs tests/smoke/gbrain-export.test.mjs tests/smoke/gbrain-sync.test.mjs tests/smoke/gbrain-query.test.mjs`\n- Obsidian 变更要覆盖 safe-write 行为。\n- CMAP 视图变更跑 `cmap obsidian export --check --out _cmap/lorekit` 和 `cmap view export --check --ui-lang zh-CN --out _cmap-view`。"
+        }
+      ],
       "relations": [
         {
           "type": "depends_on",
@@ -711,7 +1334,9 @@
           "source": "project-map"
         }
       ],
-      "verifyCommands": [],
+      "verifyCommands": [
+        "node --test tests/smoke/gbrain-status.test.mjs tests/smoke/gbrain-export.test.mjs tests/smoke/gbrain-sync.test.mjs tests/smoke/gbrain-query.test.mjs"
+      ],
       "relatedCandidates": [],
       "freshness": {
         "state": "Not available",
@@ -758,7 +1383,42 @@
         "_cmap/**",
         "_cmap-view/**"
       ],
+      "description": "维护 lorekit 仓库本地的 CMAP 项目地图、当前检查点、模块路由、Obsidian / Review HTML 导出和 AI 交接入口。它补充项目规则，但不替代 `AGENTS.md` / `CLAUDE.md`。",
       "responsibilities": [],
+      "keyContracts": [
+        "`AGENTS.md` 和 `CLAUDE.md` 是 host entrypoints，必须保留原内容；只能追加 CMAP 说明或 marker block。",
+        "`.context/MAP.md`、`.context/CHECKPOINT.md`、`.context/STATUS.md`、`.context/DECISIONS.md`、`.context/VERIFY.md`、`.context/modules/*.md` 是 CMAP canonical facts。",
+        "`.context/out/`、`.context/inbox/`、`.context/generated/`、`.context/logs/`、`.context/ideas/` 是辅助层或过程层，未经提升不能当事实源。",
+        "`_cmap/lorekit` 是 Obsidian-friendly 导出；`_cmap-view` 是中文 Review HTML 导出；它们只读展示 `.context`。",
+        "`.context` 正文默认中文；frontmatter key、module id、命令和代码标识符保留英文。"
+      ],
+      "readNext": [],
+      "sections": [
+        {
+          "heading": "Purpose",
+          "body": "维护 lorekit 仓库本地的 CMAP 项目地图、当前检查点、模块路由、Obsidian / Review HTML 导出和 AI 交接入口。它补充项目规则，但不替代 `AGENTS.md` / `CLAUDE.md`。"
+        },
+        {
+          "heading": "Owned Paths",
+          "body": "- `.context/**`\n- `.gitignore`\n- `AGENTS.md`\n- `CLAUDE.md`\n- `_cmap/**`\n- `_cmap-view/**`"
+        },
+        {
+          "heading": "Key Contracts",
+          "body": "- `AGENTS.md` 和 `CLAUDE.md` 是 host entrypoints，必须保留原内容；只能追加 CMAP 说明或 marker block。\n- `.context/MAP.md`、`.context/CHECKPOINT.md`、`.context/STATUS.md`、`.context/DECISIONS.md`、`.context/VERIFY.md`、`.context/modules/*.md` 是 CMAP canonical facts。\n- `.context/out/`、`.context/inbox/`、`.context/generated/`、`.context/logs/`、`.context/ideas/` 是辅助层或过程层，未经提升不能当事实源。\n- `_cmap/lorekit` 是 Obsidian-friendly 导出；`_cmap-view` 是中文 Review HTML 导出；它们只读展示 `.context`。\n- `.context` 正文默认中文；frontmatter key、module id、命令和代码标识符保留英文。"
+        },
+        {
+          "heading": "Common Tasks",
+          "body": "- “接手项目 / 看项目地图 / 续接上下文”：读本模块。\n- “生成 obsidian / view html”：读本模块，再跑 `cmap obsidian export` / `cmap view export --ui-lang zh-CN`。\n- “改 AGENTS/CLAUDE 入口”：只做追加，先看 diff。"
+        },
+        {
+          "heading": "Module Relationships",
+          "body": "- `guides` 所有模块：本模块负责把任务路由到对应模块。"
+        },
+        {
+          "heading": "Tests / Verification",
+          "body": "- `cmap route \"\u003ctask\u003e\"`\n- `cmap verify --changed`\n- `cmap obsidian export --check --out _cmap/lorekit`\n- `cmap view export --check --ui-lang zh-CN --out _cmap-view`\n- `git diff --check`"
+        }
+      ],
       "relations": [
         {
           "type": "guides",
@@ -794,7 +1454,13 @@
         }
       ],
       "incomingRelations": [],
-      "verifyCommands": [],
+      "verifyCommands": [
+        "cmap route \"\u003ctask\u003e\"",
+        "cmap verify --changed",
+        "cmap obsidian export --check --out _cmap/lorekit",
+        "cmap view export --check --ui-lang zh-CN --out _cmap-view",
+        "git diff --check"
+      ],
       "relatedCandidates": [],
       "freshness": {
         "state": "Not available",
@@ -842,7 +1508,46 @@
         "src/commands/audit.ts",
         "src/commands/stats.ts"
       ],
+      "description": "通过 doctor / lint / snapshot / restore / remove / audit / stats 保护 corpus 完整性和可恢复性。",
       "responsibilities": [],
+      "keyContracts": [
+        "`remove` 默认 dry-run。`--apply` 必须先 snapshot，再用 `trash` package 移到 OS Trash，之后 prune vector records，并按需 sync/lint。",
+        "删除按 provenance，不按关键词；`Compiled Truth` 只报告人工复核，不自动改写。",
+        "`snapshot` / `restore` 是数据安全原语，不能为了方便削弱。",
+        "`doctor --json` 和 `doctor --section \u003cname\u003e` 支持机器可读和严格 section 检查。",
+        "`lint --quick` 是 agent 自检兼容 alias，保留。"
+      ],
+      "readNext": [
+        "`docs/ARCHITECTURE.md` 的 Remove flow。",
+        "`docs/DESIGN-NOTES.md` 关于 remove 只做来源归因级联的章节。",
+        "`docs/CONVENTIONS.md` 数据安全与 Do Not #14/#15。"
+      ],
+      "sections": [
+        {
+          "heading": "Purpose",
+          "body": "通过 doctor / lint / snapshot / restore / remove / audit / stats 保护 corpus 完整性和可恢复性。"
+        },
+        {
+          "heading": "Owned Paths",
+          "body": "- `src/commands/doctor.ts`\n- `src/commands/lint.ts`\n- `src/commands/snapshot.ts`\n- `src/commands/restore.ts`\n- `src/commands/remove.ts`\n- `src/commands/audit.ts`\n- `src/commands/stats.ts`"
+        },
+        {
+          "heading": "Key Contracts",
+          "body": "- `remove` 默认 dry-run。`--apply` 必须先 snapshot，再用 `trash` package 移到 OS Trash，之后 prune vector records，并按需 sync/lint。\n- 删除按 provenance，不按关键词；`Compiled Truth` 只报告人工复核，不自动改写。\n- `snapshot` / `restore` 是数据安全原语，不能为了方便削弱。\n- `doctor --json` 和 `doctor --section \u003cname\u003e` 支持机器可读和严格 section 检查。\n- `lint --quick` 是 agent 自检兼容 alias，保留。"
+        },
+        {
+          "heading": "Module Relationships",
+          "body": "- 依赖 `corpus-core` 的路径/边界。\n- 依赖 `sync-search-vector` 的 index/vector 状态。\n- 保护 `fetch-ingest` 和 `skills-agent` 产生或维护的内容。"
+        },
+        {
+          "heading": "Read Next",
+          "body": "- `docs/ARCHITECTURE.md` 的 Remove flow。\n- `docs/DESIGN-NOTES.md` 关于 remove 只做来源归因级联的章节。\n- `docs/CONVENTIONS.md` 数据安全与 Do Not #14/#15。"
+        },
+        {
+          "heading": "Tests / Verification",
+          "body": "- `node --test tests/smoke/remove.test.mjs tests/smoke/restore-boundary.test.mjs`\n- 相关 lint / doctor / snapshot smoke tests。\n- `npm run verify`."
+        }
+      ],
       "relations": [
         {
           "type": "depends_on",
@@ -891,7 +1596,10 @@
           "source": "sync-search-vector"
         }
       ],
-      "verifyCommands": [],
+      "verifyCommands": [
+        "node --test tests/smoke/remove.test.mjs tests/smoke/restore-boundary.test.mjs",
+        "npm run verify"
+      ],
       "relatedCandidates": [],
       "freshness": {
         "state": "Not available",
@@ -936,7 +1644,46 @@
         "templates/default-corpus/AGENTS.md",
         "templates/default-corpus/CLAUDE.md"
       ],
+      "description": "定义 `wiki-*` markdown skills，告诉 AI agent 如何使用 lorekit 的确定性 CLI 原语完成 ingest / query / fileback / lint / output / audit / remove 等工作流。",
       "responsibilities": [],
+      "keyContracts": [
+        "CLI 保持 thin + deterministic；语义工作流放在 markdown skills。",
+        "`lorekit install-skills` 当前主要支持 Claude Code 全局安装；其他 agent 可 copy/symlink markdown skill folders。",
+        "project-local skills 是工具，不是 canonical corpus pages；lint/index/vector 不能把它们扫成 wiki 内容。",
+        "skill 不能承诺不存在的 CLI 命令或参数。",
+        "skill 规则应保持通用，不把 lorekit 项目自身的临时边界写进用户 corpus skill。"
+      ],
+      "readNext": [
+        "`README.md` install routes 和 feature map。",
+        "`docs/ARCHITECTURE.md` design philosophy。",
+        "相关 `skills/wiki-*` 目录。"
+      ],
+      "sections": [
+        {
+          "heading": "Purpose",
+          "body": "定义 `wiki-*` markdown skills，告诉 AI agent 如何使用 lorekit 的确定性 CLI 原语完成 ingest / query / fileback / lint / output / audit / remove 等工作流。"
+        },
+        {
+          "heading": "Owned Paths",
+          "body": "- `skills/wiki-*/SKILL.md`\n- `skills/wiki-*/_INDEX.md`\n- `src/commands/install-skills.ts`\n- `integrations/claude-code/**`\n- `templates/default-corpus/AGENTS.md`\n- `templates/default-corpus/CLAUDE.md`"
+        },
+        {
+          "heading": "Key Contracts",
+          "body": "- CLI 保持 thin + deterministic；语义工作流放在 markdown skills。\n- `lorekit install-skills` 当前主要支持 Claude Code 全局安装；其他 agent 可 copy/symlink markdown skill folders。\n- project-local skills 是工具，不是 canonical corpus pages；lint/index/vector 不能把它们扫成 wiki 内容。\n- skill 不能承诺不存在的 CLI 命令或参数。\n- skill 规则应保持通用，不把 lorekit 项目自身的临时边界写进用户 corpus skill。"
+        },
+        {
+          "heading": "Module Relationships",
+          "body": "- 使用 `cli` 暴露的命令。\n- 调用 `fetch-ingest`、`sync-search-vector`、`safety-maintenance`。\n- 受 `corpus-core` 的 schema/path 约束。"
+        },
+        {
+          "heading": "Read Next",
+          "body": "- `README.md` install routes 和 feature map。\n- `docs/ARCHITECTURE.md` design philosophy。\n- 相关 `skills/wiki-*` 目录。"
+        },
+        {
+          "heading": "Tests / Verification",
+          "body": "- 人工从头到尾读变更 skill。\n- 如果 skill 引用了改动后的 CLI 行为，跑对应 targeted CLI tests。\n- 如果伴随代码变更，跑 `npm run verify`。"
+        }
+      ],
       "relations": [
         {
           "type": "uses",
@@ -1028,7 +1775,45 @@
         "src/lib/ollama.ts",
         "src/lib/chunker.ts"
       ],
+      "description": "维护文本索引、root index、文本搜索，以及可选 vector / BM25 / RRF 检索。",
       "responsibilities": [],
+      "keyContracts": [
+        "`lorekit sync` 顺序是 `_INDEX.md` refresh -\u003e root `index.md` merge -\u003e vector sync unless skipped -\u003e doctor。",
+        "`lorekit sync --skip-vector` 是本机向量/Ollama 环境不稳定时的重要收尾路径。",
+        "vector retrieval 是可选能力；小中规模 corpus 仍应支持 Read-first index 导航。",
+        "BM25 chunk direct search 和 vector layered search 是两条路径；不要无证据恢复硬 BM25 L0 gate。",
+        "`MODE_THRESHOLD_FILES` 按 indexed file count 推荐 text / vector 模式。"
+      ],
+      "readNext": [
+        "`docs/DESIGN-NOTES.md` 关于 L0/L1/L2/L3 和 BM25 L0 gate 失败的章节。",
+        "`docs/ARCHITECTURE.md` 的 Query flow。"
+      ],
+      "sections": [
+        {
+          "heading": "Purpose",
+          "body": "维护文本索引、root index、文本搜索，以及可选 vector / BM25 / RRF 检索。"
+        },
+        {
+          "heading": "Owned Paths",
+          "body": "- `src/commands/dir-index.ts`\n- `src/commands/sync.ts`\n- `src/commands/search.ts`\n- `src/commands/vector.ts`\n- `src/lib/vectordb/**`\n- `src/lib/ollama.ts`\n- `src/lib/chunker.ts`"
+        },
+        {
+          "heading": "Key Contracts",
+          "body": "- `lorekit sync` 顺序是 `_INDEX.md` refresh -\u003e root `index.md` merge -\u003e vector sync unless skipped -\u003e doctor。\n- `lorekit sync --skip-vector` 是本机向量/Ollama 环境不稳定时的重要收尾路径。\n- vector retrieval 是可选能力；小中规模 corpus 仍应支持 Read-first index 导航。\n- BM25 chunk direct search 和 vector layered search 是两条路径；不要无证据恢复硬 BM25 L0 gate。\n- `MODE_THRESHOLD_FILES` 按 indexed file count 推荐 text / vector 模式。"
+        },
+        {
+          "heading": "Module Relationships",
+          "body": "- 依赖 `corpus-core` 的路径规则和 root index。\n- 消费 `fetch-ingest` 编译后的 wiki 页面。\n- 结果和健康状态由 `safety-maintenance` 检查。"
+        },
+        {
+          "heading": "Read Next",
+          "body": "- `docs/DESIGN-NOTES.md` 关于 L0/L1/L2/L3 和 BM25 L0 gate 失败的章节。\n- `docs/ARCHITECTURE.md` 的 Query flow。"
+        },
+        {
+          "heading": "Tests / Verification",
+          "body": "- `tests/smoke/vectordb-*.test.mjs` 里的相关测试。\n- `npm run verify`.\n- 真实 corpus 收尾时，如果 vector service 无关，优先考虑 `lorekit sync --skip-vector`。"
+        }
+      ],
       "relations": [
         {
           "type": "depends_on",
@@ -1073,7 +1858,10 @@
           "source": "skills-agent"
         }
       ],
-      "verifyCommands": [],
+      "verifyCommands": [
+        "tests/smoke/vectordb-*.test.mjs",
+        "npm run verify"
+      ],
       "relatedCandidates": [],
       "freshness": {
         "state": "Not available",
@@ -1131,7 +1919,7 @@
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(command);
       }
-      target.textContent = "Copied";
+      target.textContent = "已复制";
     }
     const moduleId = target.getAttribute("data-open-module");
     if (moduleId) {
@@ -1139,9 +1927,11 @@
       const dialog = document.getElementById("module-dialog");
       const title = document.getElementById("module-dialog-title");
       const body = document.getElementById("module-dialog-body");
-      if (module && dialog && title && body) {
+      const template = Array.from(document.querySelectorAll("template[data-module-detail]"))
+        .find((item) => item.getAttribute("data-module-detail") === moduleId);
+      if (module && dialog && title && body && template) {
         title.textContent = module.name || module.id;
-        body.textContent = JSON.stringify(module, null, 2);
+        body.replaceChildren(template.content.cloneNode(true));
         dialog.showModal && dialog.showModal();
       }
     }

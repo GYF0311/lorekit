@@ -10,7 +10,7 @@ needs_review: true
 
 本项目正在接入 CMAP。该文件是 adoption 过程的候选说明，不是最终项目事实；最终可信入口看 `.context/MAP.md`、`.context/CHECKPOINT.md`、`.context/STATUS.md`、`.context/VERIFY.md` 和 `.context/modules/*.md`。
 
-## 确定性扫描信号
+## Deterministic Scan Signals
 
 检测到的技术栈：
 - Node.js
@@ -40,7 +40,7 @@ needs_review: true
 - AGENTS.md
 - CLAUDE.md
 
-## 重要边界
+## Important Boundaries
 
 以上只是自动扫描候选，不要直接当成可信项目事实。
 
