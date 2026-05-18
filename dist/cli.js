@@ -3189,10 +3189,13 @@ import {
   symlinkSync,
   unlinkSync,
   readlinkSync,
-  lstatSync as lstatSync4
+  lstatSync as lstatSync4,
+  cpSync as cpSync2
 } from "fs";
 import { join as join11 } from "path";
 init_logger();
+var SUPPORTED_TARGETS = ["claude-code", "codex"];
+var SUPPORTED_MODES = ["copy", "symlink"];
 function isSymlink(path) {
   try {
     return lstatSync4(path).isSymbolicLink();
@@ -3200,10 +3203,29 @@ function isSymlink(path) {
     return false;
   }
 }
+function targetSkillsDir(target) {
+  const home = process.env.HOME ?? "";
+  if (target === "codex") return join11(home, ".agents", "skills");
+  return join11(home, ".claude", "skills");
+}
+function parseTarget(target) {
+  if (!target) return null;
+  return SUPPORTED_TARGETS.includes(target) ? target : null;
+}
+function parseMode(mode) {
+  const resolved = mode ?? "symlink";
+  return SUPPORTED_MODES.includes(resolved) ? resolved : null;
+}
 function installSkillsCommand(program2) {
-  const cmd = program2.command("install-skills").description("Install lorekit skills into a harness (e.g. Claude Code)").option("--target <harness>", 'Target harness (currently only "claude-code")').option("--list", "List currently installed wiki-* skill symlinks").option("--uninstall", "Remove installed skill symlinks");
+  const cmd = program2.command("install-skills").description("Install lorekit skills into a harness (e.g. Claude Code)").option("--target <harness>", 'Target harness ("claude-code" or "codex")').option("--only <name>", "Install only one skill by directory name (e.g. wiki-daily)").option("--mode <mode>", 'Install mode: "symlink" or "copy" (default: symlink)').option("--list", "List currently installed wiki-* skill symlinks").option("--uninstall", "Remove installed skill symlinks");
   cmd.action((opts) => {
-    const skillsDest = join11(process.env.HOME ?? "", ".claude", "skills");
+    const target = parseTarget(opts.target);
+    if (opts.target && !target) {
+      err(`target '${opts.target}' not supported; supported targets: claude-code, codex`);
+      process.exit(2);
+    }
+    const listTarget = target ?? "claude-code";
+    const skillsDest = targetSkillsDir(listTarget);
     if (opts.list) {
       if (!existsSync11(skillsDest)) return;
       const names = readdirSync6(skillsDest, { encoding: "utf-8" });
@@ -3211,17 +3233,26 @@ function installSkillsCommand(program2) {
         if (!name.startsWith("wiki-")) continue;
         const full = join11(skillsDest, name);
         if (!isSymlink(full)) continue;
-        const target = readlinkSync(full);
-        out(`${name} -> ${target}`);
+        const target2 = readlinkSync(full);
+        out(`${name} -> ${target2}`);
       }
       return;
     }
-    if (!opts.target) {
-      err("install-skills: --target required");
+    if (!target) {
+      if (!opts.target) {
+        err("install-skills: --target required");
+        process.exit(2);
+      }
+      err(`target '${opts.target}' not supported; supported targets: claude-code, codex`);
       process.exit(2);
     }
-    if (opts.target !== "claude-code") {
-      err(`target '${opts.target}' not supported; only 'claude-code' is available`);
+    const mode = parseMode(opts.mode);
+    if (!mode) {
+      err(`mode '${opts.mode}' not supported; supported modes: copy, symlink`);
+      process.exit(2);
+    }
+    if (opts.uninstall && mode === "copy") {
+      err("install-skills: --uninstall only removes symlink installs");
       process.exit(2);
     }
     mkdirSync5(skillsDest, { recursive: true });
@@ -3233,6 +3264,7 @@ function installSkillsCommand(program2) {
     const allNames = readdirSync6(skillsSrc, { encoding: "utf-8" });
     const skillNames = allNames.filter((name) => {
       if (!name.startsWith("wiki-")) return false;
+      if (opts.only && name !== opts.only) return false;
       try {
         return lstatSync4(join11(skillsSrc, name)).isDirectory();
       } catch {
@@ -3252,17 +3284,32 @@ function installSkillsCommand(program2) {
           count++;
         }
       } else {
-        if (isSymlink(dest)) unlinkSync(dest);
-        symlinkSync(srcDir, dest);
-        ok(`linked ${name}`);
+        if (mode === "symlink") {
+          if (isSymlink(dest)) {
+            unlinkSync(dest);
+          } else if (existsSync11(dest)) {
+            err(`destination already exists and is not a symlink: ${dest}`);
+            process.exit(1);
+          }
+          symlinkSync(srcDir, dest);
+          ok(`linked ${name}`);
+        } else {
+          if (existsSync11(dest)) {
+            err(`destination already exists: ${dest}`);
+            process.exit(1);
+          }
+          cpSync2(srcDir, dest, { recursive: true });
+          ok(`copied ${name}`);
+        }
         count++;
       }
     }
     if (count === 0) {
       print("No skills found to install.");
     } else if (!opts.uninstall) {
+      const hostName = target === "codex" ? "Codex" : "Claude Code";
       print(`
-Installed ${count} skill(s). Restart Claude Code to load them.`);
+Installed ${count} skill(s). Restart ${hostName} to load them.`);
     }
   });
 }
@@ -5109,7 +5156,7 @@ function syncCommand(program2) {
 
 // src/commands/obsidian-tune.ts
 init_logger();
-import { cpSync as cpSync2, existsSync as existsSync22, mkdirSync as mkdirSync12, writeFileSync as writeFileSync11 } from "fs";
+import { cpSync as cpSync3, existsSync as existsSync22, mkdirSync as mkdirSync12, writeFileSync as writeFileSync11 } from "fs";
 import { join as join29 } from "path";
 function runPrint() {
   const cfg = getRecommendedGraphConfig();
@@ -5153,7 +5200,7 @@ function runWrite(corpus) {
   if (!existsSync22(destDir)) mkdirSync12(destDir, { recursive: true });
   if (existsSync22(dest)) {
     const backup = `${dest}.bak.${tsCompact()}`;
-    cpSync2(dest, backup);
+    cpSync3(dest, backup);
     ok(`\u5907\u4EFD .obsidian/graph.json \u2192 ${backup}`);
   }
   const cfg = getRecommendedGraphConfig();

@@ -5,11 +5,11 @@
 // 通用约束：
 // - audit / search 都要在 corpus 内跑，用 cwd=tmpdir + `init .` 绕过 init 绝对路径 bug
 // - install-skills 走 HOME 覆盖（process.env.HOME 是 install-skills.ts 内唯一目标根），
-//   避免污染用户真实 ~/.claude/skills/
+//   避免污染用户真实 ~/.claude/skills/ 或 ~/.agents/skills/
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, readdirSync, writeFileSync, lstatSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, writeFileSync, lstatSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { runLorekit, mkTmpDir, cleanupTmpDir, fmtRun } from './_util.mjs';
 
@@ -82,13 +82,13 @@ test('audit lifecycle: 空 list → create → 再 list 看到新条目', () => 
 // install-skills：参数校验 + happy path（HOME 覆盖到 tmpdir，零污染）
 // ---------------------------------------------------------------------------
 
-test('install-skills 拒绝路径：unknown target → exit 2 提示 only claude-code', () => {
+test('install-skills 拒绝路径：unknown target → exit 2 提示 supported targets', () => {
   const fakeHome = mkTmpDir('lorekit-smoke-home-');
   try {
     const args = ['install-skills', '--target', 'unknown-agent'];
     const r = runLorekit(args, { env: { HOME: fakeHome } });
     assert.equal(r.status, 2, fmtRun(r, args, 'exit 2 (unknown target)'));
-    assert.match(r.stderr, /only 'claude-code'/, fmtRun(r, args, 'stderr 提示 only claude-code'));
+    assert.match(r.stderr, /supported targets: claude-code, codex/, fmtRun(r, args, 'stderr 提示 supported targets'));
   } finally {
     cleanupTmpDir(fakeHome);
   }
@@ -116,6 +116,42 @@ test('install-skills happy path：--target claude-code 在 fakeHome 下建 wiki-
     const r2 = runLorekit(listArgs, { env: { HOME: fakeHome } });
     assert.equal(r2.status, 0, fmtRun(r2, listArgs, '--list exit 0'));
     assert.match(r2.stdout, /wiki-/, fmtRun(r2, listArgs, 'stdout 含 wiki-* 项'));
+  } finally {
+    cleanupTmpDir(fakeHome);
+  }
+});
+
+test('install-skills codex copy：--only wiki-daily 复制到 fakeHome .agents/skills', () => {
+  const fakeHome = mkTmpDir('lorekit-smoke-home-');
+  try {
+    const args = ['install-skills', '--target', 'codex', '--only', 'wiki-daily', '--mode', 'copy'];
+    const r = runLorekit(args, { env: { HOME: fakeHome } });
+    assert.equal(r.status, 0, fmtRun(r, args, 'exit 0'));
+
+    const skillFile = join(fakeHome, '.agents', 'skills', 'wiki-daily', 'SKILL.md');
+    assert.ok(existsSync(skillFile), `expected ${skillFile} to exist`);
+    assert.ok(!lstatSync(join(fakeHome, '.agents', 'skills', 'wiki-daily')).isSymbolicLink(), 'copy mode should not symlink');
+
+    const text = readFileSync(skillFile, 'utf-8');
+    assert.match(text, /^name: wiki-daily$/m, 'SKILL.md should contain name frontmatter');
+    assert.match(text, /^description:/m, 'SKILL.md should contain description frontmatter');
+  } finally {
+    cleanupTmpDir(fakeHome);
+  }
+});
+
+test('install-skills codex symlink：已有真实目录时拒绝覆盖', () => {
+  const fakeHome = mkTmpDir('lorekit-smoke-home-');
+  try {
+    const dest = join(fakeHome, '.agents', 'skills', 'wiki-daily');
+    mkdirSync(dest, { recursive: true });
+    writeFileSync(join(dest, 'SKILL.md'), 'user-owned skill');
+
+    const args = ['install-skills', '--target', 'codex', '--only', 'wiki-daily'];
+    const r = runLorekit(args, { env: { HOME: fakeHome } });
+    assert.equal(r.status, 1, fmtRun(r, args, 'exit 1 (refuse overwrite)'));
+    assert.match(r.stderr, /destination already exists and is not a symlink/, fmtRun(r, args, 'stderr 提示不覆盖真实目录'));
+    assert.equal(readFileSync(join(dest, 'SKILL.md'), 'utf-8'), 'user-owned skill');
   } finally {
     cleanupTmpDir(fakeHome);
   }

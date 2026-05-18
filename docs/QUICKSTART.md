@@ -93,7 +93,23 @@ lorekit install-skills --target claude-code
 # → symlinks the wiki-* skills into ~/.claude/skills/
 ```
 
-Restart Claude Code to pick global skills up. Codex can load Markdown skills from `$CODEX_HOME/skills` (default `~/.codex/skills`); other agents should point their skill / rule system at `~/code/lorekit/skills/`.
+Restart Claude Code to pick global skills up.
+
+Codex personal diary gateway:
+
+```bash
+lorekit install-skills --target codex --only wiki-daily --mode copy
+```
+
+Then create `~/.config/lorekit/daily.json` with your `default_corpus` and daily directory names. Use it in Codex with the shortest trigger:
+
+```text
+$wiki-daily 今天记一下：完成了一个重要的编程决策，原因是……
+```
+
+If you enable `notifications.channel: "lark"` in `daily.json`, scheduled compile / synthesis runs can send a bot DM only when fileback candidates need review. Copy the suggested confirmation sentence from Feishu / Lark back into a Codex conversation to approve specific candidates.
+
+Other agents should point their skill / rule system at `~/code/lorekit/skills/`.
 
 ### Project-local skills, optional isolation
 

@@ -7,10 +7,17 @@ import {
   unlinkSync,
   readlinkSync,
   lstatSync,
+  cpSync,
 } from 'node:fs';
 import { join } from 'node:path';
 import { lorekitRoot } from '../utils/fs.js';
 import { ok, err, out, print } from '../utils/logger.js';
+
+const SUPPORTED_TARGETS = ['claude-code', 'codex'] as const;
+const SUPPORTED_MODES = ['copy', 'symlink'] as const;
+
+type InstallTarget = (typeof SUPPORTED_TARGETS)[number];
+type InstallMode = (typeof SUPPORTED_MODES)[number];
 
 function isSymlink(path: string): boolean {
   try {
@@ -20,16 +27,40 @@ function isSymlink(path: string): boolean {
   }
 }
 
+function targetSkillsDir(target: InstallTarget): string {
+  const home = process.env.HOME ?? '';
+  if (target === 'codex') return join(home, '.agents', 'skills');
+  return join(home, '.claude', 'skills');
+}
+
+function parseTarget(target: string | undefined): InstallTarget | null {
+  if (!target) return null;
+  return SUPPORTED_TARGETS.includes(target as InstallTarget) ? (target as InstallTarget) : null;
+}
+
+function parseMode(mode: string | undefined): InstallMode | null {
+  const resolved = mode ?? 'symlink';
+  return SUPPORTED_MODES.includes(resolved as InstallMode) ? (resolved as InstallMode) : null;
+}
+
 export function installSkillsCommand(program: Command): void {
   const cmd = program
     .command('install-skills')
     .description('Install lorekit skills into a harness (e.g. Claude Code)')
-    .option('--target <harness>', 'Target harness (currently only "claude-code")')
+    .option('--target <harness>', 'Target harness ("claude-code" or "codex")')
+    .option('--only <name>', 'Install only one skill by directory name (e.g. wiki-daily)')
+    .option('--mode <mode>', 'Install mode: "symlink" or "copy" (default: symlink)')
     .option('--list', 'List currently installed wiki-* skill symlinks')
     .option('--uninstall', 'Remove installed skill symlinks');
 
   cmd.action((opts) => {
-    const skillsDest = join(process.env.HOME ?? '', '.claude', 'skills');
+    const target = parseTarget(opts.target);
+    if (opts.target && !target) {
+      err(`target '${opts.target}' not supported; supported targets: claude-code, codex`);
+      process.exit(2);
+    }
+    const listTarget = target ?? 'claude-code';
+    const skillsDest = targetSkillsDir(listTarget);
 
     // --list mode
     if (opts.list) {
@@ -46,12 +77,22 @@ export function installSkillsCommand(program: Command): void {
     }
 
     // Require --target
-    if (!opts.target) {
-      err('install-skills: --target required');
+    if (!target) {
+      if (!opts.target) {
+        err('install-skills: --target required');
+        process.exit(2);
+      }
+      err(`target '${opts.target}' not supported; supported targets: claude-code, codex`);
       process.exit(2);
     }
-    if (opts.target !== 'claude-code') {
-      err(`target '${opts.target}' not supported; only 'claude-code' is available`);
+
+    const mode = parseMode(opts.mode);
+    if (!mode) {
+      err(`mode '${opts.mode}' not supported; supported modes: copy, symlink`);
+      process.exit(2);
+    }
+    if (opts.uninstall && mode === 'copy') {
+      err('install-skills: --uninstall only removes symlink installs');
       process.exit(2);
     }
 
@@ -67,6 +108,7 @@ export function installSkillsCommand(program: Command): void {
     const allNames = readdirSync(skillsSrc, { encoding: 'utf-8' });
     const skillNames = allNames.filter((name) => {
       if (!name.startsWith('wiki-')) return false;
+      if (opts.only && name !== opts.only) return false;
       try {
         return lstatSync(join(skillsSrc, name)).isDirectory();
       } catch {
@@ -89,11 +131,25 @@ export function installSkillsCommand(program: Command): void {
           count++;
         }
       } else {
-        // Remove existing symlink if present
-        if (isSymlink(dest)) unlinkSync(dest);
+        if (mode === 'symlink') {
+          // Remove existing symlink if present; real files/directories are user-owned.
+          if (isSymlink(dest)) {
+            unlinkSync(dest);
+          } else if (existsSync(dest)) {
+            err(`destination already exists and is not a symlink: ${dest}`);
+            process.exit(1);
+          }
 
-        symlinkSync(srcDir, dest);
-        ok(`linked ${name}`);
+          symlinkSync(srcDir, dest);
+          ok(`linked ${name}`);
+        } else {
+          if (existsSync(dest)) {
+            err(`destination already exists: ${dest}`);
+            process.exit(1);
+          }
+          cpSync(srcDir, dest, { recursive: true });
+          ok(`copied ${name}`);
+        }
         count++;
       }
     }
@@ -101,7 +157,8 @@ export function installSkillsCommand(program: Command): void {
     if (count === 0) {
       print('No skills found to install.');
     } else if (!opts.uninstall) {
-      print(`\nInstalled ${count} skill(s). Restart Claude Code to load them.`);
+      const hostName = target === 'codex' ? 'Codex' : 'Claude Code';
+      print(`\nInstalled ${count} skill(s). Restart ${hostName} to load them.`);
     }
   });
 }

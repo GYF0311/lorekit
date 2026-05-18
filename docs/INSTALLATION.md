@@ -67,7 +67,68 @@ lorekit install-skills --target claude-code
 
 这会安装到 Claude Code 的全局 skill 位置。优点是触发和预览更直接，也符合 lorekit 的默认安装路线。
 
-Codex 可把这些 Markdown skills 放到 `$CODEX_HOME/skills`（默认 `~/.codex/skills`）；Cursor / Kimi CLI / Aider / Windsurf 等 agent 按各自的 skill / rule 目录注册即可。`lorekit install-skills` 目前只自动写 Claude Code 目标。
+Codex 的个人日记入口建议只安装 `wiki-daily` 到全局 skill 目录：
+
+```bash
+lorekit install-skills --target codex --only wiki-daily --mode copy
+```
+
+这会把 `skills/wiki-daily` 复制到 Codex 的 `~/.agents/skills`，让 `$wiki-daily` 可作为全局个人日记 gateway 使用。然后创建配置：
+
+```bash
+mkdir -p ~/.config/lorekit
+$EDITOR ~/.config/lorekit/daily.json
+```
+
+最小配置：
+
+```json
+{
+  "default_corpus": "/ABSOLUTE/PATH/TO/CORPUS",
+  "daily_inbox_dir": "_工作台/日记收件",
+  "daily_archive_dir": "_归档/日记收件",
+  "daily_dir": "每日",
+  "knowledge_dir": "知识库",
+  "output_dir": "输出/复盘",
+  "journal_day_boundary": "04:00",
+  "timezone": "Asia/Shanghai",
+  "notifications": {
+    "enabled": false,
+    "channel": "lark",
+    "lark_user_id": "ou_xxx",
+    "send_on": [
+      "daily_compile_candidates",
+      "rolling_synthesis_candidates",
+      "weekly_synthesis_candidates"
+    ]
+  }
+}
+```
+
+`notifications` 是可选配置。打开后，daily compile / rolling synthesis / weekly synthesis 只在生成 `Suggested fileback candidates` 时发一条飞书 / Lark bot 提醒，内容包含来源路径、候选编号、短摘要和可复制到 Codex 的确认句。提醒不是写库确认；真正写入 `知识库/` 仍需要回到 Codex 明确说“确认第几条写入知识库”。
+
+以下内容是用户本机配置，不会随 lorekit repo 分发或 `git push` 同步：
+
+- `~/.config/lorekit/daily.json`
+- `~/.agents/skills/wiki-daily/` 中的已安装 copy
+- Codex Automations 配置
+- 飞书 / Lark `lark_user_id` 和本机 `lark-cli` 登录态
+
+如果需要定时提醒，在 Codex app 里给中央 corpus 项目创建 automation，工作目录选 `default_corpus`，优先使用 local project，不要让任意代码项目跨 workspace 写 corpus。prompt 应显式触发 `$wiki-daily`：
+
+```text
+Use $wiki-daily to execute daily compile. Read ~/.config/lorekit/daily.json. Based on journal_day_boundary, process the just-finished journal_date. Merge inbox fragments into 每日/<journal_date>.md, generate Daily compile and Fileback candidates, do not write directly to 知识库/, and send a Lark bot reminder only when notifications.enabled is true and candidates exist.
+```
+
+```text
+Use $wiki-daily to execute rolling synthesis. Read the latest 3 compiled daily notes, link related 知识库/ pages, write 输出/复盘/<date>-rolling-synthesis.md, generate Suggested fileback candidates for repeated high-value signals, and send a Lark bot reminder only when notifications.enabled is true and candidates exist.
+```
+
+```text
+Use $wiki-daily to execute weekly synthesis. Read the latest 7 daily notes and relevant 知识库/ pages, write 输出/复盘/<YYYY-WW>-weekly-synthesis.md, generate Suggested fileback candidates for reusable weekly judgments, and send a Lark bot reminder only when notifications.enabled is true and candidates exist.
+```
+
+Cursor / Kimi CLI / Aider / Windsurf 等 agent 按各自的 skill / rule 目录注册 Markdown skills 即可。
 
 #### 项目级 skills（可选隔离）
 

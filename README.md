@@ -2,7 +2,7 @@
 
 A personal LLM Wiki toolkit — let AI build and maintain your knowledge base.
 
-Based on [Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f), lorekit gives any AI coding agent a local knowledge-base workflow: **raw sources → LLM compilation → persistent wiki**. Compile once, keep updating — no RAG. `lorekit install-skills` currently auto-installs the `wiki-*` skills for Claude Code only; for other agents (Codex / Cursor / Kimi CLI / Aider / Windsurf), the `skills/` directory is plain Markdown — symlink or copy into your agent's skill path.
+Based on [Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f), lorekit gives any AI coding agent a local knowledge-base workflow: **raw sources → LLM compilation → persistent wiki**. Compile once, keep updating — no RAG. `lorekit install-skills` installs the `wiki-*` skills for Claude Code and can copy selected skills such as `wiki-daily` into Codex's `~/.agents/skills`; for other agents (Cursor / Kimi CLI / Aider / Windsurf), the `skills/` directory is plain Markdown — symlink or copy into your agent's skill path.
 
 > **Hand the GitHub link to your AI, say "install this for me" — it reads CLAUDE.md / AGENTS.md and does the rest.**
 
@@ -46,7 +46,7 @@ Three layers:
 | Obsidian tune   | `lorekit obsidian-tune` | 老用户升级一键应用 Obsidian graph filter（默认只读检查 / `--write` 备份后写 / `--print` 管道用）                                                                      |
 | GBrain          | `lorekit gbrain <sub>`  | Optional read-only bridge: compile `知识库/` into GBrain-native staging, then call external import/extract; never writes canonical wiki pages                     |
 
-> The CLI is named `lorekit`. The 6 Agent Skills keep the `wiki-` prefix (a nod to Karpathy's LLM Wiki): `wiki-ingest` / `wiki-query` / `wiki-fileback` / `wiki-lint` / `wiki-enrich` / `wiki-audit`.
+> The CLI is named `lorekit`. Agent Skills keep the `wiki-` prefix (a nod to Karpathy's LLM Wiki), including `wiki-ingest`, `wiki-query`, `wiki-fileback`, `wiki-lint`, `wiki-enrich`, `wiki-audit`, `wiki-remove`, `wiki-output`, and `wiki-daily` for inbox-first personal diary capture.
 
 ## Ingest Pipeline (single-source-of-truth state machine)
 
@@ -101,6 +101,16 @@ Only `--step lint` auto-promotes to `completed`. Every other `--step` keeps the 
 
 Default install is lorekit-only: global `lorekit` CLI plus global lorekit `wiki-*` skills for the agent that supports them. That is enough for the core workflow: ingest, query, fileback, lint, sync, snapshot, and safe remove.
 
+For Codex personal diary use, install the instruction-only global gateway skill:
+
+```bash
+lorekit install-skills --target codex --only wiki-daily --mode copy
+```
+
+This copies `wiki-daily` into Codex's global `~/.agents/skills` skill root. Configure its corpus paths in `~/.config/lorekit/daily.json`.
+
+Optional Feishu / Lark notifications can be enabled in `daily.json` so scheduled daily / rolling / weekly runs send a bot DM when fileback candidates need review. The message is a reminder only; copy its confirmation sentence back into Codex to approve specific `知识库/` writebacks.
+
 Optional routes:
 
 | Route            | Use when                                                            | Result                                                         |
@@ -146,7 +156,8 @@ lorekit init ~/Desktop/my-corpus
 
 # 6. Install Agent Skills globally where supported
 lorekit install-skills --target claude-code
-# Codex: copy/symlink skills/wiki-* into $CODEX_HOME/skills (default ~/.codex/skills)
+# Codex personal diary gateway:
+lorekit install-skills --target codex --only wiki-daily --mode copy
 
 # 7. Start a conversation from the corpus directory
 cd ~/Desktop/my-corpus
