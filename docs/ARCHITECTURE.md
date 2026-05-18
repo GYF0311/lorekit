@@ -153,7 +153,7 @@ flowchart LR
   Query --> Canonical["manifest.reverseMap<br/>canonical 知识库/ pages"]
 ```
 
-边界：`lorekit gbrain` 只做 read-only bridge。它不修改 `知识库/`，不修改 `原料/`，不把 GBrain 加进 runtime dependencies，也不 vendor GBrain runtime / engine。导出阶段会把 canonical path 编译成 GBrain-friendly slug，重写 staging wikilink / frontmatter relation，规范完整日期 timeline，并写入 `manifest.reverseMap`；同时注入 `lorekit_source_path` / `lorekit_hash` / `lorekit_exported_at` 以便 doctor 检测 stale export。`export --out` 默认只能写到 `.wiki/integrations/` 下，除非显式传 `--allow-outside-corpus`。`sync` 先 `gbrain import <pages> --fresh`，再运行 `gbrain extract all --source db --include-frontmatter --json`。`query` 默认必须在 corpus 内运行，并先检查 manifest / sync report；若外部索引缺失或 stale，会提醒先 `lorekit gbrain sync`，但不会阻止调用外部 `gbrain query`，候选会映射回 canonical `知识库/` 页面。
+边界：`lorekit gbrain` 只做 read-only bridge。它不修改 `知识库/`，不修改 `原料/`，不把 GBrain 加进 runtime dependencies，也不 vendor GBrain runtime / engine。导出阶段会把 canonical path 编译成 GBrain-friendly slug，重写 staging wikilink / frontmatter relation，规范完整日期 timeline，并写入 `manifest.reverseMap`；同时注入 `lorekit_source_path` / `lorekit_hash` / `lorekit_exported_at` 以便 doctor 检测 stale export。`export --out` 默认只能写到 `.wiki/integrations/` 下，除非显式传 `--allow-outside-corpus`。`sync` 先 `gbrain import <pages> --fresh`，再运行 `gbrain extract all --source db --include-frontmatter --json`。`query` 默认必须在 corpus 内运行，并先检查 manifest / sync report；若外部索引缺失或 stale，会提醒先 `lorekit gbrain sync`，但不会阻止调用外部 `gbrain query --no-expand`；如果 GBrain 已经输出候选但进程超时或非零退出，Lorekit 保留可映射候选并降级为 warning，最终仍映射回 canonical `知识库/` 页面。
 
 ## 核心抽象
 

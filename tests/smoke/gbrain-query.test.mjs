@@ -104,8 +104,8 @@ test('gbrain query warns on stale or unsynced export but still queries by defaul
     assert.equal(parsed.staleCheck?.skipped, false);
     assert.equal(parsed.staleCheck?.status, 'warn');
     assert.match(parsed.warnings.join('\n'), /GBrain index may be stale/i);
-    assert.match(parsed.gbrain.stdout, /query ok: query RAG/);
-    assert.match(readFileSync(marker, 'utf-8'), /^query RAG/);
+    assert.match(parsed.gbrain.stdout, /query ok: query RAG --no-expand/);
+    assert.match(readFileSync(marker, 'utf-8'), /^query RAG --no-expand/);
   } finally {
     cleanupTmpDir(corpus);
   }
@@ -129,8 +129,8 @@ test('gbrain query --no-stale-check allows explicit force query', () => {
     const parsed = JSON.parse(r.stdout);
     assert.equal(parsed.status, 'ok');
     assert.equal(parsed.staleCheck?.skipped, true);
-    assert.match(parsed.gbrain.stdout, /query ok: query RAG/);
-    assert.match(readFileSync(marker, 'utf-8'), /^query RAG/);
+    assert.match(parsed.gbrain.stdout, /query ok: query RAG --no-expand/);
+    assert.match(readFileSync(marker, 'utf-8'), /^query RAG --no-expand/);
   } finally {
     cleanupTmpDir(corpus);
   }
@@ -172,7 +172,45 @@ test('gbrain query maps GBrain slugs back to canonical 知识库 pages', () => {
     assert.equal(parsed.candidates[1].canonicalPath, '知识库/概念/Anthropic-Harness.md');
     assert.equal(parsed.candidates[1].canonicalExists, true);
     assert.match(parsed.warnings.join('\n'), /could not map GBrain candidate.*unknown\/missing/);
-    assert.match(readFileSync(marker, 'utf-8'), /^query Anthropic Harness/);
+    assert.match(readFileSync(marker, 'utf-8'), /^query Anthropic Harness --no-expand/);
+  } finally {
+    cleanupTmpDir(corpus);
+  }
+});
+
+test('gbrain query keeps mapped candidates from a timed out external process', () => {
+  const corpus = seedProjectionCorpus();
+  const marker = join(corpus, 'called.txt');
+  const bin = fakeGbrain(
+    corpus,
+    [
+      '#!/bin/sh',
+      'if [ "$1" = "--version" ]; then echo "gbrain 0.33.0"; exit 0; fi',
+      'echo "$@" > "$LOREKIT_FAKE_GBRAIN_MARKER"',
+      'echo "[0.9000] concepts/anthropic-harness -- Harness context"',
+      'sleep 2',
+      'exit 0',
+      '',
+    ].join('\n'),
+  );
+  try {
+    const args = ['gbrain', 'query', 'Anthropic Harness', '--json'];
+    const r = runLorekit(args, {
+      cwd: corpus,
+      env: {
+        LOREKIT_GBRAIN_BIN: bin,
+        LOREKIT_FAKE_GBRAIN_MARKER: marker,
+        LOREKIT_GBRAIN_QUERY_TIMEOUT_MS: '50',
+      },
+    });
+    assert.equal(r.status, 0, fmtRun(r, args, 'exit 0 with timed out but parsed candidates'));
+
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.status, 'ok');
+    assert.equal(parsed.gbrain.timedOut, true);
+    assert.equal(parsed.candidates[0].canonicalPath, '知识库/概念/Anthropic-Harness.md');
+    assert.match(parsed.warnings.join('\n'), /timed out after returning candidates/i);
+    assert.match(readFileSync(marker, 'utf-8'), /^query Anthropic Harness --no-expand/);
   } finally {
     cleanupTmpDir(corpus);
   }

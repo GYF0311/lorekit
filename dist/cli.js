@@ -1844,6 +1844,13 @@ function exportForGbrain(corpus, opts = {}) {
 }
 
 // src/lib/integrations/gbrain.ts
+var DEFAULT_GBRAIN_QUERY_TIMEOUT_MS = 3e4;
+function gbrainQueryTimeoutMs() {
+  const raw = process.env.LOREKIT_GBRAIN_QUERY_TIMEOUT_MS;
+  if (!raw) return DEFAULT_GBRAIN_QUERY_TIMEOUT_MS;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_GBRAIN_QUERY_TIMEOUT_MS;
+}
 function syncReportPath(corpus) {
   return join7(corpus, ".wiki", "integrations", "gbrain", "sync-report.json");
 }
@@ -2212,23 +2219,32 @@ async function queryGbrain(corpus, text, opts = {}) {
     "GBrain index may be stale. Run lorekit gbrain sync.",
     ...staleIssues.map((i) => i.message)
   ] : [];
+  const queryArgs = ["query", text, "--no-expand"];
   const r = await runExternalCommand({
     command: status.binary,
-    args: ["query", text],
+    args: queryArgs,
     cwd: corpus,
-    timeoutMs: 12e4
+    timeoutMs: gbrainQueryTimeoutMs()
   });
   const candidates = parseGbrainQueryCandidates(corpus, r.stdout);
+  const usableCandidatesFromDegradedRun = r.exitCode !== 0 && candidates.length > 0;
+  const commandWarnings = [];
+  if (usableCandidatesFromDegradedRun) {
+    commandWarnings.push(
+      r.timedOut ? "GBrain query timed out after returning candidates; using parsed candidates." : "GBrain query exited non-zero after returning candidates; using parsed candidates."
+    );
+  }
   const mappingWarnings = candidates.filter((candidate) => !candidate.canonicalPath).map((candidate) => `could not map GBrain candidate to canonical page: ${candidate.gbrainSlug}`);
+  const ok2 = r.exitCode === 0 || usableCandidatesFromDegradedRun;
   return {
-    status: r.exitCode === 0 ? "ok" : "error",
+    status: ok2 ? "ok" : "error",
     source: "gbrain",
     message,
     staleCheck: { skipped: !shouldCheck, status: staleStatus, issues: staleIssues },
     gbrain: r,
     candidates,
-    warnings: [...staleWarnings, ...mappingWarnings],
-    errors: r.exitCode === 0 ? [] : [r.error || r.stderr || "gbrain query failed"]
+    warnings: [...staleWarnings, ...commandWarnings, ...mappingWarnings],
+    errors: ok2 ? [] : [r.error || r.stderr || "gbrain query failed"]
   };
 }
 

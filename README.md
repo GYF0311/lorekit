@@ -210,7 +210,7 @@ lorekit gbrain query "RAG"
 
 `sync` first checks the external GBrain binary, then exports, runs `gbrain import <export/pages> --fresh`, and runs `gbrain extract all --source db --include-frontmatter --json`, writing `.wiki/integrations/gbrain/sync-report.json`. If the binary is missing, `sync` writes a failure report without refreshing staging unless `--export-even-if-missing` is explicit.
 
-`query` requires a corpus and checks the export manifest + last sync report before calling GBrain. If the export or sync report looks stale, it warns with `GBrain index may be stale. Run lorekit gbrain sync.` but still calls `gbrain query`; candidates are mapped back through `manifest.reverseMap` so answers and context can cite canonical `知识库/` pages. Use `--no-stale-check` only for debugging noisy freshness checks.
+`query` requires a corpus and checks the export manifest + last sync report before calling GBrain. If the export or sync report looks stale, it warns with `GBrain index may be stale. Run lorekit gbrain sync.` but still calls `gbrain query`; candidates are mapped back through `manifest.reverseMap` so answers and context can cite canonical `知识库/` pages. Lorekit asks GBrain for candidate recall with `--no-expand` by default and keeps already-returned mapped candidates if the external CLI times out after printing results. Use `--no-stale-check` only for debugging noisy freshness checks.
 
 Boundary: GBrain must not write back to `知识库/` or `原料/`. Persisting new knowledge still goes through wiki-fileback / audit / snapshot review.
 
