@@ -15,7 +15,7 @@ lorekit/
 │   └── utils/              通用 helper（fs / logger）
 ├── bin/                    npm bin shim（lorekit.js）
 ├── dist/                   tsup 构建产物（提交进 git，给免构建用户用）
-├── skills/                 9 个 wiki-* SKILL.md（Agent skill）
+├── skills/                 15 个 SKILL.md（wiki-* 项目级执行 skill + corpus-* 全局入口 skill）
 ├── plugins/obsidian-audit/ Obsidian 反馈插件
 ├── templates/default-corpus/ corpus 骨架（lorekit init 拷贝）
 ├── integrations/           thin shim 转发到 `lorekit install-skills`
@@ -50,7 +50,7 @@ lorekit/
 | `audit.ts`          | 162 | 反馈条目 CRUD                                                                                                     |
 | `snapshot.ts`       | 108 | tarball 备份                                                                                                      |
 | `restore.ts`        | 170 | 从 tarball 恢复                                                                                                   |
-| `install-skills.ts` | 164 | 安装 skills 到 Claude Code 与 Codex 目标（如 `~/.claude/skills`、`~/.agents/skills`）                             |
+| `install-skills.ts` | 187 | 安装 lorekit-managed skills 到 Claude Code 与 Codex 目标；Claude 默认 `wiki-*`，Codex 默认 `corpus-*` + `wiki-daily`；支持 `--only` 逗号列表与 copy/symlink |
 | `obsidian-tune.ts`  | 120 | 批次 26：老用户升级一键应用 `.obsidian/graph.json` filter（默认检查 / `--write` 备份后写 / `--print` 管道用）     |
 | `remove.ts`         | 438 | 安全移除 URL/路径：dry-run 影响报告，`--apply` snapshot → OS Trash → provenance 清理 → sync/lint                  |
 | `gbrain.ts`         | 147 | 可选 GBrain read-only bridge：status / export / sync / doctor / query，stdout JSON + stale warning + 外部命令边界 |

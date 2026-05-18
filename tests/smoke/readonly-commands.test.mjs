@@ -140,6 +140,68 @@ test('install-skills codex copy：--only wiki-daily 复制到 fakeHome .agents/s
   }
 });
 
+test('install-skills codex copy：--only corpus-query 复制全局 corpus 入口 skill', () => {
+  const fakeHome = mkTmpDir('lorekit-smoke-home-');
+  try {
+    const args = ['install-skills', '--target', 'codex', '--only', 'corpus-query', '--mode', 'copy'];
+    const r = runLorekit(args, { env: { HOME: fakeHome } });
+    assert.equal(r.status, 0, fmtRun(r, args, 'exit 0'));
+
+    const skillFile = join(fakeHome, '.agents', 'skills', 'corpus-query', 'SKILL.md');
+    assert.ok(existsSync(skillFile), `expected ${skillFile} to exist`);
+    assert.ok(
+      !lstatSync(join(fakeHome, '.agents', 'skills', 'corpus-query')).isSymbolicLink(),
+      'copy mode should not symlink',
+    );
+
+    const text = readFileSync(skillFile, 'utf-8');
+    assert.match(text, /^name: corpus-query$/m, 'SKILL.md should contain name frontmatter');
+    assert.match(text, /^description:/m, 'SKILL.md should contain description frontmatter');
+  } finally {
+    cleanupTmpDir(fakeHome);
+  }
+});
+
+test('install-skills codex copy：--only 逗号列表只复制指定 skills', () => {
+  const fakeHome = mkTmpDir('lorekit-smoke-home-');
+  try {
+    const args = [
+      'install-skills',
+      '--target',
+      'codex',
+      '--only',
+      'corpus-query,corpus-health',
+      '--mode',
+      'copy',
+    ];
+    const r = runLorekit(args, { env: { HOME: fakeHome } });
+    assert.equal(r.status, 0, fmtRun(r, args, 'exit 0'));
+
+    const skillsDir = join(fakeHome, '.agents', 'skills');
+    assert.ok(existsSync(join(skillsDir, 'corpus-query', 'SKILL.md')), 'corpus-query should install');
+    assert.ok(existsSync(join(skillsDir, 'corpus-health', 'SKILL.md')), 'corpus-health should install');
+    assert.ok(!existsSync(join(skillsDir, 'wiki-daily')), 'wiki-daily should not install');
+  } finally {
+    cleanupTmpDir(fakeHome);
+  }
+});
+
+test('install-skills codex 默认只安装全局入口 skills，不安装项目级 wiki-ingest', () => {
+  const fakeHome = mkTmpDir('lorekit-smoke-home-');
+  try {
+    const args = ['install-skills', '--target', 'codex', '--mode', 'copy'];
+    const r = runLorekit(args, { env: { HOME: fakeHome } });
+    assert.equal(r.status, 0, fmtRun(r, args, 'exit 0'));
+
+    const skillsDir = join(fakeHome, '.agents', 'skills');
+    assert.ok(existsSync(join(skillsDir, 'corpus-query', 'SKILL.md')), 'corpus-query should install');
+    assert.ok(existsSync(join(skillsDir, 'wiki-daily', 'SKILL.md')), 'wiki-daily should install');
+    assert.ok(!existsSync(join(skillsDir, 'wiki-ingest')), 'project-local wiki-ingest should not install by default');
+  } finally {
+    cleanupTmpDir(fakeHome);
+  }
+});
+
 test('install-skills codex symlink：已有真实目录时拒绝覆盖', () => {
   const fakeHome = mkTmpDir('lorekit-smoke-home-');
   try {

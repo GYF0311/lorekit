@@ -38,6 +38,10 @@ description: today journal, todo, programming decision, daily compile, rolling s
 
 若配置缺失，先让用户确认 `default_corpus`，不要猜测写入位置。其他字段可按上面默认值解释，但写入前仍要明确目标路径。
 
+如果同时存在 `~/.config/lorekit/global-corpus.json`，`daily.json.default_corpus` 应与其中的 `default_corpus` 指向同一个 canonical corpus。不要在两个配置冲突时自行选择；先报告冲突并让用户确认。
+
+`wiki-daily` 可以和全局 `corpus-*` skills 共存：它负责日记收件箱、每日页和复盘候选；`corpus-fileback` 或本 skill 的 Fileback mode 只有在用户明确确认候选后才写 `知识库/`。
+
 ## Date rule
 
 - `captured_at`：真实捕获时间，使用 `timezone` 中的本地时间，精确到分钟或秒。

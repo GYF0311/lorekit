@@ -8,6 +8,8 @@ aliases:
   - skills
   - wiki-ingest
   - wiki-query
+  - corpus-query
+  - corpus-capture
   - install-skills
   - agent
   - AGENTS
@@ -21,6 +23,7 @@ paths:
     - integrations/claude-code/**
     - templates/default-corpus/AGENTS.md
     - templates/default-corpus/CLAUDE.md
+    - templates/default-corpus/README.md
 relations:
   uses:
     - cli
@@ -30,25 +33,28 @@ relations:
   constrained_by:
     - corpus-core
 source_commit: 62576ef
-updated_at: 2026-05-17T10:44:32Z
+updated_at: 2026-05-18T07:30:00Z
 confidence: ai-drafted
 ---
 # Module: Skills / Agent Workflows
 
 ## Purpose
-定义 `wiki-*` markdown skills，告诉 AI agent 如何使用 lorekit 的确定性 CLI 原语完成 ingest / query / fileback / lint / output / audit / remove 等工作流。
+定义 `wiki-*` 与 `corpus-*` markdown skills，告诉 AI agent 如何使用 lorekit 的确定性 CLI 原语完成 ingest / query / fileback / lint / output / audit / remove / cross-project corpus routing 等工作流。
 
 ## Owned Paths
 - `skills/wiki-*/SKILL.md`
+- `skills/corpus-*/SKILL.md`
 - `skills/wiki-*/_INDEX.md`
 - `src/commands/install-skills.ts`
 - `integrations/claude-code/**`
 - `templates/default-corpus/AGENTS.md`
 - `templates/default-corpus/CLAUDE.md`
+- `templates/default-corpus/README.md`
 
 ## Key Contracts
 - CLI 保持 thin + deterministic；语义工作流放在 markdown skills。
-- `lorekit install-skills` 当前主要支持 Claude Code 全局安装；其他 agent 可 copy/symlink markdown skill folders。
+- `lorekit install-skills` 支持 Claude Code 与 Codex 目标；Claude 默认安装 `wiki-*`，Codex 默认安装 `corpus-*` + `wiki-daily`；`--only` 可安装单个或逗号列表 skills；模式支持 copy/symlink。
+- `wiki-*` 是 corpus-local 执行规范；`corpus-*` 是 global entrypoint/routing skill，需回读目标 corpus 的 AGENTS/CLAUDE/skills 规则。
 - project-local skills 是工具，不是 canonical corpus pages；lint/index/vector 不能把它们扫成 wiki 内容。
 - skill 不能承诺不存在的 CLI 命令或参数。
 - skill 规则应保持通用，不把 lorekit 项目自身的临时边界写进用户 corpus skill。

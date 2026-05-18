@@ -6,6 +6,28 @@ This file exists so that non-Claude harnesses (Codex, Cursor, Aider, etc.) can f
 
 ---
 
+## Skill 部署模式
+
+这份 corpus 支持三种 AI 使用方式：
+
+| 模式 | 适合场景 | 规则 |
+| --- | --- | --- |
+| 项目级 | 只在本 corpus 对话里维护知识库 | 读取本项目 `skills/wiki-*`，按 `CLAUDE.md` 和 `系统/filing-rules.md` 执行 |
+| 全局入口 | 任意项目都要访问同一个 canonical corpus | 用户级 `corpus-*` / `wiki-daily` 只做入口和路由 |
+| Hybrid | 推荐给个人长期 corpus | 全局 `corpus-*` 负责跨项目入口，本项目 `wiki-*` 负责执行规范 |
+
+边界：
+
+- 全局 `corpus-capture` 默认只写 `_工作台/收件/`
+- 全局 `wiki-daily` 写 `_工作台/日记收件/`、`每日/`、`输出/复盘/`
+- 全局 `corpus-query` / `corpus-gbrain-query` 默认只读，必须回读 canonical `知识库/` 页面
+- 全局 `corpus-ingest` / `corpus-fileback` 写库前必须先读本项目规则和相关 `skills/wiki-*`
+- `wiki-remove`、GBrain 原生 mutating 命令、自动 fileback 不做全局默认入口
+
+如果从其他项目进入本 corpus，优先读取 `~/.config/lorekit/global-corpus.json` 中的 `default_corpus`、`lorekit_bin`、`gbrain_bin`，并使用本 corpus 的 wrapper，不要裸调用不确定来源的全局 `lorekit` / `gbrain`。
+
+---
+
 ## Harness 规则（LLM 行为契约）
 
 > 下列 10 项规则是 lorekit 当前版本的 **harness 契约**，与 `skills/wiki-*` 的行为约定配套。

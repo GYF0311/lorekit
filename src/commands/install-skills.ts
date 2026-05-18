@@ -15,6 +15,7 @@ import { ok, err, out, print } from '../utils/logger.js';
 
 const SUPPORTED_TARGETS = ['claude-code', 'codex'] as const;
 const SUPPORTED_MODES = ['copy', 'symlink'] as const;
+const SKILL_PREFIXES = ['wiki-', 'corpus-'] as const;
 
 type InstallTarget = (typeof SUPPORTED_TARGETS)[number];
 type InstallMode = (typeof SUPPORTED_MODES)[number];
@@ -43,14 +44,33 @@ function parseMode(mode: string | undefined): InstallMode | null {
   return SUPPORTED_MODES.includes(resolved as InstallMode) ? (resolved as InstallMode) : null;
 }
 
+function parseOnlyNames(only: string | undefined): Set<string> | null {
+  if (!only) return null;
+  return new Set(
+    only
+      .split(',')
+      .map((name) => name.trim())
+      .filter(Boolean),
+  );
+}
+
+function isLorekitSkillName(name: string): boolean {
+  return SKILL_PREFIXES.some((prefix) => name.startsWith(prefix));
+}
+
+function isDefaultSkillForTarget(name: string, target: InstallTarget): boolean {
+  if (target === 'codex') return name.startsWith('corpus-') || name === 'wiki-daily';
+  return name.startsWith('wiki-');
+}
+
 export function installSkillsCommand(program: Command): void {
   const cmd = program
     .command('install-skills')
-    .description('Install lorekit skills into a harness (e.g. Claude Code)')
+    .description('Install lorekit-managed skills into a harness (e.g. Claude Code or Codex)')
     .option('--target <harness>', 'Target harness ("claude-code" or "codex")')
-    .option('--only <name>', 'Install only one skill by directory name (e.g. wiki-daily)')
+    .option('--only <names>', 'Install only selected skill directory names, comma-separated')
     .option('--mode <mode>', 'Install mode: "symlink" or "copy" (default: symlink)')
-    .option('--list', 'List currently installed wiki-* skill symlinks')
+    .option('--list', 'List currently installed lorekit-managed skill symlinks')
     .option('--uninstall', 'Remove installed skill symlinks');
 
   cmd.action((opts) => {
@@ -67,7 +87,7 @@ export function installSkillsCommand(program: Command): void {
       if (!existsSync(skillsDest)) return;
       const names = readdirSync(skillsDest, { encoding: 'utf-8' });
       for (const name of names) {
-        if (!name.startsWith('wiki-')) continue;
+        if (!isLorekitSkillName(name)) continue;
         const full = join(skillsDest, name);
         if (!isSymlink(full)) continue;
         const target = readlinkSync(full);
@@ -104,11 +124,14 @@ export function installSkillsCommand(program: Command): void {
       process.exit(1);
     }
 
-    // Find wiki-* skill directories
+    const onlyNames = parseOnlyNames(opts.only);
+
+    // Find target defaults or explicitly selected lorekit-managed skill directories.
     const allNames = readdirSync(skillsSrc, { encoding: 'utf-8' });
     const skillNames = allNames.filter((name) => {
-      if (!name.startsWith('wiki-')) return false;
-      if (opts.only && name !== opts.only) return false;
+      if (!isLorekitSkillName(name)) return false;
+      if (onlyNames && !onlyNames.has(name)) return false;
+      if (!onlyNames && !isDefaultSkillForTarget(name, target)) return false;
       try {
         return lstatSync(join(skillsSrc, name)).isDirectory();
       } catch {
