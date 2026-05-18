@@ -1,6 +1,6 @@
 ---
 name: wiki-daily
-description: today journal, todo, programming decision, daily compile, rolling synthesis, weekly synthesis, fileback, candidate notification, Lark or Feishu reminder; global personal diary gateway for inbox-first daily notes and confirmed knowledge writeback.
+description: 用于今天日记、todo、编程决策、daily compile、rolling synthesis、weekly synthesis、fileback 候选和飞书提醒；全局个人日记入口。
 ---
 
 # wiki-daily

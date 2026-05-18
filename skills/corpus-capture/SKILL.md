@@ -1,6 +1,6 @@
 ---
 name: corpus-capture
-description: Use when the user wants to capture a quick note, idea, observation, decision, or temporary information from any project into a central Lorekit corpus workbench.
+description: 用于在任意项目中把随手记录、想法、观察、决策或临时信息捕获到中央 Lorekit corpus 的工作台收件箱。
 ---
 
 # corpus-capture

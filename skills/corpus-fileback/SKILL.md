@@ -1,6 +1,6 @@
 ---
 name: corpus-fileback
-description: Use when the user explicitly confirms writing a reusable conclusion, decision, synthesis, or selected candidate back into the central Lorekit corpus knowledge base.
+description: 用于用户明确确认后，把可复用结论、决策、综合判断或选定候选写回中央 Lorekit corpus 的知识库。
 ---
 
 # corpus-fileback

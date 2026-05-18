@@ -1,6 +1,6 @@
 ---
 name: corpus-health
-description: Use when the user wants to check central corpus health, Lorekit status, vector index status, GBrain freshness, configuration, or broken knowledge-base workflow state from any project.
+description: 用于在任意项目中检查中央 corpus 健康状态、Lorekit 状态、向量索引、GBrain 新鲜度、配置或知识库工作流问题。
 ---
 
 # corpus-health

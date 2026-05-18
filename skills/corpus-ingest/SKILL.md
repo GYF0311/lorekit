@@ -1,6 +1,6 @@
 ---
 name: corpus-ingest
-description: Use when the user wants to ingest, archive, save, or organize a URL, file, pasted source, article, document, or external material into a central Lorekit corpus from any project.
+description: 用于在任意项目中把 URL、文件、粘贴来源、文章、文档或外部资料摄入、归档、保存到中央 Lorekit corpus。
 ---
 
 # corpus-ingest

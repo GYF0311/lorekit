@@ -1,6 +1,6 @@
 ---
 name: corpus-query
-description: Use when the user wants to search, query, recall, or synthesize existing knowledge from a central Lorekit corpus while working in any project.
+description: 用于在任意项目中搜索、查询、回忆或综合中央 Lorekit corpus 里的已有知识。
 ---
 
 # corpus-query

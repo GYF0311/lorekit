@@ -1,6 +1,6 @@
 ---
 name: corpus-gbrain-query
-description: Use when the user wants graph, multi-hop, relationship, or GBrain-enhanced candidate retrieval from a central Lorekit corpus while preserving Lorekit as source of truth.
+description: 用于从中央 Lorekit corpus 进行图谱、多跳关系或 GBrain 增强候选检索，并保持 Lorekit 知识库为事实源。
 ---
 
 # corpus-gbrain-query
