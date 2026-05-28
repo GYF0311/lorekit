@@ -36,6 +36,16 @@ import { parseGeneric } from './routes/web.js';
 import { parseWeixin } from './routes/weixin.js';
 import type { FetchOptions, FetchResult } from './types.js';
 
+function looksLikeWeixinArticle(html: string): boolean {
+  const hasContentRoot = html.includes('id="js_content"') || html.includes("id='js_content'");
+  const hasWeixinMarker =
+    html.includes('rich_media') ||
+    html.includes('code-snippet__') ||
+    html.includes('var ct =') ||
+    html.includes('mp.weixin.qq.com');
+  return hasContentRoot && hasWeixinMarker;
+}
+
 // ---------------------------------------------------------------------------
 // fetchUrl 主入口（dispatcher）
 // ---------------------------------------------------------------------------
@@ -96,7 +106,8 @@ export async function fetchUrl(url: string, opts: FetchOptions): Promise<FetchRe
   }
 
   // --- Parse ---
-  const doc = site === 'weixin' ? parseWeixin(html, url) : parseGeneric(html, url);
+  const parseSite = site === 'weixin' || looksLikeWeixinArticle(html) ? 'weixin' : 'generic';
+  const doc = parseSite === 'weixin' ? parseWeixin(html, url) : parseGeneric(html, url);
 
   if (!doc.bodyHtml || doc.bodyHtml.replace(/<[^>]*>/g, '').trim().length < 50) {
     return {
@@ -134,7 +145,7 @@ export async function fetchUrl(url: string, opts: FetchOptions): Promise<FetchRe
   // 21b buildFrontmatter（routeKind 二元）替换原 inline fmLines 拼装；title/
   // author 在 generic/weixin 路由都是条件输出（21b 已用 generic-full /
   // weixin-no-author-no-date / generic-no-title-no-author 三 case 验证 byte 等价）
-  const sourceKind: 'article' | 'clipping' = site === 'weixin' ? 'clipping' : 'article';
+  const sourceKind: 'article' | 'clipping' = parseSite === 'weixin' ? 'clipping' : 'article';
   const today = todayYMD();
   const fmLines: string[] = [];
   fmLines.push(

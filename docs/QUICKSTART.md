@@ -161,10 +161,10 @@ ollama serve          # if not already running
 ollama pull bge-m3    # 1.2 GB, one time
 
 cd ~/Desktop/my-corpus
-lorekit sync          # one-shot: index → vector sync --layered → doctor
+lorekit sync          # closeout: index → vector sync --layered → doctor
 ```
 
-`lorekit sync` is the standard entry point after any ingest/fileback. It:
+`lorekit sync` is the standard entry point after durable corpus changes: new `原料/` imports, `知识库/` fileback, route/index changes, stage closeout, or commit/push verification. Do not run it after every `_工作台/` note, daily fragment, or temporary display artifact. It:
 
 1. Recursively refreshes every `_INDEX.md` (via `lorekit index`)
 2. Incrementally re-embeds only changed files into `sqlite-vec` + FTS5
@@ -218,7 +218,7 @@ lorekit sync --json
 lorekit snapshot
 ```
 
-Optional GBrain is healthy enough when `lorekit gbrain export --dry-run` shows the expected pages and `lorekit doctor` reports hard checks passing. Missing GBrain itself is only an optional warning.
+Optional GBrain is healthy enough when `lorekit gbrain export --dry-run` shows the expected pages and `lorekit doctor --section integrations` reports the enabled integration state. In a lorekit-only corpus, default `lorekit doctor` skips inactive GBrain instead of recommending setup.
 
 ---
 

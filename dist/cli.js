@@ -1770,7 +1770,7 @@ function exportForGbrain(corpus, opts = {}) {
   const exportedAt = (/* @__PURE__ */ new Date()).toISOString();
   const root = exportRoot(corpus, opts.out, opts.allowOutsideCorpus);
   const pagesDir = join6(root, "pages");
-  const manifestPath = join6(root, "manifest.json");
+  const manifestPath2 = join6(root, "manifest.json");
   const { candidates, skipped, warnings } = collectKnowledgeMarkdown(corpus);
   const { planned, slugMap, reverseMap } = buildPlan(corpus, candidates);
   const pages = [];
@@ -1813,7 +1813,7 @@ function exportForGbrain(corpus, opts = {}) {
       warnings,
       reverseMap
     };
-    writeJsonFile(manifestPath, manifest);
+    writeJsonFile(manifestPath2, manifest);
     writeFileSync3(
       join6(root, "README.md"),
       [
@@ -1832,7 +1832,7 @@ function exportForGbrain(corpus, opts = {}) {
     corpus,
     exportDir: root,
     pagesDir,
-    manifestPath,
+    manifestPath: manifestPath2,
     exportedAt,
     pagesExported: pages.length,
     pagesSkipped: skipped.length,
@@ -1853,6 +1853,38 @@ function gbrainQueryTimeoutMs() {
 }
 function syncReportPath(corpus) {
   return join7(corpus, ".wiki", "integrations", "gbrain", "sync-report.json");
+}
+function manifestPath(corpus) {
+  return join7(corpus, ".wiki", "integrations", "gbrain-export", "manifest.json");
+}
+function configuredGbrainBinary() {
+  return process.env.LOREKIT_GBRAIN_BIN || "gbrain";
+}
+function inactiveGbrainStatus() {
+  return {
+    installed: false,
+    binary: configuredGbrainBinary(),
+    version: null,
+    brainInitialized: false,
+    installHint: "",
+    errors: []
+  };
+}
+function configEnablesGbrain(corpus) {
+  const configPath = join7(corpus, ".wiki", "config.yaml");
+  if (!existsSync7(configPath)) return false;
+  const config = readFileSync6(configPath, "utf-8");
+  return /(^|\n)\s*gbrain_enabled\s*:\s*true\s*(#.*)?($|\n)/i.test(config) || /(^|\n)\s*gbrain\s*:\s*true\s*(#.*)?($|\n)/i.test(config) || /(^|\n)\s*gbrain\s*:\s*\n(?:[ \t]+.*\n)*?[ \t]+enabled\s*:\s*true\s*(#.*)?($|\n)/i.test(
+    config
+  );
+}
+function gbrainActivationReason(corpus, manifest, syncPath) {
+  if (process.env.LOREKIT_GBRAIN_BIN) return "LOREKIT_GBRAIN_BIN";
+  if (process.env.GBRAIN_HOME) return "GBRAIN_HOME";
+  if (configEnablesGbrain(corpus)) return ".wiki/config.yaml";
+  if (existsSync7(manifest)) return "gbrain export manifest";
+  if (existsSync7(syncPath)) return "gbrain sync report";
+  return null;
 }
 function writeSyncReport(corpus, result) {
   const path = syncReportPath(corpus);
@@ -2060,8 +2092,23 @@ async function syncGbrain(corpus, opts = {}) {
   writeSyncReport(corpus, result);
   return result;
 }
-async function doctorGbrain(corpus) {
+async function doctorGbrain(corpus, opts = {}) {
   const issues = [];
+  const manifest = manifestPath(corpus);
+  const syncPath = syncReportPath(corpus);
+  const activationReason = opts.force ? "explicit check" : gbrainActivationReason(corpus, manifest, syncPath);
+  if (!activationReason) {
+    return {
+      status: "skipped",
+      corpus,
+      enabled: false,
+      activationReason: null,
+      gbrain: inactiveGbrainStatus(),
+      manifestPath: manifest,
+      syncReportPath: syncPath,
+      issues
+    };
+  }
   const gbrain = await getGbrainStatus();
   if (!gbrain.installed) {
     issues.push({
@@ -2071,12 +2118,10 @@ async function doctorGbrain(corpus) {
       recommendation: "Install GBrain only if you want graph retrieval: git clone + bun install + bun link"
     });
   }
-  const manifestPath = join7(corpus, ".wiki", "integrations", "gbrain-export", "manifest.json");
-  const syncPath = syncReportPath(corpus);
-  const manifest = readJsonFile(manifestPath);
+  const exportManifest = readJsonFile(manifest);
   let exportedWikilinkCount = 0;
   let graphProbeSlug = null;
-  if (!manifest) {
+  if (!exportManifest) {
     issues.push({
       section: "gbrain",
       severity: "warn",
@@ -2084,8 +2129,8 @@ async function doctorGbrain(corpus) {
       recommendation: "Run lorekit gbrain export"
     });
   } else {
-    const reverseMap = manifest.reverseMap ?? {};
-    const missingReverseMapping = manifest.pages.filter((page) => {
+    const reverseMap = exportManifest.reverseMap ?? {};
+    const missingReverseMapping = exportManifest.pages.filter((page) => {
       const slug = page.gbrainSlug ?? slugFromExportPath(page.exportPath);
       return !slug || reverseMap[slug] !== page.sourcePath;
     });
@@ -2097,7 +2142,7 @@ async function doctorGbrain(corpus) {
         recommendation: "Run lorekit gbrain export to regenerate manifest.reverseMap"
       });
     }
-    for (const page of manifest.pages) {
+    for (const page of exportManifest.pages) {
       const sourcePath = join7(corpus, page.sourcePath);
       if (!existsSync7(sourcePath)) {
         issues.push({
@@ -2171,8 +2216,10 @@ async function doctorGbrain(corpus) {
   return {
     status: hasError ? "error" : issues.length > 0 ? "warn" : "ok",
     corpus,
+    enabled: true,
+    activationReason,
     gbrain,
-    manifestPath,
+    manifestPath: manifest,
     syncReportPath: syncPath,
     issues
   };
@@ -2184,7 +2231,7 @@ async function queryGbrain(corpus, text, opts = {}) {
   let staleStatus = null;
   let staleIssues = [];
   if (shouldCheck) {
-    const check = await doctorGbrain(corpus);
+    const check = await doctorGbrain(corpus, { force: true });
     if (!check.gbrain.installed) {
       return {
         status: "error",
@@ -2429,6 +2476,8 @@ function gbrainSection(gbrain) {
     status: gbrain.status,
     gbrain: {
       status: gbrain.status,
+      enabled: gbrain.enabled,
+      activationReason: gbrain.activationReason,
       installed: gbrain.gbrain.installed,
       binary: gbrain.gbrain.binary,
       version: gbrain.gbrain.version,
@@ -2506,7 +2555,7 @@ async function runDoctorReport(corpus, opts = {}) {
     report.sections.obsidian = inspectObsidianGraph(corpus);
   }
   if (section === "all" || section === "integrations") {
-    const gbrain = await doctorGbrain(corpus);
+    const gbrain = await doctorGbrain(corpus, { force: section === "integrations" });
     report.sections.integrations = gbrainSection(gbrain);
     report.issues.push(...gbrain.issues.map(convertGbrainIssue));
   }
@@ -2551,10 +2600,14 @@ lorekit doctor \u2014 ${corpus}
     print();
   }
   if (section === "all" || section === "integrations") {
-    print(chalk3.cyan("\u2500\u2500 integrations \u2500\u2500"));
-    const gbrain = await doctorGbrain(corpus);
+    const gbrain = await doctorGbrain(corpus, { force: section === "integrations" });
+    if (!(section === "all" && gbrain.status === "skipped")) {
+      print(chalk3.cyan("\u2500\u2500 integrations \u2500\u2500"));
+    }
     if (gbrain.status === "ok") {
       ok("gbrain: integration healthy");
+    } else if (gbrain.status === "skipped") {
+      print(chalk3.dim("gbrain: skipped (optional integration not enabled)"));
     } else {
       for (const issue of gbrain.issues) {
         const line = `gbrain: ${issue.message}. ${issue.recommendation}`;
@@ -2565,7 +2618,9 @@ lorekit doctor \u2014 ${corpus}
     const integrationErrors = gbrain.issues.filter((issue) => issue.severity === "error").length;
     optionalWarnings += gbrain.issues.filter((issue) => issue.severity === "warn").length;
     issues += integrationErrors;
-    print();
+    if (!(section === "all" && gbrain.status === "skipped")) {
+      print();
+    }
   }
   if (issues === 0) {
     print(chalk3.green.bold("all hard checks passed \u2713"));
@@ -3376,13 +3431,13 @@ async function createSnapshot(corpus, opts = {}) {
       mtime: st.mtime.toISOString()
     };
   });
-  const manifestPath = join12(snapshotsDir, "manifest.json");
-  writeFileSync6(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+  const manifestPath2 = join12(snapshotsDir, "manifest.json");
+  writeFileSync6(manifestPath2, JSON.stringify(manifest, null, 2) + "\n");
   try {
     const tag = opts.tag ? `-${opts.tag}` : "";
     const tarName = `${tsCompact()}${tag}.tar.gz`;
     const tarPath = join12(snapshotsDir, tarName);
-    const allEntries = [...files, relative6(corpus, manifestPath)];
+    const allEntries = [...files, relative6(corpus, manifestPath2)];
     await tar.create(
       {
         gzip: true,
@@ -3394,7 +3449,7 @@ async function createSnapshot(corpus, opts = {}) {
     );
     return tarPath;
   } finally {
-    if (existsSync12(manifestPath)) unlinkSync2(manifestPath);
+    if (existsSync12(manifestPath2)) unlinkSync2(manifestPath2);
   }
 }
 function snapshotCommand(program2) {
@@ -3455,13 +3510,13 @@ function restoreCommand(program2) {
         file: opts.from,
         cwd: tmpDir
       });
-      const manifestPath = join13(tmpDir, ".wiki", "snapshots", "manifest.json");
-      if (!existsSync13(manifestPath)) {
+      const manifestPath2 = join13(tmpDir, ".wiki", "snapshots", "manifest.json");
+      if (!existsSync13(manifestPath2)) {
         bad("manifest.json not found in snapshot");
         process.exitCode = 1;
         return;
       }
-      const manifest = JSON.parse(readFileSync12(manifestPath, "utf-8"));
+      const manifest = JSON.parse(readFileSync12(manifestPath2, "utf-8"));
       const diffs = [];
       for (const entry of manifest) {
         if (opts.file && entry.path !== opts.file) continue;
@@ -4086,6 +4141,20 @@ function firstSrcsetUrl(srcset) {
   const url = firstCandidate.split(/\s+/)[0].trim();
   return url;
 }
+function normalizeCodeSnippetBlocks($, body) {
+  body.find("pre.code-snippet__js").each((_i, el) => {
+    const $pre = $(el);
+    const lines = $pre.children("code").map((_j, codeEl) => $(codeEl).text()).get();
+    if (lines.length <= 1) return;
+    const langRaw = ($pre.attr("data-lang") || "").trim();
+    const lang = langRaw.replace(/[^\w-]/g, "");
+    const $replacement = $("<pre><code></code></pre>");
+    const $code = $replacement.find("code");
+    if (lang) $code.attr("class", `language-${lang}`);
+    $code.text(lines.join("\n"));
+    $pre.replaceWith($replacement);
+  });
+}
 function parseWeixin(html, baseUrl) {
   const $ = cheerio2.load(html);
   const title = $("h1#activity-name").text().trim() || $("h1.rich_media_title").text().trim() || $('meta[property="og:title"]').attr("content")?.trim() || "";
@@ -4105,6 +4174,7 @@ function parseWeixin(html, baseUrl) {
     return { title, author, publishDate, bodyHtml: "", imgSrcs: [] };
   }
   body.find("script, style").remove();
+  normalizeCodeSnippetBlocks($, body);
   body.find("picture").each((_i, el) => {
     const $picture = $(el);
     const $firstSource = $picture.find("source[srcset]").first();
@@ -4359,6 +4429,11 @@ async function fetchGithubDoc(url, outRoot) {
 }
 
 // src/lib/fetcher/index.ts
+function looksLikeWeixinArticle(html) {
+  const hasContentRoot = html.includes('id="js_content"') || html.includes("id='js_content'");
+  const hasWeixinMarker = html.includes("rich_media") || html.includes("code-snippet__") || html.includes("var ct =") || html.includes("mp.weixin.qq.com");
+  return hasContentRoot && hasWeixinMarker;
+}
 async function fetchUrl(url, opts) {
   const site = detectSite(url);
   const headers = buildHeaders(site);
@@ -4395,7 +4470,8 @@ async function fetchUrl(url, opts) {
       };
     }
   }
-  const doc = site === "weixin" ? parseWeixin(html, url) : parseGeneric(html, url);
+  const parseSite = site === "weixin" || looksLikeWeixinArticle(html) ? "weixin" : "generic";
+  const doc = parseSite === "weixin" ? parseWeixin(html, url) : parseGeneric(html, url);
   if (!doc.bodyHtml || doc.bodyHtml.replace(/<[^>]*>/g, "").trim().length < 50) {
     return {
       status: "error",
@@ -4418,7 +4494,7 @@ async function fetchUrl(url, opts) {
       else imagesFailed++;
     }
   }
-  const sourceKind = site === "weixin" ? "clipping" : "article";
+  const sourceKind = parseSite === "weixin" ? "clipping" : "article";
   const today2 = todayYMD();
   const fmLines = [];
   fmLines.push(

@@ -14,6 +14,8 @@
 - **知识库/** — LLM 编译的 wiki 产物（概念、实体、摘要…）
 - **CLAUDE.md** — 本 corpus 的 schema，人 + LLM 共同维护
 
+`原料/` 是长期 LM Wiki 的 canonical raw-source layer。`_工作台/**` 可以放项目证据、课程材料和中间稿，但它们只服务当前任务验证；除非明确 ingest/promote，否则不等价于 `原料/`。
+
 ## 怎么用
 
 ### 第一次
@@ -28,6 +30,7 @@
 - 有一篇想保存的文章 → 原文进 `原料/文章/`，Agent 编译进 `知识库/`
 - 想搜之前整理过什么 → 让 Agent 用 `wiki query` 查 `index.md`
 - 对话中产生的洞察 → 让 Agent file back 存进 `知识库/`
+- 跑同步 → 在新 `原料/`、`知识库/` fileback、结构变化、阶段收口或提交前执行；不要因为每条 `_工作台/` note 立刻 sync
 - 定期体检 → `lorekit doctor` 扫断链、孤岛、过期文件
 - 对 wiki 内容有意见 → 往 `反馈/待处理/` 提 feedback
 
@@ -79,7 +82,7 @@ lorekit gbrain sync
 lorekit gbrain query "..."
 ```
 
-边界：GBrain 只读 `.wiki/integrations/gbrain-export/`，不能直接写回 `知识库/` 或 `原料/`。`export --out` 默认只能写在 `.wiki/integrations/` 下。`sync` 会先检查外部 binary；缺失时默认不刷新 staging。`query` 默认检查 export/sync freshness；如果 stale 会提醒先 sync，但不阻止查询。
+边界：GBrain 只读 `.wiki/integrations/gbrain-export/`，不能直接写回 `知识库/` 或 `原料/`。默认 `lorekit doctor` 会跳过 inactive GBrain；显式 `lorekit gbrain doctor` 或 `doctor --section integrations` 才检查集成状态。`export --out` 默认只能写在 `.wiki/integrations/` 下。`sync` 会先检查外部 binary；缺失时默认不刷新 staging。`query` 默认检查 export/sync freshness；如果 stale 会提醒先 sync，但不阻止查询。
 
 ## 版本
 

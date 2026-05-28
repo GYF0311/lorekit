@@ -62,9 +62,10 @@ description: 从 corpus 检索已有内容并综合答案，按精确/模糊/图
 
 **文本模式**：
 
-- Read `corpus/index.md` → AI 按语义选 1-3 个分区
+- Read `corpus/index.md` / `知识库/` → AI 按语义选 1-3 个分区
 - Read `{选中分区}/_INDEX.md` → 选具体页
 - Read 具体 `.md` 文件 → 综合答案
+- 只有需要完整 provenance 时才打开 `原料/`；project-local evidence / `_工作台/**` 只在当前任务点名时读取，不作为默认召回层
 
 **向量模式**（阶段 2 标配走混合检索，不是纯向量）：
 

@@ -29,6 +29,7 @@ const EXPECTED_DIRS = [
 ];
 
 type DoctorStatus = 'ok' | 'warn' | 'error';
+type DoctorSectionStatus = DoctorStatus | 'skipped';
 const PUBLIC_DOCTOR_SECTIONS = [
   'structure',
   'metadata',
@@ -56,7 +57,7 @@ interface DoctorIssue {
 }
 
 interface DoctorSectionReport {
-  status: DoctorStatus;
+  status: DoctorSectionStatus;
   [key: string]: unknown;
 }
 
@@ -265,6 +266,8 @@ function gbrainSection(gbrain: GbrainDoctorResult): DoctorSectionReport {
     status: gbrain.status,
     gbrain: {
       status: gbrain.status,
+      enabled: gbrain.enabled,
+      activationReason: gbrain.activationReason,
       installed: gbrain.gbrain.installed,
       binary: gbrain.gbrain.binary,
       version: gbrain.gbrain.version,
@@ -354,7 +357,7 @@ export async function runDoctorReport(
   }
 
   if (section === 'all' || section === 'integrations') {
-    const gbrain = await doctorGbrain(corpus);
+    const gbrain = await doctorGbrain(corpus, { force: section === 'integrations' });
     report.sections.integrations = gbrainSection(gbrain);
     report.issues.push(...gbrain.issues.map(convertGbrainIssue));
   }
@@ -412,10 +415,14 @@ export async function runDoctor(corpus: string, opts: DoctorOptions = {}): Promi
   }
 
   if (section === 'all' || section === 'integrations') {
-    print(chalk.cyan('── integrations ──'));
-    const gbrain = await doctorGbrain(corpus);
+    const gbrain = await doctorGbrain(corpus, { force: section === 'integrations' });
+    if (!(section === 'all' && gbrain.status === 'skipped')) {
+      print(chalk.cyan('── integrations ──'));
+    }
     if (gbrain.status === 'ok') {
       ok('gbrain: integration healthy');
+    } else if (gbrain.status === 'skipped') {
+      print(chalk.dim('gbrain: skipped (optional integration not enabled)'));
     } else {
       for (const issue of gbrain.issues) {
         const line = `gbrain: ${issue.message}. ${issue.recommendation}`;
@@ -426,7 +433,9 @@ export async function runDoctor(corpus: string, opts: DoctorOptions = {}): Promi
     const integrationErrors = gbrain.issues.filter((issue) => issue.severity === 'error').length;
     optionalWarnings += gbrain.issues.filter((issue) => issue.severity === 'warn').length;
     issues += integrationErrors;
-    print();
+    if (!(section === 'all' && gbrain.status === 'skipped')) {
+      print();
+    }
   }
 
   if (issues === 0) {

@@ -60,7 +60,7 @@ description: 把新内容摄入 corpus，按 filing-rules 落盘并建反向链�
 | `x.com` / `twitter.com`        | unsupported | 反爬强，粘截图或文本                    |
 | `*.pdf`                        | unsupported | 走 pdf skill                            |
 
-**本地文件 / 粘贴文本** 不走 `lorekit fetch`，直接 `Read`。
+**本地文件 / 粘贴文本** 不走 `lorekit fetch`，直接 `Read`。项目 evidence、课程原文、中间转写或 `_工作台/**` 文件不要因为"像 source"就自动 ingest；必须有明确入库意图，才整理进 `原料/` 并编译到 `知识库/`。
 
 ### 1.5 来源类型判断（决定走哪条 ingest 流程）
 
@@ -249,12 +249,14 @@ lorekit ingest record <url> \
 - `--step` 含 `lint` 时 status 自动转 `completed`
 - `--log` body 自动 prepend 到 `corpus/log.md` 顶部，带标准格式
 
-然后跑 `lorekit sync`：
+然后跑 `lorekit sync`（仅针对已经 archive 到 `原料/` / fileback 到 `知识库/` 的 durable ingest）：
 
 - 自动刷 `_INDEX.md`
 - 自动 merge `corpus/index.md`（新页追加 / 失踪页删除 / 人类手写摘要保留）
 - 增量向量同步
 - doctor 健康检查
+
+工作台 note、daily fragment、临时学习记录或 HTML 展示产物的小改不触发即时 sync；阶段收口或转入 `原料/` / `知识库/` 时再同步。
 
 **不要**手动 Edit `corpus/index.md` 或 `corpus/log.md`——CLI 全包了。
 

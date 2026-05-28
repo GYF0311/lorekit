@@ -44,7 +44,7 @@ lorekit/
 | `ingest.ts`         | 407 | ingest pipeline state machine：list / pending / record / check / forget / reconcile                               |
 | `dir-index.ts`      | 273 | 递归生成 `_INDEX.md`；复用 `paths.ts` 跳过 `skills/` / `node_modules/` 等工具目录                                  |
 | `sync.ts`           | 204 | 一键链：dir-index → root index → vector sync → doctor；`--json/--report` 输出步骤收据                             |
-| `doctor.ts`         | 469 | corpus 健康检查；human 输出 + `--json` 结构化报告 + 严格 `--section <name>` 检查                                  |
+| `doctor.ts`         | 469 | corpus 健康检查；human 输出 + `--json` 结构化报告 + 严格 `--section <name>` 检查；默认跳过 inactive optional integrations |
 | `vector.ts`         | 188 | 向量子命令：sync / query（flat / layered / bm25 / hybrid）/ status                                                |
 | `lint.ts`           | 230 | frontmatter / 死链 / 孤岛页扫描；`--quick` 是 agent 自检兼容别名                                                   |
 | `audit.ts`          | 162 | 反馈条目 CRUD                                                                                                     |

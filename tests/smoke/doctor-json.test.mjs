@@ -39,47 +39,66 @@ function fakeGbrainWithGraph(tmp) {
   return bin;
 }
 
-test('doctor --json reports optional GBrain integration warnings without hard failing', () => {
+test('doctor --json skips inactive optional GBrain integration by default', () => {
   const corpus = initCorpus();
   try {
     const args = ['doctor', '--json'];
-    const r = runLorekit(args, {
-      cwd: corpus,
-      env: { LOREKIT_GBRAIN_BIN: '__missing_lorekit_gbrain_binary__' },
-    });
-    assert.equal(r.status, 0, fmtRun(r, args, 'warn status exits 0'));
+    const r = runLorekit(args, { cwd: corpus });
+    assert.equal(r.status, 0, fmtRun(r, args, 'inactive optional integration exits 0'));
 
     const parsed = JSON.parse(r.stdout);
-    assert.equal(parsed.status, 'warn');
+    assert.equal(parsed.status, 'ok');
     assert.equal(parsed.hardIssues, 0);
-    assert.equal(parsed.sections.integrations.gbrain.status, 'warn');
+    assert.equal(parsed.sections.integrations.gbrain.status, 'skipped');
+    assert.equal(parsed.sections.integrations.gbrain.enabled, false);
     assert.ok(
-      parsed.issues.some((issue) => /GBrain binary is not installed/.test(issue.message)),
-      'GBrain missing warning is surfaced',
+      parsed.issues.every((issue) => !/GBrain/.test(issue.message)),
+      'inactive GBrain does not create default doctor warnings',
     );
   } finally {
     cleanupTmpDir(corpus);
   }
 });
 
-test('doctor human output distinguishes hard pass from optional warnings', () => {
-  const corpus = initCorpus('lorekit-smoke-doctor-human-warn-');
+test('doctor human output omits inactive optional GBrain warnings by default', () => {
+  const corpus = initCorpus('lorekit-smoke-doctor-human-skip-');
   try {
     const args = ['doctor'];
-    const r = runLorekit(args, {
-      cwd: corpus,
-      env: { LOREKIT_GBRAIN_BIN: '__missing_lorekit_gbrain_binary__' },
-    });
-    assert.equal(r.status, 0, fmtRun(r, args, 'optional warnings still exit 0'));
+    const r = runLorekit(args, { cwd: corpus });
+    assert.equal(r.status, 0, fmtRun(r, args, 'inactive optional integration exits 0'));
     assert.match(
       r.stderr,
       /all hard checks passed/i,
       fmtRun(r, args, 'stderr says hard checks passed'),
     );
-    assert.match(
+    assert.doesNotMatch(
       r.stderr,
-      /optional warnings found/i,
-      fmtRun(r, args, 'stderr says optional warnings found'),
+      /GBrain binary is not installed|optional warnings found/i,
+      fmtRun(r, args, 'stderr does not surface inactive GBrain warnings'),
+    );
+  } finally {
+    cleanupTmpDir(corpus);
+  }
+});
+
+test('doctor --section integrations --json reports missing GBrain when explicitly requested', () => {
+  const corpus = initCorpus('lorekit-smoke-doctor-json-gbrain-explicit-');
+  try {
+    const args = ['doctor', '--section', 'integrations', '--json'];
+    const r = runLorekit(args, {
+      cwd: corpus,
+      env: { LOREKIT_GBRAIN_BIN: '__missing_lorekit_gbrain_binary__' },
+    });
+    assert.equal(r.status, 0, fmtRun(r, args, 'explicit integration warning exits 0'));
+
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.status, 'warn');
+    assert.equal(parsed.hardIssues, 0);
+    assert.equal(parsed.sections.integrations.gbrain.status, 'warn');
+    assert.equal(parsed.sections.integrations.gbrain.enabled, true);
+    assert.ok(
+      parsed.issues.some((issue) => /GBrain binary is not installed/.test(issue.message)),
+      'explicit integration check surfaces missing binary',
     );
   } finally {
     cleanupTmpDir(corpus);

@@ -113,6 +113,40 @@ test('fetch happy path: 本地 mock server → markdown + frontmatter 落盘', a
   }
 });
 
+test('fetch weixin code-snippet: 多个子 code 行完整保留', async () => {
+  const tmp = mkTmpDir('lorekit-smoke-fetch-weixin-');
+  const { url, close } = await startMockServer();
+  try {
+    const weixinUrl = `${url}weixin-code-snippet`;
+    const args = ['fetch', weixinUrl, '--force-rich', '--out', tmp, '--no-images'];
+    const r = runLorekit(args);
+    assert.equal(r.status, 0, fmtRun(r, args, 'exit 0'));
+
+    let parsed;
+    assert.doesNotThrow(
+      () => {
+        parsed = JSON.parse(r.stdout.trim());
+      },
+      fmtRun(r, args, 'stdout 是合法 JSON'),
+    );
+    assert.equal(parsed.status, 'ok', fmtRun(r, args, `status=ok, 实际 ${parsed.status}`));
+    assert.equal(parsed.sourceKind, 'clipping', fmtRun(r, args, 'WeChat-like HTML 走 clipping'));
+
+    const mdFiles = readdirSync(tmp).filter((n) => n.endsWith('.md'));
+    assert.ok(mdFiles.length === 1, fmtRun(r, args, `expected 1 .md in tmp, got ${mdFiles.length}`));
+    const content = readFileSync(join(tmp, mdFiles[0]), 'utf-8');
+    assert.match(
+      content,
+      /```markdown\n# 寓言写作 Prompt\nline 2 should survive\nline 3 should survive\n```/,
+      'WeChat code-snippet 的多行 code 应落成一个完整 fenced code block',
+    );
+    assert.match(content, /lorekit-weixin-code-snippet-marker/, 'markdown body 含 fixture marker');
+  } finally {
+    await close();
+    cleanupTmpDir(tmp);
+  }
+});
+
 test('fetch error path: 不可达的 host → exit 1 + status=error JSON', () => {
   const tmp = mkTmpDir('lorekit-smoke-fetch-err-');
   try {

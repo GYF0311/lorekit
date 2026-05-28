@@ -92,6 +92,14 @@ corpus/
 - 全局 `corpus-query` / `corpus-gbrain-query` 默认只读，必须回读 canonical `知识库/` 页面
 - 全局 `corpus-ingest` / `corpus-fileback` 写库前必须先读本项目规则和相关 `skills/wiki-*`
 - `wiki-remove`、GBrain 原生 mutating 命令、自动 fileback 不做全局默认入口
+- `原料/` 是长期 LM Wiki 的 canonical raw-source layer；`_工作台/**` 里的项目证据、课程原文和中间材料只服务当前任务验证，除非明确 ingest/promote，否则不等价于 `原料/`
+- 检索链默认从 `index.md` / `知识库/` 开始，需要完整 provenance 时再打开 `原料/`；project-local evidence 只在当前任务点名时读取
+
+同步触发：
+
+- 推荐触发：新 `原料/` import、durable `知识库/` fileback、`index.md` / `_INDEX.md` 路由变化、corpus 结构变化、阶段收口、commit/push 验证
+- 不推荐触发：每条 `_工作台/` note、daily fragment、临时学习记录、HTML/展示产物的小改
+- routine check 汇报只给 pass/fail、阻塞项和关键路径，不贴整段 `index/sync/doctor` 日志
 
 如果从其他项目进入本 corpus，优先读取 `~/.config/lorekit/global-corpus.json` 中的 `default_corpus`、`lorekit_bin`、`gbrain_bin`，并使用本 corpus 的 wrapper，不要裸调用不确定来源的全局 `lorekit` / `gbrain`。
 

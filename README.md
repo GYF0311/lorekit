@@ -20,6 +20,8 @@ Three layers:
 - **Artifact layer** (`知识库/`): the compiled wiki — cross-linked, synthesized, continuously updated
 - **Schema** (`CLAUDE.md` / `AGENTS.md`): per-corpus configuration, co-maintained by human + LLM
 
+Project-local evidence folders such as `_工作台/课程原文/` are not automatically part of the LM Wiki raw-source layer. The retrieval chain starts from `index.md` / `知识库/`; open `原料/` only when full source provenance is needed, and promote project evidence into `原料/` only through an explicit ingest.
+
 > **Data safety**: lorekit has zero tolerance for data loss. Existing notes are backed up before init; `原料/` is immutable; no `rm` is ever used — deletions go through `trash` (recoverable from macOS Trash). See the data-safety rules in `AGENTS.md` and `docs/INSTALLATION.md`.
 
 ## Feature Map
@@ -28,7 +30,7 @@ Three layers:
 | --------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Launch screen   | `lorekit`               | No-arg invocation prints the blue logo + corpus status                                                                                                                |
 | Init            | `lorekit init`          | Scaffolds the corpus, deploys the Obsidian plugin, auto-backs up pre-existing content                                                                                 |
-| Doctor          | `lorekit doctor`        | Directory integrity, frontmatter coverage, Obsidian hints, optional integration health; supports `--json` and strict `--section <name>` filters                       |
+| Doctor          | `lorekit doctor`        | Directory integrity, frontmatter coverage, Obsidian hints, enabled/explicit optional integration health; supports `--json` and strict `--section <name>` filters        |
 | Stats           | `lorekit stats`         | Page count, type breakdown                                                                                                                                            |
 | Search          | `lorekit search`        | Text search + vector semantic search (hybrid)                                                                                                                         |
 | Web fetch       | `lorekit fetch <url>`   | Pulls WeChat / generic pages into the workbench; auto-extracts `publishDate`, writes spec-compliant frontmatter, detects duplicate / in-progress URLs from state.json |
@@ -42,7 +44,7 @@ Three layers:
 | Vector query    | `lorekit vector query`  | Search modes: `--layered` (vector), `--bm25` (FTS5), `--hybrid` (both + RRF)                                                                                          |
 | Vector status   | `lorekit vector status` | Inspect the index; returns `mode: text\|vector` recommendation based on `indexed_files` vs `MODE_THRESHOLD_FILES` (default 100)                                       |
 | Directory index | `lorekit index`         | Recursively generate `_INDEX.md` for every subdirectory (including folder-packaged sources like `原料/文章/<slug>/article.md`)                                        |
-| **Sync**        | **`lorekit sync`**      | **One-shot: `index` → `vector sync --layered` → `doctor`; supports `--json` and `--report` for agent-readable step receipts**                                         |
+| **Sync**        | **`lorekit sync`**      | **One-shot for durable corpus changes: `index` → `vector sync --layered` → `doctor`; supports `--json` and `--report` for agent-readable step receipts**              |
 | Obsidian tune   | `lorekit obsidian-tune` | 老用户升级一键应用 Obsidian graph filter（默认只读检查 / `--write` 备份后写 / `--print` 管道用）                                                                      |
 | GBrain          | `lorekit gbrain <sub>`  | Optional read-only bridge: compile `知识库/` into GBrain-native staging, then call external import/extract; never writes canonical wiki pages                     |
 
@@ -234,6 +236,8 @@ lorekit gbrain query "RAG"
 
 `sync` first checks the external GBrain binary, then exports, runs `gbrain import <export/pages> --fresh`, and runs `gbrain extract all --source db --include-frontmatter --json`, writing `.wiki/integrations/gbrain/sync-report.json`. If the binary is missing, `sync` writes a failure report without refreshing staging unless `--export-even-if-missing` is explicit.
 
+Default `lorekit doctor` skips inactive GBrain. It checks GBrain only when the integration is explicitly requested (`doctor --section integrations` / `lorekit gbrain doctor`), configured by env/config, or already has `.wiki/integrations/gbrain*` state.
+
 `query` requires a corpus and checks the export manifest + last sync report before calling GBrain. If the export or sync report looks stale, it warns with `GBrain index may be stale. Run lorekit gbrain sync.` but still calls `gbrain query`; candidates are mapped back through `manifest.reverseMap` so answers and context can cite canonical `知识库/` pages. Lorekit asks GBrain for candidate recall with `--no-expand` by default and keeps already-returned mapped candidates if the external CLI times out after printing results. Use `--no-stale-check` only for debugging noisy freshness checks.
 
 Boundary: GBrain must not write back to `知识库/` or `原料/`. Persisting new knowledge still goes through wiki-fileback / audit / snapshot review.
@@ -278,7 +282,7 @@ brew install ollama
 ollama pull bge-m3
 
 # Standard workflow (layered + FTS5 by default)
-lorekit sync                               # index → vector sync → doctor, one shot
+lorekit sync                               # closeout: index → vector sync → doctor
 
 # Three query modes (pick based on the problem, not the index)
 lorekit vector query --hybrid --text "xxx" # BM25 + vector + RRF fusion (production default)
@@ -289,6 +293,8 @@ lorekit vector query --bm25    --text "xxx" # FTS5-only BM25 (debug precise keyw
 lorekit sync --json
 lorekit sync --report                       # writes .wiki/reports/sync/<timestamp>.json
 ```
+
+Run `lorekit sync` after durable `知识库/` fileback, new `原料/` import, index/routing changes, stage closeout, or commit/push verification. Workbench notes, temporary learning records, and display artifacts can wait for closeout instead of forcing immediate sync.
 
 Swappable embedding models (any ollama-hosted model works):
 
@@ -396,7 +402,7 @@ corpus/
 │   ├── 待处理/
 │   └── 已处理/
 │
-├── _工作台/            ← workbench (TTL-driven)
+├── _工作台/            ← workbench / project-local evidence (TTL-driven; not raw source unless ingested)
 │   ├── 收件/           ← 7 days
 │   ├── 草稿/           ← 30 days
 │   ├── 临时/           ← 14 days

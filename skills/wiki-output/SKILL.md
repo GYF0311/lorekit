@@ -87,7 +87,7 @@ description: 对外输出：Marp 幻灯片、对外文章草稿、matplotlib 图
 - Read `corpus/index.md` / `{dir}/_INDEX.md` / 具体文件
 - `lorekit search "<q>"` / `lorekit vector query --hybrid --text "<q>"` — 检索素材
 - Write — 落盘输出文件
-- `lorekit sync` — 输出目录也会被 `_INDEX.md` 扫描（但向量 exclude 规则跳过 `输出/**`）
+- `lorekit sync` — 只在阶段收口、commit/push 验证，或输出需要进入长期索引时运行；不要因每个输出文件小改立刻 sync
 - 底层：Edit（微调已有输出文件）
 
 ## Output format

@@ -254,12 +254,13 @@ GBrain = 派生检索
 ```bash
 cd ~/Desktop/my-corpus
 lorekit fetch <url>
-lorekit sync --json
 lorekit search "关键词"
 lorekit vector query --hybrid --text "问题"
 lorekit snapshot
 lorekit doctor --json
 ```
+
+`lorekit sync --json` is a closeout step for durable corpus changes: new `原料/` imports, `知识库/` fileback, index/routing changes, stage closeout, or commit/push verification. Workbench notes and transient learning artifacts can wait for closeout.
 
 AI 工作流：
 
@@ -414,4 +415,4 @@ cd ~/Desktop/my-corpus
 ./bin/lorekit gbrain sync --json
 ```
 
-如果 GBrain 缺失，lorekit 仍可单独使用；GBrain health warning 不代表 canonical wiki 损坏。
+这里的"写入"指 `原料/` / `知识库/` / 路由索引这类 durable corpus 写入，不是每一次 `_工作台/` 记录。若 GBrain 未启用，lorekit 仍可单独使用；默认 `doctor` 会跳过 inactive GBrain，显式 `gbrain doctor` 或 `doctor --section integrations` 才检查 GBrain 状态。

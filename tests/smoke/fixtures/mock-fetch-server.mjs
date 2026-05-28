@@ -22,9 +22,25 @@ const HTML = `<!DOCTYPE html>
   </article>
 </body></html>`;
 
-const server = createServer((_req, res) => {
+const WEIXIN_CODE_SNIPPET_HTML = `<!DOCTYPE html>
+<html><head>
+  <meta property="og:title" content="Weixin Code Snippet Fixture">
+</head><body>
+  <h1 id="activity-name">Weixin Code Snippet Fixture</h1>
+  <a id="js_name">lorekit-smoke</a>
+  <div id="js_content">
+    <p>所以最后的Prompt，是这个样子的：</p>
+    <section class="code-snippet__fix code-snippet__js">
+      <pre class="code-snippet__js" data-lang="markdown"><code><span># 寓言写作 Prompt</span></code><code><span>line 2 should survive</span></code><code><span>line 3 should survive</span></code></pre>
+    </section>
+    <p>This fake WeChat article has enough plain text content to pass the
+    empty_body guard, and it keeps a marker: lorekit-weixin-code-snippet-marker.</p>
+  </div>
+</body></html>`;
+
+const server = createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-  res.end(HTML);
+  res.end(req.url === '/weixin-code-snippet' ? WEIXIN_CODE_SNIPPET_HTML : HTML);
 });
 
 server.on('error', (e) => {

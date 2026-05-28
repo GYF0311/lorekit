@@ -6,7 +6,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](ht
 
 ## [Unreleased]
 
-_（留给下一个版本）_
+### Fixed
+
+- Preserve multi-line WeChat `code-snippet__js` blocks during rich fetch instead of silently keeping only the first line.
+- Make default `lorekit doctor` skip inactive optional GBrain checks, while explicit integration checks and existing GBrain state still surface health issues.
+
+### Changed
+
+- Narrow default sync guidance for workbench/process files: `lorekit sync` is now documented as a durable corpus closeout step, not something to run after every transient note.
+- Clarify that `原料/` is the canonical raw-source layer; project-local evidence directories stay local unless explicitly ingested.
 
 ## [0.4.0] — 2026-04-19
 

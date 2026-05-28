@@ -47,6 +47,28 @@ function firstSrcsetUrl(srcset: string): string {
   return url;
 }
 
+type CheerioSelection = ReturnType<cheerio.CheerioAPI>;
+
+function normalizeCodeSnippetBlocks($: cheerio.CheerioAPI, body: CheerioSelection): void {
+  body.find('pre.code-snippet__js').each((_i, el) => {
+    const $pre = $(el);
+    const lines = $pre
+      .children('code')
+      .map((_j, codeEl) => $(codeEl).text())
+      .get();
+
+    if (lines.length <= 1) return;
+
+    const langRaw = ($pre.attr('data-lang') || '').trim();
+    const lang = langRaw.replace(/[^\w-]/g, '');
+    const $replacement = $('<pre><code></code></pre>');
+    const $code = $replacement.find('code');
+    if (lang) $code.attr('class', `language-${lang}`);
+    $code.text(lines.join('\n'));
+    $pre.replaceWith($replacement);
+  });
+}
+
 // ---------------------------------------------------------------------------
 // parseWeixin
 // ---------------------------------------------------------------------------
@@ -85,6 +107,9 @@ export function parseWeixin(html: string, baseUrl: string): ParsedDoc {
 
   // Clean
   body.find('script, style').remove();
+
+  // 微信 code-snippet 会把每一行拆成一个子 <code>；Turndown 默认只保留第一行。
+  normalizeCodeSnippetBlocks($, body);
 
   // ---------------------------------------------------------------------------
   // P4-4: 把 <picture><source srcset> 展开成 <img>，再走原有 img 流程

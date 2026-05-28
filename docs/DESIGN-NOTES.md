@@ -280,8 +280,9 @@ lorekit 是 Node.js / TypeScript / commander / better-sqlite3 / optional sqlite-
 - `lorekit gbrain sync` 先检查外部 binary，再 export + 调 `gbrain import <export/pages> --fresh` + `gbrain extract all --source db --include-frontmatter --json`，写 `.wiki/integrations/gbrain/sync-report.json`
 - GBrain 缺失时 `sync` 默认只写失败 report，不刷新 staging；`--export-even-if-missing` 才保留旧的显式 staging refresh 行为
 - `lorekit gbrain query` 默认 require corpus，并检查 manifest / sync report / stale hash；stale 时 warn 但继续查外部索引，候选通过 `reverseMap` 映射回 canonical，`--no-stale-check` 只给调试 noisy guard 用
-- `lorekit doctor --json` 和严格 `doctor --section <name>` 会暴露 GBrain health；缺 binary 是 warn，不让 corpus hard fail，坏 report JSON / 缺 reverseMap 是 error，长期 0 link extraction 是 warn
-- GBrain 未安装时 `status/doctor` 给安装建议，`sync/query` 清晰失败
+- 默认 `lorekit doctor --json` 只在 GBrain 已配置、已有 integration state，或用户显式检查 integrations 时暴露 GBrain health；inactive GBrain 返回 skipped，不产生 warning
+- GBrain 启用后缺 binary 是 warn，不让 corpus hard fail；坏 report JSON / 缺 reverseMap 是 error，长期 0 link extraction 是 warn
+- GBrain 未安装时 `gbrain status/doctor` 给安装建议，`sync/query` 清晰失败
 
 ### 同步收据
 

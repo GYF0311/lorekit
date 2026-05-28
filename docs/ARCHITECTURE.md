@@ -179,7 +179,7 @@ flowchart LR
 | VectorPrune | `lib/vectordb/prune.ts`        | 删除后清理 vector.sqlite 中磁盘已不存在的 documents 及其 chunks/page summaries/vec/FTS 记录 |
 | Remove      | `commands/remove.ts`           | URL/路径解析、dry-run 影响报告、snapshot、OS Trash、来源归因级联清理                    |
 | GBrain      | `commands/gbrain.ts` + `lib/integrations/` | 可选只读集成：status/export/sync/doctor/query，外部进程封装、manifest、stale 提醒、安全 export 边界 |
-| DoctorReport | `commands/doctor.ts`          | `lorekit doctor --json` / 严格 `--section <name>` 的结构化健康报告；可选集成 warn 不阻塞 corpus |
+| DoctorReport | `commands/doctor.ts`          | `lorekit doctor --json` / 严格 `--section <name>` 的结构化健康报告；inactive 可选集成跳过，enabled 可选集成 warn 不阻塞 corpus |
 | SyncReport  | `commands/sync.ts`             | `lorekit sync --json/--report` 的步骤状态收据；写 `.wiki/reports/sync/` |
 | RootIndex   | `lib/root-index.ts`            | `corpus/index.md` 的受控区合并刷新（保留人类摘要）                            |
 | DirIndex    | `commands/dir-index.ts → runIndex` | 所有子目录 `_INDEX.md` 自动生成（v0.4.0 / 批次 17 从 `commands/index.ts` 改名消歧义） |
@@ -203,7 +203,7 @@ flowchart LR
 | ollama          | `POST localhost:11434/api/embed` | 抛错；用户去 `ollama serve`。不影响 Read 三层          |
 | sqlite-vec      | dynamic import                   | `optionalDependencies`；缺了 vector 命令报错并提示安装 |
 | ripgrep         | `spawnSync('rg', ...)`           | fallback 到内置正则扫描                                |
-| GBrain          | `spawn('gbrain', ...)`           | 可选；未安装时 `gbrain status/doctor` 给安装建议，`sync/query` 清晰失败 |
+| GBrain          | `spawn('gbrain', ...)`           | 可选；默认 doctor 跳过 inactive 集成，`gbrain status/doctor` 给安装建议，`sync/query` 清晰失败 |
 | playwright-core | dynamic import                   | 缺了 antibot 站点 fetch 失败并提示装 playwright        |
 | tar             | runtime dep                      | snapshot/restore 必需，无 fallback                     |
 | trash           | npm package                      | remove 必需；跨平台移动到 OS Trash / Recycle Bin，不走 `rm` |

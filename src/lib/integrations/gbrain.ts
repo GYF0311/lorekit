@@ -53,12 +53,18 @@ export interface GbrainDoctorIssue {
 }
 
 export interface GbrainDoctorResult {
-  status: 'ok' | 'warn' | 'error';
+  status: 'ok' | 'warn' | 'error' | 'skipped';
   corpus: string;
+  enabled: boolean;
+  activationReason: string | null;
   gbrain: GbrainStatusResult;
   manifestPath: string;
   syncReportPath: string;
   issues: GbrainDoctorIssue[];
+}
+
+export interface GbrainDoctorOptions {
+  force?: boolean;
 }
 
 export interface GbrainQueryResult {
@@ -95,6 +101,47 @@ function gbrainQueryTimeoutMs(): number {
 
 function syncReportPath(corpus: string): string {
   return join(corpus, '.wiki', 'integrations', 'gbrain', 'sync-report.json');
+}
+
+function manifestPath(corpus: string): string {
+  return join(corpus, '.wiki', 'integrations', 'gbrain-export', 'manifest.json');
+}
+
+function configuredGbrainBinary(): string {
+  return process.env.LOREKIT_GBRAIN_BIN || 'gbrain';
+}
+
+function inactiveGbrainStatus(): GbrainStatusResult {
+  return {
+    installed: false,
+    binary: configuredGbrainBinary(),
+    version: null,
+    brainInitialized: false,
+    installHint: '',
+    errors: [],
+  };
+}
+
+function configEnablesGbrain(corpus: string): boolean {
+  const configPath = join(corpus, '.wiki', 'config.yaml');
+  if (!existsSync(configPath)) return false;
+  const config = readFileSync(configPath, 'utf-8');
+  return (
+    /(^|\n)\s*gbrain_enabled\s*:\s*true\s*(#.*)?($|\n)/i.test(config) ||
+    /(^|\n)\s*gbrain\s*:\s*true\s*(#.*)?($|\n)/i.test(config) ||
+    /(^|\n)\s*gbrain\s*:\s*\n(?:[ \t]+.*\n)*?[ \t]+enabled\s*:\s*true\s*(#.*)?($|\n)/i.test(
+      config,
+    )
+  );
+}
+
+function gbrainActivationReason(corpus: string, manifest: string, syncPath: string): string | null {
+  if (process.env.LOREKIT_GBRAIN_BIN) return 'LOREKIT_GBRAIN_BIN';
+  if (process.env.GBRAIN_HOME) return 'GBRAIN_HOME';
+  if (configEnablesGbrain(corpus)) return '.wiki/config.yaml';
+  if (existsSync(manifest)) return 'gbrain export manifest';
+  if (existsSync(syncPath)) return 'gbrain sync report';
+  return null;
 }
 
 function writeSyncReport(corpus: string, result: GbrainSyncResult): void {
@@ -338,8 +385,27 @@ export async function syncGbrain(
   return result;
 }
 
-export async function doctorGbrain(corpus: string): Promise<GbrainDoctorResult> {
+export async function doctorGbrain(
+  corpus: string,
+  opts: GbrainDoctorOptions = {},
+): Promise<GbrainDoctorResult> {
   const issues: GbrainDoctorIssue[] = [];
+  const manifest = manifestPath(corpus);
+  const syncPath = syncReportPath(corpus);
+  const activationReason = opts.force ? 'explicit check' : gbrainActivationReason(corpus, manifest, syncPath);
+  if (!activationReason) {
+    return {
+      status: 'skipped',
+      corpus,
+      enabled: false,
+      activationReason: null,
+      gbrain: inactiveGbrainStatus(),
+      manifestPath: manifest,
+      syncReportPath: syncPath,
+      issues,
+    };
+  }
+
   const gbrain = await getGbrainStatus();
   if (!gbrain.installed) {
     issues.push({
@@ -350,12 +416,10 @@ export async function doctorGbrain(corpus: string): Promise<GbrainDoctorResult> 
     });
   }
 
-  const manifestPath = join(corpus, '.wiki', 'integrations', 'gbrain-export', 'manifest.json');
-  const syncPath = syncReportPath(corpus);
-  const manifest = readJsonFile<GbrainExportManifest>(manifestPath);
+  const exportManifest = readJsonFile<GbrainExportManifest>(manifest);
   let exportedWikilinkCount = 0;
   let graphProbeSlug: string | null = null;
-  if (!manifest) {
+  if (!exportManifest) {
     issues.push({
       section: 'gbrain',
       severity: 'warn',
@@ -363,8 +427,8 @@ export async function doctorGbrain(corpus: string): Promise<GbrainDoctorResult> 
       recommendation: 'Run lorekit gbrain export',
     });
   } else {
-    const reverseMap = manifest.reverseMap ?? {};
-    const missingReverseMapping = manifest.pages.filter((page) => {
+    const reverseMap = exportManifest.reverseMap ?? {};
+    const missingReverseMapping = exportManifest.pages.filter((page) => {
       const slug = page.gbrainSlug ?? slugFromExportPath(page.exportPath);
       return !slug || reverseMap[slug] !== page.sourcePath;
     });
@@ -377,7 +441,7 @@ export async function doctorGbrain(corpus: string): Promise<GbrainDoctorResult> 
       });
     }
 
-    for (const page of manifest.pages) {
+    for (const page of exportManifest.pages) {
       const sourcePath = join(corpus, page.sourcePath);
       if (!existsSync(sourcePath)) {
         issues.push({
@@ -454,8 +518,10 @@ export async function doctorGbrain(corpus: string): Promise<GbrainDoctorResult> 
   return {
     status: hasError ? 'error' : issues.length > 0 ? 'warn' : 'ok',
     corpus,
+    enabled: true,
+    activationReason,
     gbrain,
-    manifestPath,
+    manifestPath: manifest,
     syncReportPath: syncPath,
     issues,
   };
@@ -478,7 +544,7 @@ export async function queryGbrain(
   let staleIssues: GbrainDoctorIssue[] = [];
 
   if (shouldCheck) {
-    const check = await doctorGbrain(corpus);
+    const check = await doctorGbrain(corpus, { force: true });
     if (!check.gbrain.installed) {
       return {
         status: 'error',

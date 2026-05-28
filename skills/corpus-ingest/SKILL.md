@@ -41,6 +41,7 @@ Use for:
 - URLs, articles, PDFs or files the user wants saved
 - "ingest", "归档", "整理进知识库", "收藏"
 - external evidence that should become `原料/` and compiled wiki pages
+- project-local evidence only when the user explicitly wants it promoted into the central corpus
 
 Do not use for:
 
@@ -57,7 +58,7 @@ Do not use for:
 4. Follow the corpus-local `wiki-ingest` process for archive, wiki compilation, backlinks, ingest state, lint, and sync.
 5. Keep `原料/` immutable after archive.
 6. Preserve fetched slugs unless corpus rules explicitly say otherwise.
-7. Use `<lorekit_bin> sync` and `<lorekit_bin> lint --quick` when the local ingest skill requires them.
+7. Use `<lorekit_bin> sync` and `<lorekit_bin> lint --quick` when the local ingest skill requires them; workbench-only evidence does not trigger sync until it is promoted.
 
 ## Safety
 

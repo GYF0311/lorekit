@@ -21,9 +21,7 @@ paths:
     - skills/**
     - src/commands/install-skills.ts
     - integrations/claude-code/**
-    - templates/default-corpus/AGENTS.md
-    - templates/default-corpus/CLAUDE.md
-    - templates/default-corpus/README.md
+    - templates/default-corpus/**
 relations:
   uses:
     - cli

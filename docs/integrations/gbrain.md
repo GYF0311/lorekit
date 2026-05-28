@@ -79,7 +79,9 @@ lorekit doctor --section integrations
 lorekit doctor --json
 ```
 
-GBrain is optional: missing binary is a warning, not a hard corpus failure. Unreadable integration state or a manifest without reverse mapping is a hard error.
+GBrain is optional. Default `lorekit doctor` skips it unless GBrain is explicitly checked, configured through env/config, or has existing `.wiki/integrations/gbrain*` state. On an enabled integration, a missing binary is a warning, not a hard corpus failure. Unreadable integration state or a manifest without reverse mapping is a hard error.
+
+To make a corpus opt in before any export/sync artifacts exist, add `gbrain_enabled: true` to `.wiki/config.yaml` or set `LOREKIT_GBRAIN_BIN` / `GBRAIN_HOME` in a project wrapper.
 
 `query` requires running inside a lorekit corpus. By default it checks the export manifest and last sync report before calling `gbrain query --no-expand`. If that state looks stale, it warns with `GBrain index may be stale. Run lorekit gbrain sync.` but still queries the external index. Candidates are mapped through `manifest.reverseMap` so final context points back to canonical `知识库/` pages, never `.wiki/integrations/gbrain-export/`. If the external GBrain CLI prints candidates but then times out or exits non-zero, Lorekit preserves those mapped candidates and reports a warning instead of losing a usable recall result. Use `--no-stale-check` only for intentional debugging or recovery.
 
