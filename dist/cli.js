@@ -1091,10 +1091,10 @@ import chalk2 from "chalk";
 var MINIMAL_DIRS = ["\u539F\u6599", "\u77E5\u8BC6\u5E93/\u6982\u5FF5", "\u77E5\u8BC6\u5E93/\u5B9E\u4F53", "\u77E5\u8BC6\u5E93/\u6458\u8981", "\u6BCF\u65E5", "\u7CFB\u7EDF", ".wiki"];
 function ask(question) {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve5) => {
+  return new Promise((resolve6) => {
     rl.question(question, (answer) => {
       rl.close();
-      resolve5(answer.trim());
+      resolve6(answer.trim());
     });
   });
 }
@@ -1275,7 +1275,7 @@ import { spawn } from "child_process";
 function runExternalCommand(opts) {
   const startedAt = Date.now();
   const timeoutMs = opts.timeoutMs ?? 12e4;
-  return new Promise((resolve5) => {
+  return new Promise((resolve6) => {
     let stdout = "";
     let stderr = "";
     let settled = false;
@@ -1299,7 +1299,7 @@ function runExternalCommand(opts) {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      resolve5({
+      resolve6({
         command: opts.command,
         args: opts.args,
         exitCode: -1,
@@ -1314,7 +1314,7 @@ function runExternalCommand(opts) {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      resolve5({
+      resolve6({
         command: opts.command,
         args: opts.args,
         exitCode: code ?? (timedOut ? 124 : 1),
@@ -3247,9 +3247,9 @@ import {
   lstatSync as lstatSync4,
   cpSync as cpSync2
 } from "fs";
-import { join as join11 } from "path";
+import { join as join11, resolve as resolve4 } from "path";
 init_logger();
-var SUPPORTED_TARGETS = ["claude-code", "codex"];
+var SUPPORTED_TARGETS = ["claude-code", "codex", "project"];
 var SUPPORTED_MODES = ["copy", "symlink"];
 var SKILL_PREFIXES = ["wiki-", "corpus-"];
 function isSymlink(path) {
@@ -3259,9 +3259,11 @@ function isSymlink(path) {
     return false;
   }
 }
-function targetSkillsDir(target) {
+function targetSkillsDir(target, dest) {
+  if (dest) return resolve4(dest);
   const home = process.env.HOME ?? "";
   if (target === "codex") return join11(home, ".agents", "skills");
+  if (target === "project") return join11(process.cwd(), "skills");
   return join11(home, ".claude", "skills");
 }
 function parseTarget(target) {
@@ -3281,20 +3283,30 @@ function parseOnlyNames(only) {
 function isLorekitSkillName(name) {
   return SKILL_PREFIXES.some((prefix) => name.startsWith(prefix));
 }
-function isDefaultSkillForTarget(name, target) {
-  if (target === "codex") return name.startsWith("corpus-") || name === "wiki-daily";
-  return name.startsWith("wiki-");
+function isProjectWorkflowSkillName(name) {
+  return name.startsWith("wiki-") && name !== "wiki-daily";
+}
+function isDefaultSkill(name) {
+  return isProjectWorkflowSkillName(name);
+}
+function supportedTargetsText() {
+  return SUPPORTED_TARGETS.join(", ");
+}
+function targetReloadHint(target) {
+  if (target === "codex") return "Restart Codex to load them.";
+  if (target === "claude-code") return "Restart Claude Code to load them.";
+  return "Project-local skills are ready in ./skills; route them from AGENTS.md or CLAUDE.md.";
 }
 function installSkillsCommand(program2) {
-  const cmd = program2.command("install-skills").description("Install lorekit-managed skills into a harness (e.g. Claude Code or Codex)").option("--target <harness>", 'Target harness ("claude-code" or "codex")').option("--only <names>", "Install only selected skill directory names, comma-separated").option("--mode <mode>", 'Install mode: "symlink" or "copy" (default: symlink)').option("--list", "List currently installed lorekit-managed skill symlinks").option("--uninstall", "Remove installed skill symlinks");
+  const cmd = program2.command("install-skills").description("Install lorekit-managed skills into a harness or the current project").option("--target <target>", 'Target ("claude-code", "codex", or "project")').option("--only <names>", "Install only selected skill directory names, comma-separated").option("--mode <mode>", 'Install mode: "symlink" or "copy" (default: symlink)').option("--dest <dir>", "Override destination directory, mainly for --target project").option("--list", "List currently installed lorekit-managed skill symlinks").option("--uninstall", "Remove installed skill symlinks");
   cmd.action((opts) => {
     const target = parseTarget(opts.target);
     if (opts.target && !target) {
-      err(`target '${opts.target}' not supported; supported targets: claude-code, codex`);
+      err(`target '${opts.target}' not supported; supported targets: ${supportedTargetsText()}`);
       process.exit(2);
     }
     const listTarget = target ?? "claude-code";
-    const skillsDest = targetSkillsDir(listTarget);
+    const skillsDest = targetSkillsDir(listTarget, opts.dest);
     if (opts.list) {
       if (!existsSync11(skillsDest)) return;
       const names = readdirSync6(skillsDest, { encoding: "utf-8" });
@@ -3312,7 +3324,7 @@ function installSkillsCommand(program2) {
         err("install-skills: --target required");
         process.exit(2);
       }
-      err(`target '${opts.target}' not supported; supported targets: claude-code, codex`);
+      err(`target '${opts.target}' not supported; supported targets: ${supportedTargetsText()}`);
       process.exit(2);
     }
     const mode = parseMode(opts.mode);
@@ -3335,7 +3347,7 @@ function installSkillsCommand(program2) {
     const skillNames = allNames.filter((name) => {
       if (!isLorekitSkillName(name)) return false;
       if (onlyNames && !onlyNames.has(name)) return false;
-      if (!onlyNames && !isDefaultSkillForTarget(name, target)) return false;
+      if (!onlyNames && !isDefaultSkill(name)) return false;
       try {
         return lstatSync4(join11(skillsSrc, name)).isDirectory();
       } catch {
@@ -3378,9 +3390,8 @@ function installSkillsCommand(program2) {
     if (count === 0) {
       print("No skills found to install.");
     } else if (!opts.uninstall) {
-      const hostName = target === "codex" ? "Codex" : "Claude Code";
       print(`
-Installed ${count} skill(s). Restart ${hostName} to load them.`);
+Installed ${count} skill(s). ${targetReloadHint(target)}`);
     }
   });
 }
@@ -3485,10 +3496,10 @@ import chalk5 from "chalk";
 init_paths();
 function ask2(question) {
   const rl = createInterface2({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve5) => {
+  return new Promise((resolve6) => {
     rl.question(question, (answer) => {
       rl.close();
-      resolve5(answer.trim());
+      resolve6(answer.trim());
     });
   });
 }
@@ -5324,7 +5335,7 @@ function obsidianTuneCommand(program2) {
 
 // src/commands/remove.ts
 import { existsSync as existsSync23, mkdirSync as mkdirSync13, readFileSync as readFileSync21, renameSync as renameSync2, writeFileSync as writeFileSync12 } from "fs";
-import { basename as basename7, dirname as dirname6, isAbsolute as isAbsolute2, join as join30, relative as relative15, resolve as resolve4, sep } from "path";
+import { basename as basename7, dirname as dirname6, isAbsolute as isAbsolute2, join as join30, relative as relative15, resolve as resolve5, sep } from "path";
 import matter7 from "gray-matter";
 import trash from "trash";
 init_paths();
@@ -5347,7 +5358,7 @@ function resolveInputPath(corpus, input) {
   candidates.push(rawAbs);
   if (!input.endsWith(".md")) candidates.push(`${rawAbs}.md`);
   for (const candidate of candidates) {
-    const abs = resolve4(candidate);
+    const abs = resolve5(candidate);
     if (isWithin(corpus, abs) && existsSync23(abs)) return abs;
   }
   return null;

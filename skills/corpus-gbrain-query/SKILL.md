@@ -1,11 +1,11 @@
 ---
 name: corpus-gbrain-query
-description: 用于从中央 Lorekit corpus 进行图谱、多跳关系或 GBrain 增强候选检索，并保持 Lorekit 知识库为事实源。
+description: 用于显式配置目标 corpus 后，从该 LoreKit corpus 进行图谱、多跳关系或 GBrain 增强候选检索，并保持 LoreKit 知识库为事实源。
 ---
 
 # corpus-gbrain-query
 
-Global read-only GBrain query entry for a central Lorekit corpus.
+Optional read-only GBrain query gateway for a configured Lorekit corpus.
 
 ## Config
 

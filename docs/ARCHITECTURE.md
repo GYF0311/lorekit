@@ -10,12 +10,13 @@
 
 CLI 是薄层调度，负责确定性的文件系统、状态、索引、检索、备份和安全删除原语。lorekit 自身**不调用 LLM**；AI agent 可以通过自然语言或可选 skills 调用这些 CLI 原语。
 
-默认安装只包含 `lorekit` CLI。Agent skills 是可选触发层，可按需要分两层组合：
+默认安装只包含 `lorekit` CLI。Agent skills 是可选触发层，默认应服务当前项目 / 当前 research corpus，而不是假设所有用户都有一个中央知识库。
 
-- **全局入口 skills**（`corpus-*` / `wiki-daily`）：装到用户级 skill 目录，让任何项目都能路由到同一个 canonical corpus。
-- **项目级执行 skills**（`wiki-*`）：放在 corpus 项目内或由 agent 按需安装，承载该 corpus 的 filing、query、fileback、lint、remove 等治理规则。
+- **项目级执行 skills**（`wiki-*`）：native LoreKit workflows，承载当前 corpus 的 ingest、query、fileback、lint、remove 等治理规则。
+- **项目 / domain skills**：只做领域触发、来源分类、命名规则、验收建议和路由选择；持久写入必须委托 `wiki-ingest` / `wiki-fileback` 等 native workflows。
+- **中央入口 skills**（`corpus-*` / `wiki-daily`）：可选 cross-project gateway。只有用户明确维护 configured central corpus 时才显式安装；它们先解析目标 corpus，再委托目标 corpus 的 `wiki-*`。
 
-Hybrid 形态（全局入口 + 项目级执行规范）适合一个 personal canonical corpus 服务多个项目；它不是 lorekit 的默认安装。不要把删除类、高风险 GBrain mutating 命令、自动 fileback 做成全局默认入口。
+不变量：`wiki-ingest` / `wiki-fileback` 是 durable write paths。任何全局、项目或 domain skill 都不能绕过 `原料/`、`知识库/`、provenance、ingest state、sync/lint 和确认门另造一套写库流程。不要把删除类、高风险 GBrain mutating 命令、自动 fileback 做成默认入口。
 
 ## 系统总览
 
@@ -23,8 +24,9 @@ Hybrid 形态（全局入口 + 项目级执行规范）适合一个 personal can
 flowchart TB
   subgraph Agent["AI Agent (Claude Code / Codex / Cursor / ...)"]
     Natural["natural language<br/>直接调用 CLI"]
-    GlobalSkills["optional global corpus-* / wiki-daily<br/>入口和路由"]
-    ProjectSkills["optional project-local wiki-* skills<br/>执行规范"]
+    ProjectSkills["optional project-local wiki-* skills<br/>native workflows"]
+    DomainSkills["optional project/domain skills<br/>触发和路由"]
+    GlobalSkills["optional corpus-* / wiki-daily<br/>central gateway"]
   end
 
   subgraph CLI["lorekit CLI"]
@@ -52,7 +54,8 @@ flowchart TB
 
   User["先生"] -->|自然语言| Agent
   Natural -->|exec| CLI
-  GlobalSkills -->|read config + route| ProjectSkills
+  DomainSkills -->|route| ProjectSkills
+  GlobalSkills -->|resolve target + route| ProjectSkills
   ProjectSkills -->|exec| CLI
   Lib -->|读写| Raw
   Lib -->|读写| Wiki
@@ -66,6 +69,8 @@ flowchart TB
   Lib -->|spawn| RG
   Lib -->|spawn import/query| GBrain
 ```
+
+任何 domain-specific ingest skill 都只能进入上图的 Agent 步骤：它可以判断研究包是否完成、选择来源类型和目标主语，但必须通过 `.wiki/ingest-state.json` 记录 fetch/archive/wiki/lint 进度，不能绕过 fetch/archive/wiki/lint state 自己落盘。
 
 ## 核心数据流
 

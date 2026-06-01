@@ -9,11 +9,11 @@ import {
   lstatSync,
   cpSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { lorekitRoot } from '../utils/fs.js';
 import { ok, err, out, print } from '../utils/logger.js';
 
-const SUPPORTED_TARGETS = ['claude-code', 'codex'] as const;
+const SUPPORTED_TARGETS = ['claude-code', 'codex', 'project'] as const;
 const SUPPORTED_MODES = ['copy', 'symlink'] as const;
 const SKILL_PREFIXES = ['wiki-', 'corpus-'] as const;
 
@@ -28,9 +28,11 @@ function isSymlink(path: string): boolean {
   }
 }
 
-function targetSkillsDir(target: InstallTarget): string {
+function targetSkillsDir(target: InstallTarget, dest?: string): string {
+  if (dest) return resolve(dest);
   const home = process.env.HOME ?? '';
   if (target === 'codex') return join(home, '.agents', 'skills');
+  if (target === 'project') return join(process.cwd(), 'skills');
   return join(home, '.claude', 'skills');
 }
 
@@ -58,29 +60,43 @@ function isLorekitSkillName(name: string): boolean {
   return SKILL_PREFIXES.some((prefix) => name.startsWith(prefix));
 }
 
-function isDefaultSkillForTarget(name: string, target: InstallTarget): boolean {
-  if (target === 'codex') return name.startsWith('corpus-') || name === 'wiki-daily';
-  return name.startsWith('wiki-');
+function isProjectWorkflowSkillName(name: string): boolean {
+  return name.startsWith('wiki-') && name !== 'wiki-daily';
+}
+
+function isDefaultSkill(name: string): boolean {
+  return isProjectWorkflowSkillName(name);
+}
+
+function supportedTargetsText(): string {
+  return SUPPORTED_TARGETS.join(', ');
+}
+
+function targetReloadHint(target: InstallTarget): string {
+  if (target === 'codex') return 'Restart Codex to load them.';
+  if (target === 'claude-code') return 'Restart Claude Code to load them.';
+  return 'Project-local skills are ready in ./skills; route them from AGENTS.md or CLAUDE.md.';
 }
 
 export function installSkillsCommand(program: Command): void {
   const cmd = program
     .command('install-skills')
-    .description('Install lorekit-managed skills into a harness (e.g. Claude Code or Codex)')
-    .option('--target <harness>', 'Target harness ("claude-code" or "codex")')
+    .description('Install lorekit-managed skills into a harness or the current project')
+    .option('--target <target>', 'Target ("claude-code", "codex", or "project")')
     .option('--only <names>', 'Install only selected skill directory names, comma-separated')
     .option('--mode <mode>', 'Install mode: "symlink" or "copy" (default: symlink)')
+    .option('--dest <dir>', 'Override destination directory, mainly for --target project')
     .option('--list', 'List currently installed lorekit-managed skill symlinks')
     .option('--uninstall', 'Remove installed skill symlinks');
 
   cmd.action((opts) => {
     const target = parseTarget(opts.target);
     if (opts.target && !target) {
-      err(`target '${opts.target}' not supported; supported targets: claude-code, codex`);
+      err(`target '${opts.target}' not supported; supported targets: ${supportedTargetsText()}`);
       process.exit(2);
     }
     const listTarget = target ?? 'claude-code';
-    const skillsDest = targetSkillsDir(listTarget);
+    const skillsDest = targetSkillsDir(listTarget, opts.dest);
 
     // --list mode
     if (opts.list) {
@@ -102,7 +118,7 @@ export function installSkillsCommand(program: Command): void {
         err('install-skills: --target required');
         process.exit(2);
       }
-      err(`target '${opts.target}' not supported; supported targets: claude-code, codex`);
+      err(`target '${opts.target}' not supported; supported targets: ${supportedTargetsText()}`);
       process.exit(2);
     }
 
@@ -131,7 +147,7 @@ export function installSkillsCommand(program: Command): void {
     const skillNames = allNames.filter((name) => {
       if (!isLorekitSkillName(name)) return false;
       if (onlyNames && !onlyNames.has(name)) return false;
-      if (!onlyNames && !isDefaultSkillForTarget(name, target)) return false;
+      if (!onlyNames && !isDefaultSkill(name)) return false;
       try {
         return lstatSync(join(skillsSrc, name)).isDirectory();
       } catch {
@@ -180,8 +196,7 @@ export function installSkillsCommand(program: Command): void {
     if (count === 0) {
       print('No skills found to install.');
     } else if (!opts.uninstall) {
-      const hostName = target === 'codex' ? 'Codex' : 'Claude Code';
-      print(`\nInstalled ${count} skill(s). Restart ${hostName} to load them.`);
+      print(`\nInstalled ${count} skill(s). ${targetReloadHint(target)}`);
     }
   });
 }

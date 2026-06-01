@@ -88,7 +88,11 @@ test('install-skills 拒绝路径：unknown target → exit 2 提示 supported t
     const args = ['install-skills', '--target', 'unknown-agent'];
     const r = runLorekit(args, { env: { HOME: fakeHome } });
     assert.equal(r.status, 2, fmtRun(r, args, 'exit 2 (unknown target)'));
-    assert.match(r.stderr, /supported targets: claude-code, codex/, fmtRun(r, args, 'stderr 提示 supported targets'));
+    assert.match(
+      r.stderr,
+      /supported targets: claude-code, codex, project/,
+      fmtRun(r, args, 'stderr 提示 supported targets'),
+    );
   } finally {
     cleanupTmpDir(fakeHome);
   }
@@ -104,6 +108,7 @@ test('install-skills happy path：--target claude-code 在 fakeHome 下建 wiki-
     assert.ok(existsSync(skillsDir), `expected ${skillsDir} to exist`);
     const installed = readdirSync(skillsDir).filter((n) => n.startsWith('wiki-'));
     assert.ok(installed.length > 0, fmtRun(r, args, `expected wiki-* skills in ${skillsDir}`));
+    assert.ok(!installed.includes('wiki-daily'), 'wiki-daily should stay explicit, not part of default workflow set');
     // 至少一个应该是软链
     const first = installed[0];
     assert.ok(
@@ -140,7 +145,7 @@ test('install-skills codex copy：--only wiki-daily 复制到 fakeHome .agents/s
   }
 });
 
-test('install-skills codex copy：--only corpus-query 复制全局 corpus 入口 skill', () => {
+test('install-skills codex copy：--only corpus-query 仍可显式复制可选跨项目入口 skill', () => {
   const fakeHome = mkTmpDir('lorekit-smoke-home-');
   try {
     const args = ['install-skills', '--target', 'codex', '--only', 'corpus-query', '--mode', 'copy'];
@@ -186,7 +191,7 @@ test('install-skills codex copy：--only 逗号列表只复制指定 skills', ()
   }
 });
 
-test('install-skills codex 默认只安装全局入口 skills，不安装项目级 wiki-ingest', () => {
+test('install-skills codex 默认安装项目工作流 skills，不安装 corpus-* 或 wiki-daily', () => {
   const fakeHome = mkTmpDir('lorekit-smoke-home-');
   try {
     const args = ['install-skills', '--target', 'codex', '--mode', 'copy'];
@@ -194,11 +199,47 @@ test('install-skills codex 默认只安装全局入口 skills，不安装项目�
     assert.equal(r.status, 0, fmtRun(r, args, 'exit 0'));
 
     const skillsDir = join(fakeHome, '.agents', 'skills');
-    assert.ok(existsSync(join(skillsDir, 'corpus-query', 'SKILL.md')), 'corpus-query should install');
-    assert.ok(existsSync(join(skillsDir, 'wiki-daily', 'SKILL.md')), 'wiki-daily should install');
-    assert.ok(!existsSync(join(skillsDir, 'wiki-ingest')), 'project-local wiki-ingest should not install by default');
+    assert.ok(existsSync(join(skillsDir, 'wiki-ingest', 'SKILL.md')), 'wiki-ingest should install');
+    assert.ok(existsSync(join(skillsDir, 'wiki-query', 'SKILL.md')), 'wiki-query should install');
+    assert.ok(!existsSync(join(skillsDir, 'corpus-query')), 'corpus-query should stay explicit');
+    assert.ok(!existsSync(join(skillsDir, 'wiki-daily')), 'wiki-daily should stay explicit');
   } finally {
     cleanupTmpDir(fakeHome);
+  }
+});
+
+test('install-skills project 默认安装当前项目 skills/ 下的项目工作流 skills', () => {
+  const project = mkTmpDir('lorekit-smoke-project-');
+  try {
+    const args = ['install-skills', '--target', 'project', '--mode', 'copy'];
+    const r = runLorekit(args, { cwd: project });
+    assert.equal(r.status, 0, fmtRun(r, args, 'exit 0'));
+
+    const skillsDir = join(project, 'skills');
+    assert.ok(existsSync(join(skillsDir, 'wiki-ingest', 'SKILL.md')), 'wiki-ingest should install');
+    assert.ok(existsSync(join(skillsDir, 'wiki-fileback', 'SKILL.md')), 'wiki-fileback should install');
+    assert.ok(!existsSync(join(skillsDir, 'corpus-query')), 'corpus-query should not install by default');
+    assert.ok(!existsSync(join(skillsDir, 'wiki-daily')), 'wiki-daily should not install by default');
+  } finally {
+    cleanupTmpDir(project);
+  }
+});
+
+test('install-skills project 支持 --dest 安装到指定 skills 目录', () => {
+  const project = mkTmpDir('lorekit-smoke-project-');
+  const target = mkTmpDir('lorekit-smoke-project-skills-');
+  try {
+    const dest = join(target, 'custom-skills');
+    const args = ['install-skills', '--target', 'project', '--dest', dest, '--mode', 'copy'];
+    const r = runLorekit(args, { cwd: project });
+    assert.equal(r.status, 0, fmtRun(r, args, 'exit 0'));
+
+    assert.ok(existsSync(join(dest, 'wiki-query', 'SKILL.md')), 'wiki-query should install to --dest');
+    assert.ok(!existsSync(join(project, 'skills')), 'default ./skills should not be created when --dest is set');
+    assert.ok(!existsSync(join(dest, 'corpus-query')), 'corpus-query should not install by default');
+  } finally {
+    cleanupTmpDir(project);
+    cleanupTmpDir(target);
   }
 });
 

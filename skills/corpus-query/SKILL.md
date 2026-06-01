@@ -1,11 +1,11 @@
 ---
 name: corpus-query
-description: 用于在任意项目中搜索、查询、回忆或综合中央 Lorekit corpus 里的已有知识。
+description: 用于显式配置目标 corpus 后，从任意项目搜索、查询、回忆或综合该 LoreKit corpus 的已有知识。
 ---
 
 # corpus-query
 
-Global read-only query entry for a central Lorekit corpus. It routes a cross-project question back to canonical corpus pages.
+Optional read-only query gateway for a configured Lorekit corpus. It routes a cross-project question back to that corpus, then follows the target corpus rules.
 
 ## Config
 
@@ -26,11 +26,11 @@ Optional:
 
 If the config is missing, ask for it. Do not guess the corpus path.
 
-Use the corpus-local wrapper (`lorekit_bin`) for CLI calls. Do not silently call a bare global `lorekit`.
+Use the configured corpus-local wrapper (`lorekit_bin`) for CLI calls; fall back only to `<default_corpus>/bin/lorekit` when that path exists.
 
 ## Boundary
 
-This skill is a global entrypoint. Corpus-local rules remain authoritative.
+This skill is an optional cross-project gateway. Target corpus rules remain authoritative.
 
 Before answering, read the relevant local rules when available:
 

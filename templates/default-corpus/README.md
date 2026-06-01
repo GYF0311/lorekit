@@ -1,6 +1,6 @@
 # 我的 Corpus
 
-这是一个用 [lorekit](https://github.com/GYF0311/lorekit) 初始化的个人知识 corpus。
+这是一个用 [lorekit](https://github.com/GYF0311/lorekit) 初始化的本地知识 corpus。它可以服务一个研究项目、课程、客户工作集、团队知识库，或在明确配置后作为个人长期库。
 
 ## 它是什么
 
@@ -34,19 +34,13 @@
 - 定期体检 → `lorekit doctor` 扫断链、孤岛、过期文件
 - 对 wiki 内容有意见 → 往 `反馈/待处理/` 提 feedback
 
-### 全局入口与项目级规则
+### 项目级规则与可选中央入口
 
-如果这个 corpus 是你的 canonical 知识库，可以在任意代码项目里安装全局 `corpus-*` / `wiki-daily` skills，把请求路由回这里；本项目内仍保留 `wiki-*` skills 和 `CLAUDE.md` / `AGENTS.md` 作为执行规范。
+默认按当前项目 / 当前 corpus 的规则执行：`skills/wiki-*` 是 native workflows，`CLAUDE.md` / `AGENTS.md` 是路由入口。
 
-推荐分工：
+如果这是研究型 corpus，项目/domain skill 可以补充本项目术语、研究单元、来源分类和验收规则；持久写入交给 `wiki-ingest` / `wiki-fileback`。
 
-- 全局 `corpus-capture`：跨项目随手记，默认进 `_工作台/收件/`
-- 全局 `corpus-query`：只读查询 `知识库/`
-- 全局 `corpus-ingest`：外部资料摄入前先读本项目规则
-- 全局 `corpus-fileback`：只有用户明确确认后写 `知识库/`
-- 全局 `corpus-gbrain-query`：只做 GBrain 候选召回，最终回读 canonical 页面
-- 全局 `corpus-health`：检查状态，不写知识
-- 全局 `wiki-daily`：日记和 daily compile，走 `_工作台/日记收件/`、`每日/`、`输出/复盘/`
+只有当用户明确要多个项目访问同一个 configured corpus 时，才显式安装选定 `corpus-*` / `wiki-daily`。它们只是跨项目入口和路由层，仍要回到目标 corpus 的 `wiki-*` 执行规范。
 
 ### 三条铁律
 

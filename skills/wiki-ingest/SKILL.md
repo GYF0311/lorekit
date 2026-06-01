@@ -206,7 +206,7 @@ Timeline 在本 corpus 已承担 Evolution Log 的角色。追加新条目时**�
 写页时**只用本次的原料**作证据。**禁止跨源污染**：
 
 - ❌ MEMORY.md / 老日记里的偏好
-- ❌ CLAUDE.md / 全局 prefs
+- ❌ CLAUDE.md / harness prefs
 - ❌ 其他不相关的旧原料页（除非做跨源综合且标明来源）
 - ❌ 纯脑补推测（年份、月份、具体事件）
 
@@ -260,7 +260,7 @@ lorekit ingest record <url> \
 
 **不要**手动 Edit `corpus/index.md` 或 `corpus/log.md`——CLI 全包了。
 
-最后跑一次 `lorekit lint`（可选）查全局健康度——只关注本次新建页的 issue，历史遗留可忽略。
+最后跑一次 `lorekit lint`（可选）查 corpus health——只关注本次新建页的 issue，历史遗留可忽略。
 
 ### 7. QUESTIONS.md 匹配（ingest 结束前）
 
@@ -346,5 +346,5 @@ sync：index.md +2 added, 6 _INDEX.md refreshed, vectors synced
 - `lorekit ingest record <url> --complete` / `--fail <reason>` — 显式收尾
 - `lorekit ingest pending` / `list` / `forget` / `reconcile` — 状态管理
 - `lorekit sync` — 一条命令：刷 \_INDEX + merge index.md + 向量 + doctor
-- `lorekit lint` — 全局健康（事后扫）
+- `lorekit lint` — corpus health（事后扫）
 - 底层：Read / Write / Edit / `mv` / `trash`（删东西绝不用 `rm`）

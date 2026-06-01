@@ -156,6 +156,7 @@ lorekit/
 ```
 docs/
 ├── QUICKSTART.md      用户上手
+├── INTRODUCTION.md    长文介绍：lorekit 功能、使用场景、默认路线和 Obsidian 体验
 ├── IDEAS.md           未做脑暴（每半年清理）
 ├── plans/             具体路线方案文档（决策落地后归档到 history/）
 └── history/           归档区（只进不出，不编辑）
@@ -185,6 +186,7 @@ docs/WORKLOG.md        短期流水；2 个月不回看就归档/删
 | ARCHITECTURE.md | 系统长什么样 |
 | CODEBASE-MAP.md | 东西在哪里 |
 | DESIGN-NOTES.md | 为什么这么做 |
+| INTRODUCTION.md | lorekit 有哪些功能，用户能怎样使用它 |
 | CHANGELOG.md | 发生过什么 |
 | IDEAS.md | 还想做什么 |
 

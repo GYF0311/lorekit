@@ -1,11 +1,11 @@
 ---
 name: corpus-health
-description: 用于在任意项目中检查中央 corpus 健康状态、Lorekit 状态、向量索引、GBrain 新鲜度、配置或知识库工作流问题。
+description: 用于显式配置目标 corpus 后，检查该 corpus 健康状态、LoreKit 状态、向量索引、GBrain 新鲜度、配置或知识库工作流问题。
 ---
 
 # corpus-health
 
-Global health-check entry for a central Lorekit corpus. It reports state and does not write knowledge.
+Optional health-check gateway for a configured Lorekit corpus. It reports state and does not write knowledge.
 
 ## Config
 
@@ -20,7 +20,7 @@ Optional:
 
 - `gbrain_bin`
 
-Use corpus-local wrappers. Do not silently call bare global `lorekit` or `gbrain`.
+Use configured corpus-local wrappers for `lorekit` and `gbrain`.
 
 ## Checks
 

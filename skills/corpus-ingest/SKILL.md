@@ -1,11 +1,11 @@
 ---
 name: corpus-ingest
-description: 用于在任意项目中把 URL、文件、粘贴来源、文章、文档或外部资料摄入、归档、保存到中央 Lorekit corpus。
+description: 用于显式配置目标 corpus 后，把跨项目 URL、文件、粘贴来源、文章、文档或外部资料摄入、归档、保存到该 LoreKit corpus。
 ---
 
 # corpus-ingest
 
-Global ingest entry for a central Lorekit corpus. It brings external material into the corpus while delegating filing rules to the corpus itself.
+Optional ingest gateway for a configured Lorekit corpus. It brings external material into the target corpus while delegating filing rules to that corpus itself.
 
 ## Config
 
@@ -18,13 +18,13 @@ Required:
 - `raw_dir` (default `原料`)
 - `knowledge_dir` (default `知识库`)
 
-Use the corpus-local wrapper. Do not silently call a bare global `lorekit` for ingest writes.
+Use the configured corpus-local wrapper for ingest writes.
 
 ## Boundary
 
-Global skill = entry and routing.
+Optional cross-project skill = entry and routing.
 
-Project-local corpus rules = execution authority.
+Target corpus rules = execution authority.
 
 Before writing, read:
 
@@ -41,14 +41,14 @@ Use for:
 - URLs, articles, PDFs or files the user wants saved
 - "ingest", "归档", "整理进知识库", "收藏"
 - external evidence that should become `原料/` and compiled wiki pages
-- project-local evidence only when the user explicitly wants it promoted into the central corpus
+- project-local evidence only when the user explicitly wants it promoted into the selected corpus
 
 Do not use for:
 
 - quick rough notes: use `corpus-capture`
 - conversation insights without external material: use `corpus-fileback`
 - daily journal: use `wiki-daily`
-- deletion: do not route deletion through a global skill
+- deletion: use corpus-local `wiki-remove` or the `lorekit remove` dry-run path
 
 ## Action
 

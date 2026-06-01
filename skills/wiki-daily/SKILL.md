@@ -1,15 +1,15 @@
 ---
 name: wiki-daily
-description: 用于今天日记、todo、编程决策、daily compile、rolling synthesis、weekly synthesis、fileback 候选和飞书提醒；全局个人日记入口。
+description: 用于目标 corpus 的今天日记、todo、编程决策、daily compile、rolling synthesis、weekly synthesis、fileback 候选和飞书提醒；可选 daily workflow。
 ---
 
 # wiki-daily
 
-个人日记入口 skill。用于把当天想法、待办、编程决策、复盘素材先写成 inbox fragments，再按确认程度进入日编译、滚动综合、周综合或 fileback。
+目标 corpus 的 daily workflow。用于把当天想法、待办、编程决策、复盘素材先写成 inbox fragments，再按确认程度进入日编译、滚动综合、周综合或 fileback。
 
 这是 instruction-only skill：不依赖脚本，不提供额外 references，不创建额外 skill docs。
 
-## Central config
+## Target config
 
 读取 `~/.config/lorekit/daily.json`。建议字段：
 
@@ -38,9 +38,9 @@ description: 用于今天日记、todo、编程决策、daily compile、rolling 
 
 若配置缺失，先让用户确认 `default_corpus`，不要猜测写入位置。其他字段可按上面默认值解释，但写入前仍要明确目标路径。
 
-如果同时存在 `~/.config/lorekit/global-corpus.json`，`daily.json.default_corpus` 应与其中的 `default_corpus` 指向同一个 canonical corpus。不要在两个配置冲突时自行选择；先报告冲突并让用户确认。
+如果同时存在 `~/.config/lorekit/global-corpus.json` 且两个配置指向不同 corpus，先报告两个目标路径并让用户确认本次 daily workflow 的目标 corpus。daily workflow 可以和 cross-project entrypoints 指向不同 corpus。
 
-`wiki-daily` 可以和全局 `corpus-*` skills 共存：它负责日记收件箱、每日页和复盘候选；`corpus-fileback` 或本 skill 的 Fileback mode 只有在用户明确确认候选后才写 `知识库/`。
+`wiki-daily` 可以和可选 `corpus-*` skills 共存：它负责目标 corpus 的日记收件箱、每日页和复盘候选；`corpus-fileback` 或本 skill 的 Fileback mode 只有在用户明确确认候选后才写 `知识库/`。
 
 ## Date rule
 

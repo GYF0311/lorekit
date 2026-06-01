@@ -6,7 +6,7 @@
 
 ## 这是什么
 
-这是一个由 **lorekit** 管理的个人知识 corpus。
+这是一个由 **lorekit** 管理的本地知识 corpus。它可以是项目/研究 corpus、团队知识库、个人长期知识库；也可以在需要时配置为跨项目 central corpus。默认先按当前项目/当前 corpus 的本地规则执行。
 
 核心理念来自 [Karpathy 的 LLM Wiki 模式](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)：
 - 不走 RAG（每次查询从原始文档重新发现知识），而是让 LLM **增量编译并维护一个持久 wiki**
@@ -75,23 +75,23 @@ corpus/
 ### Lint（健康检查）
 定期检查：死链、孤岛页、提到但没建页的概念、矛盾、过期工作台文件。`lorekit doctor` 执行。
 
-## Skill 部署模式
+## Skill 路由模式
 
-这份 corpus 可以按三种方式被 AI 使用：
+这份 corpus 可以按三种方式被 AI 使用。默认是项目/研究型 corpus；central corpus 是按需启用的跨项目拓扑。
 
 | 模式 | 适合场景 | 规则 |
 | --- | --- | --- |
-| 项目级 | 只在本 corpus 对话里维护知识库 | 读取本项目 `skills/wiki-*`，按本文件和 `系统/filing-rules.md` 执行 |
-| 全局入口 | 任意项目都要访问同一个 canonical corpus | 用户级 `corpus-*` / `wiki-daily` 只做入口和路由 |
-| Hybrid | 推荐给个人长期 corpus | 全局 `corpus-*` 负责跨项目入口，本项目 `wiki-*` 负责执行规范 |
+| 项目/研究型 | 当前项目、课程、调研、客户或团队库 | 读取本项目 `skills/wiki-*`，按本文件和 `系统/filing-rules.md` 执行 |
+| 项目/domain overlay | 有项目专有资料、术语、单元或验收规则 | domain skill 只做触发、分类、命名和路由，持久写入委托 `wiki-*` |
+| Central corpus（可选） | 用户明确要多个项目路由到同一 corpus | 显式安装选定 `corpus-*`，先解析目标 corpus，再委托目标 corpus 的 `wiki-*` |
 
 边界：
 
-- 全局 `corpus-capture` 只能默认写 `_工作台/收件/`
-- 全局 `wiki-daily` 写 `_工作台/日记收件/`、`每日/`、`输出/复盘/`
-- 全局 `corpus-query` / `corpus-gbrain-query` 默认只读，必须回读 canonical `知识库/` 页面
-- 全局 `corpus-ingest` / `corpus-fileback` 写库前必须先读本项目规则和相关 `skills/wiki-*`
-- `wiki-remove`、GBrain 原生 mutating 命令、自动 fileback 不做全局默认入口
+- `wiki-*` 是本 corpus 的 native workflows：ingest、query、fileback、lint、remove 等持久动作都走这里。
+- 项目/domain skill 可以识别研究单元、课程包、客户材料或项目阶段，但不得复制一套 ingest/fileback 流程。
+- `corpus-*` 是 optional cross-project gateway；使用前先解析用户明确配置的目标 corpus。
+- `wiki-daily` 是可选日记/复盘 workflow；它不随 project workflow 默认安装。
+- `wiki-remove`、GBrain 原生 mutating 命令、自动 fileback 不做默认入口。
 - `原料/` 是长期 LM Wiki 的 canonical raw-source layer；`_工作台/**` 里的项目证据、课程原文和中间材料只服务当前任务验证，除非明确 ingest/promote，否则不等价于 `原料/`
 - 检索链默认从 `index.md` / `知识库/` 开始，需要完整 provenance 时再打开 `原料/`；project-local evidence 只在当前任务点名时读取
 
@@ -101,7 +101,7 @@ corpus/
 - 不推荐触发：每条 `_工作台/` note、daily fragment、临时学习记录、HTML/展示产物的小改
 - routine check 汇报只给 pass/fail、阻塞项和关键路径，不贴整段 `index/sync/doctor` 日志
 
-如果从其他项目进入本 corpus，优先读取 `~/.config/lorekit/global-corpus.json` 中的 `default_corpus`、`lorekit_bin`、`gbrain_bin`，并使用本 corpus 的 wrapper，不要裸调用不确定来源的全局 `lorekit` / `gbrain`。
+如果从其他项目进入本 corpus，先确认用户想操作当前项目 corpus 还是某个 configured central corpus。跨项目入口读取 `~/.config/lorekit/global-corpus.json` 的 `default_corpus`、`lorekit_bin`、`gbrain_bin`；当前项目入口直接按当前项目规则执行，并优先使用 corpus-local wrapper。
 
 ## 三层读取策略
 

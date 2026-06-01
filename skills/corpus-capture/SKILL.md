@@ -1,11 +1,11 @@
 ---
 name: corpus-capture
-description: 用于在任意项目中把随手记录、想法、观察、决策或临时信息捕获到中央 Lorekit corpus 的工作台收件箱。
+description: 用于显式配置目标 corpus 后，把跨项目随手记录、想法、观察、决策或临时信息捕获到该 corpus 的工作台收件箱。
 ---
 
 # corpus-capture
 
-Global entry skill for cross-project capture. It collects fragments into the configured corpus workbench; it does not compile long-term knowledge.
+Optional entry skill for cross-project capture. It collects fragments into the configured corpus workbench; it does not compile long-term knowledge.
 
 ## Config
 
@@ -30,7 +30,7 @@ Expected fields:
 
 If the config does not exist, ask the user to configure it. Do not guess the corpus path.
 
-Use an absolute `lorekit_bin` from config, or `<default_corpus>/bin/lorekit` if it exists. Do not silently call a bare global `lorekit` for writes.
+Use an absolute `lorekit_bin` from config, or `<default_corpus>/bin/lorekit` if it exists.
 
 ## When To Use
 

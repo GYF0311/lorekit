@@ -1,11 +1,11 @@
 ---
 name: corpus-fileback
-description: 用于用户明确确认后，把可复用结论、决策、综合判断或选定候选写回中央 Lorekit corpus 的知识库。
+description: 用于显式配置目标 corpus 后，在用户明确确认时把可复用结论、决策、综合判断或选定候选写回该 LoreKit corpus 的知识库。
 ---
 
 # corpus-fileback
 
-Global fileback entry for a central Lorekit corpus. It writes only confirmed long-term knowledge, using corpus-local rules.
+Optional fileback gateway for a configured Lorekit corpus. It writes only confirmed long-term knowledge, using target corpus rules.
 
 ## Confirmation Gate
 
@@ -29,7 +29,7 @@ Required:
 - `lorekit_bin` or `<default_corpus>/bin/lorekit`
 - `knowledge_dir` (default `知识库`)
 
-Use the corpus-local wrapper. Do not silently call a bare global `lorekit` for writes.
+Use the configured corpus-local wrapper for writes.
 
 ## Before Writing
 

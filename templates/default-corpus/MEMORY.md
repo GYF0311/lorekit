@@ -1,4 +1,4 @@
-# MEMORY.md — L0 全局索引
+# MEMORY.md — L0 corpus 索引
 
 > Agent 启动时默认注入的 L0 层。请保持 ≤ 100 行。
 > 细节放 L1（`{目录}/_INDEX.md`）和 L2（具体文件）。
