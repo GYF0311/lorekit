@@ -1,8 +1,8 @@
 # lorekit QUICKSTART
 
-30 minutes from zero to an AI coding agent backed by your own LLM Wiki.
+30 minutes from zero to a local LLM Wiki managed by the `lorekit` CLI.
 
-Default setup is lorekit-only: global `lorekit` CLI plus global lorekit skills where the agent supports them. Project-local isolation and GBrain are optional routes; see [`INSTALLATION.md`](INSTALLATION.md).
+Default setup is CLI-only: install the global `lorekit` command and initialize a corpus. Agent skills, global corpus entrypoints, project-local isolation, vector search, and GBrain are optional modules; see [`INSTALLATION.md`](INSTALLATION.md).
 
 ---
 
@@ -65,6 +65,7 @@ lorekit
 ```bash
 lorekit init ~/Desktop/my-corpus
 cd ~/Desktop/my-corpus
+lorekit doctor
 ```
 
 If the target directory already has content, lorekit prompts:
@@ -78,13 +79,15 @@ Choose:
   [3] Cancel
 ```
 
-After init you have the full corpus skeleton (see README for layout).
+After init you have the full corpus skeleton (see README for layout), and `doctor` confirms the base CLI route is healthy.
 
 ---
 
-## 4. Install the AI agent skills
+## 4. Optional: add AI agent skills
 
-### Global skills, default
+The base corpus works without installing skills. Add them only when you want your AI agent to expose lorekit workflows as named commands.
+
+### Agent workflow skills
 
 Claude Code:
 
@@ -138,7 +141,7 @@ $corpus-capture 先记到工作台：这个项目里出现了一个新的设计�
 $corpus-fileback 确认把刚才第 2 条候选写入知识库。
 ```
 
-The split is intentional: global `corpus-*` skills are entrypoints and routers; corpus-local `wiki-*` skills remain the execution rules inside the target corpus.
+The split is intentional when you choose this module: global `corpus-*` skills are entrypoints and routers; corpus-local `wiki-*` skills remain the execution rules inside the target corpus.
 
 Other agents should point their skill / rule system at `~/code/lorekit/skills/`.
 
@@ -154,7 +157,7 @@ Then keep only a short route table in `AGENTS.md` / `CLAUDE.md`. In Codex, these
 
 ---
 
-## 5. Enable vector + FTS5 retrieval (optional)
+## 5. Optional: enable vector + FTS5 retrieval
 
 ```bash
 ollama serve          # if not already running
@@ -208,7 +211,7 @@ When GBrain finds candidates, lorekit maps slugs back through `manifest.reverseM
 
 ## 7. What Success Looks Like
 
-You are ready for real use once the same corpus can complete this loop:
+The CLI-only default is ready once the same corpus can complete this loop:
 
 ```bash
 lorekit init ~/Desktop/my-corpus

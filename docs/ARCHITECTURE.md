@@ -8,22 +8,23 @@
 - **知识库层**（`知识库/`）LLM 编译产物，持续更新
 - **schema**（`CLAUDE.md` / `AGENTS.md`）人 + LLM 共同维护
 
-CLI 是薄层调度，重逻辑在 skills（agent 侧）。lorekit 自身**不调用 LLM**，只提供文件系统 + 向量库原语。这是 "thin CLI, fat skills" 风格。
+CLI 是薄层调度，负责确定性的文件系统、状态、索引、检索、备份和安全删除原语。lorekit 自身**不调用 LLM**；AI agent 可以通过自然语言或可选 skills 调用这些 CLI 原语。
 
-Agent skills 分两层：
+默认安装只包含 `lorekit` CLI。Agent skills 是可选触发层，可按需要分两层组合：
 
 - **全局入口 skills**（`corpus-*` / `wiki-daily`）：装到用户级 skill 目录，让任何项目都能路由到同一个 canonical corpus。
 - **项目级执行 skills**（`wiki-*`）：放在 corpus 项目内或由 agent 按需安装，承载该 corpus 的 filing、query、fileback、lint、remove 等治理规则。
 
-推荐 hybrid 形态是"全局入口 + 项目级执行规范"。不要把删除类、高风险 GBrain mutating 命令、自动 fileback 做成全局默认入口。
+Hybrid 形态（全局入口 + 项目级执行规范）适合一个 personal canonical corpus 服务多个项目；它不是 lorekit 的默认安装。不要把删除类、高风险 GBrain mutating 命令、自动 fileback 做成全局默认入口。
 
 ## 系统总览
 
 ```mermaid
 flowchart TB
   subgraph Agent["AI Agent (Claude Code / Codex / Cursor / ...)"]
-    GlobalSkills["global corpus-* / wiki-daily<br/>入口和路由"]
-    ProjectSkills["project-local wiki-* skills<br/>执行规范"]
+    Natural["natural language<br/>直接调用 CLI"]
+    GlobalSkills["optional global corpus-* / wiki-daily<br/>入口和路由"]
+    ProjectSkills["optional project-local wiki-* skills<br/>执行规范"]
   end
 
   subgraph CLI["lorekit CLI"]
@@ -50,6 +51,7 @@ flowchart TB
   end
 
   User["先生"] -->|自然语言| Agent
+  Natural -->|exec| CLI
   GlobalSkills -->|read config + route| ProjectSkills
   ProjectSkills -->|exec| CLI
   Lib -->|读写| Raw

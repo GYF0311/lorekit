@@ -2,7 +2,7 @@
 
 A personal LLM Wiki toolkit — let AI build and maintain your knowledge base.
 
-Based on [Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f), lorekit gives any AI coding agent a local knowledge-base workflow: **raw sources → LLM compilation → persistent wiki**. Compile once, keep updating — no RAG. `lorekit install-skills` installs the `wiki-*` corpus skills and selected global entrypoint skills such as `corpus-query` / `wiki-daily` into Claude Code or Codex skill roots; for other agents (Cursor / Kimi CLI / Aider / Windsurf), the `skills/` directory is plain Markdown — symlink or copy into your agent's skill path.
+Based on [Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f), lorekit gives any AI coding agent a local knowledge-base workflow: **raw sources → LLM compilation → persistent wiki**. Compile once, keep updating — no RAG. The default install is just the `lorekit` CLI; Agent Skills, global corpus entrypoints, project-local isolation, and GBrain are optional modules you can add when your workflow needs them.
 
 > **Hand the GitHub link to your AI, say "install this for me" — it reads CLAUDE.md / AGENTS.md and does the rest.**
 
@@ -101,7 +101,17 @@ Only `--step lint` auto-promotes to `completed`. Every other `--step` keeps the 
 
 ## Install Routes
 
-Default install is lorekit-only: global `lorekit` CLI plus target-appropriate lorekit skills. Claude Code gets corpus-local `wiki-*` execution skills by default. Codex gets global entrypoint skills (`corpus-*` + `wiki-daily`) by default so project-local wiki governance is not accidentally exposed globally.
+Default install is lorekit-only: install the global `lorekit` CLI and initialize a corpus. This is enough for fetch, ingest state, search, sync, doctor, snapshot, restore, safe remove, Obsidian tuning, and optional vector search. Skills and integrations are add-on modules, not part of the base route.
+
+Composable modules:
+
+| Module | Add when | Command / config |
+| ------ | -------- | ---------------- |
+| Agent skills | You want Claude Code / Codex to expose lorekit workflows as named skills | `lorekit install-skills --target <claude-code\|codex>` |
+| Codex daily gateway | You want a global personal diary / daily compile entrypoint | `lorekit install-skills --target codex --only wiki-daily --mode copy` + `~/.config/lorekit/daily.json` |
+| Codex global corpus entrypoints | You want any project to query / capture / ingest into one canonical corpus | `lorekit install-skills --target codex --mode copy` + `~/.config/lorekit/global-corpus.json` |
+| Project-local isolation | You want one corpus to carry its own wrappers, routes, and `wiki-*` execution rules | copy or symlink selected `skills/wiki-*` into the corpus and route them from `AGENTS.md` |
+| GBrain bridge | You want optional graph / hybrid retrieval and multi-hop candidate discovery | `lorekit gbrain <sub>` reads a staging export; canonical wiki stays in lorekit |
 
 For Codex personal diary use, install the instruction-only global gateway skill:
 
@@ -121,10 +131,12 @@ lorekit install-skills --target codex --mode copy
 
 Configure them with `~/.config/lorekit/global-corpus.json`. These global skills are optional routing entrypoints for any project: capture rough notes, query the central corpus, ingest sources, fileback confirmed conclusions, query GBrain candidates, or check health. The detailed governance rules still live inside the corpus project (`AGENTS.md` / `CLAUDE.md` / `skills/wiki-*`), so project-local skills and global skills stay separated.
 
-Optional routes:
+Optional combinations:
 
 | Route            | Use when                                                            | Result                                                         |
 | ---------------- | ------------------------------------------------------------------- | -------------------------------------------------------------- |
+| CLI only         | You want the smallest default setup                                 | `lorekit` manages the corpus; no agent skills required         |
+| CLI + agent skills | You want named workflows inside Claude Code / Codex               | Skills call `lorekit`; CLI remains source of deterministic actions |
 | Global corpus entrypoints | You want any project to query or write to one canonical corpus | Codex sees `corpus-*` skills globally; corpus rules stay local |
 | Project-local    | You want one corpus to carry isolated wrappers, rules, and skills   | Other coding projects do not see wiki rules by default         |
 | lorekit + GBrain | You want graph / hybrid retrieval and multi-hop candidate discovery | lorekit remains source of truth; GBrain reads a staging export |
@@ -133,7 +145,7 @@ For detailed global vs project-local setup, see [`docs/INSTALLATION.md`](docs/IN
 
 Project-local install is an isolation choice, not a requirement. In that mode, `skills/*/SKILL.md` lives inside the corpus and `AGENTS.md` provides the short routing descriptions. These project-local skills usually do not appear in Codex's `/` skill preview; the agent reads them on demand through the project rules. lorekit treats `skills/` and `node_modules/` as tooling directories, so lint / index / sync do not treat their markdown as canonical corpus pages.
 
-Hybrid setup is also valid: install only the `corpus-*` entrypoint skills globally, keep `wiki-*` execution skills project-local, and let the global skills route into the configured corpus. This is the recommended shape when one personal corpus should be available from many coding projects without making corpus governance rules global.
+Hybrid setup is also valid: install only the `corpus-*` entrypoint skills globally, keep `wiki-*` execution skills project-local, and let the global skills route into the configured corpus. This is a higher-level personal workflow shape, not the default lorekit install.
 
 ## Quick Start
 
@@ -144,9 +156,9 @@ Send the repo link to your AI coding agent and say "install this project." If yo
 1. clone and build lorekit,
 2. link the `lorekit` CLI globally,
 3. initialize a corpus,
-4. install target-appropriate lorekit skills (`wiki-*` for Claude Code, `corpus-*` + `wiki-daily` for Codex).
+4. run `lorekit doctor` to verify the corpus.
 
-The agent may ask whether you also want optional project-local isolation and/or optional GBrain enhancement. It then reads `CLAUDE.md` / `AGENTS.md` and runs: dependency check → clone → build → link → init corpus → install skills.
+The agent may ask whether you also want optional agent skills, global corpus entrypoints, project-local isolation, and/or GBrain enhancement. It then reads `CLAUDE.md` / `AGENTS.md` and runs: dependency check → clone → build → link → init corpus → doctor. Optional modules are added only after that base install is working.
 
 ### Option 2: manual install
 
@@ -166,8 +178,10 @@ lorekit             # no-arg invocation shows the brand banner
 
 # 5. Initialize a corpus
 lorekit init ~/Desktop/my-corpus
+cd ~/Desktop/my-corpus
+lorekit doctor
 
-# 6. Install Agent Skills globally where supported
+# 6. Optional: install Agent Skills where useful
 lorekit install-skills --target claude-code
 # Codex personal diary gateway:
 lorekit install-skills --target codex --only wiki-daily --mode copy
@@ -175,7 +189,6 @@ lorekit install-skills --target codex --only wiki-daily --mode copy
 lorekit install-skills --target codex --mode copy
 
 # 7. Start a conversation from the corpus directory
-cd ~/Desktop/my-corpus
 claude  # or codex / cursor / kimi …
 ```
 

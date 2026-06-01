@@ -7,7 +7,7 @@ status: "active"
 layer: "unknown"
 risk: "unknown"
 source_path: ".context/modules/skills-agent.md"
-source_hash: "sha256:ea0b9b623318049d2a70ae4f935f436e4414655bdf18c8d76f340800f52d8d67"
+source_hash: "sha256:a929ed3209bd19ffa54ae45155708f98ddce3775ad3246197df0bb281246c8c0"
 tags:
   - "cmap/module"
   - "cmap/project/lorekit"
@@ -68,7 +68,7 @@ paths:
 
 ## Key Contracts
 - CLI 保持 thin + deterministic；语义工作流放在 markdown skills。
-- `lorekit install-skills` 支持 Claude Code 与 Codex 目标；Claude 默认安装 `wiki-*`，Codex 默认安装 `corpus-*` + `wiki-daily`；`--only` 可安装单个或逗号列表 skills；模式支持 copy/symlink。
+- `lorekit install-skills` 是可选 Agent Skills 模块，不属于 CLI-only 默认安装；命令被调用时，Claude Code 目标选择 `wiki-*`，Codex 目标选择 `corpus-*` + `wiki-daily`；`--only` 可安装单个或逗号列表 skills；模式支持 copy/symlink。
 - `wiki-*` 是 corpus-local 执行规范；`corpus-*` 是 global entrypoint/routing skill，需回读目标 corpus 的 AGENTS/CLAUDE/skills 规则。
 - project-local skills 是工具，不是 canonical corpus pages；lint/index/vector 不能把它们扫成 wiki 内容。
 - skill 不能承诺不存在的 CLI 命令或参数。

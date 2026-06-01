@@ -1,11 +1,12 @@
-# INSTALLATION.md — lorekit 安装与 GBrain 协作指南
+# INSTALLATION.md — lorekit 安装与模块组合指南
 
-> Last updated: 2026-05-18
+> Last updated: 2026-06-01
 
-本文回答两个问题：
+本文回答三个问题：
 
-1. 只安装 lorekit 时，如何初始化和运行一个知识库 corpus。
-2. 用户想加 GBrain 时，如何把它作为 read-only 增强检索层接入，而不是把两个系统揉成一个。
+1. 默认只安装 lorekit CLI 时，如何初始化和运行一个知识库 corpus。
+2. 什么时候把 Agent Skills、全局 corpus 入口、项目级隔离组合进来。
+3. 用户想加 GBrain 时，如何把它作为 read-only 增强检索层接入，而不是把两个系统揉成一个。
 
 ## 先问用户
 
@@ -14,22 +15,35 @@ AI 帮用户安装前，先问清楚：
 ```text
 你希望怎么安装 lorekit？
 
-默认：只安装 lorekit，本机全局可用 `lorekit` CLI，并安装目标 agent 对应的 lorekit skills。
+默认：只安装 lorekit，本机全局可用 `lorekit` CLI，并初始化目标 corpus。
 
 可选项：
-1. 全局 corpus 入口：安装 `corpus-*` / `wiki-daily` 到 Codex 全局 skills，让任意项目能路由到同一个 corpus。
-2. 项目级隔离：只在目标 corpus 里放 wrapper、AGENTS/CLAUDE 路由和项目级 skills。
-3. Hybrid：全局只放入口 skills，项目内保留 `wiki-*` 执行细则。
-4. GBrain 增强：把 GBrain 作为 read-only 候选检索层接入 lorekit。
+1. Agent Skills：把 `wiki-*` 或 `corpus-*` 安装到目标 agent，让工作流能被显式触发。
+2. 全局 corpus 入口：安装 `corpus-*` / `wiki-daily` 到 Codex 全局 skills，让任意项目能路由到同一个 corpus。
+3. 项目级隔离：只在目标 corpus 里放 wrapper、AGENTS/CLAUDE 路由和项目级 skills。
+4. Hybrid：全局只放入口 skills，项目内保留 `wiki-*` 执行细则。
+5. GBrain 增强：把 GBrain 作为 read-only 候选检索层接入 lorekit。
 ```
 
 默认建议：
 
-- 普通知识库用户：只安装 lorekit + 目标 agent 对应的 lorekit skills。
+- 普通知识库用户：只安装 lorekit CLI，初始化 corpus，跑 `lorekit doctor`。
+- 想让 agent 有明确工作流入口时，再安装目标 agent 对应的 lorekit skills。
 - 需要隔离某个 corpus、不想影响其他 coding 项目时，再选择项目级安装。
 - 需要从任意代码项目访问同一个个人 corpus 时，选择 Hybrid：全局 `corpus-*` 负责入口和路由，项目级 `wiki-*` 负责治理规则。
 - 需要 graph / hybrid retrieval、多跳关系、候选发现时，再安装 GBrain bridge。
 - 安装器类 skill 也可以全局保留，例如 `lorekit-corpus-bootstrap` / `lorekit-gbrain-project-bridge`，用于快速部署项目级配置。
+
+## 模块组合速查
+
+| 组合 | 包含 | 不包含 | 适合 |
+| --- | --- | --- | --- |
+| 默认：CLI only | `lorekit` CLI + corpus skeleton | skills / GBrain / project wrapper | 新用户、最小安装、验证工具本体 |
+| CLI + Agent Skills | CLI + `wiki-*` 或 `corpus-*` skills | GBrain / 项目 wrapper | 希望 agent 直接触发 ingest / query / fileback |
+| CLI + Global Corpus | CLI + Codex `corpus-*` / `wiki-daily` + `global-corpus.json` | project-local execution rules | 任意项目都要访问同一个个人 corpus |
+| CLI + Project-local | CLI + corpus 内 `skills/wiki-*` + `AGENTS.md` 短路由 | 全局入口 skills | 团队库、隔离库、不想污染其他项目 |
+| Hybrid | 全局入口 skills + 项目级执行 rules | GBrain 可选 | 一个 canonical corpus 服务多个项目 |
+| CLI + GBrain | CLI + `lorekit gbrain` read-only bridge | GBrain mutating skills | 多跳候选召回、graph / hybrid retrieval |
 
 ## 路线 A：只安装 lorekit（默认）
 
@@ -58,9 +72,11 @@ lorekit doctor
 
 如果目录里已有内容，先走 lorekit 的备份提示；不要手动移动或删除用户内容。
 
-### 3. 安装 lorekit skills
+### 3. 可选：安装 lorekit skills
 
-#### 全局 skills（默认）
+基础 lorekit 不要求安装 skills。skills 是 agent 侧触发层，用来把 ingest / query / fileback / lint / daily 等工作流显式暴露给 Claude Code、Codex 或其他 agent。
+
+#### 全局 skills（可选）
 
 Claude Code 可用：
 
@@ -68,9 +84,9 @@ Claude Code 可用：
 lorekit install-skills --target claude-code
 ```
 
-这会安装到 Claude Code 的全局 skill 位置。优点是触发和预览更直接，也符合 lorekit 的默认安装路线。
+这会安装到 Claude Code 的全局 skill 位置。优点是触发和预览更直接，但它是 Agent Skills 模块，不是 lorekit CLI 默认安装的一部分。
 
-Codex 默认安装全局入口 skills（`corpus-*` + `wiki-daily`）到用户级目录：
+Codex 可选安装全局入口 skills（`corpus-*` + `wiki-daily`）到用户级目录：
 
 ```bash
 lorekit install-skills --target codex --mode copy
@@ -383,11 +399,11 @@ cd ~/Desktop/my-corpus
 | -------------- | -------------------------------- | ------------------------------------------ |
 | lorekit CLI    | 默认路线，任意目录可调用         | wrapper 锁定 corpus 与 GBrain binary       |
 | GBrain CLI     | 方便调试 GBrain                  | wrapper 锁定 `GBRAIN_HOME`，避免写错 brain |
-| lorekit skills | 默认路线，触发和预览更直接       | 靠 `AGENTS.md` 路由，不污染其他项目        |
+| lorekit skills | 可选模块，触发和预览更直接       | 靠 `AGENTS.md` 路由，不污染其他项目        |
 | GBrain skills  | 容易启用 mutating brain workflow | 只映射，不直接启用                         |
 | hooks          | 可能影响所有项目                 | 只做项目内轻量提醒                         |
 
-一句话：lorekit 默认全局安装，项目级安装是隔离策略；GBrain 是增强策略，不是 lorekit 基础功能的前置条件。
+一句话：lorekit 默认只有 CLI；skills 是 agent 触发层，项目级安装是隔离策略，GBrain 是增强策略，都不是 lorekit 基础功能的前置条件。
 
 ## 验收清单
 
