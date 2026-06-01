@@ -10,19 +10,20 @@
 
 ## 先问用户
 
-AI 帮用户安装前，先问清楚：
+AI 帮用户安装时，先问一个简短问题。默认推荐单 lorekit，因为其他组合会引入额外概念、配置文件和长期维护成本。用户只说“安装一下”或没有明确选择时，执行默认路线，不要自动安装 skills、project-local wrapper 或 GBrain。
 
 ```text
-你希望怎么安装 lorekit？
+我可以帮你安装 lorekit。推荐默认是「只安装 lorekit CLI」：
+安装全局 `lorekit` 命令、初始化 corpus、跑 `lorekit doctor`。
+这条学习成本最低，后续需要时可以再加模块。
 
-默认：只安装 lorekit，本机全局可用 `lorekit` CLI，并初始化目标 corpus。
-
-可选项：
-1. Agent Skills：把 `wiki-*` 或 `corpus-*` 安装到目标 agent，让工作流能被显式触发。
-2. 全局 corpus 入口：安装 `corpus-*` / `wiki-daily` 到 Codex 全局 skills，让任意项目能路由到同一个 corpus。
-3. 项目级隔离：只在目标 corpus 里放 wrapper、AGENTS/CLAUDE 路由和项目级 skills。
-4. Hybrid：全局只放入口 skills，项目内保留 `wiki-*` 执行细则。
-5. GBrain 增强：把 GBrain 作为 read-only 候选检索层接入 lorekit。
+你要哪一种？
+1. 只安装 lorekit CLI（推荐）
+2. CLI + Agent Skills：把 `wiki-*` 或 `corpus-*` 安装到目标 agent，方便显式触发工作流。
+3. CLI + Codex 全局 corpus 入口：安装 `corpus-*` / `wiki-daily`，让任意项目能路由到同一个 corpus。
+4. CLI + 项目级隔离：只在目标 corpus 里放 wrapper、AGENTS/CLAUDE 路由和项目级 skills。
+5. Hybrid：全局只放入口 skills，项目内保留 `wiki-*` 执行细则。
+6. CLI + GBrain：把 GBrain 作为 read-only 候选检索层接入 lorekit。
 ```
 
 默认建议：
@@ -33,6 +34,15 @@ AI 帮用户安装前，先问清楚：
 - 需要从任意代码项目访问同一个个人 corpus 时，选择 Hybrid：全局 `corpus-*` 负责入口和路由，项目级 `wiki-*` 负责治理规则。
 - 需要 graph / hybrid retrieval、多跳关系、候选发现时，再安装 GBrain bridge。
 - 安装器类 skill 也可以全局保留，例如 `lorekit-corpus-bootstrap` / `lorekit-gbrain-project-bridge`，用于快速部署项目级配置。
+
+AI 安装规则：
+
+- 默认路线不运行 `lorekit install-skills`。
+- 用户选择 Codex `wiki-daily` 时，只运行 `--only wiki-daily`，不要顺手装完整 `corpus-*`。
+- 用户选择 Codex 全局 corpus 入口时，运行 `--target codex --mode copy`；这已经包含 `wiki-daily`，不要重复解释成两套默认。
+- 用户选择项目级隔离时，把 `wiki-*` 放在 corpus 内并用 `AGENTS.md` 短路由，不要同时把这些执行细则装成全局默认。
+- 用户选择 GBrain 时，只启用 lorekit 的 read-only bridge，不安装 GBrain 原生 mutating skills。
+- 每加一个组合，都要说明它解决什么问题、增加什么学习成本、需要维护哪个配置文件。
 
 ## 模块组合速查
 
@@ -76,7 +86,19 @@ lorekit doctor
 
 基础 lorekit 不要求安装 skills。skills 是 agent 侧触发层，用来把 ingest / query / fileback / lint / daily 等工作流显式暴露给 Claude Code、Codex 或其他 agent。
 
-#### 全局 skills（可选）
+#### 默认：不安装 skills
+
+默认路线到这里已经完成：
+
+```bash
+lorekit --version
+cd ~/Desktop/my-corpus
+lorekit doctor
+```
+
+没有用户明确选择时，AI 安装器应停在这里，并提示后续可按模块追加 skills。
+
+#### Claude Code workflow skills（可选）
 
 Claude Code 可用：
 
@@ -86,11 +108,7 @@ lorekit install-skills --target claude-code
 
 这会安装到 Claude Code 的全局 skill 位置。优点是触发和预览更直接，但它是 Agent Skills 模块，不是 lorekit CLI 默认安装的一部分。
 
-Codex 可选安装全局入口 skills（`corpus-*` + `wiki-daily`）到用户级目录：
-
-```bash
-lorekit install-skills --target codex --mode copy
-```
+#### Codex personal diary gateway（可选）
 
 如果只要个人日记入口，可以只安装 `wiki-daily`：
 
@@ -157,13 +175,15 @@ Use $wiki-daily to execute weekly synthesis. Read the latest 7 daily notes and r
 
 Cursor / Kimi CLI / Aider / Windsurf 等 agent 按各自的 skill / rule 目录注册 Markdown skills 即可。
 
-#### Codex 全局 corpus 入口 skills（可选）
+#### Codex global corpus entrypoints（可选）
 
 如果你希望在任意项目中都能查询、收件、摄入或写回同一个 canonical corpus，可以把全局入口 skills 安装到 Codex 用户级目录：
 
 ```bash
 lorekit install-skills --target codex --mode copy
 ```
+
+这会安装 `corpus-*` 并包含 `wiki-daily`。如果你只需要日记入口，用上一节的 `--only wiki-daily`；如果你已经选择这一节，不需要再单独重复安装 `wiki-daily`。
 
 这会把这些入口复制到 `~/.agents/skills/`：
 

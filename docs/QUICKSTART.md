@@ -2,7 +2,7 @@
 
 30 minutes from zero to a local LLM Wiki managed by the `lorekit` CLI.
 
-Default setup is CLI-only: install the global `lorekit` command and initialize a corpus. Agent skills, global corpus entrypoints, project-local isolation, vector search, and GBrain are optional modules; see [`INSTALLATION.md`](INSTALLATION.md).
+Default setup is CLI-only: install the global `lorekit` command and initialize a corpus. Agent skills, global corpus entrypoints, project-local isolation, vector search, and GBrain are optional modules; see [`INSTALLATION.md`](INSTALLATION.md). If an AI agent is installing lorekit for a user, it should recommend CLI-only first and ask before adding any optional module.
 
 ---
 
@@ -85,7 +85,18 @@ After init you have the full corpus skeleton (see README for layout), and `docto
 
 ## 4. Optional: add AI agent skills
 
-The base corpus works without installing skills. Add them only when you want your AI agent to expose lorekit workflows as named commands.
+The base corpus works without installing skills. Add them only when the user chooses a specific skill module; each one adds triggers and config the user must understand.
+
+Keep the paths separate:
+
+| Choice | Install command | Notes |
+| --- | --- | --- |
+| Default CLI-only | none | Stop after `lorekit doctor`; no skills installed |
+| Claude Code workflow skills | `lorekit install-skills --target claude-code` | Installs `wiki-*` workflows for Claude Code |
+| Codex diary only | `lorekit install-skills --target codex --only wiki-daily --mode copy` | Requires `~/.config/lorekit/daily.json` |
+| Codex global corpus | `lorekit install-skills --target codex --mode copy` | Installs `corpus-*` and includes `wiki-daily`; requires `global-corpus.json` |
+| Project-local isolation | copy selected `skills/wiki-*` into the corpus | Route them from corpus `AGENTS.md`; do not expose globally |
+| GBrain bridge | no skill install by default; use `lorekit gbrain <sub>` | Read-only retrieval bridge; do not install GBrain mutating skills |
 
 ### Agent workflow skills
 
