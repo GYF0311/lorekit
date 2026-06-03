@@ -4,7 +4,7 @@ import { join, relative } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { err, warn, out } from '../utils/logger.js';
 import { requireCorpus, collectMdFiles } from '../lib/corpus.js';
-import { isWithin } from '../lib/paths.js';
+import { isWithin, matchesDirPrefix, searchDefaultExcludePrefixes } from '../lib/paths.js';
 
 interface SearchResult {
   file: string;
@@ -28,8 +28,11 @@ function searchWithRipgrep(
     args.push('--type', opts.type);
   }
 
-  // Exclude internal dirs
-  args.push('--glob', '!.wiki/**', '--glob', '!.git/**');
+  if (!opts.dir) {
+    for (const prefix of searchDefaultExcludePrefixes) {
+      args.push('--glob', `!${prefix}/**`);
+    }
+  }
   args.push(query, searchDir);
 
   const result = spawnSync('rg', args, {
@@ -67,7 +70,11 @@ function searchFallback(query: string, corpus: string, opts: { dir?: string }): 
     err(`search --dir must stay within corpus; got: ${opts.dir}`);
     process.exit(2);
   }
-  const files = collectMdFiles(searchDir);
+  const files = collectMdFiles(searchDir).filter((file) => {
+    if (opts.dir) return true;
+    const rel = relative(corpus, file);
+    return !searchDefaultExcludePrefixes.some((prefix) => matchesDirPrefix(rel, prefix));
+  });
   const pattern = new RegExp(query, 'i');
   const results: SearchResult[] = [];
 

@@ -41,7 +41,7 @@ function runCheck(corpus: string): number {
   if (!cur.exists) {
     warn('.obsidian/graph.json 缺失');
     print('');
-    print('推荐 filter（含 _归档 / 反馈 + 完整根元数据）:');
+    print('推荐 filter（过程/系统区 + 自动索引）:');
     print(`  ${recommended}`);
     print('');
     print('应用：lorekit obsidian-tune --write');
@@ -58,7 +58,7 @@ function runCheck(corpus: string): number {
   print('当前 filter（如有）:');
   print(`  ${cur.search ?? '(空)'}`);
   print('');
-  print('推荐 filter（含 _归档 / 反馈 + 完整根元数据）:');
+  print('推荐 filter（过程/系统区 + 自动索引）:');
   print(`  ${recommended}`);
   print('');
   print('缺少的 token:');

@@ -26,6 +26,8 @@ Optional cross-project skill = entry and routing.
 
 Target corpus rules = execution authority.
 
+If the current working directory is already the intended corpus, prefer its local `wiki-ingest` route directly. Use this skill when the request starts outside the target corpus and needs configured cross-project routing.
+
 Before writing, read:
 
 - `<default_corpus>/AGENTS.md`

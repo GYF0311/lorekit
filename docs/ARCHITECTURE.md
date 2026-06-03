@@ -18,6 +18,19 @@ CLI 是薄层调度，负责确定性的文件系统、状态、索引、检索�
 
 不变量：`wiki-ingest` / `wiki-fileback` 是 durable write paths。任何全局、项目或 domain skill 都不能绕过 `原料/`、`知识库/`、provenance、ingest state、sync/lint 和确认门另造一套写库流程。不要把删除类、高风险 GBrain mutating 命令、自动 fileback 做成默认入口。
 
+### Skill Extension Standard
+
+新增项目/domain skill 时先判定它是 **overlay** 还是新的 LoreKit native workflow：
+
+| 检查项 | 标准 |
+| --- | --- |
+| Scope | 项目/domain skill 只扩展术语、来源分类、研究单元、命名和验收规则 |
+| Native overlap | 触及 durable ingest/fileback/remove 时，必须路由到 `wiki-*`，不复制流程 |
+| Routing | `AGENTS.md` 写清触发词、domain overlay、最终 native workflow |
+| Provenance | finished package 先进入本项目 `原料/`，知识页链接 durable source，不直接把 `_工作台/` 当 source |
+| Verification | 复用 native workflow 的 `sync` / `lint --quick` / `doctor`，不自建验证链 |
+| Upstream gap | 如果 native workflow 不够用，改 LoreKit native skill/template 或开 upstream issue |
+
 ## 系统总览
 
 ```mermaid

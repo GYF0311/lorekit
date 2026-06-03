@@ -104,6 +104,25 @@ export const vectorExcludePrefixes: readonly string[] = [
 export const vectorExcludeNames: ReadonlySet<string> = new Set(['.gitkeep', '.DS_Store']);
 
 // ---------------------------------------------------------------------------
+// `lorekit search` 默认检索规则
+// ---------------------------------------------------------------------------
+
+/**
+ * 默认全文搜索聚焦 durable knowledge layers，跳过过程区、派生产物和系统区。
+ * 用户显式传 `search --dir <dir>` 时，认为他正在指定范围搜索，不套这组默认排除。
+ */
+export const searchDefaultExcludePrefixes: readonly string[] = [
+  '_工作台',
+  '_archive',
+  '_归档',
+  '反馈',
+  '系统',
+  '输出',
+  '.wiki',
+  '.git',
+];
+
+// ---------------------------------------------------------------------------
 // `lorekit index` 专用规则（生成 _INDEX.md）
 // ---------------------------------------------------------------------------
 

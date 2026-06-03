@@ -7,6 +7,8 @@ description: 把新内容摄入 corpus，按 filing-rules 落盘并建反向链�
 
 把外部内容（URL / 文件 / 粘贴文本）摄入当前 corpus：fetch → 写 wiki → 反链 → CLI 关账。
 
+项目/domain skill 可以把 finished package、课程单元或客户材料路由到这里；它只补充来源分类、命名和验收规则，不重写 fetch/archive/wiki/lint/state 流程。
+
 ## When to trigger
 
 - 用户发来 URL / 文件路径 / 粘贴一段外部内容

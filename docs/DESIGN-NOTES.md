@@ -215,13 +215,14 @@ Karpathy 的 LLM Wiki Gist 原文假设：**1 wiki = 1 domain**（专项 wiki，
 
 ### Obsidian graph filter 的设计决策（批次 25）
 
-**排除**（非知识 / 临时 / 元数据）：
+**排除**（非知识 / 临时 / 过程区）：
 
-- 目录：`_工作台/` `_归档/` `反馈/` `系统/`
-- 文件：`_INDEX.md` `index.md` `log.md` `MEMORY.md` `README.md` `AGENTS.md` `CLAUDE.md`
+- 目录：`_工作台/` `_归档/` `反馈/` `系统/` `模板/`
+- 文件：`_INDEX.md` `index.md` `log.md`
 
 **保留**（综合图书馆心智模型）：
 
+- `README.md` / `AGENTS.md` / `CLAUDE.md` / `MEMORY.md` — 根入口和上下文节点，默认留在图谱里，用户可自行追加 filter 隐藏
 - `每日/` — 先生定位"我的来时路"：日记含人际互动 + 工作项目细节，不是乱记录。Karpathy 原文也保留日记
 - `写作/` — 对外作品，和 wiki 强关联，需要看到溯源链
 - `原料/` — wiki 页 `[[原料/...]]` 反链大量，排除会切断溯源
@@ -234,7 +235,7 @@ Karpathy 的 LLM Wiki Gist 原文假设：**1 wiki = 1 domain**（专项 wiki，
 | `_工作台/` `_归档/`                                    | vector 不索引 / lint 跳过         | ✅（lib/paths.ts）  |
 | `_INDEX.md` 自动生成                                   | Obsidian graph filter             | ✅ 批次 25          |
 | `系统/` schema 区                                      | graph filter                      | ✅ 批次 25          |
-| 根元数据（AGENTS / CLAUDE / log / MEMORY / README）    | graph filter                      | ✅ 批次 25          |
+| 根上下文（AGENTS / CLAUDE / MEMORY / README）          | graph filter 默认保留             | ✅ issue #15        |
 | `反馈/` audit 区                                       | graph filter                      | ✅ 批次 25          |
 | `.wiki/` 元数据                                        | .gitignore（已做）+ Obsidian userIgnoreFilters | ⏳ 后续  |
 | 中文目录命名                                           | 备份 / 归档命令默认包含           | ✅ 已做             |

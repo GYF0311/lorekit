@@ -165,7 +165,7 @@ Markdown 的好处是透明。你可以用 Obsidian 点开 `[[wikilinks]]`，也
 
 ### Graph filter
 
-新 corpus 初始化时，lorekit 会写入推荐的 `<corpus>/.obsidian/graph.json`，让 Graph view 隐藏 `_工作台`、`_归档`、`反馈`、`系统`、自动索引和根配置文件，重点显示 `知识库/`、`原料/`、`每日/`、`写作/`。
+新 corpus 初始化时，lorekit 会写入推荐的 `<corpus>/.obsidian/graph.json`，让 Graph view 隐藏 `_工作台`、`_归档`、`反馈`、`系统`、`模板` 和自动索引，重点显示 `知识库/`、`原料/`、`每日/`、`写作/`。`README`、`AGENTS`、`CLAUDE`、`MEMORY` 这类根上下文文件默认保留在图谱里，方便作为入口节点。
 
 如果已有 `.obsidian/graph.json`，`lorekit init` 会跳过，不覆盖用户设置。老 vault 可以用：
 

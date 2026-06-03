@@ -39,7 +39,7 @@ test('case 2: filter 不完整（缺 _归档）→ exit 1 + diff', () => {
     // 故意去掉 -path:"_归档"，模拟批次 25 之前老用户的 filter
     const partial = {
       search:
-        '-path:"_工作台" -path:"反馈" -path:"系统" -file:"_INDEX" -file:"index" -file:"log" -file:"MEMORY" -file:"README" -file:"AGENTS" -file:"CLAUDE"',
+        '-path:"_工作台" -path:"反馈" -path:"系统" -path:"模板" -file:"_INDEX" -file:"index" -file:"log"',
       showOrphans: true,
     };
     writeFileSync(
@@ -64,7 +64,7 @@ test('case 3: filter 完整 → exit 0', () => {
     mkdirSync(join(corpus, '.obsidian'), { recursive: true });
     // 直接拿模板的 search 字符串当完整 filter
     const tplSearch =
-      '-path:"_工作台" -path:"_归档" -path:"反馈" -path:"系统" -file:"_INDEX" -file:"index" -file:"log" -file:"MEMORY" -file:"README" -file:"AGENTS" -file:"CLAUDE"';
+      '-path:"_工作台" -path:"_归档" -path:"反馈" -path:"系统" -path:"模板" -file:"_INDEX" -file:"index" -file:"log"';
     const complete = {
       search: tplSearch + ' -file:"my-extra"', // 用户额外 filter 不该影响判断
       showOrphans: true,
@@ -106,10 +106,38 @@ test('case 4: --write 备份原文件 + 写入新版', () => {
 
     // 新 graph.json 应含完整推荐 token
     const newContent = JSON.parse(readFileSync(join(obsidianDir, 'graph.json'), 'utf-8'));
-    for (const needle of ['_工作台', '_归档', '反馈', '系统', '_INDEX', 'CLAUDE']) {
+    for (const needle of ['_工作台', '_归档', '反馈', '系统', '模板', '_INDEX']) {
       assert.ok(
         newContent.search.includes(needle),
         fmtRun(r, args, `写入的 search 应含 "${needle}"`),
+      );
+    }
+    for (const rootDoc of ['MEMORY', 'README', 'AGENTS', 'CLAUDE']) {
+      assert.ok(
+        !newContent.search.includes(`-file:"${rootDoc}"`),
+        fmtRun(r, args, `写入的 search 不应默认排除 "${rootDoc}"`),
+      );
+    }
+  } finally {
+    cleanupTmpDir(corpus);
+  }
+});
+
+test('case 5: --print 输出新默认 graph.json 且保留根上下文文件', () => {
+  const corpus = makeCorpus('lorekit-smoke-tune-print-');
+  try {
+    const args = ['obsidian-tune', '--print'];
+    const r = runLorekit(args, { cwd: corpus });
+    assert.equal(r.status, 0, fmtRun(r, args, '--print exit 0'));
+
+    const printed = JSON.parse(r.stdout);
+    assert.match(printed.search, /-path:"_工作台"/);
+    assert.match(printed.search, /-path:"模板"/);
+    assert.match(printed.search, /-file:"_INDEX"/);
+    for (const rootDoc of ['MEMORY', 'README', 'AGENTS', 'CLAUDE']) {
+      assert.ok(
+        !printed.search.includes(`-file:"${rootDoc}"`),
+        fmtRun(r, args, `--print 不应默认排除 "${rootDoc}"`),
       );
     }
   } finally {

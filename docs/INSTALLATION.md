@@ -288,6 +288,16 @@ Codex 里，项目级 skills 通常不会出现在 `/` 菜单预览中；模型�
 - 绕过 `原料/` 保存、`知识库/` 编译、provenance、sync/lint 和确认门。
 - 默认把项目研究材料写进中央 corpus。中央回流必须是可选、显式确认的 promotion。
 
+新增项目/domain skill 前，先过一遍检查清单：
+
+| 问题 | 推荐答案 |
+| --- | --- |
+| 它解决的是领域触发、来源分类、命名、验收，还是知识库写入语义？ | 只让项目/domain skill 做前者；写入语义交给 native `wiki-*` |
+| 这句话最终应该路由到哪个 native workflow？ | 在 `AGENTS.md` 写清：`wiki-ingest`、`wiki-fileback`、`wiki-query`、`wiki-lint` 或 `wiki-remove` |
+| 是否需要保存完整 finished package？ | 先进入本项目 `原料/`，再编译本项目 `知识库/` |
+| 是否要回流 central corpus？ | 只在用户显式确认 promotion / fileback 时发生 |
+| 发现 native skill 不够用怎么办？ | 优先改 LoreKit native skill / template，或开 upstream issue；不要在项目 skill 里静默 fork 一套流程 |
+
 #### Hybrid：全局入口 + 项目级执行规范
 
 这是只推荐给明确维护 central corpus 的高级形态：

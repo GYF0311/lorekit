@@ -3,6 +3,8 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { runLorekit, mkTmpDir, cleanupTmpDir, fmtRun } from './_util.mjs';
 
 test('search --dir ../../ 被拒 exit 2', () => {
@@ -40,6 +42,34 @@ test('search --dir /etc 绝对路径越界被拒', () => {
     const args = ['search', '--dir', '../..', 'keyword'];
     const r = runLorekit(args, { cwd: corpus });
     assert.equal(r.status, 2, fmtRun(r, args, '`../..` 必须 exit 2'));
+  } finally {
+    cleanupTmpDir(corpus);
+  }
+});
+
+test('search 默认排除 _工作台，但显式 --dir _工作台 可以搜索', () => {
+  const corpus = mkTmpDir('lorekit-smoke-search-default-scope-');
+  try {
+    const init = runLorekit(['init', '.'], { cwd: corpus });
+    assert.equal(init.status, 0, fmtRun(init, ['init', '.'], 'init exit 0'));
+
+    mkdirSync(join(corpus, '_工作台', 'research'), { recursive: true });
+    writeFileSync(
+      join(corpus, '_工作台', 'research', 'draft.md'),
+      'needle-only-in-workbench\n',
+      'utf-8',
+    );
+
+    const defaultArgs = ['search', 'needle-only-in-workbench'];
+    const defaultRun = runLorekit(defaultArgs, { cwd: corpus });
+    assert.equal(defaultRun.status, 0, fmtRun(defaultRun, defaultArgs, 'default search exits 0'));
+    assert.doesNotMatch(defaultRun.stdout, /draft\.md/);
+    assert.match(defaultRun.stderr, /no results/);
+
+    const explicitArgs = ['search', '--dir', '_工作台', 'needle-only-in-workbench'];
+    const explicitRun = runLorekit(explicitArgs, { cwd: corpus });
+    assert.equal(explicitRun.status, 0, fmtRun(explicitRun, explicitArgs, 'explicit workbench search exits 0'));
+    assert.match(explicitRun.stdout, /_工作台\/research\/draft\.md/);
   } finally {
     cleanupTmpDir(corpus);
   }

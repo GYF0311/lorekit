@@ -45,7 +45,7 @@ function isWithin(root, abs) {
   const rel = pathRelative(root, abs);
   return rel === "" || !rel.startsWith("..") && !pathIsAbsolute(rel);
 }
-var alwaysExcludeNames, alwaysExcludeDirNames, vectorIncludeDirs, vectorExcludePrefixes, vectorExcludeNames, indexExcludeDirPrefixes, lintSkipFrontmatterBasenames, lintRootOnlySkipBasenames, lintSkipOrphanPrefixes, lintSkipFrontmatterPrefixes, lintSkipBrokenLinkPrefixes, snapshotExcludeNames;
+var alwaysExcludeNames, alwaysExcludeDirNames, vectorIncludeDirs, vectorExcludePrefixes, vectorExcludeNames, searchDefaultExcludePrefixes, indexExcludeDirPrefixes, lintSkipFrontmatterBasenames, lintRootOnlySkipBasenames, lintSkipOrphanPrefixes, lintSkipFrontmatterPrefixes, lintSkipBrokenLinkPrefixes, snapshotExcludeNames;
 var init_paths = __esm({
   "src/lib/paths.ts"() {
     "use strict";
@@ -75,6 +75,16 @@ var init_paths = __esm({
       ".wiki"
     ];
     vectorExcludeNames = /* @__PURE__ */ new Set([".gitkeep", ".DS_Store"]);
+    searchDefaultExcludePrefixes = [
+      "_\u5DE5\u4F5C\u53F0",
+      "_archive",
+      "_\u5F52\u6863",
+      "\u53CD\u9988",
+      "\u7CFB\u7EDF",
+      "\u8F93\u51FA",
+      ".wiki",
+      ".git"
+    ];
     indexExcludeDirPrefixes = [
       ".wiki",
       ".git",
@@ -2358,18 +2368,36 @@ function checkWikiVersion(corpus) {
   bad(".wiki/version missing");
   return 1;
 }
-function inspectFrontmatterCoverage(corpus) {
-  const files = collectMdFiles(corpus);
+var FRONTMATTER_DURABLE_LAYERS = ["\u539F\u6599", "\u77E5\u8BC6\u5E93", "\u6BCF\u65E5", "\u5199\u4F5C"];
+var FRONTMATTER_PROCESS_LAYERS = ["_\u5DE5\u4F5C\u53F0", "\u8F93\u51FA"];
+function inspectFrontmatterLayer(corpus, layer) {
+  const files = collectMdFiles(join8(corpus, layer));
   const withFm = files.filter((f) => hasFrontmatter(f)).length;
   const total = files.length;
   const pct = total === 0 ? 100 : Math.round(withFm / total * 100);
   return { withFrontmatter: withFm, total, pct };
 }
+function inspectFrontmatterCoverage(corpus) {
+  const durableFiles = FRONTMATTER_DURABLE_LAYERS.flatMap(
+    (layer) => collectMdFiles(join8(corpus, layer))
+  );
+  const withFm = durableFiles.filter((f) => hasFrontmatter(f)).length;
+  const total = durableFiles.length;
+  const pct = total === 0 ? 100 : Math.round(withFm / total * 100);
+  const layers = {};
+  for (const layer of FRONTMATTER_DURABLE_LAYERS) {
+    layers[layer] = { durable: true, ...inspectFrontmatterLayer(corpus, layer) };
+  }
+  for (const layer of FRONTMATTER_PROCESS_LAYERS) {
+    layers[layer] = { durable: false, ...inspectFrontmatterLayer(corpus, layer) };
+  }
+  return { withFrontmatter: withFm, total, pct, scope: "durable", layers };
+}
 function checkFrontmatterCoverage(corpus) {
   const { withFrontmatter, total, pct } = inspectFrontmatterCoverage(corpus);
   const color = pct >= 90 ? chalk3.green : pct >= 60 ? chalk3.yellow : chalk3.red;
   const icon = pct >= 90 ? "\u2713" : pct >= 60 ? "\u26A0" : "\u2717";
-  print(`${color(icon)} frontmatter coverage: ${withFrontmatter}/${total} (${pct}%)`);
+  print(`${color(icon)} frontmatter coverage (durable): ${withFrontmatter}/${total} (${pct}%)`);
 }
 function findMissingIndexDirs(corpus) {
   const missing = [];
@@ -2755,6 +2783,46 @@ function shouldSkipBrokenLink(rel) {
 function isGraphExcluded(fm) {
   return fm["graph-excluded"] === true || fm["graph_excluded"] === true;
 }
+var FRONTMATTER_SOURCE_KEYS = /* @__PURE__ */ new Set([
+  "source",
+  "sources",
+  "source_path",
+  "source_paths",
+  "source_file",
+  "source_files",
+  "source_page",
+  "source_pages",
+  "source_ref",
+  "source_refs"
+]);
+function collectStringValues(value, acc = []) {
+  if (typeof value === "string") {
+    acc.push(value);
+  } else if (Array.isArray(value)) {
+    for (const item of value) collectStringValues(item, acc);
+  } else if (value && typeof value === "object") {
+    for (const item of Object.values(value)) {
+      collectStringValues(item, acc);
+    }
+  }
+  return acc;
+}
+function normalizeSourceRef(ref) {
+  const trimmed = ref.trim();
+  const wikilink = trimmed.match(/^\[\[([^\]|#]+)[^\]]*\]\]$/);
+  return (wikilink ? wikilink[1] : trimmed).replace(/^\.?\//, "");
+}
+function frontmatterWorkbenchRefs(fm) {
+  const refs = [];
+  for (const [key, value] of Object.entries(fm)) {
+    if (!FRONTMATTER_SOURCE_KEYS.has(key)) continue;
+    for (const raw of collectStringValues(value)) {
+      const ref = normalizeSourceRef(raw);
+      if (ref === "_\u5DE5\u4F5C\u53F0" || ref.startsWith("_\u5DE5\u4F5C\u53F0/")) refs.push(ref);
+    }
+  }
+  return refs;
+}
 function stripCodeBlocks(content) {
   content = content.replace(/```[\s\S]*?```/g, "");
   content = content.replace(/`[^`\n]+`/g, "");
@@ -2813,6 +2881,25 @@ function runLint(corpus) {
     }
   }
   for (const [rel, targets] of fileLinks) {
+    if (rel.startsWith("\u77E5\u8BC6\u5E93/")) {
+      const fm = fileFrontmatter.get(rel) ?? {};
+      for (const ref of frontmatterWorkbenchRefs(fm)) {
+        issues.push({
+          file: rel,
+          kind: "workbench-source-link",
+          detail: `knowledge page frontmatter cites process workbench as source: ${ref}`
+        });
+      }
+      for (const target of targets) {
+        if (target === "_\u5DE5\u4F5C\u53F0" || target.startsWith("_\u5DE5\u4F5C\u53F0/")) {
+          issues.push({
+            file: rel,
+            kind: "workbench-source-link",
+            detail: `knowledge page links process workbench as source: [[${target}]]`
+          });
+        }
+      }
+    }
     if (shouldSkipBrokenLink(rel)) continue;
     for (const target of targets) {
       if (!stemSet.has(target) && !baseNameSet.has(target)) {
@@ -2863,6 +2950,7 @@ lorekit lint \u2014 ${corpus}
   const kindLabels = {
     "missing-field": "frontmatter",
     "broken-link": "broken links",
+    "workbench-source-link": "workbench source links",
     orphan: "orphan pages"
   };
   for (const [kind, items] of Object.entries(grouped)) {
@@ -3631,7 +3719,11 @@ function searchWithRipgrep(query, corpus, opts) {
   if (opts.type) {
     args.push("--type", opts.type);
   }
-  args.push("--glob", "!.wiki/**", "--glob", "!.git/**");
+  if (!opts.dir) {
+    for (const prefix of searchDefaultExcludePrefixes) {
+      args.push("--glob", `!${prefix}/**`);
+    }
+  }
   args.push(query, searchDir);
   const result = spawnSync("rg", args, {
     encoding: "utf-8",
@@ -3663,7 +3755,11 @@ function searchFallback(query, corpus, opts) {
     err(`search --dir must stay within corpus; got: ${opts.dir}`);
     process.exit(2);
   }
-  const files = collectMdFiles(searchDir);
+  const files = collectMdFiles(searchDir).filter((file) => {
+    if (opts.dir) return true;
+    const rel = relative7(corpus, file);
+    return !searchDefaultExcludePrefixes.some((prefix) => matchesDirPrefix(rel, prefix));
+  });
   const pattern = new RegExp(query, "i");
   const results = [];
   for (const filePath of files) {
@@ -5271,7 +5367,7 @@ function runCheck(corpus) {
   if (!cur.exists) {
     warn(".obsidian/graph.json \u7F3A\u5931");
     print("");
-    print("\u63A8\u8350 filter\uFF08\u542B _\u5F52\u6863 / \u53CD\u9988 + \u5B8C\u6574\u6839\u5143\u6570\u636E\uFF09:");
+    print("\u63A8\u8350 filter\uFF08\u8FC7\u7A0B/\u7CFB\u7EDF\u533A + \u81EA\u52A8\u7D22\u5F15\uFF09:");
     print(`  ${recommended}`);
     print("");
     print("\u5E94\u7528\uFF1Alorekit obsidian-tune --write");
@@ -5286,7 +5382,7 @@ function runCheck(corpus) {
   print("\u5F53\u524D filter\uFF08\u5982\u6709\uFF09:");
   print(`  ${cur.search ?? "(\u7A7A)"}`);
   print("");
-  print("\u63A8\u8350 filter\uFF08\u542B _\u5F52\u6863 / \u53CD\u9988 + \u5B8C\u6574\u6839\u5143\u6570\u636E\uFF09:");
+  print("\u63A8\u8350 filter\uFF08\u8FC7\u7A0B/\u7CFB\u7EDF\u533A + \u81EA\u52A8\u7D22\u5F15\uFF09:");
   print(`  ${recommended}`);
   print("");
   print("\u7F3A\u5C11\u7684 token:");

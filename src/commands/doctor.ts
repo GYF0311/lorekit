@@ -123,19 +123,42 @@ function checkWikiVersion(corpus: string): number {
   return 1;
 }
 
-function inspectFrontmatterCoverage(corpus: string) {
-  const files = collectMdFiles(corpus);
+const FRONTMATTER_DURABLE_LAYERS = ['原料', '知识库', '每日', '写作'] as const;
+const FRONTMATTER_PROCESS_LAYERS = ['_工作台', '输出'] as const;
+
+function inspectFrontmatterLayer(corpus: string, layer: string) {
+  const files = collectMdFiles(join(corpus, layer));
   const withFm = files.filter((f) => hasFrontmatter(f)).length;
   const total = files.length;
   const pct = total === 0 ? 100 : Math.round((withFm / total) * 100);
   return { withFrontmatter: withFm, total, pct };
 }
 
+function inspectFrontmatterCoverage(corpus: string) {
+  const durableFiles = FRONTMATTER_DURABLE_LAYERS.flatMap((layer) =>
+    collectMdFiles(join(corpus, layer)),
+  );
+  const withFm = durableFiles.filter((f) => hasFrontmatter(f)).length;
+  const total = durableFiles.length;
+  const pct = total === 0 ? 100 : Math.round((withFm / total) * 100);
+
+  const layers: Record<string, ReturnType<typeof inspectFrontmatterLayer> & { durable: boolean }> =
+    {};
+  for (const layer of FRONTMATTER_DURABLE_LAYERS) {
+    layers[layer] = { durable: true, ...inspectFrontmatterLayer(corpus, layer) };
+  }
+  for (const layer of FRONTMATTER_PROCESS_LAYERS) {
+    layers[layer] = { durable: false, ...inspectFrontmatterLayer(corpus, layer) };
+  }
+
+  return { withFrontmatter: withFm, total, pct, scope: 'durable', layers };
+}
+
 function checkFrontmatterCoverage(corpus: string) {
   const { withFrontmatter, total, pct } = inspectFrontmatterCoverage(corpus);
   const color = pct >= 90 ? chalk.green : pct >= 60 ? chalk.yellow : chalk.red;
   const icon = pct >= 90 ? '✓' : pct >= 60 ? '⚠' : '✗';
-  print(`${color(icon)} frontmatter coverage: ${withFrontmatter}/${total} (${pct}%)`);
+  print(`${color(icon)} frontmatter coverage (durable): ${withFrontmatter}/${total} (${pct}%)`);
 }
 
 function findMissingIndexDirs(corpus: string): string[] {

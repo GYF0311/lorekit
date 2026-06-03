@@ -7,6 +7,8 @@ description: 用于显式配置目标 corpus 后，在用户明确确认时把�
 
 Optional fileback gateway for a configured Lorekit corpus. It writes only confirmed long-term knowledge, using target corpus rules.
 
+If the current working directory is already the intended corpus, prefer its local `wiki-fileback` route directly. Use this skill when the request starts outside the target corpus and needs configured cross-project routing.
+
 ## Confirmation Gate
 
 Only write to `知识库/` when the user explicitly says one of:

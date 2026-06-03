@@ -70,22 +70,16 @@ test('init 在无 .obsidian 的新 corpus 下会创建推荐 graph.json', () => 
     assert.ok(existsSync(graphPath), fmtRun(r, args, '新 corpus 应有 .obsidian/graph.json'));
 
     const content = JSON.parse(readFileSync(graphPath, 'utf-8'));
-    // 批次 25 约定的 11 项排除都要出现（_工作台 / _归档 / 反馈 / 系统 + 根元数据文件）
+    // 推荐 filter 只排除过程/系统区和自动索引；根元数据文件默认保留为图谱入口。
     const s = content.search;
-    for (const needle of [
-      '_工作台',
-      '_归档',
-      '反馈',
-      '系统',
-      '_INDEX',
-      'index',
-      'log',
-      'MEMORY',
-      'README',
-      'AGENTS',
-      'CLAUDE',
-    ]) {
+    for (const needle of ['_工作台', '_归档', '反馈', '系统', '模板', '_INDEX', 'index', 'log']) {
       assert.ok(s.includes(needle), fmtRun(r, args, `graph.json search 应含 "${needle}"`));
+    }
+    for (const rootDoc of ['MEMORY', 'README', 'AGENTS', 'CLAUDE']) {
+      assert.ok(
+        !s.includes(`-file:"${rootDoc}"`),
+        fmtRun(r, args, `graph.json search 不应默认排除 "${rootDoc}"`),
+      );
     }
   } finally {
     cleanupTmpDir(fresh);

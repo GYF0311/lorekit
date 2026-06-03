@@ -51,6 +51,50 @@ function isGraphExcluded(fm: Record<string, unknown>): boolean {
   return fm['graph-excluded'] === true || fm['graph_excluded'] === true;
 }
 
+const FRONTMATTER_SOURCE_KEYS = new Set([
+  'source',
+  'sources',
+  'source_path',
+  'source_paths',
+  'source_file',
+  'source_files',
+  'source_page',
+  'source_pages',
+  'source_ref',
+  'source_refs',
+]);
+
+function collectStringValues(value: unknown, acc: string[] = []): string[] {
+  if (typeof value === 'string') {
+    acc.push(value);
+  } else if (Array.isArray(value)) {
+    for (const item of value) collectStringValues(item, acc);
+  } else if (value && typeof value === 'object') {
+    for (const item of Object.values(value as Record<string, unknown>)) {
+      collectStringValues(item, acc);
+    }
+  }
+  return acc;
+}
+
+function normalizeSourceRef(ref: string): string {
+  const trimmed = ref.trim();
+  const wikilink = trimmed.match(/^\[\[([^\]|#]+)[^\]]*\]\]$/);
+  return (wikilink ? wikilink[1] : trimmed).replace(/^\.?\//, '');
+}
+
+function frontmatterWorkbenchRefs(fm: Record<string, unknown>): string[] {
+  const refs: string[] = [];
+  for (const [key, value] of Object.entries(fm)) {
+    if (!FRONTMATTER_SOURCE_KEYS.has(key)) continue;
+    for (const raw of collectStringValues(value)) {
+      const ref = normalizeSourceRef(raw);
+      if (ref === '_工作台' || ref.startsWith('_工作台/')) refs.push(ref);
+    }
+  }
+  return refs;
+}
+
 // 去掉围栏代码块和行内代码，避免文档里 `[[Page]]` 这类占位符被当作真 wikilink
 function stripCodeBlocks(content: string): string {
   content = content.replace(/```[\s\S]*?```/g, '');
@@ -60,7 +104,7 @@ function stripCodeBlocks(content: string): string {
 
 interface LintIssue {
   file: string;
-  kind: 'missing-field' | 'broken-link' | 'orphan';
+  kind: 'missing-field' | 'broken-link' | 'orphan' | 'workbench-source-link';
   detail: string;
 }
 
@@ -138,6 +182,27 @@ export function runLint(corpus: string): LintIssue[] {
 
   // Pass 2: broken links
   for (const [rel, targets] of fileLinks) {
+    if (rel.startsWith('知识库/')) {
+      const fm = fileFrontmatter.get(rel) ?? {};
+      for (const ref of frontmatterWorkbenchRefs(fm)) {
+        issues.push({
+          file: rel,
+          kind: 'workbench-source-link',
+          detail: `knowledge page frontmatter cites process workbench as source: ${ref}`,
+        });
+      }
+
+      for (const target of targets) {
+        if (target === '_工作台' || target.startsWith('_工作台/')) {
+          issues.push({
+            file: rel,
+            kind: 'workbench-source-link',
+            detail: `knowledge page links process workbench as source: [[${target}]]`,
+          });
+        }
+      }
+    }
+
     if (shouldSkipBrokenLink(rel)) continue; // 模板占位符不算死链
     for (const target of targets) {
       if (!stemSet.has(target) && !baseNameSet.has(target)) {
@@ -202,6 +267,7 @@ export function printLintReport(corpus: string, issues: LintIssue[]): void {
   const kindLabels: Record<string, string> = {
     'missing-field': 'frontmatter',
     'broken-link': 'broken links',
+    'workbench-source-link': 'workbench source links',
     orphan: 'orphan pages',
   };
 

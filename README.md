@@ -22,7 +22,7 @@ Three layers:
 - **Artifact layer** (`知识库/`): the compiled wiki — cross-linked, synthesized, continuously updated
 - **Schema** (`CLAUDE.md` / `AGENTS.md`): per-corpus configuration, co-maintained by human + LLM
 
-Project-local evidence folders such as `_工作台/课程原文/` are not automatically part of the LM Wiki raw-source layer. The retrieval chain starts from `index.md` / `知识库/`; open `原料/` only when full source provenance is needed, and promote project evidence into `原料/` only through an explicit ingest.
+Project-local evidence folders such as `_工作台/课程原文/` are not automatically part of the LM Wiki raw-source layer. The retrieval chain starts from `index.md` / `知识库/`; open `原料/` only when full source provenance is needed, and promote project evidence into `原料/` only through an explicit ingest. Doctor frontmatter coverage is calculated on durable layers by default; lint flags `知识库/**` pages that cite `_工作台/**` directly as a canonical source.
 
 > **Data safety**: lorekit has zero tolerance for data loss. Existing notes are backed up before init; `原料/` is immutable; no `rm` is ever used — deletions go through `trash` (recoverable from macOS Trash). See the data-safety rules in `AGENTS.md` and `docs/INSTALLATION.md`.
 
@@ -37,7 +37,7 @@ Project-local evidence folders such as `_工作台/课程原文/` are not automa
 | Search          | `lorekit search`        | Text search + vector semantic search (hybrid)                                                                                                                         |
 | Web fetch       | `lorekit fetch <url>`   | Pulls WeChat / generic pages into the workbench; auto-extracts `publishDate`, writes spec-compliant frontmatter, detects duplicate / in-progress URLs from state.json |
 | Ingest state    | `lorekit ingest <sub>`  | `list` / `pending` / `record` / `forget` / `reconcile` — the single source of truth for ingest pipeline progress                                                      |
-| Lint            | `lorekit lint`          | Broken wikilinks, orphan pages, duplicate detection; `--quick` is accepted as a compatibility alias for agent self-checks                                             |
+| Lint            | `lorekit lint`          | Broken wikilinks, orphan pages, workbench-as-source links, duplicate detection; `--quick` is accepted as a compatibility alias for agent self-checks                   |
 | Snapshot        | `lorekit snapshot`      | Full-corpus tarball + manifest                                                                                                                                        |
 | Restore         | `lorekit restore`       | Recover missing / changed files from a snapshot                                                                                                                       |
 | Remove          | `lorekit remove`        | Dry-run impact report, then safely move selected sources/pages to OS Trash with provenance-aware cleanup                                                              |
@@ -512,10 +512,10 @@ Or in Claude Code say "process the feedback" → the agent triggers `wiki-audit`
 
 ### Graph filter (recommended)
 
-`lorekit init` writes a recommended graph filter to `<corpus>/.obsidian/graph.json` that excludes non-knowledge nodes (workbench / archive / feedback / schema dirs + auto-generated indexes + root metadata files like `AGENTS.md` / `CLAUDE.md`). If the corpus already has `.obsidian/graph.json`, init leaves it untouched — copy the filter below into Obsidian's "Graph view → Filters" manually:
+`lorekit init` writes a recommended graph filter to `<corpus>/.obsidian/graph.json` that excludes process/system nodes (workbench / archive / feedback / schema and template dirs + auto-generated indexes). Root metadata files such as `README.md`, `AGENTS.md`, `CLAUDE.md`, and `MEMORY.md` stay visible by default because they can be useful entry and context nodes. If the corpus already has `.obsidian/graph.json`, init leaves it untouched — copy the filter below into Obsidian's "Graph view → Filters" manually:
 
 ```
--path:"_工作台" -path:"_归档" -path:"反馈" -path:"系统" -file:"_INDEX" -file:"index" -file:"log" -file:"MEMORY" -file:"README" -file:"AGENTS" -file:"CLAUDE"
+-path:"_工作台" -path:"_归档" -path:"反馈" -path:"系统" -path:"模板" -file:"_INDEX" -file:"index" -file:"log"
 ```
 
 What stays visible: `知识库/` (compiled wiki), `原料/` (raw sources, heavily back-linked), `每日/` (daily notes — Karpathy keeps these in the graph too), `写作/` (outgoing drafts).

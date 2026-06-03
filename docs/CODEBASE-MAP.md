@@ -39,14 +39,14 @@ lorekit/
 | ------------------- | --- | ----------------------------------------------------------------------------------------------------------------- |
 | `init.ts`           | 189 | 初始化 corpus，部署 Obsidian 插件 + 批次 25 safe-write `.obsidian/graph.json`                                     |
 | `stats.ts`          | 85  | 输出 corpus 统计 JSON                                                                                             |
-| `search.ts`         | 117 | ripgrep 包装（有内置 fallback）                                                                                   |
+| `search.ts`         | 133 | ripgrep 包装（有内置 fallback）；默认排除过程/系统区，显式 `--dir` 可查指定子目录                                   |
 | `fetch.ts`          | 183 | URL 路由 → 调 fetcher 子模块，duplicate / in-progress 检测                                                        |
 | `ingest.ts`         | 407 | ingest pipeline state machine：list / pending / record / check / forget / reconcile                               |
 | `dir-index.ts`      | 273 | 递归生成 `_INDEX.md`；复用 `paths.ts` 跳过 `skills/` / `node_modules/` 等工具目录                                  |
 | `sync.ts`           | 204 | 一键链：dir-index → root index → vector sync → doctor；`--json/--report` 输出步骤收据                             |
-| `doctor.ts`         | 469 | corpus 健康检查；human 输出 + `--json` 结构化报告 + 严格 `--section <name>` 检查；默认跳过 inactive optional integrations |
+| `doctor.ts`         | 501 | corpus 健康检查；human 输出 + `--json` 结构化报告 + 严格 `--section <name>` 检查；frontmatter 主指标按 durable layers 统计；默认跳过 inactive optional integrations |
 | `vector.ts`         | 188 | 向量子命令：sync / query（flat / layered / bm25 / hybrid）/ status                                                |
-| `lint.ts`           | 230 | frontmatter / 死链 / 孤岛页扫描；`--quick` 是 agent 自检兼容别名                                                   |
+| `lint.ts`           | 296 | frontmatter / 死链 / 孤岛页 / `知识库` 直链 `_工作台` source 扫描；`--quick` 是 agent 自检兼容别名                    |
 | `audit.ts`          | 162 | 反馈条目 CRUD                                                                                                     |
 | `snapshot.ts`       | 108 | tarball 备份                                                                                                      |
 | `restore.ts`        | 170 | 从 tarball 恢复                                                                                                   |
@@ -61,7 +61,7 @@ lorekit/
 
 | 文件              | LoC | 职责                                                                                                                                                                       |
 | ----------------- | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `paths.ts`        | 231 | **统一 exclude / include 路径常量 SSOT**；包含 `skills/`、`node_modules/` 工具目录边界（CONVENTIONS Do Not #11）                                                            |
+| `paths.ts`        | 250 | **统一 exclude / include 路径常量 SSOT**；包含 `skills/`、`node_modules/` 工具目录边界、search 默认排除边界（CONVENTIONS Do Not #11）                                      |
 | `root-index.ts`   | 196 | merge-refresh `corpus/index.md` 的受控分区                                                                                                                                 |
 | `ingest-state.ts` | 147 | `.wiki/ingest-state.json` 读写，pipeline SSOT                                                                                                                              |
 | `corpus.ts`       | 98  | corpus 发现 + frontmatter 提取；`collectMdFiles` 跳过全局工具目录                                                                                                          |

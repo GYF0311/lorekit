@@ -85,6 +85,17 @@ corpus/
 | 项目/domain overlay | 有项目专有资料、术语、单元或验收规则 | domain skill 只做触发、分类、命名和路由，持久写入委托 `wiki-*` |
 | Central corpus（可选） | 用户明确要多个项目路由到同一 corpus | 显式安装选定 `corpus-*`，先解析目标 corpus，再委托目标 corpus 的 `wiki-*` |
 
+Native routing table：
+
+| 用户意图 / 触发 | domain overlay 可做 | 最终 native workflow |
+| --- | --- | --- |
+| 查询已有知识、找材料、回忆结论 | 补充本项目同义词和研究单元名 | `wiki-query` |
+| ingest / 注入 / 整理完整来源或 finished package | 判断来源类型、研究单元、归档命名和入库时机 | `wiki-ingest` |
+| fileback / 沉淀对话结论 / 写回候选 | 判断主语、稳定性和是否值得长期保存 | `wiki-fileback` |
+| lint / 检查链接和 frontmatter | 解释哪些旧问题属于项目基线 | `wiki-lint` |
+| remove / 过时不要了 | 确认目标和影响范围 | `wiki-remove` |
+| native workflow 不够用 | 收集缺口和复现步骤 | 改 LoreKit native skill/template 或开 upstream issue |
+
 边界：
 
 - `wiki-*` 是本 corpus 的 native workflows：ingest、query、fileback、lint、remove 等持久动作都走这里。

@@ -7,6 +7,8 @@ description: 把对话中产生的洞察/决策/事实按主语写回 corpus，�
 
 把**对话里**产生的新洞察、新决定、新事实按主语写回 corpus。和 `wiki-ingest` 的关键区别：输入不是外部资料，而是当前对话的对话记录/结论。
 
+项目/domain skill 可以把已确认的研究结论、候选摘要或对话洞察路由到这里；完整外部材料、finished package 和来源归档仍走 `wiki-ingest`。
+
 ## When to trigger
 
 - 用户说"这个记一下"、"存下来"、"做个笔记"、"把刚才那个放进去"
