@@ -1,17 +1,23 @@
 #!/usr/bin/env node
-var __defProp = Object.defineProperty;
-var __getOwnPropNames = Object.getOwnPropertyNames;
-var __esm = (fn, res) => function __init() {
-  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
-};
-var __export = (target, all) => {
-  for (var name in all)
-    __defProp(target, name, { get: all[name], enumerable: true });
-};
+
+// src/cli.ts
+import { Command } from "commander";
+import chalk7 from "chalk";
+
+// src/lib/corpus.ts
+import { existsSync, readFileSync, readdirSync } from "fs";
+import { join, dirname, basename } from "path";
+import matter from "gray-matter";
 
 // src/lib/paths.ts
 import { lstatSync } from "fs";
 import { join as pathJoin, relative as pathRelative, isAbsolute as pathIsAbsolute } from "path";
+var alwaysExcludeNames = /* @__PURE__ */ new Set([
+  ".gitkeep",
+  ".DS_Store",
+  "_INDEX.md"
+]);
+var alwaysExcludeDirNames = /* @__PURE__ */ new Set(["node_modules", "skills"]);
 function normalizeRelPath(rel) {
   return rel.replace(/\\/g, "/").replace(/\/+/g, "/").replace(/^\.\//, "");
 }
@@ -26,6 +32,26 @@ function matchesDirPrefix(rel, prefix) {
   const normalizedPrefix = normalizeRelPath(prefix);
   return normalizedRel === normalizedPrefix || normalizedRel.startsWith(normalizedPrefix + "/");
 }
+var searchDefaultExcludePrefixes = [
+  "_\u5DE5\u4F5C\u53F0",
+  "_archive",
+  "_\u5F52\u6863",
+  "\u53CD\u9988",
+  "\u7CFB\u7EDF",
+  "\u8F93\u51FA",
+  ".wiki",
+  ".git"
+];
+var indexExcludeDirPrefixes = [
+  ".wiki",
+  ".git",
+  "node_modules",
+  "skills",
+  "_\u5F52\u6863",
+  "_\u5DE5\u4F5C\u53F0",
+  "\u7CFB\u7EDF",
+  "\u53CD\u9988"
+];
 function isIndexExcluded(rel) {
   if (hasAlwaysExcludedDirSegment(rel)) return true;
   for (const prefix of indexExcludeDirPrefixes) {
@@ -41,966 +67,42 @@ function isFolderPackage(dir) {
     return false;
   }
 }
+var lintSkipFrontmatterBasenames = /* @__PURE__ */ new Set([
+  "README.md",
+  "AGENTS.md",
+  "CLAUDE.md",
+  "MEMORY.md"
+]);
+var lintRootOnlySkipBasenames = /* @__PURE__ */ new Set(["index.md", "log.md"]);
+var lintSkipOrphanPrefixes = [
+  "_\u5DE5\u4F5C\u53F0/",
+  "_\u5F52\u6863/",
+  "\u7CFB\u7EDF/",
+  "\u77E5\u8BC6\u5E93/\u6A21\u677F/"
+];
+var lintSkipFrontmatterPrefixes = ["_\u5DE5\u4F5C\u53F0/", "_\u5F52\u6863/"];
+var lintSkipBrokenLinkPrefixes = ["\u77E5\u8BC6\u5E93/\u6A21\u677F/"];
+var snapshotExcludeNames = /* @__PURE__ */ new Set([".wiki", ".git", ".DS_Store"]);
 function isWithin(root, abs) {
   const rel = pathRelative(root, abs);
   return rel === "" || !rel.startsWith("..") && !pathIsAbsolute(rel);
 }
-var alwaysExcludeNames, alwaysExcludeDirNames, vectorIncludeDirs, vectorExcludePrefixes, vectorExcludeNames, searchDefaultExcludePrefixes, indexExcludeDirPrefixes, lintSkipFrontmatterBasenames, lintRootOnlySkipBasenames, lintSkipOrphanPrefixes, lintSkipFrontmatterPrefixes, lintSkipBrokenLinkPrefixes, snapshotExcludeNames;
-var init_paths = __esm({
-  "src/lib/paths.ts"() {
-    "use strict";
-    alwaysExcludeNames = /* @__PURE__ */ new Set([
-      ".gitkeep",
-      ".DS_Store",
-      "_INDEX.md"
-    ]);
-    alwaysExcludeDirNames = /* @__PURE__ */ new Set(["node_modules", "skills"]);
-    vectorIncludeDirs = [
-      "\u77E5\u8BC6\u5E93",
-      "\u6BCF\u65E5",
-      "\u5199\u4F5C",
-      "\u539F\u6599/\u6587\u7AE0",
-      "\u539F\u6599/\u4E66\u7C4D",
-      "\u539F\u6599/\u4F1A\u8BAE"
-    ];
-    vectorExcludePrefixes = [
-      "_\u5DE5\u4F5C\u53F0",
-      "_archive",
-      "_\u5F52\u6863",
-      "\u539F\u6599/\u5F55\u97F3",
-      "\u539F\u6599/\u526A\u85CF",
-      "\u53CD\u9988",
-      "\u7CFB\u7EDF",
-      "\u8F93\u51FA",
-      ".wiki"
-    ];
-    vectorExcludeNames = /* @__PURE__ */ new Set([".gitkeep", ".DS_Store"]);
-    searchDefaultExcludePrefixes = [
-      "_\u5DE5\u4F5C\u53F0",
-      "_archive",
-      "_\u5F52\u6863",
-      "\u53CD\u9988",
-      "\u7CFB\u7EDF",
-      "\u8F93\u51FA",
-      ".wiki",
-      ".git"
-    ];
-    indexExcludeDirPrefixes = [
-      ".wiki",
-      ".git",
-      "node_modules",
-      "skills",
-      "_\u5F52\u6863",
-      "_\u5DE5\u4F5C\u53F0",
-      "\u7CFB\u7EDF",
-      "\u53CD\u9988"
-    ];
-    lintSkipFrontmatterBasenames = /* @__PURE__ */ new Set([
-      "README.md",
-      "AGENTS.md",
-      "CLAUDE.md",
-      "MEMORY.md"
-    ]);
-    lintRootOnlySkipBasenames = /* @__PURE__ */ new Set(["index.md", "log.md"]);
-    lintSkipOrphanPrefixes = [
-      "_\u5DE5\u4F5C\u53F0/",
-      "_\u5F52\u6863/",
-      "\u7CFB\u7EDF/",
-      "\u77E5\u8BC6\u5E93/\u6A21\u677F/"
-    ];
-    lintSkipFrontmatterPrefixes = ["_\u5DE5\u4F5C\u53F0/", "_\u5F52\u6863/"];
-    lintSkipBrokenLinkPrefixes = ["\u77E5\u8BC6\u5E93/\u6A21\u677F/"];
-    snapshotExcludeNames = /* @__PURE__ */ new Set([".wiki", ".git", ".DS_Store"]);
-  }
-});
 
 // src/utils/logger.ts
 import chalk from "chalk";
-var DEBUG_ENABLED, ok, bad, warn, err, info, debug, print, out;
-var init_logger = __esm({
-  "src/utils/logger.ts"() {
-    "use strict";
-    DEBUG_ENABLED = process.env.LOREKIT_DEBUG === "1";
-    ok = (msg) => console.error(`${chalk.green("\u2713")} ${msg}`);
-    bad = (msg) => console.error(`${chalk.red("\u2717")} ${msg}`);
-    warn = (msg) => console.error(`${chalk.yellow("lorekit:")} ${msg}`);
-    err = (msg) => console.error(`${chalk.red("lorekit:")} ${msg}`);
-    info = (msg) => console.error(`${chalk.cyan("\u2139")} ${msg}`);
-    debug = (msg) => {
-      if (DEBUG_ENABLED) console.error(`${chalk.dim("debug:")} ${msg}`);
-    };
-    print = (msg = "") => console.error(msg);
-    out = (msg) => console.log(msg);
-  }
-});
-
-// src/lib/vectordb/files.ts
-import { createHash as createHash3 } from "crypto";
-import { readFileSync as readFileSync14, readdirSync as readdirSync8 } from "fs";
-import { basename as basename5, join as join15, relative as relative8 } from "path";
-import matter4 from "gray-matter";
-function sha2562(filePath) {
-  const data = readFileSync14(filePath);
-  return createHash3("sha256").update(data).digest("hex");
-}
-function float32ToBuffer(arr) {
-  return Buffer.from(arr.buffer, arr.byteOffset, arr.byteLength);
-}
-function distanceToScore(distance) {
-  return 1 - distance * distance / 2;
-}
-function shouldIndex(rel) {
-  const parts = rel.split("/");
-  if (vectorExcludeNames.has(parts[parts.length - 1])) return false;
-  if (!rel.endsWith(".md")) return false;
-  if (hasAlwaysExcludedDirSegment(rel)) return false;
-  for (const prefix of vectorExcludePrefixes) {
-    if (matchesDirPrefix(rel, prefix)) return false;
-  }
-  for (const inc of vectorIncludeDirs) {
-    if (matchesDirPrefix(rel, inc)) return true;
-  }
-  return false;
-}
-function collectFiles(corpus) {
-  const results = [];
-  function walk(dir) {
-    let entries;
-    try {
-      entries = readdirSync8(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      const full = join15(dir, entry.name);
-      if (entry.isDirectory()) {
-        walk(full);
-      } else if (entry.name.endsWith(".md")) {
-        const rel = relative8(corpus, full);
-        if (shouldIndex(rel)) {
-          results.push(full);
-        }
-      }
-    }
-  }
-  walk(corpus);
-  return results.sort();
-}
-var init_files = __esm({
-  "src/lib/vectordb/files.ts"() {
-    "use strict";
-    init_paths();
-  }
-});
-
-// src/lib/vectordb/schema.ts
-import { existsSync as existsSync14, mkdirSync as mkdirSync8 } from "fs";
-import { join as join16 } from "path";
-function vecDdl(dim) {
-  return `
-CREATE VIRTUAL TABLE IF NOT EXISTS vec_chunks USING vec0(
-    embedding float[${dim}] distance_metric=cosine
-);
-
-CREATE VIRTUAL TABLE IF NOT EXISTS vec_dirs USING vec0(
-    embedding float[${dim}] distance_metric=cosine
-);
-
-CREATE VIRTUAL TABLE IF NOT EXISTS vec_pages USING vec0(
-    embedding float[${dim}] distance_metric=cosine
-);
-`;
-}
-async function loadSqlite() {
-  let Database2;
-  try {
-    Database2 = (await import("better-sqlite3")).default;
-  } catch {
-    throw new Error(
-      "better-sqlite3 is required for the vector engine.\n  Install it: npm install better-sqlite3"
-    );
-  }
-  let sqliteVec;
-  try {
-    const vecMod = await import("sqlite-vec");
-    sqliteVec = vecMod;
-  } catch {
-    throw new Error(
-      "sqlite-vec is required for the vector engine.\n  Install it: npm install sqlite-vec"
-    );
-  }
-  return { Database: Database2, sqliteVec };
-}
-async function openDb(corpus, dim = EMBEDDING_DIM) {
-  const { Database: Database2, sqliteVec } = await loadSqlite();
-  const wikiDir = join16(corpus, ".wiki");
-  if (!existsSync14(wikiDir)) mkdirSync8(wikiDir, { recursive: true });
-  const dbPath = join16(wikiDir, "vector.sqlite");
-  const db = new Database2(dbPath);
-  sqliteVec.load(db);
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
-  db.exec(DDL);
-  db.exec(vecDdl(dim));
-  db.exec(FTS_DDL);
-  const dirCols = db.prepare("PRAGMA table_info(dir_summaries)").all();
-  if (!dirCols.some((c) => c.name === "slug_list")) {
-    db.exec(`ALTER TABLE dir_summaries ADD COLUMN slug_list TEXT NOT NULL DEFAULT '[]'`);
-  }
-  return db;
-}
-var EMBEDDING_DIM, MODE_THRESHOLD_FILES, DDL, FTS_DDL;
-var init_schema = __esm({
-  "src/lib/vectordb/schema.ts"() {
-    "use strict";
-    EMBEDDING_DIM = 1024;
-    MODE_THRESHOLD_FILES = 100;
-    DDL = `
-CREATE TABLE IF NOT EXISTS documents (
-    id INTEGER PRIMARY KEY,
-    path TEXT UNIQUE NOT NULL,
-    sha256 TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS chunks (
-    id INTEGER PRIMARY KEY,
-    doc_id INTEGER NOT NULL,
-    section TEXT,
-    content TEXT NOT NULL,
-    embedding BLOB NOT NULL,
-    FOREIGN KEY (doc_id) REFERENCES documents(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS meta (
-    key TEXT PRIMARY KEY,
-    value TEXT
-);
-
-CREATE TABLE IF NOT EXISTS dir_summaries (
-    id INTEGER PRIMARY KEY,
-    dir_path TEXT UNIQUE NOT NULL,
-    summary TEXT NOT NULL,
-    embedding BLOB NOT NULL,
-    slug_list TEXT NOT NULL DEFAULT '[]'
-);
-
-CREATE TABLE IF NOT EXISTS page_summaries (
-    id INTEGER PRIMARY KEY,
-    doc_id INTEGER NOT NULL REFERENCES documents(id),
-    summary TEXT NOT NULL,
-    embedding BLOB NOT NULL
-);
-`;
-    FTS_DDL = `
-CREATE VIRTUAL TABLE IF NOT EXISTS fts_chunks USING fts5(
-    content,
-    tokenize='trigram'
-);
-
-CREATE VIRTUAL TABLE IF NOT EXISTS fts_dirs USING fts5(
-    summary,
-    tokenize='trigram'
-);
-
-CREATE VIRTUAL TABLE IF NOT EXISTS fts_pages USING fts5(
-    summary,
-    tokenize='trigram'
-);
-`;
-  }
-});
-
-// src/lib/ollama.ts
-var ollama_exports = {};
-__export(ollama_exports, {
-  embed: () => embed,
-  embedSingle: () => embedSingle
-});
-async function embed(texts, model = DEFAULT_MODEL) {
-  const payload = JSON.stringify({ model, input: texts });
-  let resp;
-  try {
-    resp = await fetch(OLLAMA_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: payload,
-      signal: AbortSignal.timeout(12e4)
-    });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    throw new Error(
-      `Cannot connect to ollama at ${OLLAMA_URL}: ${msg}
-  Make sure ollama is running: ollama serve
-  And the model is pulled: ollama pull ${model}`
-    );
-  }
-  if (!resp.ok) {
-    const body = await resp.text().catch(() => "");
-    throw new Error(`ollama returned ${resp.status}: ${body}`);
-  }
-  const data = await resp.json();
-  const embeddings = data.embeddings ?? [];
-  return embeddings.map((e) => new Float32Array(e));
-}
-async function embedSingle(text, model = DEFAULT_MODEL) {
-  const results = await embed([text], model);
-  return results[0];
-}
-var OLLAMA_URL, DEFAULT_MODEL;
-var init_ollama = __esm({
-  "src/lib/ollama.ts"() {
-    "use strict";
-    OLLAMA_URL = "http://localhost:11434/api/embed";
-    DEFAULT_MODEL = "bge-m3";
-  }
-});
-
-// src/lib/chunker.ts
-var chunker_exports = {};
-__export(chunker_exports, {
-  chunkFile: () => chunkFile
-});
-import { readFileSync as readFileSync15 } from "fs";
-import { basename as basename6 } from "path";
-import matter5 from "gray-matter";
-function chunkFile(filePath, _corpusRoot) {
-  const raw = readFileSync15(filePath, "utf-8");
-  const { data: fm, content: body } = matter5(raw);
-  let title = fm.title || "";
-  const type = fm.type || "";
-  if (!title) {
-    const m = body.match(/^#\s+(.+)/m);
-    title = m ? m[1].trim() : basename6(filePath, ".md");
-  }
-  const parts = body.split(/^(## .+)$/m);
-  const sections = [];
-  if (parts[0].trim()) {
-    sections.push(["_intro", parts[0]]);
-  }
-  for (let i = 1; i < parts.length - 1; i += 2) {
-    const heading = parts[i].replace(/^#+\s*/, "").trim();
-    const secBody = i + 1 < parts.length ? parts[i + 1] : "";
-    sections.push([heading, secBody]);
-  }
-  let prefix = "";
-  if (title) prefix += `[${title}] `;
-  if (type) prefix += `[${type}] `;
-  const chunks = [];
-  for (const [heading, secBody] of sections) {
-    const trimmed = secBody.trim();
-    if (!trimmed || trimmed.length < MIN_CHUNK_CHARS) continue;
-    if (trimmed.length > MAX_CHUNK_CHARS) {
-      const paragraphs = trimmed.split("\n\n");
-      let current = "";
-      for (const p of paragraphs) {
-        if (current.length + p.length > MAX_CHUNK_CHARS && current) {
-          chunks.push({ section: heading, content: prefix + current.trim() });
-          current = p;
-        } else {
-          current = current ? current + "\n\n" + p : p;
-        }
-      }
-      if (current.trim()) {
-        chunks.push({ section: heading, content: prefix + current.trim() });
-      }
-    } else {
-      chunks.push({ section: heading, content: prefix + trimmed });
-    }
-  }
-  return chunks;
-}
-var MAX_CHUNK_CHARS, MIN_CHUNK_CHARS;
-var init_chunker = __esm({
-  "src/lib/chunker.ts"() {
-    "use strict";
-    MAX_CHUNK_CHARS = 800;
-    MIN_CHUNK_CHARS = 20;
-  }
-});
-
-// src/lib/vectordb/sync.ts
-import { relative as relative10 } from "path";
-async function syncFile(db, filePath, corpus, embedFn) {
-  const { chunkFile: chunkFile2 } = await Promise.resolve().then(() => (init_chunker(), chunker_exports));
-  const rel = relative10(corpus, filePath);
-  const sha = sha2562(filePath);
-  const old = db.prepare("SELECT id FROM documents WHERE path = ?").get(rel);
-  if (old) {
-    const chunkIds = db.prepare("SELECT id FROM chunks WHERE doc_id = ?").all(old.id);
-    const delVecChunk = db.prepare("DELETE FROM vec_chunks WHERE rowid = ?");
-    const delFtsChunk = db.prepare("DELETE FROM fts_chunks WHERE rowid = ?");
-    for (const { id } of chunkIds) {
-      delVecChunk.run(id);
-      delFtsChunk.run(id);
-    }
-    db.prepare("DELETE FROM chunks WHERE doc_id = ?").run(old.id);
-    const pageIds = db.prepare("SELECT id FROM page_summaries WHERE doc_id = ?").all(old.id);
-    const delVecPage = db.prepare("DELETE FROM vec_pages WHERE rowid = ?");
-    const delFtsPage = db.prepare("DELETE FROM fts_pages WHERE rowid = ?");
-    for (const { id } of pageIds) {
-      delVecPage.run(id);
-      delFtsPage.run(id);
-    }
-    db.prepare("DELETE FROM page_summaries WHERE doc_id = ?").run(old.id);
-    db.prepare("DELETE FROM documents WHERE id = ?").run(old.id);
-  }
-  const now = (/* @__PURE__ */ new Date()).toISOString();
-  db.prepare("INSERT INTO documents (path, sha256, updated_at) VALUES (?, ?, ?)").run(
-    rel,
-    sha,
-    now
-  );
-  const docRow = db.prepare("SELECT id FROM documents WHERE path = ?").get(rel);
-  const docId = docRow.id;
-  const chunks = chunkFile2(filePath, corpus);
-  if (chunks.length === 0) return { chunks: 0 };
-  const texts = chunks.map((c) => c.content);
-  const embeddings = await embedFn(texts);
-  const insertChunk = db.prepare(
-    "INSERT INTO chunks (doc_id, section, content, embedding) VALUES (?, ?, ?, ?)"
-  );
-  const insertFts = db.prepare("INSERT INTO fts_chunks(rowid, content) VALUES (?, ?)");
-  for (let i = 0; i < chunks.length; i++) {
-    const blob = float32ToBuffer(embeddings[i]);
-    insertChunk.run(docId, chunks[i].section, chunks[i].content, blob);
-    const chunkId = Number(
-      db.prepare("SELECT last_insert_rowid() as id").get().id
-    );
-    db.prepare(`INSERT INTO vec_chunks (rowid, embedding) VALUES (${chunkId}, ?)`).run(blob);
-    insertFts.run(chunkId, chunks[i].content);
-  }
-  return { chunks: chunks.length };
-}
-var init_sync = __esm({
-  "src/lib/vectordb/sync.ts"() {
-    "use strict";
-    init_files();
-  }
-});
-
-// src/lib/vectordb/build-layered-index.ts
-import { existsSync as existsSync15, readFileSync as readFileSync16, readdirSync as readdirSync9 } from "fs";
-import { join as join17, relative as relative11 } from "path";
-import matter6 from "gray-matter";
-function parseIndexSections(content) {
-  const lines = content.split("\n");
-  const sections = [];
-  let current = null;
-  for (const line of lines) {
-    const m = line.match(/^##\s+(.+?)\s*$/);
-    if (m) {
-      if (current) sections.push(current);
-      current = { name: m[1].trim(), lines: [line] };
-    } else if (current) {
-      current.lines.push(line);
-    }
-  }
-  if (current) sections.push(current);
-  const entrySlugRe = /^\s*[-*]\s*\[\[([^\]|#]+?)\]\]/;
-  return sections.filter((s) => /^\s*[-*]\s/m.test(s.lines.slice(1).join("\n"))).map((s) => {
-    const slugs = [];
-    for (const line of s.lines.slice(1)) {
-      const m = line.match(entrySlugRe);
-      if (m) slugs.push(m[1].trim());
-    }
-    return {
-      name: s.name,
-      text: s.lines.join("\n").trim(),
-      slugs: [...new Set(slugs)]
-    };
-  });
-}
-function parseIndexEntries(content) {
-  const lines = content.split("\n");
-  const entries = [];
-  for (const line of lines) {
-    if (/^\|\s*条目\s*\|/.test(line)) continue;
-    if (/^\|[\s\-|]+\|?\s*$/.test(line)) continue;
-    const m = line.match(/^\|\s*\[\[([^\]|#]+?)\]\]\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|/);
-    if (!m) continue;
-    const slug = m[1].trim();
-    const summary = m[2].replace(/\\\|/g, "|").trim();
-    entries.push({ slug, summary });
-  }
-  return entries;
-}
-function findAllIndexFiles(corpus) {
-  const results = [];
-  function walk(dir) {
-    let entries;
-    try {
-      entries = readdirSync9(dir, { withFileTypes: true });
-    } catch (e) {
-      warn(`findAllIndexFiles: skip ${dir} (${e.message})`);
-      return;
-    }
-    for (const entry of entries) {
-      if (entry.name.startsWith(".")) continue;
-      const full = join17(dir, entry.name);
-      const rel = relative11(corpus, full);
-      if (hasAlwaysExcludedDirSegment(rel)) continue;
-      if (vectorExcludePrefixes.some((p) => matchesDirPrefix(rel, p))) continue;
-      if (entry.isDirectory()) {
-        walk(full);
-      } else if (entry.name === "_INDEX.md") {
-        results.push(full);
-      }
-    }
-  }
-  walk(corpus);
-  return results.sort();
-}
-async function buildLayeredIndex(db, corpus, embedFn) {
-  db.prepare("DELETE FROM dir_summaries").run();
-  db.prepare("DELETE FROM vec_dirs").run();
-  db.prepare("DELETE FROM fts_dirs").run();
-  const indexPath = join17(corpus, "index.md");
-  if (!existsSync15(indexPath)) {
-    info("  L0: corpus/index.md not found, skipped");
-  } else {
-    const raw = readFileSync16(indexPath, "utf-8");
-    const { content } = matter6(raw);
-    const sections = parseIndexSections(content);
-    if (sections.length === 0) {
-      info("  L0: no sections with entries in index.md, skipped");
-    } else {
-      const texts = sections.map((s) => s.text);
-      const embeddings = await embedFn(texts);
-      const insertDir = db.prepare(
-        "INSERT INTO dir_summaries (dir_path, summary, embedding, slug_list) VALUES (?, ?, ?, ?)"
-      );
-      const insertFtsDir = db.prepare("INSERT INTO fts_dirs(rowid, summary) VALUES (?, ?)");
-      for (let i = 0; i < sections.length; i++) {
-        const blob = float32ToBuffer(embeddings[i]);
-        const slugListJson = JSON.stringify(sections[i].slugs);
-        insertDir.run(sections[i].name, sections[i].text, blob, slugListJson);
-        const dirId = Number(
-          db.prepare("SELECT last_insert_rowid() as id").get().id
-        );
-        db.prepare(`INSERT INTO vec_dirs (rowid, embedding) VALUES (${dirId}, ?)`).run(blob);
-        insertFtsDir.run(dirId, sections[i].text);
-      }
-      const totalSlugs = sections.reduce((a, s) => a + s.slugs.length, 0);
-      info(
-        `  L0: indexed ${sections.length} sections from index.md (${totalSlugs} slugs tracked)`
-      );
-    }
-  }
-  db.prepare("DELETE FROM page_summaries").run();
-  db.prepare("DELETE FROM vec_pages").run();
-  db.prepare("DELETE FROM fts_pages").run();
-  const indexFiles = findAllIndexFiles(corpus);
-  if (indexFiles.length === 0) {
-    info("  L1: no _INDEX.md found, skipped");
-    return;
-  }
-  const allEntries = [];
-  for (const f of indexFiles) {
-    const raw = readFileSync16(f, "utf-8");
-    allEntries.push(...parseIndexEntries(raw));
-  }
-  if (allEntries.length === 0) {
-    info("  L1: no entries parsed from _INDEX.md, skipped");
-    return;
-  }
-  const docRows = db.prepare("SELECT id, path FROM documents").all();
-  const slugToDocId = /* @__PURE__ */ new Map();
-  for (const { id, path } of docRows) {
-    slugToDocId.set(path, id);
-    slugToDocId.set(path.replace(/\.md$/, ""), id);
-    if (path.endsWith("/article.md")) {
-      slugToDocId.set(path.replace(/\/article\.md$/, ""), id);
-    }
-  }
-  const matched = [];
-  let unmatched = 0;
-  for (const e of allEntries) {
-    const docId = slugToDocId.get(e.slug);
-    if (docId === void 0) {
-      unmatched++;
-      continue;
-    }
-    const text = e.summary && e.summary !== "\u2014" && e.summary !== "\uFF08\u7F3A\u5C11 frontmatter\uFF09" ? e.summary : e.slug;
-    matched.push({ docId, text, slug: e.slug });
-  }
-  if (matched.length === 0) {
-    info("  L1: no _INDEX.md entries matched documents, skipped");
-    return;
-  }
-  const BATCH = 64;
-  const insertPage = db.prepare(
-    "INSERT INTO page_summaries (doc_id, summary, embedding) VALUES (?, ?, ?)"
-  );
-  const insertFtsPage = db.prepare("INSERT INTO fts_pages(rowid, summary) VALUES (?, ?)");
-  for (let i = 0; i < matched.length; i += BATCH) {
-    const batch = matched.slice(i, i + BATCH);
-    const texts = batch.map((m) => m.text);
-    const embeddings = await embedFn(texts);
-    for (let j = 0; j < batch.length; j++) {
-      const blob = float32ToBuffer(embeddings[j]);
-      insertPage.run(batch[j].docId, batch[j].text, blob);
-      const pageId = Number(
-        db.prepare("SELECT last_insert_rowid() as id").get().id
-      );
-      db.prepare(`INSERT INTO vec_pages (rowid, embedding) VALUES (${pageId}, ?)`).run(blob);
-      insertFtsPage.run(pageId, `${batch[j].slug} ${batch[j].text}`);
-    }
-  }
-  let msg = `  L1: indexed ${matched.length} entries from ${indexFiles.length} _INDEX.md`;
-  if (unmatched > 0) msg += ` (${unmatched} unmatched slug, skipped)`;
-  info(msg);
-}
-var init_build_layered_index = __esm({
-  "src/lib/vectordb/build-layered-index.ts"() {
-    "use strict";
-    init_paths();
-    init_logger();
-    init_files();
-  }
-});
-
-// src/lib/vectordb/query-flat.ts
-function queryFlat(db, embedding, topK, threshold) {
-  const blob = float32ToBuffer(embedding);
-  const rows = db.prepare(
-    `SELECT v.rowid as id, v.distance
-       FROM vec_chunks v
-       WHERE v.embedding MATCH ? AND k = ?
-       ORDER BY v.distance`
-  ).all(blob, topK);
-  const results = [];
-  const getChunk = db.prepare(
-    `SELECT c.content, c.section, d.path
-     FROM chunks c JOIN documents d ON c.doc_id = d.id
-     WHERE c.id = ?`
-  );
-  for (const row of rows) {
-    const score = distanceToScore(row.distance);
-    if (score < threshold) continue;
-    const cr = getChunk.get(row.id);
-    if (cr) {
-      results.push({
-        file: cr.path,
-        chunk: cr.content,
-        score: Math.round(score * 1e4) / 1e4,
-        section: cr.section
-      });
-    }
-  }
-  return results;
-}
-var init_query_flat = __esm({
-  "src/lib/vectordb/query-flat.ts"() {
-    "use strict";
-    init_files();
-  }
-});
-
-// src/lib/vectordb/query-layered.ts
-function queryLayered(db, embedding, topK, threshold) {
-  const blob = float32ToBuffer(embedding);
-  const L0_K = Math.max(3, Math.ceil(topK / 10));
-  const L1_CAP = Math.max(5, Math.ceil(topK / 5));
-  const l0Rows = db.prepare(
-    `SELECT v.rowid as id, v.distance
-       FROM vec_dirs v
-       WHERE v.embedding MATCH ? AND k = ?
-       ORDER BY v.distance`
-  ).all(blob, L0_K);
-  if (l0Rows.length === 0) return [];
-  const dirIds = l0Rows.map((r) => r.id);
-  const dirRows = db.prepare(`SELECT slug_list FROM dir_summaries WHERE id IN (${dirIds.map(() => "?").join(",")})`).all(...dirIds);
-  const candidateSlugs = /* @__PURE__ */ new Set();
-  for (const row of dirRows) {
-    try {
-      const list = JSON.parse(row.slug_list);
-      for (const s of list) candidateSlugs.add(s);
-    } catch {
-    }
-  }
-  if (candidateSlugs.size === 0) return [];
-  const docRows = db.prepare("SELECT id, path FROM documents").all();
-  const L0CandidateDocIds = /* @__PURE__ */ new Set();
-  for (const { id, path } of docRows) {
-    const stem = path.replace(/\.md$/, "");
-    const folderSlug = path.endsWith("/article.md") ? path.replace(/\/article\.md$/, "") : null;
-    if (candidateSlugs.has(path) || candidateSlugs.has(stem)) {
-      L0CandidateDocIds.add(id);
-    } else if (folderSlug && candidateSlugs.has(folderSlug)) {
-      L0CandidateDocIds.add(id);
-    }
-  }
-  if (L0CandidateDocIds.size === 0) return [];
-  const L0CandidateDocIdArr = [...L0CandidateDocIds];
-  const candidatePageIds = db.prepare(
-    `SELECT id FROM page_summaries WHERE doc_id IN (${L0CandidateDocIdArr.map(() => "?").join(",")})`
-  ).all(...L0CandidateDocIdArr);
-  if (candidatePageIds.length === 0) return [];
-  const searchK = Math.min(candidatePageIds.length, 50);
-  const l1Rows = db.prepare(
-    `SELECT v.rowid as id, v.distance
-       FROM vec_pages v
-       WHERE v.embedding MATCH ? AND k = ?
-       ORDER BY v.distance`
-  ).all(blob, searchK);
-  const candidateSet = new Set(candidatePageIds.map((r) => r.id));
-  const l1Filtered = l1Rows.filter((r) => candidateSet.has(r.id)).slice(0, L1_CAP);
-  if (l1Filtered.length === 0) return [];
-  const pageIds = l1Filtered.map((r) => r.id);
-  const L1CandidateDocIds = db.prepare(
-    `SELECT DISTINCT doc_id FROM page_summaries WHERE id IN (${pageIds.map(() => "?").join(",")})`
-  ).all(...pageIds);
-  if (L1CandidateDocIds.length === 0) return [];
-  const L1CandidateDocIdList = L1CandidateDocIds.map((r) => r.doc_id);
-  const candidateChunkIds = db.prepare(
-    `SELECT id FROM chunks WHERE doc_id IN (${L1CandidateDocIdList.map(() => "?").join(",")})`
-  ).all(...L1CandidateDocIdList);
-  if (candidateChunkIds.length === 0) return [];
-  const searchK2 = Math.min(candidateChunkIds.length, topK * 5);
-  const l2Rows = db.prepare(
-    `SELECT v.rowid as id, v.distance
-       FROM vec_chunks v
-       WHERE v.embedding MATCH ? AND k = ?
-       ORDER BY v.distance`
-  ).all(blob, searchK2);
-  const chunkSet = new Set(candidateChunkIds.map((r) => r.id));
-  const l2Filtered = l2Rows.filter((r) => chunkSet.has(r.id)).slice(0, topK);
-  const results = [];
-  const getChunk = db.prepare(
-    `SELECT c.content, c.section, d.path
-     FROM chunks c JOIN documents d ON c.doc_id = d.id
-     WHERE c.id = ?`
-  );
-  for (const row of l2Filtered) {
-    const score = distanceToScore(row.distance);
-    if (score < threshold) continue;
-    const cr = getChunk.get(row.id);
-    if (cr) {
-      results.push({
-        file: cr.path,
-        chunk: cr.content,
-        score: Math.round(score * 1e4) / 1e4,
-        section: cr.section
-      });
-    }
-  }
-  return results;
-}
-var init_query_layered = __esm({
-  "src/lib/vectordb/query-layered.ts"() {
-    "use strict";
-    init_files();
-  }
-});
-
-// src/lib/vectordb/query-bm25.ts
-function sanitizeFtsQuery(q) {
-  const dates = [];
-  const protectedQ = q.replace(/\d{4}-\d{2}-\d{2}/g, (m) => {
-    const i = dates.length;
-    dates.push(m);
-    return ` __DATE${i}__ `;
-  });
-  let s = protectedQ.replace(/["*:^()\-+]/g, " ");
-  s = s.replace(/\b(OR|AND|NOT|NEAR)\b/gi, " ");
-  s = s.replace(/\s+/g, " ").trim();
-  if (!s) return "";
-  const tokens = s.split(" ").filter((t) => t.length >= 3);
-  if (tokens.length === 0) return "";
-  const restored = tokens.map((t) => {
-    const m = t.match(/^__DATE(\d+)__$/);
-    return m ? `"${dates[Number(m[1])]}"` : t;
-  });
-  return restored.join(" ");
-}
-function queryBM25Layered(db, queryText, topK) {
-  const ftsQ = sanitizeFtsQuery(queryText);
-  if (!ftsQ) return [];
-  let rows = [];
-  try {
-    rows = db.prepare(
-      `SELECT fc.rank as rank, c.content as content, c.section as section, d.path as path
-         FROM fts_chunks fc
-         JOIN chunks c ON fc.rowid = c.id
-         JOIN documents d ON c.doc_id = d.id
-         WHERE fc.fts_chunks MATCH ?
-         ORDER BY fc.rank
-         LIMIT ?`
-    ).all(ftsQ, topK);
-  } catch (e) {
-    warn(`queryBM25Layered fts5 match: ${e.message}`);
-    return [];
-  }
-  return rows.map((r) => ({
-    file: r.path,
-    chunk: r.content,
-    // FTS5 rank 是负数（越小越相关），取绝对值作为正向分数；归一化留给 RRF
-    score: Math.round(-r.rank * 1e4) / 1e4,
-    section: r.section ?? ""
-  }));
-}
-var init_query_bm25 = __esm({
-  "src/lib/vectordb/query-bm25.ts"() {
-    "use strict";
-    init_logger();
-  }
-});
-
-// src/lib/vectordb/query-hybrid.ts
-import { createHash as createHash4 } from "crypto";
-function rrfMerge(lists, topK, k = 60) {
-  const merged = /* @__PURE__ */ new Map();
-  for (const list of lists) {
-    list.forEach((item, i) => {
-      const fingerprint = createHash4("sha256").update(item.chunk).digest("hex").slice(0, 16);
-      const key = `${item.file}::${fingerprint}`;
-      const rrf = 1 / (k + i + 1);
-      const prev = merged.get(key);
-      if (prev) {
-        prev.rrf += rrf;
-      } else {
-        merged.set(key, { item, rrf });
-      }
-    });
-  }
-  return [...merged.values()].sort((a, b) => b.rrf - a.rrf).slice(0, topK).map(({ item, rrf }) => ({
-    ...item,
-    score: Math.round(rrf * 1e4) / 1e4
-  }));
-}
-function queryHybrid(db, embedding, queryText, topK, threshold, k) {
-  const candN = topK * 2;
-  const vecResults = queryLayered(db, embedding, candN, threshold);
-  const bm25Results = queryBM25Layered(db, queryText, candN);
-  return rrfMerge([vecResults, bm25Results], topK, k);
-}
-var init_query_hybrid = __esm({
-  "src/lib/vectordb/query-hybrid.ts"() {
-    "use strict";
-    init_query_bm25();
-    init_query_layered();
-  }
-});
-
-// src/lib/vectordb/status.ts
-import { existsSync as existsSync16 } from "fs";
-import { join as join18 } from "path";
-function computeMode(indexed, indexedFiles) {
-  if (!indexed) {
-    return {
-      mode: "text",
-      reason: "vector index not built; text Read is the only option"
-    };
-  }
-  if (indexedFiles < MODE_THRESHOLD_FILES) {
-    return {
-      mode: "text",
-      reason: `indexed_files=${indexedFiles} < ${MODE_THRESHOLD_FILES}; Read three-tier is sharpest at small scale`
-    };
-  }
-  return {
-    mode: "vector",
-    reason: `indexed_files=${indexedFiles} >= ${MODE_THRESHOLD_FILES}; flat Read too slow, switch to layered vector retrieval`
-  };
-}
-async function getStatus(corpus) {
-  const dbPath = join18(corpus, ".wiki", "vector.sqlite");
-  if (!existsSync16(dbPath)) {
-    const rec2 = computeMode(false, 0);
-    return {
-      indexed: false,
-      message: "No vector index found. Run 'lorekit vector sync' first.",
-      mode: rec2.mode,
-      mode_threshold: MODE_THRESHOLD_FILES,
-      mode_reason: rec2.reason
-    };
-  }
-  const db = await openDb(corpus);
-  const docCount = db.prepare("SELECT COUNT(*) as n FROM documents").get().n;
-  const chunkCount = db.prepare("SELECT COUNT(*) as n FROM chunks").get().n;
-  const lastSync = db.prepare("SELECT value FROM meta WHERE key = 'last_sync'").get();
-  const model = db.prepare("SELECT value FROM meta WHERE key = 'model'").get();
-  const dim = db.prepare("SELECT value FROM meta WHERE key = 'dim'").get();
-  const totalFiles = collectFiles(corpus).length;
-  let dirCount = 0;
-  let pageCount = 0;
-  try {
-    dirCount = db.prepare("SELECT COUNT(*) as n FROM dir_summaries").get().n;
-    pageCount = db.prepare("SELECT COUNT(*) as n FROM page_summaries").get().n;
-  } catch (e) {
-    warn(`getStatus: layered tables missing, treat as 0 (${e.message})`);
-  }
-  db.close();
-  const rec = computeMode(true, docCount);
-  return {
-    indexed: true,
-    total_indexable_files: totalFiles,
-    indexed_files: docCount,
-    chunks: chunkCount,
-    layered: { dirs: dirCount, pages: pageCount },
-    embedding_dim: dim ? parseInt(dim.value, 10) : EMBEDDING_DIM,
-    last_sync: lastSync?.value ?? null,
-    model: model?.value ?? null,
-    backend: "ollama",
-    mode: rec.mode,
-    mode_threshold: MODE_THRESHOLD_FILES,
-    mode_reason: rec.reason
-  };
-}
-var init_status = __esm({
-  "src/lib/vectordb/status.ts"() {
-    "use strict";
-    init_logger();
-    init_files();
-    init_schema();
-  }
-});
-
-// src/lib/vectordb/index.ts
-var vectordb_exports = {};
-__export(vectordb_exports, {
-  EMBEDDING_DIM: () => EMBEDDING_DIM,
-  MODE_THRESHOLD_FILES: () => MODE_THRESHOLD_FILES,
-  buildLayeredIndex: () => buildLayeredIndex,
-  collectFiles: () => collectFiles,
-  getStatus: () => getStatus,
-  openDb: () => openDb,
-  queryBM25Layered: () => queryBM25Layered,
-  queryFlat: () => queryFlat,
-  queryHybrid: () => queryHybrid,
-  queryLayered: () => queryLayered,
-  rrfMerge: () => rrfMerge,
-  syncFile: () => syncFile
-});
-var init_vectordb = __esm({
-  "src/lib/vectordb/index.ts"() {
-    "use strict";
-    init_schema();
-    init_sync();
-    init_build_layered_index();
-    init_query_flat();
-    init_query_layered();
-    init_query_bm25();
-    init_query_hybrid();
-    init_status();
-    init_files();
-    init_schema();
-  }
-});
-
-// src/cli.ts
-import { existsSync as existsSync24 } from "fs";
-import { Command } from "commander";
-import chalk7 from "chalk";
-import Database from "better-sqlite3";
+var DEBUG_ENABLED = process.env.LOREKIT_DEBUG === "1";
+var ok = (msg) => console.error(`${chalk.green("\u2713")} ${msg}`);
+var bad = (msg) => console.error(`${chalk.red("\u2717")} ${msg}`);
+var warn = (msg) => console.error(`${chalk.yellow("lorekit:")} ${msg}`);
+var err = (msg) => console.error(`${chalk.red("lorekit:")} ${msg}`);
+var info = (msg) => console.error(`${chalk.cyan("\u2139")} ${msg}`);
+var debug = (msg) => {
+  if (DEBUG_ENABLED) console.error(`${chalk.dim("debug:")} ${msg}`);
+};
+var print = (msg = "") => console.error(msg);
+var out = (msg) => console.log(msg);
 
 // src/lib/corpus.ts
-init_paths();
-init_logger();
-import { existsSync, readFileSync, readdirSync } from "fs";
-import { join, dirname, basename } from "path";
-import matter from "gray-matter";
 function findCorpus(startDir) {
   let dir = startDir || process.cwd();
   while (dir !== "/" && dir) {
@@ -1066,11 +168,7 @@ function collectMdFiles(dir, _opts) {
   return results.sort();
 }
 
-// src/cli.ts
-init_logger();
-
 // src/utils/fs.ts
-init_logger();
 import { createHash } from "crypto";
 import { readFileSync as readFileSync2, statSync } from "fs";
 import { join as join2, dirname as dirname2 } from "path";
@@ -1093,7 +191,6 @@ function readVersion() {
 }
 
 // src/commands/init.ts
-init_logger();
 import { existsSync as existsSync2, mkdirSync, readdirSync as readdirSync2, cpSync, writeFileSync } from "fs";
 import { join as join3, resolve } from "path";
 import { createInterface } from "readline";
@@ -1225,11 +322,9 @@ function initCommand(program2) {
 }
 
 // src/commands/doctor.ts
-init_logger();
 import { existsSync as existsSync8, lstatSync as lstatSync2, readFileSync as readFileSync7, readdirSync as readdirSync4 } from "fs";
 import { join as join8, relative as relative2 } from "path";
 import chalk3 from "chalk";
-init_paths();
 
 // src/lib/obsidian.ts
 import { existsSync as existsSync3, readFileSync as readFileSync3 } from "fs";
@@ -1382,7 +477,6 @@ async function getGbrainStatus() {
 }
 
 // src/lib/integrations/gbrain-export.ts
-init_paths();
 import { createHash as createHash2 } from "crypto";
 import {
   existsSync as existsSync6,
@@ -2685,7 +1779,6 @@ function doctorCommand(program2) {
 // src/commands/stats.ts
 import { readFileSync as readFileSync8, statSync as statSync3 } from "fs";
 import { relative as relative3 } from "path";
-init_logger();
 function statsCommand(program2) {
   program2.command("stats").description("output corpus statistics as JSON").action(() => {
     const corpus = requireCorpus();
@@ -2750,8 +1843,6 @@ function statsCommand(program2) {
 import { readFileSync as readFileSync9 } from "fs";
 import { relative as relative4, basename as basename2 } from "path";
 import chalk4 from "chalk";
-init_paths();
-init_logger();
 var REQUIRED_FIELDS = ["type", "title", "slug", "created", "updated"];
 function isRootLevel(rel) {
   return !rel.includes("/");
@@ -3007,7 +2098,6 @@ function tsMinute(d = /* @__PURE__ */ new Date()) {
 }
 
 // src/commands/audit.ts
-init_logger();
 var SEVERITY_ORDER = { high: 3, medium: 2, low: 1 };
 function extractPreview(filePath) {
   const content = readFileSync10(filePath, "utf-8");
@@ -3124,8 +2214,6 @@ function auditCommand(program2) {
 // src/commands/dir-index.ts
 import { existsSync as existsSync10, readdirSync as readdirSync5, readFileSync as readFileSync11, statSync as statSync4, writeFileSync as writeFileSync5, lstatSync as lstatSync3 } from "fs";
 import { join as join10, basename as basename4, relative as relative5, resolve as resolve3 } from "path";
-init_paths();
-init_logger();
 function extractSummary(filePath) {
   const content = readFileSync11(filePath, "utf-8");
   const lines = content.split("\n");
@@ -3336,7 +2424,6 @@ import {
   cpSync as cpSync2
 } from "fs";
 import { join as join11, resolve as resolve4 } from "path";
-init_logger();
 var SUPPORTED_TARGETS = ["claude-code", "codex", "project"];
 var SUPPORTED_MODES = ["copy", "symlink"];
 var SKILL_PREFIXES = ["wiki-", "corpus-"];
@@ -3485,7 +2572,6 @@ Installed ${count} skill(s). ${targetReloadHint(target)}`);
 }
 
 // src/commands/snapshot.ts
-init_logger();
 import {
   existsSync as existsSync12,
   mkdirSync as mkdirSync6,
@@ -3496,7 +2582,6 @@ import {
 } from "fs";
 import { join as join12, relative as relative6 } from "path";
 import * as tar from "tar";
-init_paths();
 function collectAllFiles(dir, base) {
   const results = [];
   function walk(d) {
@@ -3574,14 +2659,12 @@ function snapshotCommand(program2) {
 }
 
 // src/commands/restore.ts
-init_logger();
 import { existsSync as existsSync13, mkdirSync as mkdirSync7, readFileSync as readFileSync12, copyFileSync, rmSync } from "fs";
 import { join as join13, dirname as dirname4, isAbsolute } from "path";
 import { createInterface as createInterface2 } from "readline";
 import { tmpdir } from "os";
 import * as tar2 from "tar";
 import chalk5 from "chalk";
-init_paths();
 function ask2(question) {
   const rl = createInterface2({ input: process.stdin, output: process.stdout });
   return new Promise((resolve6) => {
@@ -3704,11 +2787,9 @@ function restoreCommand(program2) {
 }
 
 // src/commands/search.ts
-init_logger();
 import { readFileSync as readFileSync13 } from "fs";
 import { join as join14, relative as relative7 } from "path";
 import { spawnSync } from "child_process";
-init_paths();
 function searchWithRipgrep(query, corpus, opts) {
   const searchDir = opts.dir ? join14(corpus, opts.dir) : corpus;
   if (opts.dir && !isWithin(corpus, searchDir)) {
@@ -3800,166 +2881,13 @@ function searchCommand(program2) {
   });
 }
 
-// src/commands/vector.ts
-init_logger();
-import { createHash as createHash5 } from "crypto";
-import { existsSync as existsSync17, readFileSync as readFileSync17 } from "fs";
-import { join as join19, relative as relative12 } from "path";
-
-// src/lib/vectordb/prune.ts
-init_files();
-init_schema();
-import { relative as relative9 } from "path";
-function pruneMissingDocuments(db, existingRelPaths) {
-  const rows = db.prepare("SELECT id, path FROM documents").all();
-  const missing = rows.filter((row) => !existingRelPaths.has(row.path));
-  if (missing.length === 0) return 0;
-  const delVecChunk = db.prepare("DELETE FROM vec_chunks WHERE rowid = ?");
-  const delFtsChunk = db.prepare("DELETE FROM fts_chunks WHERE rowid = ?");
-  const delVecPage = db.prepare("DELETE FROM vec_pages WHERE rowid = ?");
-  const delFtsPage = db.prepare("DELETE FROM fts_pages WHERE rowid = ?");
-  const getChunkIds = db.prepare("SELECT id FROM chunks WHERE doc_id = ?");
-  const getPageIds = db.prepare("SELECT id FROM page_summaries WHERE doc_id = ?");
-  const deleteChunks = db.prepare("DELETE FROM chunks WHERE doc_id = ?");
-  const deletePages = db.prepare("DELETE FROM page_summaries WHERE doc_id = ?");
-  const deleteDoc = db.prepare("DELETE FROM documents WHERE id = ?");
-  const tx = db.transaction((docs) => {
-    for (const doc of docs) {
-      const chunkIds = getChunkIds.all(doc.id);
-      for (const { id } of chunkIds) {
-        delVecChunk.run(id);
-        delFtsChunk.run(id);
-      }
-      deleteChunks.run(doc.id);
-      const pageIds = getPageIds.all(doc.id);
-      for (const { id } of pageIds) {
-        delVecPage.run(id);
-        delFtsPage.run(id);
-      }
-      deletePages.run(doc.id);
-      deleteDoc.run(doc.id);
-    }
-  });
-  tx(missing);
-  return missing.length;
-}
-async function pruneVectorDbMissingFiles(corpus) {
-  const db = await openDb(corpus);
-  try {
-    const files = collectFiles(corpus);
-    const existingRelPaths = new Set(files.map((filePath) => relative9(corpus, filePath)));
-    return pruneMissingDocuments(db, existingRelPaths);
-  } finally {
-    db.close();
-  }
-}
-
-// src/commands/vector.ts
-async function runVectorSync(corpus, opts = {}) {
-  const force = opts.force ?? false;
-  const layered = opts.layered ?? true;
-  const model = opts.model ?? "bge-m3";
-  const { embed: embed2, embedSingle: embedSingle2 } = await Promise.resolve().then(() => (init_ollama(), ollama_exports));
-  const { openDb: openDb2, syncFile: syncFile2, buildLayeredIndex: buildLayeredIndex2, collectFiles: collectFiles2 } = await Promise.resolve().then(() => (init_vectordb(), vectordb_exports));
-  const testEmb = await embedSingle2("test", model);
-  const dim = testEmb.length;
-  const db = await openDb2(corpus, dim);
-  const files = collectFiles2(corpus);
-  const existingRelPaths = new Set(files.map((filePath) => relative12(corpus, filePath)));
-  const pruned = pruneMissingDocuments(db, existingRelPaths);
-  if (pruned > 0) warn(`vector sync pruned ${pruned} missing file(s)`);
-  let synced = 0;
-  let skipped = 0;
-  let totalChunks = 0;
-  for (const filePath of files) {
-    const rel = relative12(corpus, filePath);
-    if (!force) {
-      const row = db.prepare("SELECT sha256 FROM documents WHERE path = ?").get(rel);
-      if (row) {
-        const sha = createHash5("sha256").update(readFileSync17(filePath)).digest("hex");
-        if (row.sha256 === sha) {
-          skipped++;
-          continue;
-        }
-      }
-    }
-    const embedFn = (texts) => embed2(texts, model);
-    const result = await syncFile2(db, filePath, corpus, embedFn);
-    totalChunks += result.chunks;
-    synced++;
-  }
-  const now = (/* @__PURE__ */ new Date()).toISOString();
-  db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('last_sync', ?)").run(now);
-  db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('model', ?)").run(model);
-  db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('dim', ?)").run(String(dim));
-  if (layered || force) {
-    print("Building layered index (L0/L1)...");
-    const embedBatch = (texts) => embed2(texts, model);
-    await buildLayeredIndex2(db, corpus, embedBatch);
-  }
-  db.close();
-  return { synced, skipped, totalChunks, layered: layered || force, pruned };
-}
-function vectorCommand(program2) {
-  const vec = program2.command("vector").description("vector search engine \u2014 embed & search via ollama + sqlite-vec");
-  vec.command("sync").option("--force", "full rebuild (re-embed all files)", false).option("--layered", "build L0/L1 layered index", false).option("--model <name>", "ollama model name", "bge-m3").description("index corpus into vector DB").action(async (opts) => {
-    const corpus = requireCorpus();
-    const r = await runVectorSync(corpus, opts);
-    ok(`synced ${r.synced} files (${r.totalChunks} chunks), skipped ${r.skipped} unchanged`);
-  });
-  vec.command("query").requiredOption("--text <text>", "search query text").option("--top-k <n>", "number of results", "5").option("--threshold <n>", "minimum similarity score", "0.5").option("--layered", "use L0\u2192L1\u2192L2 layered vector retrieval", false).option("--hybrid", "BM25 + vector layered + RRF fusion (\u9636\u6BB5 2 \u63A8\u8350\uFF0C\u65E0 re-rank)", false).option("--bm25", "BM25 layered only (FTS5, \u7528\u4E8E debug BM25 \u5355\u8DEF)", false).option("--model <name>", "ollama model name", "bge-m3").description("search the vector/FTS index").action(
-    async (opts) => {
-      const corpus = requireCorpus();
-      const topK = parseInt(opts.topK, 10);
-      const threshold = parseFloat(opts.threshold);
-      if (!Number.isFinite(topK) || topK <= 0) {
-        err(`--top-k must be a positive integer, got: "${opts.topK}"`);
-        process.exit(2);
-      }
-      if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1) {
-        err(`--threshold must be a number in [0, 1], got: "${opts.threshold}"`);
-        process.exit(2);
-      }
-      const { embedSingle: embedSingle2 } = await Promise.resolve().then(() => (init_ollama(), ollama_exports));
-      const { openDb: openDb2, queryFlat: queryFlat2, queryLayered: queryLayered2, queryBM25Layered: queryBM25Layered2, queryHybrid: queryHybrid2 } = await Promise.resolve().then(() => (init_vectordb(), vectordb_exports));
-      let dim = 1024;
-      const dbPath = join19(corpus, ".wiki", "vector.sqlite");
-      if (existsSync17(dbPath)) {
-        const tmpDb = await openDb2(corpus);
-        const row = tmpDb.prepare("SELECT value FROM meta WHERE key = 'dim'").get();
-        if (row) dim = parseInt(row.value, 10);
-        tmpDb.close();
-      }
-      const db = await openDb2(corpus, dim);
-      let results;
-      if (opts.bm25) {
-        results = queryBM25Layered2(db, opts.text, topK);
-      } else if (opts.hybrid) {
-        const embedding = await embedSingle2(opts.text, opts.model);
-        results = queryHybrid2(db, embedding, opts.text, topK, threshold);
-      } else {
-        const embedding = await embedSingle2(opts.text, opts.model);
-        results = opts.layered ? queryLayered2(db, embedding, topK, threshold) : queryFlat2(db, embedding, topK, threshold);
-      }
-      db.close();
-      out(JSON.stringify(results, null, 2));
-    }
-  );
-  vec.command("status").description("show vector index status").action(async () => {
-    const corpus = requireCorpus();
-    const { getStatus: getStatus2 } = await Promise.resolve().then(() => (init_vectordb(), vectordb_exports));
-    const info2 = await getStatus2(corpus);
-    out(JSON.stringify(info2, null, 2));
-  });
-}
-
 // src/commands/fetch.ts
-import { existsSync as existsSync19, mkdirSync as mkdirSync10 } from "fs";
-import { join as join25, relative as relative13 } from "path";
+import { existsSync as existsSync15, mkdirSync as mkdirSync9 } from "fs";
+import { join as join20, relative as relative8 } from "path";
 
 // src/lib/fetcher/index.ts
 import { mkdir as mkdir4, writeFile as writeFile4 } from "fs/promises";
-import { join as join23 } from "path";
+import { join as join18 } from "path";
 
 // src/lib/fetcher/frontmatter.ts
 function escapeDoubleQuote(s) {
@@ -4104,7 +3032,7 @@ async function fetchHtmlL2(url) {
 
 // src/lib/fetcher/images.ts
 import { mkdir, writeFile } from "fs/promises";
-import { join as join20 } from "path";
+import { join as join15 } from "path";
 var MAX_IMG_BYTES = 5 * 1024 * 1024;
 var IMG_CONCURRENCY = 5;
 var MAGIC = [
@@ -4155,7 +3083,7 @@ async function downloadOneImage(url, idx, imagesDir, headers, assetsRelPath) {
       const ext = sniffExt(data.slice(0, 16), res.headers.get("content-type") || "");
       if (!ext) continue;
       const fname = `img_${String(idx).padStart(2, "0")}${ext}`;
-      await writeFile(join20(imagesDir, fname), data);
+      await writeFile(join15(imagesDir, fname), data);
       return { originalUrl: url, localRel: `${assetsRelPath}${fname}`, status: "ok" };
     } catch {
     }
@@ -4333,7 +3261,7 @@ function parseWeixin(html, baseUrl) {
 
 // src/lib/fetcher/routes/gist.ts
 import { mkdir as mkdir2, writeFile as writeFile2 } from "fs/promises";
-import { join as join21 } from "path";
+import { join as join16 } from "path";
 import * as cheerio3 from "cheerio";
 function parseGistUrl(url) {
   try {
@@ -4422,7 +3350,7 @@ async function fetchGist(url, outRoot) {
   fmLines.push("");
   if (!hasH1) fmLines.push(`# ${title}`, "");
   fmLines.push(content.trim(), "");
-  const articlePath = join21(outRoot, `${slug}.md`);
+  const articlePath = join16(outRoot, `${slug}.md`);
   await writeFile2(articlePath, fmLines.join("\n"), "utf-8");
   return {
     status: "ok",
@@ -4442,7 +3370,7 @@ async function fetchGist(url, outRoot) {
 
 // src/lib/fetcher/routes/github.ts
 import { mkdir as mkdir3, writeFile as writeFile3 } from "fs/promises";
-import { join as join22 } from "path";
+import { join as join17 } from "path";
 function parseGithubRepoUrl(url) {
   try {
     const u = new URL(url);
@@ -4518,7 +3446,7 @@ async function fetchGithubDoc(url, outRoot) {
   if (!hasH1) fmLines.push(`# ${title}`, "");
   fmLines.push(`> Fetched from: ${chosenUrl}`, "");
   fmLines.push(content.trim(), "");
-  const articlePath = join22(outRoot, `${slug}.md`);
+  const articlePath = join17(outRoot, `${slug}.md`);
   await writeFile3(articlePath, fmLines.join("\n"), "utf-8");
   return {
     status: "ok",
@@ -4589,7 +3517,7 @@ async function fetchUrl(url, opts) {
   }
   let md = htmlToMarkdown(doc.bodyHtml);
   const slug = slugify(doc.title || "untitled");
-  const assetsDir = join23(opts.outRoot, `${slug}.assets`);
+  const assetsDir = join18(opts.outRoot, `${slug}.assets`);
   await mkdir4(opts.outRoot, { recursive: true });
   let imagesOk = 0;
   let imagesFailed = 0;
@@ -4617,7 +3545,7 @@ async function fetchUrl(url, opts) {
   fmLines.push("");
   if (doc.title) fmLines.push(`# ${doc.title}`, "");
   fmLines.push(md, "");
-  const articlePath = join23(opts.outRoot, `${slug}.md`);
+  const articlePath = join18(opts.outRoot, `${slug}.md`);
   await writeFile4(articlePath, fmLines.join("\n"), "utf-8");
   return {
     status: "ok",
@@ -4637,18 +3565,18 @@ async function fetchUrl(url, opts) {
 }
 
 // src/lib/ingest-state.ts
-import { existsSync as existsSync18, mkdirSync as mkdirSync9, readFileSync as readFileSync18, writeFileSync as writeFileSync7 } from "fs";
-import { join as join24, dirname as dirname5 } from "path";
+import { existsSync as existsSync14, mkdirSync as mkdirSync8, readFileSync as readFileSync14, writeFileSync as writeFileSync7 } from "fs";
+import { join as join19, dirname as dirname5 } from "path";
 function stateFilePath(corpus) {
-  return join24(corpus, ".wiki", "ingest-state.json");
+  return join19(corpus, ".wiki", "ingest-state.json");
 }
 function loadIngestState(corpus) {
   const p = stateFilePath(corpus);
-  if (!existsSync18(p)) {
+  if (!existsSync14(p)) {
     return { version: 1, ingests: {} };
   }
   try {
-    const raw = readFileSync18(p, "utf-8");
+    const raw = readFileSync14(p, "utf-8");
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") {
       return { version: 1, ingests: {} };
@@ -4664,7 +3592,7 @@ function loadIngestState(corpus) {
 }
 function saveIngestState(corpus, state) {
   const p = stateFilePath(corpus);
-  mkdirSync9(dirname5(p), { recursive: true });
+  mkdirSync8(dirname5(p), { recursive: true });
   const serialized = JSON.stringify(state, null, 2);
   writeFileSync7(p, serialized + "\n", "utf-8");
 }
@@ -4723,7 +3651,6 @@ function nextStepHint(record) {
 }
 
 // src/commands/fetch.ts
-init_logger();
 function suggestResult(route, url, suggest) {
   return { status: "unsupported", route, url, suggest };
 }
@@ -4750,10 +3677,10 @@ function fetchCommand(program2) {
       if (opts.out) {
         outRoot = opts.out;
       } else {
-        outRoot = corpus ? join25(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch") : "/tmp/lorekit-fetch";
+        outRoot = corpus ? join20(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch") : "/tmp/lorekit-fetch";
       }
-      if (!existsSync19(outRoot)) {
-        mkdirSync10(outRoot, { recursive: true });
+      if (!existsSync15(outRoot)) {
+        mkdirSync9(outRoot, { recursive: true });
       }
       let duplicate;
       if (corpus && !opts.force) {
@@ -4791,7 +3718,7 @@ function fetchCommand(program2) {
             const sdRaw = fm.source_date;
             const sourceDate = typeof sdRaw === "string" ? sdRaw : sdRaw instanceof Date ? sdRaw.toISOString().slice(0, 10) : void 0;
             duplicate = {
-              path: relative13(corpus, existing),
+              path: relative8(corpus, existing),
               sourceDate,
               title: typeof fm.title === "string" ? fm.title : void 0
             };
@@ -4845,15 +3772,14 @@ function fetchCommand(program2) {
 }
 
 // src/commands/ingest.ts
-import { existsSync as existsSync20, readFileSync as readFileSync19, writeFileSync as writeFileSync8 } from "fs";
-import { join as join26, relative as relative14 } from "path";
-init_logger();
+import { existsSync as existsSync16, readFileSync as readFileSync15, writeFileSync as writeFileSync8 } from "fs";
+import { join as join21, relative as relative9 } from "path";
 var VALID_STEPS = ["fetch", "archive", "wiki", "backlink", "lint"];
 function today() {
   return dateToYMDLocal(/* @__PURE__ */ new Date());
 }
 function appendLogEntry(corpus, record, body) {
-  const logPath = join26(corpus, "log.md");
+  const logPath = join21(corpus, "log.md");
   const title = record.title ?? "(untitled)";
   const wikiList = (record.wikiPages ?? []).map((p) => `  - ${p}`).join("\n");
   const archived = record.archivedTo ?? "(unrecorded)";
@@ -4870,7 +3796,7 @@ ${wikiList}` : "- **\u65B0\u5EFA/\u66F4\u65B0\u9875**\uFF1A\uFF08\u65E0\uFF09",
     ""
   ].join("\n");
   let existing = "";
-  if (existsSync20(logPath)) existing = readFileSync19(logPath, "utf-8");
+  if (existsSync16(logPath)) existing = readFileSync15(logPath, "utf-8");
   if (!existing) {
     const header = '# Log\n\n> \u64CD\u4F5C\u65F6\u95F4\u7EBF\uFF0Cappend-only\u3002\u6BCF\u6761\u683C\u5F0F\uFF1A`## [YYYY-MM-DD] \u64CD\u4F5C\u7C7B\u578B | \u6807\u9898`\n> \u53EF\u7528 `grep "^## \\[" log.md | tail -10` \u5FEB\u901F\u67E5\u6700\u8FD1\u64CD\u4F5C\u3002\n\n';
     writeFileSync8(logPath, header + entry, "utf-8");
@@ -5001,7 +3927,7 @@ ${summary.join("\n")}`
     const stemSet = /* @__PURE__ */ new Set();
     const baseNameSet = /* @__PURE__ */ new Set();
     for (const file of allMd) {
-      const rel = relative14(corpus, file);
+      const rel = relative9(corpus, file);
       const stem = rel.replace(/\.md$/, "");
       stemSet.add(stem);
       baseNameSet.add(stem.split("/").pop());
@@ -5016,17 +3942,17 @@ ${summary.join("\n")}`
     const okLinks = [];
     const checked = [];
     for (const f of files) {
-      const abs = f.startsWith("/") ? f : join26(process.cwd(), f);
-      if (!existsSync20(abs)) {
+      const abs = f.startsWith("/") ? f : join21(process.cwd(), f);
+      if (!existsSync16(abs)) {
         print(`[lorekit ingest check] file not found: ${f}`);
         process.exitCode = 2;
         continue;
       }
-      const rel = relative14(corpus, abs);
+      const rel = relative9(corpus, abs);
       checked.push(rel);
       let content;
       try {
-        content = stripCode(readFileSync19(abs, "utf-8"));
+        content = stripCode(readFileSync15(abs, "utf-8"));
       } catch {
         continue;
       }
@@ -5068,8 +3994,8 @@ ${summary.join("\n")}`
   });
   group.command("reconcile").description("Back-fill state for pre-existing \u539F\u6599/ pages missing a state record").option("--dry-run", "list what would be added without writing").action((opts) => {
     const corpus = requireCorpus();
-    const sourcesRoot = join26(corpus, "\u539F\u6599");
-    if (!existsSync20(sourcesRoot)) {
+    const sourcesRoot = join21(corpus, "\u539F\u6599");
+    if (!existsSync16(sourcesRoot)) {
       print("[lorekit ingest reconcile] no \u539F\u6599/ directory");
       return;
     }
@@ -5080,7 +4006,7 @@ ${summary.join("\n")}`
       const url = typeof fm.source_url === "string" && fm.source_url || typeof fm.url === "string" && fm.url || "";
       if (!url) continue;
       if (state.ingests[url]) continue;
-      const rel = relative14(corpus, mdPath);
+      const rel = relative9(corpus, mdPath);
       const archivedTo = rel.replace(/\/article\.md$/, "");
       const sdRaw = fm.source_date;
       const sourceDate = typeof sdRaw === "string" ? sdRaw : sdRaw instanceof Date ? sdRaw.toISOString().slice(0, 10) : void 0;
@@ -5108,14 +4034,12 @@ ${summary.join("\n")}`
 
 // src/commands/sync.ts
 import chalk6 from "chalk";
-import { mkdirSync as mkdirSync11, writeFileSync as writeFileSync10 } from "fs";
-import { join as join28 } from "path";
-init_logger();
+import { mkdirSync as mkdirSync10, writeFileSync as writeFileSync10 } from "fs";
+import { join as join23 } from "path";
 
 // src/lib/root-index.ts
-init_logger();
-import { existsSync as existsSync21, readFileSync as readFileSync20, readdirSync as readdirSync10, writeFileSync as writeFileSync9 } from "fs";
-import { join as join27 } from "path";
+import { existsSync as existsSync17, readFileSync as readFileSync16, readdirSync as readdirSync8, writeFileSync as writeFileSync9 } from "fs";
+import { join as join22 } from "path";
 var MANAGED_SECTIONS = [
   { heading: "## \u6982\u5FF5", subdir: "\u77E5\u8BC6\u5E93/\u6982\u5FF5" },
   { heading: "## \u5B9E\u4F53", subdir: "\u77E5\u8BC6\u5E93/\u5B9E\u4F53" },
@@ -5123,14 +4047,14 @@ var MANAGED_SECTIONS = [
   { heading: "## \u4E13\u9898", subdir: "\u77E5\u8BC6\u5E93/\u4E13\u9898" }
 ];
 function listEntriesInDir(corpus, subdir) {
-  const dirPath = join27(corpus, subdir);
-  if (!existsSync21(dirPath)) return [];
+  const dirPath = join22(corpus, subdir);
+  if (!existsSync17(dirPath)) return [];
   const out2 = [];
-  for (const name of readdirSync10(dirPath)) {
+  for (const name of readdirSync8(dirPath)) {
     if (name.startsWith(".")) continue;
     if (name === "_INDEX.md") continue;
     if (!name.endsWith(".md")) continue;
-    const file = join27(dirPath, name);
+    const file = join22(dirPath, name);
     const slug = `${subdir}/${name.replace(/\.md$/, "")}`;
     out2.push({ slug, summary: extractCompiledTruthSnippet(file) });
   }
@@ -5139,7 +4063,7 @@ function listEntriesInDir(corpus, subdir) {
 function extractCompiledTruthSnippet(filePath) {
   let content;
   try {
-    content = readFileSync20(filePath, "utf-8");
+    content = readFileSync16(filePath, "utf-8");
   } catch (e) {
     debug(`extractCompiledTruthSnippet(${filePath}) failed: ${e.message}`);
     return "\u2014";
@@ -5208,11 +4132,11 @@ function mergeSection(content, heading, onDisk) {
   };
 }
 function refreshRootIndex(corpus) {
-  const indexPath = join27(corpus, "index.md");
-  if (!existsSync21(indexPath)) {
+  const indexPath = join22(corpus, "index.md");
+  if (!existsSync17(indexPath)) {
     return { filePath: indexPath, changed: false, perSection: [] };
   }
-  const before = readFileSync20(indexPath, "utf-8");
+  const before = readFileSync16(indexPath, "utf-8");
   let content = before;
   const perSection = [];
   for (const sec of MANAGED_SECTIONS) {
@@ -5236,7 +4160,6 @@ function createReport(corpus) {
     steps: {
       index: { status: "skipped" },
       rootIndex: { status: "skipped" },
-      vector: { status: "skipped" },
       doctor: { status: "skipped" }
     },
     reportPath: null,
@@ -5244,19 +4167,17 @@ function createReport(corpus) {
   };
 }
 function writeSyncReport2(corpus, report) {
-  const dir = join28(corpus, ".wiki", "reports", "sync");
-  mkdirSync11(dir, { recursive: true });
+  const dir = join23(corpus, ".wiki", "reports", "sync");
+  mkdirSync10(dir, { recursive: true });
   const stamp = report.startedAt.replace(/[:.]/g, "-");
-  const path = join28(dir, `${stamp}.json`);
+  const path = join23(dir, `${stamp}.json`);
   report.reportPath = path;
   writeFileSync10(path, JSON.stringify(report, null, 2) + "\n", "utf-8");
   return path;
 }
 async function runSync(corpus, opts = {}) {
-  const force = opts.force ?? false;
-  const model = opts.model ?? "bge-m3";
   const report = createReport(corpus);
-  print(chalk6.cyan("\u2500\u2500 [1/3] index: refresh _INDEX.md \u2500\u2500"));
+  print(chalk6.cyan("\u2500\u2500 [1/2] index: refresh _INDEX.md \u2500\u2500"));
   try {
     const generated = runIndex(corpus);
     report.steps.index = { status: "ok", generated };
@@ -5313,25 +4234,8 @@ async function runSync(corpus, opts = {}) {
     report.steps.rootIndex = { status: "skipped", reason: "skip-root-index" };
   }
   print();
-  if (!opts.skipVector) {
-    print(chalk6.cyan("\u2500\u2500 [2/3] vector: sync chunks + L0/L1 \u2500\u2500"));
-    try {
-      const r = await runVectorSync(corpus, { force, model, layered: true });
-      report.steps.vector = { status: "ok", ...r, model };
-      ok(`synced ${r.synced} files (${r.totalChunks} chunks), skipped ${r.skipped} unchanged`);
-    } catch (e) {
-      report.status = "error";
-      report.steps.vector = { status: "error", error: e.message, model };
-      report.errors.push(`vector sync failed: ${e.message}`);
-      err(`vector sync failed: ${e.message}`);
-      throw e;
-    }
-    print();
-  } else {
-    report.steps.vector = { status: "skipped", reason: "skip-vector" };
-  }
   if (!opts.skipDoctor) {
-    print(chalk6.cyan("\u2500\u2500 [3/3] doctor: sanity check \u2500\u2500"));
+    print(chalk6.cyan("\u2500\u2500 [2/2] doctor: sanity check \u2500\u2500"));
     const issues = await runDoctor(corpus);
     report.steps.doctor = { status: "ok", issues };
   } else {
@@ -5341,7 +4245,7 @@ async function runSync(corpus, opts = {}) {
   return report;
 }
 function syncCommand(program2) {
-  program2.command("sync").description("one-shot: refresh _INDEX.md \u2192 vector sync (layered) \u2192 doctor").option("--force", "full rebuild of vector index", false).option("--model <name>", "ollama model name", "bge-m3").option("--skip-doctor", "skip the final doctor sanity check", false).option("--skip-vector", "only refresh _INDEX.md, skip vector sync", false).option("--skip-root-index", "skip merging corpus/index.md against disk", false).option("--json", "output machine-readable sync report", false).option("--report", "write .wiki/reports/sync/<timestamp>.json", false).action(async (opts) => {
+  program2.command("sync").description("one-shot: refresh _INDEX.md \u2192 root index \u2192 doctor").option("--skip-doctor", "skip the final doctor sanity check", false).option("--skip-root-index", "skip merging corpus/index.md against disk", false).option("--json", "output machine-readable sync report", false).option("--report", "write .wiki/reports/sync/<timestamp>.json", false).action(async (opts) => {
     const corpus = requireCorpus();
     try {
       const report = await runSync(corpus, opts);
@@ -5354,9 +4258,8 @@ function syncCommand(program2) {
 }
 
 // src/commands/obsidian-tune.ts
-init_logger();
-import { cpSync as cpSync3, existsSync as existsSync22, mkdirSync as mkdirSync12, writeFileSync as writeFileSync11 } from "fs";
-import { join as join29 } from "path";
+import { cpSync as cpSync3, existsSync as existsSync18, mkdirSync as mkdirSync11, writeFileSync as writeFileSync11 } from "fs";
+import { join as join24 } from "path";
 function runPrint() {
   const cfg = getRecommendedGraphConfig();
   out(JSON.stringify(cfg, null, 2));
@@ -5394,10 +4297,10 @@ function runCheck(corpus) {
   return 1;
 }
 function runWrite(corpus) {
-  const dest = join29(corpus, ".obsidian", "graph.json");
-  const destDir = join29(corpus, ".obsidian");
-  if (!existsSync22(destDir)) mkdirSync12(destDir, { recursive: true });
-  if (existsSync22(dest)) {
+  const dest = join24(corpus, ".obsidian", "graph.json");
+  const destDir = join24(corpus, ".obsidian");
+  if (!existsSync18(destDir)) mkdirSync11(destDir, { recursive: true });
+  if (existsSync18(dest)) {
     const backup = `${dest}.bak.${tsCompact()}`;
     cpSync3(dest, backup);
     ok(`\u5907\u4EFD .obsidian/graph.json \u2192 ${backup}`);
@@ -5430,12 +4333,10 @@ function obsidianTuneCommand(program2) {
 }
 
 // src/commands/remove.ts
-import { existsSync as existsSync23, mkdirSync as mkdirSync13, readFileSync as readFileSync21, renameSync as renameSync2, writeFileSync as writeFileSync12 } from "fs";
-import { basename as basename7, dirname as dirname6, isAbsolute as isAbsolute2, join as join30, relative as relative15, resolve as resolve5, sep } from "path";
-import matter7 from "gray-matter";
+import { existsSync as existsSync19, mkdirSync as mkdirSync12, readFileSync as readFileSync17, renameSync as renameSync2, writeFileSync as writeFileSync12 } from "fs";
+import { basename as basename5, dirname as dirname6, isAbsolute as isAbsolute2, join as join25, relative as relative10, resolve as resolve5, sep } from "path";
+import matter4 from "gray-matter";
 import trash from "trash";
-init_paths();
-init_logger();
 function isUrl(input) {
   return /^https?:\/\//i.test(input);
 }
@@ -5450,17 +4351,17 @@ function normalizeRel(rel) {
 }
 function resolveInputPath(corpus, input) {
   const candidates = [];
-  const rawAbs = isAbsolute2(input) ? input : join30(corpus, input);
+  const rawAbs = isAbsolute2(input) ? input : join25(corpus, input);
   candidates.push(rawAbs);
   if (!input.endsWith(".md")) candidates.push(`${rawAbs}.md`);
   for (const candidate of candidates) {
     const abs = resolve5(candidate);
-    if (isWithin(corpus, abs) && existsSync23(abs)) return abs;
+    if (isWithin(corpus, abs) && existsSync19(abs)) return abs;
   }
   return null;
 }
 function relFromAbs(corpus, abs) {
-  return normalizeRel(relative15(corpus, abs));
+  return normalizeRel(relative10(corpus, abs));
 }
 function aliasesForRel(rel) {
   const aliases = /* @__PURE__ */ new Set();
@@ -5472,7 +4373,7 @@ function aliasesForRel(rel) {
   return [...aliases];
 }
 function readText(abs) {
-  return readFileSync21(abs, "utf-8");
+  return readFileSync17(abs, "utf-8");
 }
 function extractWikilinks(content) {
   const links = [];
@@ -5482,14 +4383,14 @@ function extractWikilinks(content) {
   return links;
 }
 function addExistingTarget(corpus, targets, relOrAbs, reason) {
-  const abs = isAbsolute2(relOrAbs) ? relOrAbs : join30(corpus, relOrAbs);
-  if (!existsSync23(abs)) return;
+  const abs = isAbsolute2(relOrAbs) ? relOrAbs : join25(corpus, relOrAbs);
+  if (!existsSync19(abs)) return;
   const rel = relFromAbs(corpus, abs);
   targets.set(rel, { rel, abs, reason });
 }
 function addSourceTarget(corpus, targets, relOrAbs) {
-  const abs = isAbsolute2(relOrAbs) ? relOrAbs : join30(corpus, relOrAbs);
-  if (!existsSync23(abs)) return;
+  const abs = isAbsolute2(relOrAbs) ? relOrAbs : join25(corpus, relOrAbs);
+  if (!existsSync19(abs)) return;
   const rel = relFromAbs(corpus, abs);
   if (rel.endsWith("/article.md")) {
     addExistingTarget(corpus, targets, dirname6(abs), "source");
@@ -5503,15 +4404,15 @@ function addSourceTarget(corpus, targets, relOrAbs) {
 }
 function sourceCandidatesForSlug(corpus, slug) {
   return [
-    join30(corpus, slug),
-    join30(corpus, `${slug}.md`),
-    join30(corpus, slug, "article.md")
+    join25(corpus, slug),
+    join25(corpus, `${slug}.md`),
+    join25(corpus, slug, "article.md")
   ];
 }
 function collectSourceUrls(corpus, targets) {
   const urls = /* @__PURE__ */ new Set();
   for (const target of targets.values()) {
-    const files = existsSync23(target.abs) && target.rel.endsWith(".md") ? [target.abs] : collectMdFiles(target.abs);
+    const files = existsSync19(target.abs) && target.rel.endsWith(".md") ? [target.abs] : collectMdFiles(target.abs);
     for (const file of files) {
       const fm = extractFrontmatter(file);
       if (typeof fm.source_url === "string") urls.add(fm.source_url);
@@ -5521,23 +4422,23 @@ function collectSourceUrls(corpus, targets) {
   return [...urls];
 }
 function addSourcesFromSummary(corpus, targets, summaryAbs) {
-  const parsed = matter7(readText(summaryAbs));
+  const parsed = matter4(readText(summaryAbs));
   const sources = Array.isArray(parsed.data.sources) ? parsed.data.sources : [];
   for (const source of sources) {
     if (typeof source !== "string") continue;
     for (const candidate of sourceCandidatesForSlug(corpus, source)) {
-      if (existsSync23(candidate)) addSourceTarget(corpus, targets, candidate);
+      if (existsSync19(candidate)) addSourceTarget(corpus, targets, candidate);
     }
   }
   for (const link of extractWikilinks(parsed.content)) {
     if (!link.startsWith("\u539F\u6599/")) continue;
     for (const candidate of sourceCandidatesForSlug(corpus, link)) {
-      if (existsSync23(candidate)) addSourceTarget(corpus, targets, candidate);
+      if (existsSync19(candidate)) addSourceTarget(corpus, targets, candidate);
     }
   }
 }
 function addSummariesReferencingSources(corpus, targets, aliases) {
-  for (const file of collectMdFiles(join30(corpus, "\u77E5\u8BC6\u5E93", "\u6458\u8981"))) {
+  for (const file of collectMdFiles(join25(corpus, "\u77E5\u8BC6\u5E93", "\u6458\u8981"))) {
     const rel = relFromAbs(corpus, file);
     if (targets.has(rel)) continue;
     const content = readText(file);
@@ -5559,7 +4460,7 @@ function compiledTruthSnippets(content, aliases, input) {
 }
 function rewritePageForRemoval(corpus, file, aliases) {
   const rel = relFromAbs(corpus, file);
-  const parsed = matter7(readText(file));
+  const parsed = matter4(readText(file));
   const removedSources = [];
   let sourceCountBefore;
   let sourceCountAfter;
@@ -5595,7 +4496,7 @@ function rewritePageForRemoval(corpus, file, aliases) {
   });
   if (removedLines.length > 0) parsed.data.updated = todayYMDShanghai();
   const changed = removedLines.length > 0 || removedSources.length > 0;
-  const nextContent = changed ? matter7.stringify(nextLines.join("\n"), parsed.data) : readText(file);
+  const nextContent = changed ? matter4.stringify(nextLines.join("\n"), parsed.data) : readText(file);
   return {
     nextContent,
     change: changed ? {
@@ -5617,9 +4518,9 @@ function buildRemovalPlan(corpus, input, apply) {
     if (record?.archivedTo) addSourceTarget(corpus, targets, record.archivedTo);
     for (const page of record?.wikiPages ?? []) {
       if (normalizeRel(page).startsWith("\u77E5\u8BC6\u5E93/\u6458\u8981/")) {
-        const pageAbs = join30(corpus, page);
+        const pageAbs = join25(corpus, page);
         addExistingTarget(corpus, targets, pageAbs, "summary");
-        if (existsSync23(pageAbs)) addSourcesFromSummary(corpus, targets, pageAbs);
+        if (existsSync19(pageAbs)) addSourcesFromSummary(corpus, targets, pageAbs);
       }
     }
     const source = findSourceByUrl(corpus, input);
@@ -5667,10 +4568,10 @@ function buildRemovalPlan(corpus, input, apply) {
 async function moveToTrash(paths) {
   const testTrashDir = process.env.LOREKIT_TEST_TRASH_DIR;
   if (testTrashDir) {
-    mkdirSync13(testTrashDir, { recursive: true });
+    mkdirSync12(testTrashDir, { recursive: true });
     for (const p of paths) {
-      if (!existsSync23(p)) continue;
-      const dest = join30(testTrashDir, `${tsCompact()}-${basename7(p)}`);
+      if (!existsSync19(p)) continue;
+      const dest = join25(testTrashDir, `${tsCompact()}-${basename5(p)}`);
       renameSync2(p, dest);
     }
     return;
@@ -5680,7 +4581,7 @@ async function moveToTrash(paths) {
 function applyPageChanges(corpus, plan) {
   const aliases = new Set(plan.aliases);
   for (const change of plan.pageChanges) {
-    const file = join30(corpus, change.file);
+    const file = join25(corpus, change.file);
     const { nextContent } = rewritePageForRemoval(corpus, file, aliases);
     writeFileSync12(file, nextContent, "utf-8");
   }
@@ -5760,14 +4661,7 @@ function removeCommand(program2) {
       forgetIngestRecords(corpus, plan.ingestRecords);
       await moveToTrash(plan.trashTargets.map((t) => t.abs));
       ok(`moved ${plan.trashTargets.length} item(s) to OS Trash`);
-      const hasVectorDb = existsSync23(join30(corpus, ".wiki", "vector.sqlite"));
-      if (hasVectorDb) {
-        plan.vectorPruned = await pruneVectorDbMissingFiles(corpus);
-        if (plan.vectorPruned > 0) ok(`vector pruned ${plan.vectorPruned} missing file(s)`);
-      }
-      const skipVector = !hasVectorDb || process.env.LOREKIT_TEST_SKIP_VECTOR_SYNC === "1";
-      plan.syncSkippedVector = skipVector;
-      await runSync(corpus, { skipVector });
+      await runSync(corpus);
       const issues = runLint(corpus);
       plan.lintIssues = issues.length;
       printLintReport(corpus, issues);
@@ -5780,7 +4674,6 @@ function removeCommand(program2) {
 }
 
 // src/commands/gbrain.ts
-init_logger();
 function printJson(result) {
   out(JSON.stringify(result, null, 2));
 }
@@ -5883,26 +4776,11 @@ var version = readVersion();
 function showBanner() {
   const corpus = findCorpus();
   let pages = "\u2014";
-  let indexed = "0";
-  let model = "\u2014";
   if (corpus) {
     try {
       pages = String(collectMdFiles(corpus).length);
     } catch (e) {
       debug(`banner: collectMdFiles failed: ${e.message}`);
-    }
-    try {
-      const dbPath = `${corpus}/.wiki/vector.sqlite`;
-      if (existsSync24(dbPath)) {
-        const db = new Database(dbPath, { readonly: true });
-        const cntRow = db.prepare("SELECT COUNT(*) as c FROM documents").get();
-        indexed = String(cntRow?.c ?? 0);
-        const row = db.prepare("SELECT value FROM meta WHERE key='model'").get();
-        model = row?.value ?? "\u2014";
-        db.close();
-      }
-    } catch (e) {
-      debug(`banner: vector.sqlite read failed: ${e.message}`);
     }
   }
   const short = corpus && corpus.length > 45 ? "..." + corpus.slice(-42) : corpus ?? "\u2014";
@@ -5921,8 +4799,7 @@ function showBanner() {
   print(`  ${D("Personal LLM Wiki Toolkit")}  ${C(`v${version}`)}`);
   print();
   print(`  ${C("corpus")}  ${short}`);
-  print(`  ${C("pages")}   ${pages.padEnd(10)} ${C("indexed")} ${indexed}`);
-  if (model !== "\u2014") print(`  ${C("model")}   ${model}`);
+  print(`  ${C("pages")}   ${pages}`);
   print();
   print(`  ${W("$ lorekit doctor")}    \u5065\u5EB7\u68C0\u67E5`);
   print(`  ${W("$ lorekit fetch")}     \u6293\u53D6\u7F51\u9875`);
@@ -5960,7 +4837,6 @@ installSkillsCommand(program);
 snapshotCommand(program);
 restoreCommand(program);
 searchCommand(program);
-vectorCommand(program);
 fetchCommand(program);
 ingestCommand(program);
 syncCommand(program);

@@ -118,9 +118,6 @@ export function searchCommand(program: Command) {
         results = searchFallback(query, corpus, { dir: opts.dir });
       }
 
-      // TODO Phase 3: if .wiki/vector.sqlite exists, also run vector similarity
-      // search and merge results with text search hits.
-
       // Output JSON lines
       for (const r of results) {
         out(JSON.stringify(r));

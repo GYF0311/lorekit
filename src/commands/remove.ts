@@ -10,7 +10,6 @@ import { todayYMDShanghai, tsCompact } from '../lib/date.js';
 import { createSnapshot } from './snapshot.js';
 import { runSync } from './sync.js';
 import { printLintReport, runLint } from './lint.js';
-import { pruneVectorDbMissingFiles } from '../lib/vectordb/prune.js';
 import { bad, err, ok, out, print } from '../utils/logger.js';
 
 interface TrashTarget {
@@ -42,8 +41,6 @@ interface RemovalPlan {
   ingestRecords: string[];
   aliases: string[];
   snapshot?: string;
-  syncSkippedVector?: boolean;
-  vectorPruned?: number;
   lintIssues?: number;
 }
 
@@ -454,15 +451,7 @@ export function removeCommand(program: Command): void {
         await moveToTrash(plan.trashTargets.map((t) => t.abs));
         ok(`moved ${plan.trashTargets.length} item(s) to OS Trash`);
 
-        const hasVectorDb = existsSync(join(corpus, '.wiki', 'vector.sqlite'));
-        if (hasVectorDb) {
-          plan.vectorPruned = await pruneVectorDbMissingFiles(corpus);
-          if (plan.vectorPruned > 0) ok(`vector pruned ${plan.vectorPruned} missing file(s)`);
-        }
-
-        const skipVector = !hasVectorDb || process.env.LOREKIT_TEST_SKIP_VECTOR_SYNC === '1';
-        plan.syncSkippedVector = skipVector;
-        await runSync(corpus, { skipVector });
+        await runSync(corpus);
 
         const issues = runLint(corpus);
         plan.lintIssues = issues.length;

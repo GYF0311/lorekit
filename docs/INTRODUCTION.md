@@ -36,9 +36,9 @@ lorekit 的答案是：让个人知识库变成一个本地 LLM Wiki。
 | 检查是否健康 | 检查目录、frontmatter、索引、Obsidian Graph filter，以及已启用/显式请求的可选集成 | `lorekit doctor` |
 | 收进外部材料 | 把网页、微信公众号等材料抓到 workbench，并登记处理进度 | `lorekit fetch <url>` |
 | 记录处理到哪一步 | 记录 archive、wiki、backlink、lint 等步骤，方便断点续接和避免重复 | `lorekit ingest <sub>` |
-| 找回旧知识 | 做文本搜索；知识库变大后可单独使用向量检索增强语义召回 | `lorekit search` / `lorekit vector query` |
+| 找回旧知识 | 做文本搜索，并通过 `index.md` / `_INDEX.md` drill-down 回读 canonical pages | `lorekit search` |
 | 刷新目录 | 为目录生成 `_INDEX.md`，让人和 AI 快速看到内容结构 | `lorekit index` |
-| 整理后收尾 | 依次刷新目录索引、root `index.md`、向量索引，再跑健康检查 | `lorekit sync` |
+| 整理后收尾 | 依次刷新目录索引、root `index.md`，再跑健康检查 | `lorekit sync` |
 | 检查内容质量 | 查 required frontmatter、broken wikilinks、orphan pages | `lorekit lint` |
 | 留备份 | 创建全库 tarball 和 manifest | `lorekit snapshot` |
 | 恢复文件 | 从快照恢复缺失或变更文件，支持 dry-run | `lorekit restore` |
@@ -99,7 +99,7 @@ lorekit 的核心不是“保存原文”或“生成一次摘要”，而是让
 
 lorekit 不替 AI 做语义判断。它提供的是工作轨道：材料在哪里、进度到哪一步、索引有没有更新、页面有没有断链、收尾检查有没有跑过。
 
-## 4. 找回旧知识：目录、文本搜索和可选语义检索
+## 4. 找回旧知识：目录和文本搜索
 
 知识库开始增长后，最实际的问题就是“写进去了，下次怎么找回来”。
 
@@ -107,9 +107,9 @@ lorekit 提供三层方式：
 
 - 目录索引：`lorekit index` 生成 `_INDEX.md`，让人和 AI 能快速看到一个目录里有什么。
 - 文本搜索：`lorekit search` 做关键词搜索，优先使用 ripgrep，必要时使用内置文本 fallback。
-- 可选向量检索：`lorekit vector sync/query/status` 为较大的 corpus 提供语义召回、BM25 和 hybrid 检索能力。
+- 页面回读：命中候选后回到 `index.md`、`_INDEX.md` 和 canonical page 读取上下文，避免只拿片段当事实。
 
-这里要分清：`lorekit search` 是文本搜索；语义召回由 `lorekit vector query` 负责。向量检索是增强能力，不是唯一事实源。
+如果启用 GBrain，它也只作为 read-only 候选发现层；真正引用和沉淀仍然回到 `知识库/` 的 Markdown 页面。
 
 ## 5. 整理后的收尾：同步和体检
 
@@ -118,10 +118,10 @@ AI 更新了多个页面后，不应该只说“整理好了”。lorekit 提供
 `lorekit sync` 会按顺序执行：
 
 ```text
-_INDEX.md -> root index.md -> layered vector sync -> doctor
+_INDEX.md -> root index.md -> doctor
 ```
 
-这意味着目录更新了，根入口更新了，检索索引同步了，健康检查也跑过了。它适合作为一次入库、批量整理或 fileback 后的收尾命令。
+这意味着目录更新了，根入口更新了，健康检查也跑过了。它适合作为一次入库、批量整理或 fileback 后的收尾命令。
 
 `lorekit doctor` 更像系统体检，检查 corpus 目录、wiki metadata、frontmatter、索引、Obsidian Graph filter，以及启用或显式请求的可选集成。未启用的 GBrain 不会被当成默认错误。
 
@@ -147,7 +147,7 @@ lorekit remove <target>
 lorekit remove <target> --apply
 ```
 
-真正执行时，lorekit 会先创建 snapshot，再把文件移动到 OS Trash，并清理 provenance、ingest state 和向量索引里的相关状态。它的目标不是“删得快”，而是让 AI 参与清理时不制造不可逆事故。
+真正执行时，lorekit 会先创建 snapshot，再把文件移动到 OS Trash，并清理 provenance、ingest state 和派生索引里的相关状态。它的目标不是“删得快”，而是让 AI 参与清理时不制造不可逆事故。
 
 ## 7. Obsidian：把 corpus 当成可浏览、可审阅的 Markdown vault
 

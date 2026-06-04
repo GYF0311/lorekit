@@ -28,7 +28,7 @@ relations:
     - cli
     - corpus-core
     - fetch-ingest
-    - sync-search-vector
+    - sync-search
     - safety-maintenance
     - skills-agent
     - obsidian-gbrain

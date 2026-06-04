@@ -1,8 +1,6 @@
 #!/usr/bin/env node
-import { existsSync } from 'node:fs';
 import { Command } from 'commander';
 import chalk from 'chalk';
-import Database from 'better-sqlite3';
 import { findCorpus, collectMdFiles } from './lib/corpus.js';
 import { debug, print } from './utils/logger.js';
 import { readVersion } from './utils/fs.js';
@@ -18,7 +16,6 @@ import { installSkillsCommand } from './commands/install-skills.js';
 import { snapshotCommand } from './commands/snapshot.js';
 import { restoreCommand } from './commands/restore.js';
 import { searchCommand } from './commands/search.js';
-import { vectorCommand } from './commands/vector.js';
 import { fetchCommand } from './commands/fetch.js';
 import { ingestCommand } from './commands/ingest.js';
 import { syncCommand } from './commands/sync.js';
@@ -31,8 +28,6 @@ const version = readVersion();
 function showBanner() {
   const corpus = findCorpus();
   let pages = '—';
-  let indexed = '0';
-  let model = '—';
 
   if (corpus) {
     try {
@@ -40,25 +35,6 @@ function showBanner() {
     } catch (e) {
       // banner 是 best-effort 装饰，corpus 扫失败时不阻塞用户操作 — 仅 debug 留痕
       debug(`banner: collectMdFiles failed: ${(e as Error).message}`);
-    }
-
-    try {
-      const dbPath = `${corpus}/.wiki/vector.sqlite`;
-      if (existsSync(dbPath)) {
-        const db = new Database(dbPath, { readonly: true });
-        const cntRow = db.prepare('SELECT COUNT(*) as c FROM documents').get() as
-          | { c: number }
-          | undefined;
-        indexed = String(cntRow?.c ?? 0);
-        const row = db.prepare("SELECT value FROM meta WHERE key='model'").get() as
-          | { value: string }
-          | undefined;
-        model = row?.value ?? '—';
-        db.close();
-      }
-    } catch (e) {
-      // 向量库读失败（坏文件 / 锁 / native 加载错）不该阻断 banner 显示
-      debug(`banner: vector.sqlite read failed: ${(e as Error).message}`);
     }
   }
 
@@ -79,8 +55,7 @@ function showBanner() {
   print(`  ${D('Personal LLM Wiki Toolkit')}  ${C(`v${version}`)}`);
   print();
   print(`  ${C('corpus')}  ${short}`);
-  print(`  ${C('pages')}   ${pages.padEnd(10)} ${C('indexed')} ${indexed}`);
-  if (model !== '—') print(`  ${C('model')}   ${model}`);
+  print(`  ${C('pages')}   ${pages}`);
   print();
   print(`  ${W('$ lorekit doctor')}    健康检查`);
   print(`  ${W('$ lorekit fetch')}     抓取网页`);
@@ -130,7 +105,6 @@ installSkillsCommand(program);
 snapshotCommand(program);
 restoreCommand(program);
 searchCommand(program);
-vectorCommand(program);
 fetchCommand(program);
 ingestCommand(program);
 syncCommand(program);

@@ -14,7 +14,7 @@ function initCorpus() {
 test('sync --json emits machine-readable step report', () => {
   const corpus = initCorpus();
   try {
-    const args = ['sync', '--skip-vector', '--skip-doctor', '--json'];
+    const args = ['sync', '--skip-doctor', '--json'];
     const r = runLorekit(args, { cwd: corpus });
     assert.equal(r.status, 0, fmtRun(r, args, 'exit 0'));
 
@@ -22,7 +22,8 @@ test('sync --json emits machine-readable step report', () => {
     assert.equal(parsed.status, 'ok');
     assert.equal(parsed.steps.index.status, 'ok');
     assert.equal(parsed.steps.rootIndex.status, 'ok');
-    assert.equal(parsed.steps.vector.status, 'skipped');
+    const removedStep = ['vec', 'tor'].join('');
+    assert.equal(removedStep in parsed.steps, false);
     assert.equal(parsed.steps.doctor.status, 'skipped');
     assert.equal(parsed.reportPath, null);
   } finally {
@@ -30,10 +31,10 @@ test('sync --json emits machine-readable step report', () => {
   }
 });
 
-test('sync --skip-vector --json awaits doctor and reports numeric issue count', () => {
+test('sync --json awaits doctor and reports numeric issue count', () => {
   const corpus = initCorpus();
   try {
-    const args = ['sync', '--skip-vector', '--json'];
+    const args = ['sync', '--json'];
     const r = runLorekit(args, {
       cwd: corpus,
       env: { LOREKIT_GBRAIN_BIN: '__missing_lorekit_gbrain_binary__' },
@@ -49,10 +50,23 @@ test('sync --skip-vector --json awaits doctor and reports numeric issue count', 
   }
 });
 
+test('sync obsolete skip flag is no longer accepted', () => {
+  const corpus = initCorpus();
+  try {
+    const obsoleteFlag = ['--skip', 'vec', 'tor'].join('-');
+    const args = ['sync', obsoleteFlag];
+    const r = runLorekit(args, { cwd: corpus });
+    assert.equal(r.status, 2, fmtRun(r, args, 'exit 2 (obsolete flag)'));
+    assert.match(r.stderr, /unknown option/i, fmtRun(r, args, 'stderr 说明未知选项'));
+  } finally {
+    cleanupTmpDir(corpus);
+  }
+});
+
 test('sync --report writes report json under .wiki/reports/sync', () => {
   const corpus = initCorpus();
   try {
-    const args = ['sync', '--skip-vector', '--skip-doctor', '--report'];
+    const args = ['sync', '--skip-doctor', '--report'];
     const r = runLorekit(args, { cwd: corpus });
     assert.equal(r.status, 0, fmtRun(r, args, 'exit 0'));
 

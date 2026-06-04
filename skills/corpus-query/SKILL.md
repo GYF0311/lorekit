@@ -44,11 +44,10 @@ Read only what is needed. Do not bulk-load the corpus.
 ## Query Route
 
 1. `cd <default_corpus>`.
-2. Run `<lorekit_bin> vector status`.
-3. For exact terms, run `<lorekit_bin> search "<q>"`.
-4. For semantic recall, run `<lorekit_bin> vector query --hybrid --text "<q>"`.
-5. If recall is weak and GBrain is configured, use `corpus-gbrain-query` as a candidate recall layer.
-6. Read canonical pages under `知识库/` before answering.
+2. For exact terms, run `<lorekit_bin> search "<q>"`.
+3. Read `<default_corpus>/index.md`, then the relevant `_INDEX.md` files.
+4. Read canonical pages under `知识库/` before answering.
+5. If recall is weak and GBrain is configured, use `corpus-gbrain-query` as a candidate discovery layer.
 
 GBrain candidates are not sources of truth. Always map them back to canonical `知识库/` pages.
 

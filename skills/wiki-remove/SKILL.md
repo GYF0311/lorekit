@@ -56,8 +56,7 @@ lorekit remove "<target>" --apply
 2. 移除明确来源贡献的登记
 3. 把目标文件/目录移动到系统回收站
 4. 刷新 `index.md` / `_INDEX.md`
-5. 同步向量库（若已存在）
-6. 跑 lint 报告
+5. 跑 lint 报告
 
 ## Output format
 

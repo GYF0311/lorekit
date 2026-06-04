@@ -128,7 +128,7 @@ query 答案若有**复用价值**（跨多页综合的比较表 / 深度分析 
 
 建 synthesis 页（`知识库/专题/<slug>.md`）**前必须**：
 
-1. 搜索已有 source 中的**反驳证据**（`lorekit search` + `lorekit vector query`）
+1. 搜索已有 source 中的**反驳证据**（`lorekit search` + `index.md` / `_INDEX.md` drill-down）
 2. 若找到反对来源 → 在 `## Counter-evidence` 节写入具体分歧点
 3. 若无反对来源 → `## Counter-evidence` 节**明确标注**：`⚠ 回音室风险：未找到反驳来源，结论可能存在确认偏差`
 
@@ -136,7 +136,7 @@ Counter-evidence 节**即使为空也必须写**——"没反驳"是一个信号
 
 ### 9. 系统文件隔离规则
 
-以下文件 frontmatter **必填** `graph-excluded: true`（不进图谱、不进向量索引、不进 _INDEX 排序）：
+以下文件 frontmatter **必填** `graph-excluded: true`（不进图谱、不进 `_INDEX.md` 排序）：
 
 - `corpus/index.md`
 - `corpus/log.md`

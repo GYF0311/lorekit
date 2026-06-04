@@ -32,7 +32,7 @@ AI 帮用户安装时，先问一个简短问题。默认推荐单 lorekit，因
 - 想让 agent 有明确工作流入口时，再安装目标 agent 对应的项目级 `wiki-*` skills。
 - 研究型知识库通常选择 Project-local：项目内 `skills/wiki-*` 执行 LoreKit 原生 ingest/query/fileback，项目/domain skill 只做领域路由和定制。
 - 需要从任意代码项目访问同一个个人 corpus 时，再显式安装选定 `corpus-*`；这是中央知识库拓扑，不是默认路线。
-- 需要 graph / hybrid retrieval、多跳关系、候选发现时，再安装 GBrain bridge。
+- 需要 graph candidate discovery、多跳关系、候选发现时，再安装 GBrain bridge。
 - 安装器类 skill 也可以全局保留，例如 `lorekit-corpus-bootstrap` / `lorekit-gbrain-project-bridge`，用于快速部署项目级配置。
 
 AI 安装规则：
@@ -54,7 +54,7 @@ AI 安装规则：
 | CLI + Project-local research | CLI + 当前项目 `skills/wiki-*` + `AGENTS.md` 短路由 | central gateway skills | 研究型知识库、团队库、项目专有 skill 定制 |
 | CLI + Central Corpus | 显式选定的 Codex `corpus-*` / `wiki-daily` + `global-corpus.json` | project-local execution rules | 任意项目都要访问同一个个人 corpus |
 | Hybrid | 中央入口 skills + 项目级执行 rules | GBrain 可选 | 一个 central corpus 服务多个项目；可选高级拓扑 |
-| CLI + GBrain | CLI + `lorekit gbrain` read-only bridge | GBrain mutating skills | 多跳候选召回、graph / hybrid retrieval |
+| CLI + GBrain | CLI + `lorekit gbrain` read-only bridge | GBrain mutating skills | 多跳候选召回、graph candidate discovery |
 
 ## 路线 A：只安装 lorekit（默认）
 
@@ -71,7 +71,7 @@ npm link
 lorekit --version
 ```
 
-Node.js >= 18 是唯一硬依赖。`ripgrep`、`ollama`、`bge-m3` 都是可选增强。
+Node.js >= 18 是唯一硬依赖。`ripgrep` 是可选文本搜索加速；GBrain 是外部可选拓扑，不是 lorekit 默认安装依赖。
 
 ### 2. 初始化 corpus
 
@@ -205,7 +205,7 @@ lorekit install-skills --target codex --only corpus-query,corpus-capture,corpus-
 | `corpus-ingest` | 从任何项目摄入 URL / 文件 / 外部资料 | configured corpus 的 `原料/` + `知识库/` |
 | `corpus-fileback` | 用户确认后把结论写回 configured corpus | `知识库/` |
 | `corpus-gbrain-query` | GBrain / 多跳候选召回 | 只读派生索引，回读 `知识库/` |
-| `corpus-health` | 检查 corpus / vector / GBrain 健康 | 报告，不写知识 |
+| `corpus-health` | 检查 corpus / LoreKit / GBrain 健康 | 报告，不写知识 |
 | `wiki-daily` | 日记、todo、daily compile | `_工作台/日记收件/`、`每日/`、`输出/复盘/` |
 
 再创建全局 corpus 配置：
@@ -323,7 +323,6 @@ GBrain = 派生检索
 cd ~/Desktop/my-corpus
 lorekit fetch <url>
 lorekit search "关键词"
-lorekit vector query --hybrid --text "问题"
 lorekit snapshot
 lorekit doctor --json
 ```
@@ -340,7 +339,7 @@ AI 工作流：
 
 ## 路线 B：lorekit + GBrain（可选增强）
 
-适合需要 graph / hybrid retrieval、多跳关系、候选发现的用户。
+适合需要 graph candidate discovery、多跳关系、候选发现的用户。
 
 边界：
 
@@ -420,7 +419,7 @@ cd ~/Desktop/my-corpus
 
 回答时：
 
-1. 先用 lorekit/index/search/vector 找 canonical 页面。
+1. 先用 lorekit/index/search 找 canonical 页面。
 2. 召回不足或需要多跳关系时，用 `lorekit gbrain query` 找候选。
 3. 回读 `知识库/` canonical 页面。
 4. 最终答案引用 canonical wiki，而不是 `.wiki/integrations/gbrain-export/`。

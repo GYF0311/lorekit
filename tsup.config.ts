@@ -9,5 +9,4 @@ export default defineConfig({
   splitting: false,
   sourcemap: true,
   dts: false,
-  external: ['better-sqlite3', 'sqlite-vec'],
 });

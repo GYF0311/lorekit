@@ -24,7 +24,7 @@ tags:
 - [[modules/Project Map|project-map]]
 - [[modules/Safety Maintenance|safety-maintenance]]
 - [[modules/Skills Agent|skills-agent]]
-- [[modules/Sync Search Vector|sync-search-vector]]
+- [[modules/Sync Search|sync-search]]
 
 ## Graph Filter
 

@@ -34,7 +34,7 @@ Project-local evidence folders such as `_工作台/课程原文/` are not automa
 | Init            | `lorekit init`          | Scaffolds the corpus, deploys the Obsidian plugin, auto-backs up pre-existing content                                                                                 |
 | Doctor          | `lorekit doctor`        | Directory integrity, frontmatter coverage, Obsidian hints, enabled/explicit optional integration health; supports `--json` and strict `--section <name>` filters        |
 | Stats           | `lorekit stats`         | Page count, type breakdown                                                                                                                                            |
-| Search          | `lorekit search`        | Text search + vector semantic search (hybrid)                                                                                                                         |
+| Search          | `lorekit search`        | Text search with ripgrep and built-in fallback                                                                                                                         |
 | Web fetch       | `lorekit fetch <url>`   | Pulls WeChat / generic pages into the workbench; auto-extracts `publishDate`, writes spec-compliant frontmatter, detects duplicate / in-progress URLs from state.json |
 | Ingest state    | `lorekit ingest <sub>`  | `list` / `pending` / `record` / `forget` / `reconcile` — the single source of truth for ingest pipeline progress                                                      |
 | Lint            | `lorekit lint`          | Broken wikilinks, orphan pages, workbench-as-source links, duplicate detection; `--quick` is accepted as a compatibility alias for agent self-checks                   |
@@ -42,11 +42,8 @@ Project-local evidence folders such as `_工作台/课程原文/` are not automa
 | Restore         | `lorekit restore`       | Recover missing / changed files from a snapshot                                                                                                                       |
 | Remove          | `lorekit remove`        | Dry-run impact report, then safely move selected sources/pages to OS Trash with provenance-aware cleanup                                                              |
 | Audit           | `lorekit audit`         | Create / list / resolve human feedback on wiki pages                                                                                                                  |
-| Vector sync     | `lorekit vector sync`   | Incrementally embed the corpus into sqlite-vec + FTS5                                                                                                                 |
-| Vector query    | `lorekit vector query`  | Search modes: `--layered` (vector), `--bm25` (FTS5), `--hybrid` (both + RRF)                                                                                          |
-| Vector status   | `lorekit vector status` | Inspect the index; returns `mode: text\|vector` recommendation based on `indexed_files` vs `MODE_THRESHOLD_FILES` (default 100)                                       |
 | Directory index | `lorekit index`         | Recursively generate `_INDEX.md` for every subdirectory (including folder-packaged sources like `原料/文章/<slug>/article.md`)                                        |
-| **Sync**        | **`lorekit sync`**      | **One-shot for durable corpus changes: `index` → `vector sync --layered` → `doctor`; supports `--json` and `--report` for agent-readable step receipts**              |
+| **Sync**        | **`lorekit sync`**      | **One-shot for durable corpus changes: `_INDEX.md` → root `index.md` → `doctor`; supports `--json` and `--report` for agent-readable step receipts**                  |
 | Obsidian tune   | `lorekit obsidian-tune` | 老用户升级一键应用 Obsidian graph filter（默认只读检查 / `--write` 备份后写 / `--print` 管道用）                                                                      |
 | GBrain          | `lorekit gbrain <sub>`  | Optional read-only bridge: compile `知识库/` into GBrain-native staging, then call external import/extract; never writes canonical wiki pages                     |
 
@@ -103,7 +100,7 @@ Only `--step lint` auto-promotes to `completed`. Every other `--step` keeps the 
 
 ## Install Routes
 
-Default install is lorekit-only: install the global `lorekit` CLI and initialize a corpus. This is enough for fetch, ingest state, search, sync, doctor, snapshot, restore, safe remove, Obsidian tuning, and optional vector search. Skills and integrations are add-on modules, not part of the base route.
+Default install is lorekit-only: install the global `lorekit` CLI and initialize a corpus. This is enough for fetch, ingest state, search, sync, doctor, snapshot, restore, safe remove, and Obsidian tuning. Skills and integrations are add-on modules, not part of the base route.
 
 AI installer rule: if the user just says "install lorekit", recommend and run CLI-only first. Ask before adding project-local skills, central-corpus entrypoints, diary automation, or GBrain, because each module adds concepts and configuration the user must maintain.
 
@@ -116,7 +113,7 @@ Composable modules:
 | Project-local research skills | You want one corpus/project to carry its own `wiki-*` workflows and domain routes | `lorekit install-skills --target project --mode copy` | maintain project routes in `AGENTS.md` |
 | Codex diary gateway | You want a personal diary / daily compile entrypoint | `lorekit install-skills --target codex --only wiki-daily --mode copy` + `~/.config/lorekit/daily.json` | maintain daily config |
 | Central corpus entrypoints | You want any project to query / capture / ingest into one configured corpus | `lorekit install-skills --target codex --only corpus-query,corpus-capture,... --mode copy` + `~/.config/lorekit/global-corpus.json` | maintain central corpus routing |
-| GBrain bridge | You want optional graph / hybrid retrieval and multi-hop candidate discovery | `lorekit gbrain <sub>` reads a staging export; canonical wiki stays in lorekit | maintain external GBrain |
+| GBrain bridge | You want optional graph candidate discovery and multi-hop exploration | `lorekit gbrain <sub>` reads a staging export; canonical wiki stays in lorekit | maintain external GBrain |
 
 For Codex personal diary use, install the optional daily workflow explicitly:
 
@@ -153,7 +150,7 @@ Optional combinations:
 | CLI + agent skills | You want named current-project workflows inside Claude Code / Codex | Skills call `lorekit`; CLI remains source of deterministic actions |
 | Project-local research | You want a research corpus with project/domain skill routes | `skills/wiki-*` live in the project; `AGENTS.md` declares routes |
 | Central corpus entrypoints | You intentionally maintain one corpus for cross-project routing | install selected `corpus-*` skills explicitly |
-| lorekit + GBrain | You want graph / hybrid retrieval and multi-hop candidate discovery | lorekit remains source of truth; GBrain reads a staging export |
+| lorekit + GBrain | You want graph candidate discovery and multi-hop exploration | lorekit remains source of truth; GBrain reads a staging export |
 
 For detailed central vs project-local setup, see [`docs/INSTALLATION.md`](docs/INSTALLATION.md).
 
@@ -241,17 +238,13 @@ At that point, stop polishing the tool and use the corpus for 1-2 weeks. The nex
 | Node.js ≥ 18 | JS runtime               | `brew install node`                                                                        | ✅       |
 | git          | Version control          | ships with macOS/Linux                                                                     | ✅       |
 | ripgrep      | Text-search acceleration | `brew install ripgrep`                                                                     | Optional |
-| ollama       | Local embedding runtime  | `brew install ollama`                                                                      | Optional |
-| bge-m3       | Embedding model          | `ollama pull bge-m3`                                                                       | Optional |
 | Bun + GBrain | Graph retrieval bridge   | `git clone https://github.com/garrytan/gbrain.git && cd gbrain && bun install && bun link` | Optional |
 
 **Only Node.js is required.** No bash / Python / uv / pip. lorekit is pure TypeScript, cross-platform (macOS / Linux / Windows).
 
-Vector retrieval is optional — without ollama, the AI still navigates via `index.md`.
-
 ## Optional GBrain Bridge
 
-GBrain is an optional graph / hybrid retrieval layer. lorekit remains the source of truth:
+GBrain is an optional graph candidate discovery layer. lorekit remains the source of truth:
 
 ```text
 lorekit writes 知识库/
@@ -309,46 +302,23 @@ Talk in natural language; the AI routes to the right skill:
 # → lorekit snapshot → .wiki/snapshots/xxx.tar.gz
 ```
 
-## Vector Retrieval
+## Query And Sync
 
-Default stack: **[ollama](https://ollama.com/) + [bge-m3](https://huggingface.co/BAAI/bge-m3)** (BAAI, 1024-d, 100+ languages, strong on Chinese+English).
-
-Embeddings are produced through ollama's local API. **No torch, no pip, no API key, nothing leaves your machine.**
+The default query route is deterministic and text-first:
 
 ```bash
-# One-time setup
-brew install ollama
-ollama pull bge-m3
-
-# Standard workflow (layered + FTS5 by default)
-lorekit sync                               # closeout: index → vector sync → doctor
-
-# Three query modes (pick based on the problem, not the index)
-lorekit vector query --hybrid --text "xxx" # BM25 + vector + RRF fusion (production default)
-lorekit vector query --layered --text "xxx" # vector-only layered (debug)
-lorekit vector query --bm25    --text "xxx" # FTS5-only BM25 (debug precise keywords / dates)
-
-# Agent-readable receipts
-lorekit sync --json
-lorekit sync --report                       # writes .wiki/reports/sync/<timestamp>.json
+lorekit search "xxx"       # exact terms, entities, filenames
+lorekit sync --json        # agent-readable closeout report
+lorekit sync --report      # writes .wiki/reports/sync/<timestamp>.json
 ```
 
 Run `lorekit sync` after durable `知识库/` fileback, new `原料/` import, index/routing changes, stage closeout, or commit/push verification. Workbench notes, temporary learning records, and display artifacts can wait for closeout instead of forcing immediate sync.
 
-Swappable embedding models (any ollama-hosted model works):
-
-| Model                | Install                         | Size   | Dim  | Best for                   |
-| -------------------- | ------------------------------- | ------ | ---- | -------------------------- |
-| **bge-m3** (default) | `ollama pull bge-m3`            | 1.2 GB | 1024 | Chinese+English, balanced  |
-| nomic-embed-text     | `ollama pull nomic-embed-text`  | 274 MB | 768  | English-heavy, lightweight |
-| mxbai-embed-large    | `ollama pull mxbai-embed-large` | 670 MB | 1024 | Strong English             |
-| all-minilm           | `ollama pull all-minilm`        | 45 MB  | 384  | Ultra-lightweight          |
+`lorekit sync` refreshes directory `_INDEX.md`, merges root `index.md`, then runs `doctor`. It does not call model services or maintain a second retrieval store.
 
 ## Progressive Disclosure
 
-The agent's context window is scarce. lorekit uses three-layer progressive disclosure on both the document side and the vector side, reading only what's needed.
-
-### Document retrieval (L0 → L1 → L2)
+The agent's context window is scarce. lorekit uses three-layer progressive disclosure, reading only what's needed.
 
 ```
 L0 (auto-injected, ~2k tokens)
@@ -369,46 +339,11 @@ L2 (targeted)
 
       ↓ still not enough?
 
-L3 (semantic fallback)
-  lorekit vector query --hybrid
-  → BM25 + vector + RRF hybrid, only when text drill-down misses
+L3 (neighbor pages)
+  follow wikilinks 1-2 hops, or use optional GBrain candidates if configured
 ```
 
-Like a human looking for a book: floor directory (L0) → shelf (L1) → take the book off the shelf (L2) → ask the librarian (L3). Total budget typically < 5k tokens.
-
-**The same archive is read by humans/LLMs (via `Read`) and embedded by vectors (via `lorekit sync`)** — one source of truth, no drift between text index and vector store.
-
-### Vector retrieval shares the same archive as document retrieval
-
-This is the key design: **one archive, two reading modes**. The vector side does NOT synthesize its own summaries — it reads `index.md` and each `_INDEX.md` directly. So updating `index.md` automatically updates the L0 semantics on next `lorekit sync`.
-
-```
-              Document mode (small corpora, < 100 files)         Vector mode (≥ 100 files)
-              ─────────────────────────────────────────          ──────────────────────────
-L0            Read corpus/index.md                               Embed each `## section` of index.md
-              (LLM picks 1-3 sections semantically)              → vec_dirs + fts_dirs
-                          ↓                                              ↓
-L1            Read {section}/_INDEX.md                            Embed each `- [[slug]] — summary` line
-              (LLM picks candidate pages)                         → vec_pages + fts_pages
-                          ↓                                              ↓
-L2            Read specific .md file                              Chunk every page by `## heading`
-              (LLM reads full page)                               → vec_chunks + fts_chunks
-```
-
-Mode switch is automatic. `lorekit vector status` returns a `mode` field (`text` | `vector`) based on `indexed_files` vs `MODE_THRESHOLD_FILES` (default 100, defined in `src/lib/vectordb.ts`). Skills read the `mode` field and route accordingly — no numeric threshold in skill files.
-
-### Hybrid retrieval (vector mode default)
-
-In vector mode, `--hybrid` runs three-tier BM25 (via SQLite FTS5, `trigram` tokenizer for CJK) in parallel with three-tier vector, then merges results by **Reciprocal Rank Fusion** (`score = Σ 1/(k+rank)`, k=60).
-
-| Signal                                        | BM25 (FTS5)       | Vector (bge-m3)                  | RRF fusion               |
-| --------------------------------------------- | ----------------- | -------------------------------- | ------------------------ |
-| Exact entity names                            | ✅ nails it       | ⚠️ averaged out                  | takes the BM25 winner    |
-| Dates like `2026-04-15`                       | ✅ exact          | ⚠️ cosine-similar to other dates | BM25 dominates           |
-| Fuzzy intent ("relationship between X and Y") | ⚠️ AND-too-strict | ✅ embeddings shine              | vector dominates         |
-| Mixed (entity + intent)                       | partial           | partial                          | both contribute → stable |
-
-LLM re-rank (the 4th stage in the qmd reference architecture) is **not yet implemented** — see `docs/IDEAS.md` for the rationale and four possible routes when the time comes.
+Like a human looking for a book: floor directory (L0) → shelf (L1) → take the book off the shelf (L2) → follow nearby references (L3). Total budget typically < 5k tokens.
 
 ## Corpus Layout
 
@@ -450,7 +385,7 @@ corpus/
 ├── _归档/              ← cold storage
 └── .wiki/              ← lorekit metadata
     ├── ingest-state.json   ← ingest pipeline single source of truth
-    ├── vector.sqlite       ← vector index (optional)
+    ├── reports/            ← machine-readable command reports
     └── snapshots/          ← snapshot archives
 ```
 
@@ -463,7 +398,7 @@ lorekit is a skeleton, not a fixed structure:
 1. **Edit `CLAUDE.md` scope** — declare what the corpus covers and doesn't
 2. **Adjust `知识库/` subdirectories** — interview use case adds `知识库/面经/`, reading use case swaps for `知识库/角色/章节/`, etc.
 3. **Edit filing rules** — append routing rules in `系统/filing-rules.md`
-4. **Swap the embedding model** — `lorekit vector sync --model <ollama-model-name>`
+4. **Add optional modules** — project-local skills, central-corpus gateways, or GBrain bridge when the workflow needs them
 
 ## Backup & Restore
 
@@ -537,7 +472,7 @@ lorekit/
 ├── src/                     TypeScript sources
 │   ├── cli.ts               command dispatch + banner
 │   ├── commands/            subcommand implementations
-│   ├── lib/                 core library (corpus / ollama / vectordb / chunker / fetcher / ingest-state)
+│   ├── lib/                 core library (corpus / paths / root-index / fetcher / ingest-state)
 │   └── utils/               logger, fs helpers
 ├── dist/                    tsup build output (committed so users don't need to build)
 ├── skills/                  Agent Skills (plain markdown, agent-agnostic)
@@ -571,19 +506,10 @@ lorekit would not exist without the following projects and people.
 | [LLM Wiki Gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) | **Andrej Karpathy** | The core idea — three-layer architecture (raw / wiki / schema), the ingest / query / lint triad, the philosophy that "the wiki is a compilation cache, not the content itself." lorekit's soul comes from this gist. |
 | [llm-wiki-skill](https://github.com/lewislulu/llm-wiki-skill)                      | **Lewis Liu**       | Audit feedback system design, Obsidian audit plugin, references-doc structure. lorekit's `反馈/` directory and audit plugin directly reference this project.                                                         |
 
-### Referenced projects
-
-| Project                                             | Author      | Contribution                                                         |
-| --------------------------------------------------- | ----------- | -------------------------------------------------------------------- |
-| [OpenViking](https://github.com/nicepkg/OpenViking) | **nicepkg** | Context Database design, inspired lorekit's layered vector retrieval |
-
 ### Key dependencies
 
 | Project                                            | Author                       | Purpose                                                                   |
 | -------------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------- |
-| [bge-m3](https://huggingface.co/BAAI/bge-m3)       | **BAAI**                     | Default embedding model (1024-d, 100+ languages)                          |
-| [sqlite-vec](https://github.com/asg017/sqlite-vec) | **Alex Garcia**              | Vector storage (single-file sqlite extension)                             |
-| [ollama](https://github.com/ollama/ollama)         | **Ollama Inc.**              | Local model inference, zero-config embedding API                          |
 | [qmd](https://github.com/tobi/qmd)                 | **Tobi Lütke** (Shopify CEO) | Karpathy-endorsed local markdown search — our search design references it |
 
 ### Indirect influences
@@ -591,9 +517,7 @@ lorekit would not exist without the following projects and people.
 | Source                                                             | Influence                                                                                                    |
 | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
 | Vannevar Bush, "As We May Think" (1945)                            | The Memex concept Karpathy cites — curated personal knowledge where the links matter more than the documents |
-| ByteDance RAG field guide                                          | Chunking strategies, hybrid-retrieval engineering                                                            |
 | Coze Studio source                                                 | Four-step knowledge-base pipeline design                                                                     |
-| [MTEB Leaderboard](https://huggingface.co/spaces/mteb/leaderboard) | Embedding-model selection                                                                                    |
 
 ### Design principles
 

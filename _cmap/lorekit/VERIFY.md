@@ -33,7 +33,7 @@ confidence: ai-drafted
 | cli | `node dist/cli.js --help` after build | 命令列表包含新增/修改的命令 |
 | corpus-core | 相关路径规则 smoke test | 新路径/排除规则集中在 `src/lib/paths.ts` |
 | fetch-ingest | `node --test tests/smoke/fetch-mock.test.mjs tests/smoke/ingest-record.test.mjs` | state transitions、duplicate、in-progress 行为仍明确 |
-| sync-search-vector | 相关 vector/search smoke tests | 非 vector 任务不被可选向量环境阻塞 |
+| sync-search | 相关 sync/search smoke tests | 文本索引和查询入口保持确定性 |
 | safety-maintenance | 相关 `doctor/lint/snapshot/restore/remove` smoke tests | `remove` 保持 snapshot + Trash + provenance 边界 |
 | skills-agent | 人工读改动的 `skills/*/SKILL.md` | skill 不承诺不存在的 CLI 能力 |
 | obsidian-gbrain | 相关 Obsidian/GBrain smoke tests | GBrain 仍只写 staging/report，不写回 canonical wiki |
@@ -54,8 +54,5 @@ confidence: ai-drafted
 - 涉及数据移动命令时，先看 dry-run，再确认 snapshot / Trash 行为。
 - JSON 输出要确认 stdout 仍可机器读取，人类提示走 stderr。
 
-## Known Flaky Checks
-Vector / Ollama 检查依赖本机可选服务和 native deps。验证文本层行为时，优先 targeted tests 或 `--skip-vector`。
-
 ## Environment Assumptions
-本机应有 Node.js >= 18、npm、git、ripgrep。Ollama、`sqlite-vec`、GBrain、Playwright 都是可选集成；缺失时应清晰降级或报错。
+本机应有 Node.js >= 18、npm、git、ripgrep。GBrain、Playwright 都是可选集成；缺失时应清晰降级或报错。

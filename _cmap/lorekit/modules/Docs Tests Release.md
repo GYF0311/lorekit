@@ -45,7 +45,7 @@ paths:
 - [[Cli]]
 - [[Corpus Core]]
 - [[Fetch Ingest]]
-- [[Sync Search Vector]]
+- [[Sync Search]]
 - [[Safety Maintenance]]
 - [[Skills Agent]]
 - [[Obsidian Gbrain]]

@@ -1,6 +1,6 @@
 ---
 name: corpus-health
-description: 用于显式配置目标 corpus 后，检查该 corpus 健康状态、LoreKit 状态、向量索引、GBrain 新鲜度、配置或知识库工作流问题。
+description: 用于显式配置目标 corpus 后，检查该 corpus 健康状态、LoreKit 状态、GBrain 新鲜度、配置或知识库工作流问题。
 ---
 
 # corpus-health
@@ -27,7 +27,6 @@ Use configured corpus-local wrappers for `lorekit` and `gbrain`.
 From `<default_corpus>`, run the narrow checks needed:
 
 - `<lorekit_bin> doctor --json`
-- `<lorekit_bin> vector status`
 - `<lorekit_bin> ingest pending`
 - `<lorekit_bin> gbrain status --json` when GBrain is configured
 - `<lorekit_bin> gbrain doctor --json` when GBrain integration health is requested

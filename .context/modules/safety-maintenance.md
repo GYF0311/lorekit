@@ -27,7 +27,7 @@ paths:
 relations:
   depends_on:
     - corpus-core
-    - sync-search-vector
+    - sync-search
   protects:
     - fetch-ingest
     - skills-agent
@@ -50,7 +50,7 @@ confidence: ai-drafted
 - `src/commands/stats.ts`
 
 ## Key Contracts
-- `remove` 默认 dry-run。`--apply` 必须先 snapshot，再用 `trash` package 移到 OS Trash，之后 prune vector records，并按需 sync/lint。
+- `remove` 默认 dry-run。`--apply` 必须先 snapshot，再用 `trash` package 移到 OS Trash，之后按需 sync/lint。
 - 删除按 provenance，不按关键词；`Compiled Truth` 只报告人工复核，不自动改写。
 - `snapshot` / `restore` 是数据安全原语，不能为了方便削弱。
 - `doctor --json` 和 `doctor --section <name>` 支持机器可读和严格 section 检查。
@@ -58,7 +58,7 @@ confidence: ai-drafted
 
 ## Module Relationships
 - 依赖 `corpus-core` 的路径/边界。
-- 依赖 `sync-search-vector` 的 index/vector 状态。
+- 依赖 `sync-search` 的 index/search 状态。
 - 保护 `fetch-ingest` 和 `skills-agent` 产生或维护的内容。
 
 ## Read Next

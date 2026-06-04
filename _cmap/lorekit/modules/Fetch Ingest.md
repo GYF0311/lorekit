@@ -7,7 +7,7 @@ status: "active"
 layer: "unknown"
 risk: "unknown"
 source_path: ".context/modules/fetch-ingest.md"
-source_hash: "sha256:fe043c804bccd6ad1bbad43968b88ad8d34aae94e0aa307dd9cf4ea52a7b687c"
+source_hash: "sha256:e2e9479316035806f768fc530ee9cb3472c6f3b06c2e0338aea68336716616ca"
 tags:
   - "cmap/module"
   - "cmap/project/lorekit"
@@ -41,7 +41,7 @@ paths:
 
 ### feeds
 
-- [[Sync Search Vector]]
+- [[Sync Search]]
 
 ### guided_by
 
@@ -70,7 +70,7 @@ paths:
 
 ## Module Relationships
 - 依赖 `corpus-core` 的 corpus 发现、frontmatter、路径规则。
-- 产物流向 `sync-search-vector`。
+- 产物流向 `sync-search`。
 - agent 侧流程由 `skills-agent` 的 `wiki-ingest` 约束。
 
 ## Read Next

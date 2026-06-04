@@ -31,7 +31,7 @@ description: 把新内容摄入 corpus，按 filing-rules 落盘并建反向链�
 | 刷 `corpus/index.md` 受控区（sync）    | 建反链时的 timeline 追加       |
 | 写 `corpus/log.md`（`record --log`）   | 一句话归纳本次 ingest 做了什么 |
 | 推进 ingest state machine（record）    | 决定哪些主语该建独立页         |
-| 向量同步 / `_INDEX.md`（sync）         | —                              |
+| `_INDEX.md` / root index / doctor（sync） | —                              |
 | frontmatter 合规 / 死链 / 孤岛（lint） | —                              |
 
 **铁律：能让 CLI 做的就让 CLI 做。** 不要手动 Edit `index.md` / `log.md`，不要先跑 `lorekit search` 做查重（fetch 已做）。
@@ -203,7 +203,7 @@ Timeline 在本 corpus 已承担 Evolution Log 的角色。追加新条目时**�
 示例：
 - `- 2026-04-10（3 sources）| 强化：HyDE 在长查询上提升 ~10% 召回 [[知识库/摘要/rag-2024-survey]]`
 - `- 2026-04-15（4 sources）| 修正：RAG 的上下文窗口问题原归因错误，应是 chunk 边界 [[知识库/摘要/xxx]]`
-- `- 2026-04-18（4 sources）| 新增分歧：BM25 与向量融合权重 0.5 vs 0.7 两派 [[知识库/摘要/yyy]]`
+- `- 2026-04-18（4 sources）| 新增分歧：两个评估指标对召回质量的判断相反 [[知识库/摘要/yyy]]`
 
 写页时**只用本次的原料**作证据。**禁止跨源污染**：
 
@@ -255,7 +255,6 @@ lorekit ingest record <url> \
 
 - 自动刷 `_INDEX.md`
 - 自动 merge `corpus/index.md`（新页追加 / 失踪页删除 / 人类手写摘要保留）
-- 增量向量同步
 - doctor 健康检查
 
 工作台 note、daily fragment、临时学习记录或 HTML 展示产物的小改不触发即时 sync；阶段收口或转入 `原料/` / `知识库/` 时再同步。
@@ -335,7 +334,7 @@ ingest 结束后、汇报前，Read `corpus/QUESTIONS.md` 的 **Open Questions**
   - [[知识库/实体/lorekit]]
 死链预检：3 file, 10 link ok, 0 broken
 一次关账：record --step archive,wiki,backlink,lint --log "..."
-sync：index.md +2 added, 6 _INDEX.md refreshed, vectors synced
+sync：index.md +2 added, 6 _INDEX.md refreshed, doctor passed
 日期来源：fetcher publishDate=2026-04-04
 ```
 
@@ -347,6 +346,6 @@ sync：index.md +2 added, 6 _INDEX.md refreshed, vectors synced
 - `lorekit ingest record <url> --step a,b,c,d --log "..."` — 多步一次关账 + 写 log
 - `lorekit ingest record <url> --complete` / `--fail <reason>` — 显式收尾
 - `lorekit ingest pending` / `list` / `forget` / `reconcile` — 状态管理
-- `lorekit sync` — 一条命令：刷 \_INDEX + merge index.md + 向量 + doctor
+- `lorekit sync` — 一条命令：刷 \_INDEX + merge index.md + doctor
 - `lorekit lint` — corpus health（事后扫）
 - 底层：Read / Write / Edit / `mv` / `trash`（删东西绝不用 `rm`）

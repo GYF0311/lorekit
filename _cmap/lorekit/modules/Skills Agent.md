@@ -7,7 +7,7 @@ status: "active"
 layer: "unknown"
 risk: "unknown"
 source_path: ".context/modules/skills-agent.md"
-source_hash: "sha256:3500447d10e2f5e801c26e0e079de43bd367e713e23b30357fb8c689699a5ad8"
+source_hash: "sha256:d33375f696ca7dffda5134638684da6822d678df995607041456237b59046adb"
 tags:
   - "cmap/module"
   - "cmap/project/lorekit"
@@ -41,7 +41,7 @@ paths:
 
 - [[Cli]]
 - [[Fetch Ingest]]
-- [[Sync Search Vector]]
+- [[Sync Search]]
 - [[Safety Maintenance]]
 
 ### constrained_by
@@ -72,13 +72,13 @@ paths:
 - AI 安装器默认推荐单 `lorekit` CLI；只有用户明确选择对应组合时才安装 skills、project-local wrapper 或 GBrain，并说明额外学习成本和配置文件。
 - Codex `--only wiki-daily` 与完整 `--target codex` 要分开：前者只做日记 gateway，后者安装 `corpus-*` 且包含 `wiki-daily`。
 - `wiki-*` 是 corpus-local 执行规范；`corpus-*` 是 global entrypoint/routing skill，需回读目标 corpus 的 AGENTS/CLAUDE/skills 规则。
-- project-local skills 是工具，不是 canonical corpus pages；lint/index/vector 不能把它们扫成 wiki 内容。
+- project-local skills 是工具，不是 canonical corpus pages；lint/index/search 不能把它们扫成 wiki 内容。
 - skill 不能承诺不存在的 CLI 命令或参数。
 - skill 规则应保持通用，不把 lorekit 项目自身的临时边界写进用户 corpus skill。
 
 ## Module Relationships
 - 使用 `cli` 暴露的命令。
-- 调用 `fetch-ingest`、`sync-search-vector`、`safety-maintenance`。
+- 调用 `fetch-ingest`、`sync-search`、`safety-maintenance`。
 - 受 `corpus-core` 的 schema/path 约束。
 
 ## Read Next

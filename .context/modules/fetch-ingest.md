@@ -24,7 +24,7 @@ relations:
   depends_on:
     - corpus-core
   feeds:
-    - sync-search-vector
+    - sync-search
   guided_by:
     - skills-agent
 source_commit: 62576ef
@@ -51,7 +51,7 @@ confidence: ai-drafted
 
 ## Module Relationships
 - 依赖 `corpus-core` 的 corpus 发现、frontmatter、路径规则。
-- 产物流向 `sync-search-vector`。
+- 产物流向 `sync-search`。
 - agent 侧流程由 `skills-agent` 的 `wiki-ingest` 约束。
 
 ## Read Next

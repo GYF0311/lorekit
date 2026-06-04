@@ -21,7 +21,7 @@ relations:
   calls:
     - corpus-core
     - fetch-ingest
-    - sync-search-vector
+    - sync-search
     - safety-maintenance
     - skills-agent
     - obsidian-gbrain
@@ -43,13 +43,13 @@ confidence: ai-drafted
 
 ## Key Contracts
 - 项目是 ESM TypeScript，运行时 Node.js >= 18。
-- 无参数 `lorekit` 显示 banner 和 best-effort corpus/vector 状态。
+- 无参数 `lorekit` 显示 banner 和 best-effort corpus 状态。
 - commander 参数/用法错误退出 `2`；运行时错误退出 `1`。
 - 源码里人类输出统一走 `src/utils/logger.ts`，不要新增直接 `console.log`。
 - `dist/` 不手工改；改源码后跑 `npm run build`。
 
 ## Module Relationships
-- 调用 `corpus-core`、`fetch-ingest`、`sync-search-vector`、`safety-maintenance`、`skills-agent`、`obsidian-gbrain`。
+- 调用 `corpus-core`、`fetch-ingest`、`sync-search`、`safety-maintenance`、`skills-agent`、`obsidian-gbrain`。
 - 命令行为变化通常还要看 `docs-tests-release`。
 
 ## Read Next

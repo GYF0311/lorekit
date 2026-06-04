@@ -51,12 +51,12 @@
   },
   {
     "from": "cli",
-    "to": "sync-search-vector",
+    "to": "sync-search",
     "type": "calls",
     "source": "module_relations",
     "confidence": 1,
     "evidence": [
-      ".context/modules/cli.md relations.calls includes sync-search-vector"
+      ".context/modules/cli.md relations.calls includes sync-search"
     ]
   },
   {
@@ -91,12 +91,12 @@
   },
   {
     "from": "corpus-core",
-    "to": "sync-search-vector",
+    "to": "sync-search",
     "type": "supports",
     "source": "module_relations",
     "confidence": 1,
     "evidence": [
-      ".context/modules/corpus-core.md relations.supports includes sync-search-vector"
+      ".context/modules/corpus-core.md relations.supports includes sync-search"
     ]
   },
   {
@@ -161,12 +161,12 @@
   },
   {
     "from": "docs-tests-release",
-    "to": "sync-search-vector",
+    "to": "sync-search",
     "type": "documents",
     "source": "module_relations",
     "confidence": 1,
     "evidence": [
-      ".context/modules/docs-tests-release.md relations.documents includes sync-search-vector"
+      ".context/modules/docs-tests-release.md relations.documents includes sync-search"
     ]
   },
   {
@@ -181,12 +181,12 @@
   },
   {
     "from": "fetch-ingest",
-    "to": "sync-search-vector",
+    "to": "sync-search",
     "type": "feeds",
     "source": "module_relations",
     "confidence": 1,
     "evidence": [
-      ".context/modules/fetch-ingest.md relations.feeds includes sync-search-vector"
+      ".context/modules/fetch-ingest.md relations.feeds includes sync-search"
     ]
   },
   {
@@ -301,12 +301,12 @@
   },
   {
     "from": "project-map",
-    "to": "sync-search-vector",
+    "to": "sync-search",
     "type": "guides",
     "source": "module_relations",
     "confidence": 1,
     "evidence": [
-      ".context/modules/project-map.md relations.guides includes sync-search-vector"
+      ".context/modules/project-map.md relations.guides includes sync-search"
     ]
   },
   {
@@ -321,12 +321,12 @@
   },
   {
     "from": "safety-maintenance",
-    "to": "sync-search-vector",
+    "to": "sync-search",
     "type": "depends_on",
     "source": "module_relations",
     "confidence": 1,
     "evidence": [
-      ".context/modules/safety-maintenance.md relations.depends_on includes sync-search-vector"
+      ".context/modules/safety-maintenance.md relations.depends_on includes sync-search"
     ]
   },
   {
@@ -391,42 +391,42 @@
   },
   {
     "from": "skills-agent",
-    "to": "sync-search-vector",
+    "to": "sync-search",
     "type": "uses",
     "source": "module_relations",
     "confidence": 1,
     "evidence": [
-      ".context/modules/skills-agent.md relations.uses includes sync-search-vector"
+      ".context/modules/skills-agent.md relations.uses includes sync-search"
     ]
   },
   {
-    "from": "sync-search-vector",
+    "from": "sync-search",
     "to": "safety-maintenance",
     "type": "checked_by",
     "source": "module_relations",
     "confidence": 1,
     "evidence": [
-      ".context/modules/sync-search-vector.md relations.checked_by includes safety-maintenance"
+      ".context/modules/sync-search.md relations.checked_by includes safety-maintenance"
     ]
   },
   {
-    "from": "sync-search-vector",
+    "from": "sync-search",
     "to": "fetch-ingest",
     "type": "consumes",
     "source": "module_relations",
     "confidence": 1,
     "evidence": [
-      ".context/modules/sync-search-vector.md relations.consumes includes fetch-ingest"
+      ".context/modules/sync-search.md relations.consumes includes fetch-ingest"
     ]
   },
   {
-    "from": "sync-search-vector",
+    "from": "sync-search",
     "to": "corpus-core",
     "type": "depends_on",
     "source": "module_relations",
     "confidence": 1,
     "evidence": [
-      ".context/modules/sync-search-vector.md relations.depends_on includes corpus-core"
+      ".context/modules/sync-search.md relations.depends_on includes corpus-core"
     ]
   }
 ]

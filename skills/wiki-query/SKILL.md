@@ -20,61 +20,32 @@ description: 从 corpus 检索已有内容并综合答案，按精确/模糊/图
 - 用户给了新外部资料要存 → 交给 `wiki-ingest`
 - 用户在问需要上网的新知识 → 用 `WebSearch` / `WebFetch`
 
-## 规模模式（读 `mode` 字段，不自己算阈值）
+## 默认查询顺序
 
-**铁律**：先跑 `lorekit vector status`，直接看返回的 `mode` 字段决定路径。
+**铁律**：先走确定性文本层，不先启动重型召回流程。
 
-| 返回的 `mode` | 路径                                                 |
-| ------------- | ---------------------------------------------------- |
-| `"text"`      | 走 Read 三层（见下方 Decision tree §2 的文本模式）   |
-| `"vector"`    | 走向量分层召回（见下方 Decision tree §2 的向量模式） |
+默认顺序：
 
-**用户显式覆盖**：`--text` 或 `--vector` flag 优先于系统推荐的 mode。
-
-**为什么不在 skill 里写阈值数字**：
-
-- 阈值是系统参数，归 lorekit 代码持有（当前定义在 `src/lib/vectordb.ts::MODE_THRESHOLD_FILES`，按 Karpathy 原文锚定为 100 files）
-- skill 只负责"读 mode → 走对应路径"的流程判断
-- 未来阈值改了，skill 不用动，所有 skill 通过 `vector status` 自动跟随
-
-**status 返回字段解读**：
-
-- `indexed_files`: 文档总数（用来算 mode 的那个数字）
-- `mode_threshold`: 当前阈值（只读，参考用）
-- `mode_reason`: 一句话说明为什么是这个 mode
+1. `rg` / `lorekit search "<q>"` 找精确词、实体名、文件名和短语。
+2. Read `corpus/index.md` 定位知识分区。
+3. Read `{dir}/_INDEX.md` 缩小到候选页。
+4. Read 具体 `知识库/` canonical page，再按页内 wikilink 追 1-2 跳。
+5. 若配置了 GBrain，可把 `corpus-gbrain-query` 作为候选发现层；候选必须映射回真实 `知识库/` 页面后才能引用。
 
 ## Decision tree
 
-第 0 步先做规模判断，然后按 query 类型选层：
-
-### 0. 规模判断
-
-- 跑 `lorekit vector status` → 读返回的 `mode` 字段（lorekit 内部按文档数和阈值算好了）
-- `mode: "text"` → 走下面每步的"文本模式"分支
-- `mode: "vector"` → 走下面每步的"向量模式"分支
-- 用户带 `--text` / `--vector` flag → 显式覆盖
+按 query 类型选层：
 
 ### 1. 精确关键词（实体名 / 文件名 / 具体词）
 
-两种模式都走 `lorekit search "<q>"`（ripgrep，跟规模无关）。命中就读对应页面。
+先走 `lorekit search "<q>"`（ripgrep fallback）。命中就读对应页面。
 
 ### 2. 模糊语义（概念性 / 意图类 / "跟 X 相关的东西"）
-
-**文本模式**：
 
 - Read `corpus/index.md` / `知识库/` → AI 按语义选 1-3 个分区
 - Read `{选中分区}/_INDEX.md` → 选具体页
 - Read 具体 `.md` 文件 → 综合答案
 - 只有需要完整 provenance 时才打开 `原料/`；project-local evidence / `_工作台/**` 只在当前任务点名时读取，不作为默认召回层
-
-**向量模式**（阶段 2 标配走混合检索，不是纯向量）：
-
-- `lorekit vector query --hybrid --text "<q>"` → BM25 + 向量分层 RRF 融合，返回 top-k chunk
-  - BM25 擅长精确词（专有名词/日期/代码符号）
-  - 向量擅长语义（意图/同义改写）
-  - RRF 把两路融合成单一排名
-- chunk 信息足就直接综合；不足再 Read 对应完整文件
-- **debug flag**：纯向量跑 `--layered`，纯 BM25 跑 `--bm25`（单路用于排查"这个 query 谁贡献了召回"）
 
 ### 3. 多跳推理（"A 相关 B 的 C"）
 
@@ -86,12 +57,9 @@ description: 从 corpus 检索已有内容并综合答案，按精确/模糊/图
 
 ## Tools to use
 
-- `lorekit vector status` — 看 corpus 规模和向量库状态（每次 query 开始必跑）
-- `lorekit search "<q>"` — 精确 ripgrep（两种规模模式都用）
-- `lorekit vector query --hybrid --text "<q>"` — BM25 + 向量分层 RRF 融合（阶段 2 标配）
-- `lorekit vector query --layered --text "<q>"` — 纯向量分层（debug 用）
-- `lorekit vector query --bm25 --text "<q>"` — 纯 BM25 分层（debug 用）
-- Read `corpus/index.md` / `{dir}/_INDEX.md` / 具体文件（文本模式三层）
+- `lorekit search "<q>"` — 精确 ripgrep/fallback 检索
+- Read `corpus/index.md` / `{dir}/_INDEX.md` / 具体文件
+- `corpus-gbrain-query` — 仅在已配置 GBrain 且文本层召回不足时作为候选发现层
 - 底层：Grep（复杂匹配时用）
 
 ## Output format

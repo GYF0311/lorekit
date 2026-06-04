@@ -25,7 +25,7 @@ paths:
 relations:
   supports:
     - fetch-ingest
-    - sync-search-vector
+    - sync-search
     - safety-maintenance
     - obsidian-gbrain
 source_commit: 62576ef
@@ -46,14 +46,14 @@ confidence: ai-drafted
 - `src/utils/logger.ts`
 
 ## Key Contracts
-- `src/lib/paths.ts` 是 scan / index / lint / vector / snapshot 边界的单一事实源。
+- `src/lib/paths.ts` 是 scan / index / lint / search / snapshot 边界的单一事实源。
 - `skills/` 和 `node_modules/` 是工具目录，不是 corpus 页面。
 - `原料/`、`知识库/`、`_工作台/`、`系统/`、`反馈/`、`.wiki/` 是 schema 级目录名，不要随手重命名。
 - root `index.md` 通过 controlled regions merge-refresh，必须保留人类手写摘要。
 - logger 是源码输出唯一入口。
 
 ## Module Relationships
-- 支撑 `fetch-ingest`、`sync-search-vector`、`safety-maintenance`、`obsidian-gbrain`。
+- 支撑 `fetch-ingest`、`sync-search`、`safety-maintenance`、`obsidian-gbrain`。
 - 如果扫描边界变了，通常也要更新 `docs-tests-release` 的测试/文档。
 
 ## Read Next

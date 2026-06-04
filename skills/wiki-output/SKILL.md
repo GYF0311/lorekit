@@ -38,7 +38,7 @@ description: 对外输出：Marp 幻灯片、对外文章草稿、matplotlib 图
 | 对外文章 | `.md`（公众号友好） | `corpus/输出/文章/YYYY-MM-DD-<slug>.md` | `graph-excluded: true`, `target_audience: <对象>` |
 | 汇报材料 | `.md`（结构化汇报稿） | `corpus/输出/文章/YYYY-MM-DD-<slug>.md` | 同上 |
 
-**铁律**：所有产物 frontmatter **必含** `graph-excluded: true`——输出属于终态产物，不进图谱、不进向量索引（向量 exclude 规则已覆盖 `输出/**`）。
+**铁律**：所有产物 frontmatter **必含** `graph-excluded: true`——输出属于终态产物，不进图谱、不进入长期知识索引。
 
 ## 6 步流程
 
@@ -85,7 +85,7 @@ description: 对外输出：Marp 幻灯片、对外文章草稿、matplotlib 图
 ## Tools to use
 
 - Read `corpus/index.md` / `{dir}/_INDEX.md` / 具体文件
-- `lorekit search "<q>"` / `lorekit vector query --hybrid --text "<q>"` — 检索素材
+- `lorekit search "<q>"` — 检索素材
 - Write — 落盘输出文件
 - `lorekit sync` — 只在阶段收口、commit/push 验证，或输出需要进入长期索引时运行；不要因每个输出文件小改立刻 sync
 - 底层：Edit（微调已有输出文件）

@@ -36,17 +36,17 @@ description: 把对话中产生的洞察/决策/事实按主语写回 corpus，�
    - 条目格式：`- YYYY-MM-DD HH:mm — <一句话事实/决定/洞察>（来源：对话）`
    - 如涉及其他实体，用 `[[wikilink]]` 引用
 5. **反向链接**：如果这条 timeline 提到别的主语页，对方也要追加一条反向条目
-6. **同步档案与向量**（`lorekit sync`）：
+6. **同步文本档案**（`lorekit sync`）：
    - 如果本次 fileback 新建了页面或修改了 `corpus/index.md`：**必须跑**
-   - 如果只是往已有页面追加 timeline 一行：**可选**（summary 没变，L0/L1 向量也不会变；只有 chunk 级别会 sha 不同，但影响小）
-   - 一条命令刷新 `_INDEX.md` + 增量嵌入 chunk + 刷 L0/L1 向量
+   - 如果只是往已有页面追加 timeline 一行：**可选**（目录 summary 通常不变）
+   - 一条命令刷新 `_INDEX.md`、合并 root `index.md`，再跑 doctor
 7. **自检**：`lorekit lint --quick`
 8. **汇报**
 
 ## Tools to use
 
 - `lorekit search "<主语>"` — 定位目标页
-- `lorekit sync` — 同步 `_INDEX.md` 和向量库（新建页面或改 index.md 后必跑）
+- `lorekit sync` — 同步 `_INDEX.md` / root `index.md` 并跑 doctor（新建页面或改 index.md 后必跑）
 - `lorekit lint --quick` — 写完自检
 - 底层：Read / Edit（追加 timeline，**不要 Write 覆盖**）
 
@@ -93,7 +93,7 @@ fileback 的常规路径是"追加 Timeline"。但当本次 fileback 的内容**
 
 1. 从本次 fileback 的核心论点里抽 2-3 个关键词（专有名词 / 方法名 / 结论短语）
 2. `lorekit search "<关键词>"` 扫 `知识库/摘要/` 与 `原料/`，找**反对 / 质疑 / 局限性**相关片段
-3. 也可以反向 query：用 `lorekit vector query --hybrid --text "against <论点> / 反对 / 局限性 / critique"`
+3. 对候选页的 wikilink 追 1-2 跳，补查相邻来源。
 4. 根据检索结果分支：
 
    | 找到反驳来源 | 没找到反驳来源 |
@@ -115,5 +115,5 @@ fileback 的常规路径是"追加 Timeline"。但当本次 fileback 的内容**
 建完页后：
 
 - 在被引用的每个 source 页的 Timeline 加一条反向引用（防孤岛）
-- 跑 `lorekit sync` 刷 `_INDEX.md` + 向量
+- 跑 `lorekit sync` 刷 `_INDEX.md` / root `index.md`
 - 跑 `lorekit lint --quick` 自检

@@ -7,7 +7,7 @@ status: "active"
 layer: "unknown"
 risk: "unknown"
 source_path: ".context/modules/cli.md"
-source_hash: "sha256:fbfffdc625b5ba35b368e715aa43ea667e06331a146a5ed29ab2360b5b73bf01"
+source_hash: "sha256:5348a4ec2e2a4f0582848b361ec441bdab3af9d52bd4a73137f137e3b17879d2"
 tags:
   - "cmap/module"
   - "cmap/project/lorekit"
@@ -36,7 +36,7 @@ paths:
 
 - [[Corpus Core]]
 - [[Fetch Ingest]]
-- [[Sync Search Vector]]
+- [[Sync Search]]
 - [[Safety Maintenance]]
 - [[Skills Agent]]
 - [[Obsidian Gbrain]]
@@ -58,13 +58,13 @@ paths:
 
 ## Key Contracts
 - 项目是 ESM TypeScript，运行时 Node.js >= 18。
-- 无参数 `lorekit` 显示 banner 和 best-effort corpus/vector 状态。
+- 无参数 `lorekit` 显示 banner 和 best-effort corpus 状态。
 - commander 参数/用法错误退出 `2`；运行时错误退出 `1`。
 - 源码里人类输出统一走 `src/utils/logger.ts`，不要新增直接 `console.log`。
 - `dist/` 不手工改；改源码后跑 `npm run build`。
 
 ## Module Relationships
-- 调用 `corpus-core`、`fetch-ingest`、`sync-search-vector`、`safety-maintenance`、`skills-agent`、`obsidian-gbrain`。
+- 调用 `corpus-core`、`fetch-ingest`、`sync-search`、`safety-maintenance`、`skills-agent`、`obsidian-gbrain`。
 - 命令行为变化通常还要看 `docs-tests-release`。
 
 ## Read Next

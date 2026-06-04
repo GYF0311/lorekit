@@ -142,8 +142,8 @@ test('lint allows raw MANIFEST origin_path pointing back to _工作台 provenanc
   assert.equal(r.status, 0, fmtRun(r, args, 'raw manifest origin_path should remain provenance'));
 });
 
-test('sync --skip-vector does not generate _INDEX.md under tooling directories', () => {
-  const args = ['sync', '--skip-vector', '--skip-doctor'];
+test('sync does not generate _INDEX.md under tooling directories', () => {
+  const args = ['sync', '--skip-doctor'];
   const r = runLorekit(args, { cwd: corpus });
   assert.equal(r.status, 0, fmtRun(r, args, 'sync should ignore tooling directories'));
   assert.equal(existsSync(join(corpus, 'skills', 'wiki-lint', '_INDEX.md')), false);

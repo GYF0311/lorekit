@@ -7,7 +7,7 @@ status: "active"
 layer: "unknown"
 risk: "unknown"
 source_path: ".context/modules/safety-maintenance.md"
-source_hash: "sha256:eae5eae582103d4123f002086283ef747b34f4b91cdee2a544c6c4e1c0227063"
+source_hash: "sha256:afdca59925bc8e8a590f428f8ad9fa0107f609b2d0865d3308c2019041c60239"
 tags:
   - "cmap/module"
   - "cmap/project/lorekit"
@@ -42,7 +42,7 @@ paths:
 ### depends_on
 
 - [[Corpus Core]]
-- [[Sync Search Vector]]
+- [[Sync Search]]
 
 ### protects
 
@@ -67,7 +67,7 @@ paths:
 - `src/commands/stats.ts`
 
 ## Key Contracts
-- `remove` 默认 dry-run。`--apply` 必须先 snapshot，再用 `trash` package 移到 OS Trash，之后 prune vector records，并按需 sync/lint。
+- `remove` 默认 dry-run。`--apply` 必须先 snapshot，再用 `trash` package 移到 OS Trash，之后按需 sync/lint。
 - 删除按 provenance，不按关键词；`Compiled Truth` 只报告人工复核，不自动改写。
 - `snapshot` / `restore` 是数据安全原语，不能为了方便削弱。
 - `doctor --json` 和 `doctor --section <name>` 支持机器可读和严格 section 检查。
@@ -75,7 +75,7 @@ paths:
 
 ## Module Relationships
 - 依赖 `corpus-core` 的路径/边界。
-- 依赖 `sync-search-vector` 的 index/vector 状态。
+- 依赖 `sync-search` 的 index/search 状态。
 - 保护 `fetch-ingest` 和 `skills-agent` 产生或维护的内容。
 
 ## Read Next

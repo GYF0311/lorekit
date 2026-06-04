@@ -36,7 +36,8 @@
   },
   "src/lib/root-index.ts": {
     "modules": [
-      "corpus-core"
+      "corpus-core",
+      "sync-search"
     ]
   },
   "src/lib/date.ts": {
@@ -224,49 +225,24 @@
       "skills-agent"
     ]
   },
-  "templates/default-corpus/AGENTS.md": {
-    "modules": [
-      "skills-agent"
-    ]
-  },
-  "templates/default-corpus/CLAUDE.md": {
+  "templates/default-corpus/**": {
     "modules": [
       "skills-agent"
     ]
   },
   "src/commands/dir-index.ts": {
     "modules": [
-      "sync-search-vector"
+      "sync-search"
     ]
   },
   "src/commands/sync.ts": {
     "modules": [
-      "sync-search-vector"
+      "sync-search"
     ]
   },
   "src/commands/search.ts": {
     "modules": [
-      "sync-search-vector"
-    ]
-  },
-  "src/commands/vector.ts": {
-    "modules": [
-      "sync-search-vector"
-    ]
-  },
-  "src/lib/vectordb/**": {
-    "modules": [
-      "sync-search-vector"
-    ]
-  },
-  "src/lib/ollama.ts": {
-    "modules": [
-      "sync-search-vector"
-    ]
-  },
-  "src/lib/chunker.ts": {
-    "modules": [
-      "sync-search-vector"
+      "sync-search"
     ]
   }
 }

@@ -28,7 +28,7 @@ confidence: ai-drafted
 - `cmap route "修复 lorekit lint 扫描 node_modules skills 路径问题"`: matched `corpus-core`, `safety-maintenance`, and `skills-agent`.
 - `cmap verify --changed`: 0 errors, 1 expected warning (`AGENTS.md` and `CLAUDE.md` differ because `CLAUDE.md` delegates to `AGENTS.md`).
 - `git diff --check`: passed.
-- `npm run verify`: passed (`79` tests, `78` pass, `1` skipped for sqlite-vec-present path).
+- Prior `npm run verify`: passed (`79` tests, `78` pass, `1` skipped) before native semantic index removal. Current issue #17 requires fresh verification.
 - `cmap graph build`: wrote `.context/graph/modules.json`, `files.json`, `edges.json`, `graph.meta.json`.
 - `cmap obsidian export --out _cmap/lorekit`: exported 14 files.
 - `cmap view export --out _cmap-view`: exported `_cmap-view/index.html`.

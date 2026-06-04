@@ -1,334 +1,107 @@
 # DESIGN-NOTES.md — lorekit 设计决策
 
-> 新 agent 接手读这份，能快速理解"为什么这样设计 / 下一步方向"。
+> 新 agent 接手读这份，理解"为什么这样设计 / 下一步方向"。
 > WORKLOG / git log 记"做了什么"，这份记"为什么"。
 
-## 1. 图书馆类比（4 层查询模型）
+## 1. 产品边界
 
-用图书馆理解 lorekit：
+lorekit 是个人知识 compilation harness：
 
-| 类比         | lorekit 实体                                          |
-| ------------ | ----------------------------------------------------- |
-| 图书馆       | corpus（一个目录）                                    |
-| 导览图       | `corpus/index.md`                                     |
-| 图书区       | 主题域（AI / 求职 / 项目 等，由 frontmatter `domains` tag 表达） |
-| 书架         | 内容类型目录（概念 / 实体 / 摘要 / 专题 / 思考）      |
-| 书本         | wiki page（Compiled Truth + Timeline）                |
-| 原文段落     | chunks                                                |
+- AI 负责语义判断、摘要、合并、交叉引用和回流建议。
+- CLI 负责确定性文件动作、状态机、索引、检查、备份、恢复和安全移除。
+- corpus 的可信结果在 `知识库/`、`原料/`、root `index.md`、各级 `_INDEX.md` 和 `.wiki/ingest-state.json`。
 
-4 层查询分工：
+默认路线必须轻：Node.js + 本地文件 + ripgrep fallback。不要把重型召回、外部服务或多套知识存储放进默认体验。
 
-| 层  | 内容                | 谁做                                          |
-| --- | ------------------- | --------------------------------------------- |
-| L0  | 导览图              | Agent Read + LLM 判断相关 section             |
-| L1  | 书架目录（_INDEX.md）| 向量 MATCH                                    |
-| L2  | chunks              | 向量 MATCH                                    |
-| L3  | 原文                | Agent Read 完整页补 context                   |
+## 2. 查询路线
 
-关键：L0 / L3 是 Agent 做的事（LLM 有判断力），L1 / L2 是 lorekit 做的事（向量效率高）。
-对应 ARCHITECTURE.md "渐进披露的 token 预算"段：单次 query 总 token < 5k，检索不是兜底而是分层渐进。
+当前默认查询顺序：
 
-## 2. Karpathy 原文 vs lorekit 偏差
+1. `lorekit search "<q>"` 找精确词、实体名、文件名和短语。
+2. Read `corpus/index.md`，选择相关知识分区。
+3. Read `{dir}/_INDEX.md`，缩小到候选页。
+4. Read 具体 `知识库/` 页面，必要时沿 wikilink 追 1-2 跳。
+5. 如果配置了 GBrain，可作为候选发现层；候选必须映射回 canonical `知识库/` 页面后才能引用。
 
-Karpathy 原文（https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f）核心：
+这个顺序来自 Karpathy LLM Wiki 的核心思想：wiki 是 compilation cache，不是每次 query 时重新从 raw docs 拼答案。
 
-- Read 三层文件（index → dir index → page）
-- 向量是可选 fallback，推荐用 qmd 外部工具
-- **没有"向量分层 gate"概念**
+## 3. `lorekit sync` 的职责
 
-lorekit 偏差：
+`lorekit sync` 是 durable closeout step，不是每次小改都要跑的后台管线。
 
-- 自实现 BM25 + vector + RRF hybrid（不用 qmd），见 `src/lib/vectordb/query-hybrid.ts`
-- 21 引入 layered gate 设计（错误，见 §4）
+它只做三件事：
 
-## 3. 为什么 lorekit 不用 qmd
+1. 刷新子目录 `_INDEX.md`。
+2. 合并 root `index.md` 的受控区，同时保留人类写的一句话摘要。
+3. 运行 `doctor` 并输出可读/可机器解析的收据。
 
-qmd（https://github.com/tobi/qmd）是 Karpathy 推荐的外部工具，功能：
+适合触发 sync 的场景：
 
-- BM25 + vector + RRF（基础同 lorekit）
-- Query expansion / LLM re-ranking / position-aware blend（高级 lorekit 没有）
+- 新来源已经 archive 到 `原料/`。
+- 新知识页或 fileback 已经进入 `知识库/`。
+- 阶段收口、commit/push 前验证，或需要给 agent 留结构化 closeout 证据。
 
-**但 qmd 的 embedding 模型和 reranker 模型是固定的**（qwen3-reranker-0.6b 等）。
-lorekit 优先支持**模型自由度** —— 用户可换 bge-m3 / e5 / 自训练领域模型（通过 `lorekit vector` 后端配置）。
-这一条就值得 lorekit 自己造 vectordb 模块（CONVENTIONS #10 依赖管理评估的反例：手写 + 模型自由度 > qmd 高级特性）。
+不适合触发 sync 的场景：
 
-## 4. queryLayered L0 gate 设计失败（24-fix 修复背景）
+- `_工作台/` 临时 note。
+- daily fragment、学习过程小改、HTML 展示产物。
+- 只是在读 corpus 或做一次临时查询。
 
-原设计：L0 (`fts_dirs`) MATCH → 取 top-3 section → L1 MATCH WHERE section 内 → L2 MATCH WHERE page 内。
+## 4. Ingest 状态机
 
-**两个独立问题叠加**：
+`.wiki/ingest-state.json` 是 ingest pipeline 的单一事实源。状态保持小而稳定：
 
-(a) **L0 数据源问题**：`corpus/index.md` 当前是"L1 冒充 L0" —— 内容是 wikilink 全列表
-（`- [[Anthropic]] — AI 安全公司...`），本该是"图书馆导览图"
-（每个 section 的领域介绍，语义密度高）。wikilink 列表被 embed 后语义稀释，MATCH 不准。
+- `started`
+- `completed`
+- `failed`
 
-(b) **BM25 vs 向量语义不兼容**：BM25 是硬 gate（精确词匹配），任何一层词没命中就 0 结果；
-向量是软 gate（相似度排序总有候选）。lorekit 原设计把"软 gate 思路"套到 BM25 上，逻辑破产。
-真实 corpus 跑 `lorekit vector query --bm25` 永远返回空，藏在 hybrid 融合后（向量路补救）。
+具体进度写在 `stepsDone[]`，例如 `fetch`、`archive`、`wiki`、`backlink`、`lint`。新增步骤只扩展 step 枚举，不扩展顶层状态，避免 caller 复杂化。
 
-### 24-fix 决策
-
-方案 X：BM25 不走 layered，chunk 直查（`queryBM25Layered` 函数名保留，内部变 flat）。
-向量 `queryLayered` 保留代码（软 gate 下还能工作），但 L0 数据源问题仍在，效果有限。
-详见 `src/lib/vectordb/query-bm25.ts` 注释 + LEGACY P0-3 audit trail。
-
-## 5. 待决策（高优先级）
-
-### 5.1 wiki-query skill 的 Read L0 + 向量 L1/L2 + Read L3 路径
-
-对应 §1 的 4 层模型。skill 端做 L0 Read 和 L3 Read，lorekit CLI 做 L1/L2。
-需要 CLI 加 `--section <name>` 参数（给 L1/L2 一个 scope）。
-
-## 5.2 remove 为什么只做来源归因级联
+## 5. Remove 边界
 
 `lorekit remove` 的删除边界是 provenance，不是 topic keyword。
 
-反例：三篇文章都讨论 `harness`。删除其中一篇时，如果按关键词级联，会误删其他来源共同支撑的 `知识库/概念/harness.md`，等于把"主题相同"错当成"来源相同"。
+反例：三篇文章都讨论 `harness`。删除其中一篇时，如果按关键词级联，会误删其他来源共同支撑的 `知识库/概念/harness.md`。
 
 当前决策：
 
-- 自动删除：目标摘要页、对应原料页/目录、明确包含目标来源 wikilink 的列表行
-- 自动修改：frontmatter `sources` 移除目标 source，`source_count` 递减到不小于 0
-- 只报告不改：`## Compiled Truth` 中疑似依赖该来源的段落
-- 永不做：按 `harness` 这类关键词删除同主题页面
+- 自动删除：目标摘要页、对应原料页/目录、明确目标 wiki 页。
+- 自动修改：frontmatter `sources` 移除目标 source，`source_count` 递减到不小于 0。
+- 只报告不改：`## Compiled Truth` 中疑似依赖该来源的段落。
+- 永不做：按普通关键词删除同主题页面。
 
-bug 修复线索：
+`--apply` 必须先 snapshot，再把目标移动到 OS Trash，之后 sync/lint。
 
-1. 如果删除后 query 仍召回旧内容，优先查 `src/lib/vectordb/prune.ts` 是否被调用，以及 `documents.path` 是否还保留已失踪文件。
-2. 如果误删了其他来源，检查 `commands/remove.ts` 的 alias 集合是否把普通关键词加入了 provenance aliases；aliases 只能来自被移入回收站的实际路径 slug。
-3. 如果 `Compiled Truth` 没被更新，这是设计行为；应由 `wiki-audit` 或人工 review 处理，不要让 remove 自动改写事实综述。
+## 6. GBrain 只读集成边界
 
-## 6. 暂不做的事
-
-- 不加 LLM re-ranker（先生本机跑不动小模型；但可以让主 agent 自己 rerank，属 skill 层）
-- 不加 Query expansion 到 CLI（属 skill 层，让 agent 自己改写 query 调多次 lorekit）
-- 不回归 Karpathy 纯度（删自实现向量栈换 qmd）：代价大于收益（见 §3 模型自由度论证）
-- 不把 GBrain 作为 lorekit runtime dependency，也不 vendor GBrain runtime / engine；仅允许带 attribution 的小型纯 projection 逻辑（见 §10）
-
-## 7. lorekit 产品定位：个人知识 compilation harness
-
-**一句话定位**：
-
-> lorekit = 个人知识 compilation 的 harness。通过 Schema/Skill/CLI/State 四层约束 LLM 行为；三环循环（沉淀→复用/输出→回流）让 wiki compound 增长。人类只 curate/question/think，LLM 负责 summarize/cross-ref/maintain。
-
-### 四层建构
-
-```
-+-----------------------------------------------------------+
-| Schema 层                                                 |
-|   corpus/CLAUDE.md + frontmatter-spec + 目录约定          |
-|   职责：规定"数据长什么样"（type / 必填字段 / wikilink）   |
-+-----------------------------------------------------------+
-| Skill 层（wiki-ingest / query / fileback / lint / ...）   |
-|   纯 markdown 指令；定义"怎么操作数据"                    |
-|   职责：规定 LLM 的工作流程与决策规则                     |
-+-----------------------------------------------------------+
-| CLI 层（lorekit fetch / index / sync / lint / ...）       |
-|   thin CLI，无 LLM 调用；提供文件系统 + 向量原语           |
-|   职责：保证 Skill 能跑的确定性操作（io / 索引 / 校验）    |
-+-----------------------------------------------------------+
-| State 层                                                  |
-|   .wiki/ingest-state.json + vector.sqlite + snapshots/    |
-|   职责：记录"事情做到哪一步"，防止 LLM 进程断后丢线        |
-+-----------------------------------------------------------+
-```
-
-### 三环循环
-
-```
-              +--- 沉淀环 (ingest) ---+
-              |                       |
-              v                       |
-  URL/文本/日记  ──► 原料/ ──► 知识库/（wiki page）
-                                  │
-                                  │
-              +--- 复用环 (query) ---+
-              |                      |
-              v                      │
-            提问 ──► Read/向量检索 ──┘
-                                  │
-                                  ▼
-                               答案
-                                  │
-              +--- 输出环 (output) ---+
-              |                       |
-              v                       │
-  输出/问答 + 输出/文章 + 输出/幻灯片 ...
-                                  │
-                                  │ fileback 回流
-                                  ▼
-                            synthesis 页回知识库/
-```
-
-人类职责：`curate` 素材 / `question` 提问 / `think` 判断。
-LLM 职责：`summarize` 压缩 / `cross-ref` 建联 / `maintain` 巡检。
-
-### harness 视角下的 Gap 简表
-
-| 环   | 已有                         | 缺                                                                 |
-| ---- | ---------------------------- | ------------------------------------------------------------------ |
-| 沉淀 | fetch/ingest state machine   | aliases 对齐、Evolution Log、SHA-256 完整性、QUESTIONS 队列、personal 分流 |
-| 复用 | BM25/vector/RRF hybrid       | re-rank 第四环、confidence 加权、query 产物价值评估                |
-| 输出 | wiki-fileback（手动触发）    | `输出/` 目录骨架、outputs 持久化、fileback 自动化、反向检验（防回音室） |
-
-### Reference
-
-harness 规则设计参考：先生飞书《LLM Wiki 搭建教程》
-`https://hcn9zwu8a0fz.feishu.cn/wiki/AM3ewXySViopPdkE8Gic90BDnRb`
-（外部链接，不归档副本；需查阅规则设计思路时打开）
-
-## 8. Karpathy 原文 vs 多领域 corpus：为什么 wiki 不做物理分区
-
-### 背景
-
-Karpathy 的 LLM Wiki Gist 原文假设：**1 wiki = 1 domain**（专项 wiki，如一个 Python 项目 wiki / 一个论文领域 wiki）。
-先生 corpus 是**跨领域**：AI / 求职 / 金融 / 内容生产 / 个人项目 / 思考...
-
-### 图书馆心智（按领域物理分区）的证伪
-
-今日讨论曾推演过"按领域分顶层目录"方案（`知识库/ai/` / `知识库/求职/` / ...），被证伪：
-
-- **压制跨领域联想**：顶层物理分区把"AI 的思维方式用在求职"这类跨域综合**物理阻断**
-- **压制复用**：一份内容（如"第一性原理"）同时服务 AI / 思考 / 写作，物理分区逼人复制或者选一个归属
-- **新增维护负担**：领域边界模糊时（AI Agent 是 AI 还是工具？），分类纠结消耗人类 attention
-
-### 正确方向：融合是 LLM 的活，不是产品的活
-
-- **物理层按内容类型**（Karpathy 原味）：`知识库/{概念,实体,摘要,专题,思考}/`
-- **逻辑层靠 LLM 语义融合**：frontmatter tag（若需）+ 向量检索 + L0 导览图
-- **L0 `index.md` 可以按领域组织导览段落**，但**物理目录不按领域切**
-
-### 两极同事物：起点 vs 演化终态
-
-- **Karpathy 原味 = 起点**：小规模（<100 页），单目录扁平，全量 catalog 够用
-- **图书馆心智 = 演化终态**：大规模（1000+ 页），单个 `_INDEX.md` 触发阈值才分流
-- **分形演化原理**：任何一层 index 超阈值 → 本层简介化 + 下层 _INDEX 接班做目录，递归下去就是图书馆
-
-图书馆心智本身没错，错在**现在就按图书馆样子物理分区**——那是把终态结构强加给起点规模。
-详见 IDEAS.md 「演化核心原则：局部触发、局部执行」与「演化工程清单」。
-
-## 9. 设计原则：lorekit 引入的结构，配套约定应该 CLI 化
-
-### 原则
-
-> **当 lorekit 以工具身份决定了某种结构（`_INDEX.md` 自动生成、约定 `_工作台/` 是临时区、约定 `系统/` 是规范区），与之配套的"使用约定"（图谱过滤 / 搜索过滤 / lint 跳过）也应该是 lorekit 工具层提供的预设，不该让每个用户重新发明一遍。**
-
-### Obsidian graph filter 的设计决策（批次 25）
-
-**排除**（非知识 / 临时 / 过程区）：
-
-- 目录：`_工作台/` `_归档/` `反馈/` `系统/` `模板/`
-- 文件：`_INDEX.md` `index.md` `log.md`
-
-**保留**（综合图书馆心智模型）：
-
-- `README.md` / `AGENTS.md` / `CLAUDE.md` / `MEMORY.md` — 根入口和上下文节点，默认留在图谱里，用户可自行追加 filter 隐藏
-- `每日/` — 先生定位"我的来时路"：日记含人际互动 + 工作项目细节，不是乱记录。Karpathy 原文也保留日记
-- `写作/` — 对外作品，和 wiki 强关联，需要看到溯源链
-- `原料/` — wiki 页 `[[原料/...]]` 反链大量，排除会切断溯源
-- `知识库/` — 主体
-
-### 已落地的"工具决定 → 约定内置"应用
-
-| lorekit 引入的结构                                     | 配套约定                          | 状态                |
-| ------------------------------------------------------ | --------------------------------- | ------------------- |
-| `_工作台/` `_归档/`                                    | vector 不索引 / lint 跳过         | ✅（lib/paths.ts）  |
-| `_INDEX.md` 自动生成                                   | Obsidian graph filter             | ✅ 批次 25          |
-| `系统/` schema 区                                      | graph filter                      | ✅ 批次 25          |
-| 根上下文（AGENTS / CLAUDE / MEMORY / README）          | graph filter 默认保留             | ✅ issue #15        |
-| `反馈/` audit 区                                       | graph filter                      | ✅ 批次 25          |
-| `.wiki/` 元数据                                        | .gitignore（已做）+ Obsidian userIgnoreFilters | ⏳ 后续  |
-| 中文目录命名                                           | 备份 / 归档命令默认包含           | ✅ 已做             |
-
-### 设计判断标准
-
-当考虑是否内置某约定时，问自己：**这个约定是 lorekit 决定的，还是用户偏好？**
-
-- 工具决定 → 内置预设（safe-write 不覆盖用户调整）
-- 用户偏好 → 不动
-
-### 老用户触达：批次 26 升级 Layer 3
-
-批次 25 的 `lorekit init` 解决新用户。老用户（v0.4.0 前 init 的 corpus）通过：
-1. **CLI** — `lorekit obsidian-tune` 检查 + `--write` 一键应用
-2. **被动触达** — `lorekit doctor` 主动提示 filter 不完整 + 修复命令
-3. **Layer 3 命令存在意义升级**：从"单条 graph filter 不值得养独立命令"变成"诊断 + 修复 .obsidian/ 配置漂移的专门命令"，未来加 colorGroups / userIgnoreFilters 等都纳入这个命令
-
-## 10. GBrain 只读集成边界
-
-### 结论
-
-`lorekit` 继续做高质量 Markdown Wiki compiler，GBrain 作为可选 graph / hybrid retrieval layer 接入。
+GBrain 是可选 graph candidate discovery 层，不是 lorekit 的默认路线。
 
 ```text
 lorekit 写 canonical wiki
 GBrain 读 staging export
 ```
 
-### 为什么不合并源码
+已落地边界：
 
-lorekit 是 Node.js / TypeScript / commander / better-sqlite3 / optional sqlite-vec。GBrain 是 Bun / TypeScript / PGLite / pgvector / MCP SDK / 多 AI SDK。直接合并会把 lorekit 从轻量、文件优先、可审计的工具变成 agent brain platform，违背当前产品边界。
+- `lorekit gbrain export` 只读 `知识库/`，只写 `.wiki/integrations/gbrain-export/`。
+- export 默认跳过 `_INDEX.md`、local `index.md`、`知识库/模板/`。
+- export manifest 记录 reverse map，保证 GBrain 候选可回读 canonical `知识库/` 页面。
+- `gbrain query` 的结果只能当候选；最终答案必须引用 canonical wiki。
+- GBrain 缺失或未配置时，默认 doctor 不应把它当 hard failure。
 
-### 已落地的边界
+## 7. 文档与入口
 
-- `lorekit gbrain export` 只读 `知识库/`，只写 `.wiki/integrations/gbrain-export/`
-- export 默认跳过 `_INDEX.md`、local `index.md`、`知识库/模板/`
-- export 把 canonical path 编译成 GBrain-friendly slug，例如 `知识库/概念/RAG.md` -> `concepts/rag`
-- export 只在 staging copy 内重写 wikilink / 常见 frontmatter relation，并规范完整日期 timeline
-- export 移除 frontmatter `slug`，注入 `lorekit_source_path` / `lorekit_hash` / `lorekit_exported_at`
-- export manifest 记录 `gbrainSlug` 和 `reverseMap`，保证 GBrain 候选可回读 canonical `知识库/`
-- export 自定义 `--out` 默认只能写入 `.wiki/integrations/`，`--allow-outside-corpus` 是显式逃生舱
-- `lorekit gbrain sync` 先检查外部 binary，再 export + 调 `gbrain import <export/pages> --fresh` + `gbrain extract all --source db --include-frontmatter --json`，写 `.wiki/integrations/gbrain/sync-report.json`
-- GBrain 缺失时 `sync` 默认只写失败 report，不刷新 staging；`--export-even-if-missing` 才保留旧的显式 staging refresh 行为
-- `lorekit gbrain query` 默认 require corpus，并检查 manifest / sync report / stale hash；stale 时 warn 但继续查外部索引，候选通过 `reverseMap` 映射回 canonical，`--no-stale-check` 只给调试 noisy guard 用
-- 默认 `lorekit doctor --json` 只在 GBrain 已配置、已有 integration state，或用户显式检查 integrations 时暴露 GBrain health；inactive GBrain 返回 skipped，不产生 warning
-- GBrain 启用后缺 binary 是 warn，不让 corpus hard fail；坏 report JSON / 缺 reverseMap 是 error，长期 0 link extraction 是 warn
-- GBrain 未安装时 `gbrain status/doctor` 给安装建议，`sync/query` 清晰失败
+`AGENTS.md` 是源码维护入口，不承载安装教程。安装和使用文档归：
 
-### 同步收据
+- `README.md`
+- `docs/INSTALLATION.md`
+- `docs/QUICKSTART.md`
 
-方案里的 `sync --json/--report` 已落地到主 `lorekit sync`：
+新增命令、skill 或跨文件行为变化时，同一批改动必须同步更新用户入口、架构文档、代码地图和测试。
 
-- `--json` 把 index / rootIndex / vector / doctor 每一步状态写 stdout
-- `--report` 写 `.wiki/reports/sync/<timestamp>.json`
-- `--skip-vector` / `--skip-doctor` 会在 report 里标为 `skipped`，方便 agent 判断是刻意跳过还是失败
+## 8. 暂不做的事
 
-## 11. AI-first, CLI-guarded
-
-这是后续所有功能扩展的产品边界。
-
-AI 负责：
-
-- 读原料与上下文
-- 判断信息是否值得沉淀
-- 编写 / 合并 `Compiled Truth`
-- 维护 `Timeline`
-- 建立语义反链
-- 处理语义冲突与取舍
-- 决定是否 fileback
-
-CLI 负责：
-
-- fetch / snapshot / restore / safe remove
-- ingest state / audit state 等确定性账本
-- lint / doctor / Obsidian 配置检查
-- index / sync / vector / report
-- 可选 GBrain bridge 的 export / sync / stale warning
-
-CLI 不负责：
-
-- 自动判断知识含义
-- 自动重写 `Compiled Truth`
-- 在没有 AI 审核时裁决语义矛盾
-- 允许 GBrain 或其他外部工具写 canonical wiki pages
-
-### 后续要用 benchmark 决策
-
-以下不在本阶段直接做：
-
-- GBrain 是否比 lorekit hybrid 在关系型问题上显著更好
-- 是否要加入 `lorekit gbrain benchmark`
-- 是否导出 `原料/`、`每日/`、`写作/`
-- 是否生成 GBrain MCP 配置辅助
-
-判定标准：关系型问题 P@5 或正确率明显优于 lorekit hybrid，否定问题幻觉率不能更高，且 query latency 可接受。
+- 不把外部图数据库或候选发现工具做成默认依赖。
+- 不让 CLI 调 LLM 做语义判断。
+- 不在 `remove` 中自动改写 compiled truth。
+- 不为单次临时输出强制 sync。

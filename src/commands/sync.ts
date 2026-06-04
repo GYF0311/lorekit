@@ -5,15 +5,11 @@ import { join } from 'node:path';
 import { requireCorpus } from '../lib/corpus.js';
 import { ok, warn, err, print, out } from '../utils/logger.js';
 import { runIndex } from './dir-index.js';
-import { runVectorSync } from './vector.js';
 import { runDoctor } from './doctor.js';
 import { refreshRootIndex } from '../lib/root-index.js';
 
 export interface SyncOptions {
-  force?: boolean;
-  model?: string;
   skipDoctor?: boolean;
-  skipVector?: boolean;
   skipRootIndex?: boolean;
   json?: boolean;
   report?: boolean;
@@ -35,7 +31,6 @@ export interface SyncRunReport {
   steps: {
     index: SyncStepReport;
     rootIndex: SyncStepReport;
-    vector: SyncStepReport;
     doctor: SyncStepReport;
   };
   reportPath: string | null;
@@ -51,7 +46,6 @@ function createReport(corpus: string): SyncRunReport {
     steps: {
       index: { status: 'skipped' },
       rootIndex: { status: 'skipped' },
-      vector: { status: 'skipped' },
       doctor: { status: 'skipped' },
     },
     reportPath: null,
@@ -70,25 +64,20 @@ function writeSyncReport(corpus: string, report: SyncRunReport): string {
 }
 
 /**
- * lorekit sync — 一条命令把「文本档案 + 向量库」对齐。
+ * lorekit sync — 一条命令把文本档案和健康检查收口。
  *
  * 执行顺序（必须是这个顺序）：
  *   1a. runIndex：扫目录生成/刷新所有 _INDEX.md
- *        → 向量 L1 的输入源必须先存在，才能被下一步读
+ *        → 子目录文本索引先稳定
  *   1b. refreshRootIndex：合并刷新 corpus/index.md 的四个受控区
- *        → L0 向量的输入源；保留人类手写摘要，只追加新页 / 删失踪页
- *   2.  runVectorSync（layered=true）：增量嵌入 chunk + 刷 L0/L1 向量
- *        → L0 读 corpus/index.md 的 ## 分区
- *        → L1 读每个 {dir}/_INDEX.md 的条目行
- *   3.  runDoctor：sanity check，只报告不阻塞
+ *        → 保留人类手写摘要，只追加新页 / 删失踪页
+ *   2.  runDoctor：sanity check，只报告不阻塞
  */
 export async function runSync(corpus: string, opts: SyncOptions = {}): Promise<SyncRunReport> {
-  const force = opts.force ?? false;
-  const model = opts.model ?? 'bge-m3';
   const report = createReport(corpus);
 
   // Step 1a: 各子目录的 _INDEX.md
-  print(chalk.cyan('── [1/3] index: refresh _INDEX.md ──'));
+  print(chalk.cyan('── [1/2] index: refresh _INDEX.md ──'));
   try {
     const generated = runIndex(corpus);
     report.steps.index = { status: 'ok', generated };
@@ -148,28 +137,9 @@ export async function runSync(corpus: string, opts: SyncOptions = {}): Promise<S
   }
   print();
 
-  // Step 2: 向量库（除非显式 --skip-vector）
-  if (!opts.skipVector) {
-    print(chalk.cyan('── [2/3] vector: sync chunks + L0/L1 ──'));
-    try {
-      const r = await runVectorSync(corpus, { force, model, layered: true });
-      report.steps.vector = { status: 'ok', ...r, model };
-      ok(`synced ${r.synced} files (${r.totalChunks} chunks), skipped ${r.skipped} unchanged`);
-    } catch (e) {
-      report.status = 'error';
-      report.steps.vector = { status: 'error', error: (e as Error).message, model };
-      report.errors.push(`vector sync failed: ${(e as Error).message}`);
-      err(`vector sync failed: ${(e as Error).message}`);
-      throw e;
-    }
-    print();
-  } else {
-    report.steps.vector = { status: 'skipped', reason: 'skip-vector' };
-  }
-
-  // Step 3: 健康体检（只报告不阻塞）
+  // Step 2: 健康体检（只报告不阻塞）
   if (!opts.skipDoctor) {
-    print(chalk.cyan('── [3/3] doctor: sanity check ──'));
+    print(chalk.cyan('── [2/2] doctor: sanity check ──'));
     const issues = await runDoctor(corpus);
     report.steps.doctor = { status: 'ok', issues };
   } else {
@@ -183,11 +153,8 @@ export async function runSync(corpus: string, opts: SyncOptions = {}): Promise<S
 export function syncCommand(program: Command): void {
   program
     .command('sync')
-    .description('one-shot: refresh _INDEX.md → vector sync (layered) → doctor')
-    .option('--force', 'full rebuild of vector index', false)
-    .option('--model <name>', 'ollama model name', 'bge-m3')
+    .description('one-shot: refresh _INDEX.md → root index → doctor')
     .option('--skip-doctor', 'skip the final doctor sanity check', false)
-    .option('--skip-vector', 'only refresh _INDEX.md, skip vector sync', false)
     .option('--skip-root-index', 'skip merging corpus/index.md against disk', false)
     .option('--json', 'output machine-readable sync report', false)
     .option('--report', 'write .wiki/reports/sync/<timestamp>.json', false)

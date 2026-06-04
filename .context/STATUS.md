@@ -17,7 +17,7 @@ confidence: ai-drafted
 - 已确认 `main` 对齐 `origin/main`，开始时没有未 push commit。
 - 已运行 `cmap adopt`，生成 `.context` skeleton 和 `.context/ADOPTION.md`。
 - 已阅读 `AGENTS.md`、`README.md`、`docs/CONVENTIONS.md`、`docs/ARCHITECTURE.md`、`docs/CODEBASE-MAP.md`、`docs/DESIGN-NOTES.md`、`docs/IDEAS.md` 与代表性源码。
-- 已建立 9 个模块：`project-map`、`cli`、`corpus-core`、`fetch-ingest`、`sync-search-vector`、`safety-maintenance`、`skills-agent`、`obsidian-gbrain`、`docs-tests-release`。
+- 已建立 9 个模块：`project-map`、`cli`、`corpus-core`、`fetch-ingest`、`sync-search`、`safety-maintenance`、`skills-agent`、`obsidian-gbrain`、`docs-tests-release`。
 - 已将 `.context` 正文中文化，同时保留 CMAP 必需英文结构标题和 frontmatter key。
 - 已生成 `.context/graph/*.json`、`_cmap/lorekit/` 和 `_cmap-view/index.html`。
 - 已在 `AGENTS.md` 和 `CLAUDE.md` 追加中文 CMAP 使用入口。

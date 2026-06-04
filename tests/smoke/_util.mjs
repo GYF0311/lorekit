@@ -71,13 +71,3 @@ export function fmtRun(r, args, expectation = '') {
     .filter(Boolean)
     .join('\n  ');
 }
-
-/** sqlite-vec 当前是否可加载（用于条件跳过 vector 相关错误路径测试） */
-export async function hasSqliteVec() {
-  try {
-    await import('sqlite-vec');
-    return true;
-  } catch {
-    return false;
-  }
-}

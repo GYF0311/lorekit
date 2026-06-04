@@ -2,7 +2,7 @@
 
 30 minutes from zero to a local LLM Wiki managed by the `lorekit` CLI.
 
-Default setup is CLI-only: install the global `lorekit` command and initialize a corpus. Research corpora, project-local skills, central-corpus entrypoints, vector search, and GBrain are optional modules; see [`INSTALLATION.md`](INSTALLATION.md). If an AI agent is installing lorekit for a user, it should recommend CLI-only first and ask before adding any optional module.
+Default setup is CLI-only: install the global `lorekit` command and initialize a corpus. Research corpora, project-local skills, central-corpus entrypoints, and GBrain are optional modules; see [`INSTALLATION.md`](INSTALLATION.md). If an AI agent is installing lorekit for a user, it should recommend CLI-only first and ask before adding any optional module.
 
 ---
 
@@ -28,8 +28,6 @@ Pure TypeScript, Node.js-only, usable from any AI coding agent (Claude Code / Co
 | Tool         | Purpose                    | Install                                                                                    | Verify             |
 | ------------ | -------------------------- | ------------------------------------------------------------------------------------------ | ------------------ |
 | ripgrep      | Faster text search         | `brew install ripgrep`                                                                     | `rg --version`     |
-| ollama       | Local vector embeddings    | `brew install ollama`                                                                      | `ollama --version` |
-| bge-m3       | Embedding model (EN+ZH)    | `ollama pull bge-m3`                                                                       | `ollama list`      |
 | Bun + GBrain | Optional graph retrieval   | `git clone https://github.com/garrytan/gbrain.git && cd gbrain && bun install && bun link` | `gbrain --version` |
 | Claude Code  | Best end-to-end experience | [download](https://claude.com/claude-code)                                                 | `claude --version` |
 | Obsidian     | Visual wiki browsing       | [download](https://obsidian.md)                                                            | —                  |
@@ -185,32 +183,28 @@ _工作台/finished package -> 原料/ -> 知识库/ -> optional central corpus 
 
 ---
 
-## 5. Optional: enable vector + FTS5 retrieval
+## 5. Sync and query the corpus
 
 ```bash
-ollama serve          # if not already running
-ollama pull bge-m3    # 1.2 GB, one time
-
 cd ~/Desktop/my-corpus
-lorekit sync          # closeout: index → vector sync --layered → doctor
+lorekit sync          # closeout: _INDEX.md → root index.md → doctor
+lorekit search "…"    # exact text/entity search
 ```
 
 `lorekit sync` is the standard entry point after durable corpus changes: new `原料/` imports, `知识库/` fileback, route/index changes, stage closeout, or commit/push verification. Do not run it after every `_工作台/` note, daily fragment, or temporary display artifact. It:
 
 1. Recursively refreshes every `_INDEX.md` (via `lorekit index`)
-2. Incrementally re-embeds only changed files into `sqlite-vec` + FTS5
+2. Merges root `index.md` against disk while preserving human-written summaries
 3. Runs `doctor` as a non-blocking sanity check
 
-Query modes (pick based on intent, not scale — the skill reads `lorekit vector status`'s `mode` field and routes automatically):
+Query route:
 
 ```bash
-lorekit vector query --hybrid  --text "…"   # BM25 + vector + RRF (production default)
-lorekit vector query --layered --text "…"   # vector-only layered (debug)
-lorekit vector query --bm25    --text "…"   # FTS5-only BM25 (debug precise terms / dates)
-
 lorekit sync --json                         # machine-readable step report
 lorekit sync --report                       # writes .wiki/reports/sync/<timestamp>.json
 ```
+
+For answers, the agent uses `lorekit search`, `index.md`, relevant `_INDEX.md` files, then canonical pages under `知识库/`.
 
 ---
 
@@ -270,7 +264,7 @@ The agent triggers `wiki-ingest`: fetch → archive under `原料/文章/` → c
 
 > What's the difference between RAG and an LLM wiki?
 
-Triggers `wiki-query`: read `lorekit vector status` → if `mode: text` walk `index.md` → `_INDEX.md` → specific files; if `mode: vector` run `lorekit vector query --hybrid`. Synthesize answer with citations.
+Triggers `wiki-query`: run `lorekit search`, walk `index.md` → relevant `_INDEX.md` → specific files, then synthesize with citations.
 
 **File back an insight:**
 
@@ -300,7 +294,7 @@ Review the impact report. If it looks right, apply:
 lorekit remove "知识库/摘要/<slug>.md" --apply
 ```
 
-`remove` creates a snapshot, moves the selected files to OS Trash / Recycle Bin, cleans only provenance-linked references, refreshes indexes, prunes stale vector records, and runs lint. It does **not** delete other pages just because they share the same topic keyword.
+`remove` creates a snapshot, moves the selected files to OS Trash / Recycle Bin, cleans only provenance-linked references, refreshes indexes, and runs lint. It does **not** delete other pages just because they share the same topic keyword.
 
 ---
 
@@ -395,20 +389,10 @@ Toggle the graph tab off/on after editing `graph.json` so Obsidian re-reads the 
 Check that `~/.claude/skills/wiki-*` exist. If they do, restart the Claude Code session.
 
 **Where should I put the corpus?**
-Prefer `~/Desktop/` or `~/Documents/`. Avoid iCloud (sqlite gets stalled by the syncer).
+Prefer `~/Desktop/` or `~/Documents/`. Avoid cloud-synced folders when large snapshots or frequent generated files make the syncer noisy.
 
 **Multiple corpora?**
 The CLI follows `cwd`. `cd` into whichever corpus you want to operate on.
-
-**ollama isn't running?**
-`lorekit vector sync` will tell you. Run `ollama serve`.
-
-**Swap embedding models?**
-
-```bash
-ollama pull nomic-embed-text
-lorekit vector sync --model nomic-embed-text --force
-```
 
 **Migrate existing notes?**
 
@@ -429,15 +413,15 @@ npm run build
 
 ---
 
-## 10. Embedding model options
+## 10. Optional retrieval topology
 
-Default is bge-m3; anything in ollama's catalog works:
+Default lorekit retrieval is transparent: use `lorekit search`, drill into `index.md` / `_INDEX.md`, then read canonical Markdown pages.
 
-| Model                | Install                         | Size   | Dim  | Best for                   |
-| -------------------- | ------------------------------- | ------ | ---- | -------------------------- |
-| **bge-m3** (default) | `ollama pull bge-m3`            | 1.2 GB | 1024 | Chinese+English, balanced  |
-| nomic-embed-text     | `ollama pull nomic-embed-text`  | 274 MB | 768  | English-heavy, lightweight |
-| mxbai-embed-large    | `ollama pull mxbai-embed-large` | 670 MB | 1024 | Strong English             |
-| all-minilm           | `ollama pull all-minilm`        | 45 MB  | 384  | Ultra-lightweight          |
+For graph or multi-hop candidate discovery, use the optional GBrain bridge:
 
-Rule of thumb: primary language is Chinese → bge-m3; English-only → nomic-embed-text; tight on disk → all-minilm.
+```bash
+lorekit gbrain status
+lorekit gbrain query "your question"
+```
+
+GBrain is read-only from lorekit's point of view. It can suggest candidates, but durable facts still need to be written back through the normal wiki / audit / sync workflow.

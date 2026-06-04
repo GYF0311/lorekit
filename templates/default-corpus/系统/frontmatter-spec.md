@@ -61,7 +61,7 @@ role: 同事 | 亲密关系 | 贵人 | 行业偶像
 relationship_since: YYYY-MM-DD
 repo_local: ~/code/xxx
 repo_remote: https://github.com/xxx
-tech_stack: [Claude Code, sqlite-vec]
+tech_stack: [Claude Code, TypeScript]
 ```
 
 ### `type: source`
@@ -80,12 +80,12 @@ source_kind: article | paper | book | meeting | recording | clipping
 
 ## updated 铁律
 
-**任何内容修改都必须同步刷新 `updated`**。这是向量层增量同步的依据。
+**任何内容修改都必须同步刷新 `updated`**。这是审计、排序和同步判断的依据。
 
 ## slug 意义
 
 `slug` 是文件在 corpus 里的永久地址：
-1. 向量检索的反向索引
+1. Agent 回读和文本检索的稳定入口
 2. 跨 corpus 移动时保持引用稳定
 3. 人类可读的 canonical 引用
 

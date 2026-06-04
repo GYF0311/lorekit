@@ -53,13 +53,11 @@ flowchart TB
     Wiki["知识库/"]
     Index["index.md<br/>+ 各级 _INDEX.md"]
     State["[.wiki/ingest-state.json]"]
-    Vec[("[.wiki/vector.sqlite]<br/>vec_* + fts_*")]
     GBrainExport["[.wiki/integrations/gbrain-export]<br/>GBrain staging copy"]
     GBrainReport["[.wiki/integrations/gbrain]<br/>sync reports"]
   end
 
   subgraph External["外部依赖"]
-    Ollama["ollama<br/>bge-m3"]
     RG["ripgrep"]
     Web["网页"]
     GBrain["gbrain CLI<br/>Bun / PGLite / graph retrieval"]
@@ -74,10 +72,8 @@ flowchart TB
   Lib -->|读写| Wiki
   Lib -->|读写| Index
   Lib -->|读写| State
-  Lib -->|读写| Vec
   Lib -->|写 staging/report| GBrainExport
   Lib -->|写 report| GBrainReport
-  Lib -->|HTTP| Ollama
   Lib -->|HTTP| Web
   Lib -->|spawn| RG
   Lib -->|spawn import/query| GBrain
@@ -116,7 +112,6 @@ sequenceDiagram
   Agent->>Sync: lorekit sync
   Sync->>Disk: 刷新所有 _INDEX.md
   Sync->>Disk: merge-refresh corpus/index.md
-  Sync->>Vec: 增量 embed 变更文件 + 重建 L0/L1
   Sync-->>Agent: --json / --report 返回每步状态
 ```
 
@@ -125,20 +120,18 @@ sequenceDiagram
 ```mermaid
 flowchart LR
   Q["先生提问"] --> Skill["wiki-query skill"]
-  Skill --> Status{"lorekit vector status<br/>mode=?"}
-  Status -->|text| L0R["Read corpus/index.md"]
+  Skill --> Search["lorekit search / rg"]
+  Search --> L0R["Read corpus/index.md"]
   L0R --> L1R["Read {dir}/_INDEX.md"]
   L1R --> L2R["Read 具体页面.md"]
-  Status -->|vector| HQ["lorekit vector query --hybrid"]
-  HQ --> Vec[("向量三层<br/>vec_dirs → vec_pages → vec_chunks")]
-  HQ --> FTS[("BM25 三层<br/>fts_dirs → fts_pages → fts_chunks")]
-  Vec --> RRF["RRF 融合<br/>k=60"]
-  FTS --> RRF
-  RRF --> Ans["回答先生"]
+  L2R --> Links["沿 wikilinks 追 1-2 跳"]
+  Skill -->|可选| GQ["lorekit gbrain query<br/>候选发现"]
+  GQ --> L2R
   L2R --> Ans
+  Links --> Ans["回答先生"]
 ```
 
-模式切换由 `lorekit vector status` 的 `mode` 字段决定，阈值 `MODE_THRESHOLD_FILES = 100`（按 indexed_files 计数，不按 chunks，跟随 Karpathy 原文 "moderate scale" 定义）。
+默认先走确定性文本层；GBrain 只作为可选候选发现层，最终答案仍回读 canonical `知识库/` 页面。
 
 ### Remove 流（来源/页面 → 安全移除）
 
@@ -149,7 +142,6 @@ sequenceDiagram
   participant Snapshot as snapshot
   participant Disk as corpus files
   participant Trash as OS Trash / Recycle Bin
-  participant Vec as vector.sqlite
   participant Sync as lorekit sync
 
   Agent->>Remove: lorekit remove <url-or-path>
@@ -159,8 +151,7 @@ sequenceDiagram
   Remove->>Snapshot: createSnapshot(tag=remove)
   Remove->>Disk: 只清理明确指向目标来源的 Timeline 行 / sources / source_count
   Remove->>Trash: 移动目标摘要/原料/页面到系统回收站
-  Remove->>Vec: pruneMissingDocuments（清理已失踪文件的 documents/chunks/FTS/vec）
-  Remove->>Sync: 刷 _INDEX.md / index.md / doctor（如有向量库则同步）
+  Remove->>Sync: 刷 _INDEX.md / index.md / doctor
 ```
 
 Remove 的边界是 **provenance-aware**：只按明确来源引用删除，不按关键词删除。例：删除一篇 harness 文章，只移除这篇文章贡献的登记；`知识库/概念/harness.md` 若仍有其他 harness 来源支撑，必须保留。`## Compiled Truth` 不自动改写，只列入人工复核报告。
@@ -189,14 +180,10 @@ flowchart LR
 | 抽象        | 文件                           | 责任边界                                                                      |
 | ----------- | ------------------------------ | ----------------------------------------------------------------------------- |
 | Corpus      | `lib/corpus.ts`                | 给一个目录，判定它是不是 corpus（看 `.wiki/` 或 `CLAUDE.md`），向上递归找根   |
-| PathRules   | `lib/paths.ts`                 | include / exclude 路径规则 SSOT；`skills/`、`node_modules/` 等工具目录不进入 wiki lint / index / vector 扫描 |
+| PathRules   | `lib/paths.ts`                 | include / exclude 路径规则 SSOT；`skills/`、`node_modules/` 等工具目录不进入 wiki lint / index / search |
 | Frontmatter | `lib/corpus.ts`                | gray-matter 包装：`extractFrontmatter` / `hasFrontmatter` / `findSourceByUrl` |
 | IngestState | `lib/ingest-state.ts`          | `.wiki/ingest-state.json` 单一事实源；3 个 status × N 个 stepsDone            |
 | Fetcher     | `lib/fetcher/`                 | URL → 本地 markdown + 图片；L1 native fetch，L2 playwright fallback（10 文件子模块，v0.4.0 / 批次 21 拆分） |
-| Chunker     | `lib/chunker.ts`               | markdown 按 `## heading` 切，加 `[title][type]` prefix                        |
-| Ollama      | `lib/ollama.ts`                | 调本地 ollama `/api/embed`                                                    |
-| VectorDB    | `lib/vectordb/`                | sqlite-vec + FTS5；queryFlat / queryLayered / queryBM25Layered / queryHybrid（10 文件子模块，v0.4.0 / 批次 22 拆分；批次 24-fix 后 BM25 走 chunk 直查） |
-| VectorPrune | `lib/vectordb/prune.ts`        | 删除后清理 vector.sqlite 中磁盘已不存在的 documents 及其 chunks/page summaries/vec/FTS 记录 |
 | Remove      | `commands/remove.ts`           | URL/路径解析、dry-run 影响报告、snapshot、OS Trash、来源归因级联清理                    |
 | GBrain      | `commands/gbrain.ts` + `lib/integrations/` | 可选只读集成：status/export/sync/doctor/query，外部进程封装、manifest、stale 提醒、安全 export 边界 |
 | DoctorReport | `commands/doctor.ts`          | `lorekit doctor --json` / 严格 `--section <name>` 的结构化健康报告；inactive 可选集成跳过，enabled 可选集成 warn 不阻塞 corpus |
@@ -210,9 +197,7 @@ flowchart LR
 | 约束                    | 位置                                                | 备注                                                                                |
 | ----------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | corpus 子目录名（中文） | 散布 lib/commands                                   | `原料` / `知识库` / `_工作台` 等是 schema 决定，**不许动**（CONVENTIONS Do Not #8） |
-| 向量库路径              | `<corpus>/.wiki/vector.sqlite`                      | sqlite-vec 虚表 + FTS5 虚表共存于同一文件                                           |
 | ingest 状态机           | `started` / `completed` / `failed` × `stepsDone[]`  | 加新 step 只需在 `IngestStep` 枚举里加值，状态枚举不动                              |
-| 检索模式阈值            | `MODE_THRESHOLD_FILES = 100`                        | 按 indexed_files 计数，跟随 Karpathy 原文 "moderate scale ~100 sources"             |
 | frontmatter 必填字段    | `templates/default-corpus/系统/frontmatter-spec.md` | 由 `lint` 命令检查（`type` / `title` / `slug` / `created` / `updated`）             |
 | 工具目录隔离            | `lib/paths.ts`                                       | `skills/` 是 Agent workflow packs，`node_modules/` 是依赖内容；默认不按 wiki 页面 lint / index / sync |
 
@@ -220,8 +205,6 @@ flowchart LR
 
 | 依赖            | 接口                             | 失败降级                                               |
 | --------------- | -------------------------------- | ------------------------------------------------------ |
-| ollama          | `POST localhost:11434/api/embed` | 抛错；用户去 `ollama serve`。不影响 Read 三层          |
-| sqlite-vec      | dynamic import                   | `optionalDependencies`；缺了 vector 命令报错并提示安装 |
 | ripgrep         | `spawnSync('rg', ...)`           | fallback 到内置正则扫描                                |
 | GBrain          | `spawn('gbrain', ...)`           | 可选；默认 doctor 跳过 inactive 集成，`gbrain status/doctor` 给安装建议，`sync/query` 清晰失败 |
 | playwright-core | dynamic import                   | 缺了 antibot 站点 fetch 失败并提示装 playwright        |
@@ -230,5 +213,5 @@ flowchart LR
 
 ## 渐进披露的 token 预算
 
-L0（auto-injected, ~2k token）→ L1（on-demand, ~1k/pull）→ L2（targeted）→ L3（向量 fallback）。
-单次 query 总 token 通常 < 5k。这是 lorekit 区别于传统 RAG 的关键：检索不是兜底，而是分层渐进。
+L0（auto-injected, ~2k token）→ L1（on-demand, ~1k/pull）→ L2（targeted）→ L3（相邻链接 / GBrain 候选）。
+单次 query 总 token 通常 < 5k。这是 lorekit 区别于传统 RAG 的关键：检索不是黑盒兜底，而是分层渐进。

@@ -163,14 +163,15 @@
       "skills/**",
       "src/commands/install-skills.ts",
       "integrations/claude-code/**",
-      "templates/default-corpus/AGENTS.md",
-      "templates/default-corpus/CLAUDE.md"
+      "templates/default-corpus/**"
     ],
     "aliases": [
       "skill",
       "skills",
       "wiki-ingest",
       "wiki-query",
+      "corpus-query",
+      "corpus-capture",
       "install-skills",
       "agent",
       "AGENTS",
@@ -179,28 +180,22 @@
       "工作流"
     ]
   },
-  "sync-search-vector": {
-    "doc": ".context/modules/sync-search-vector.md",
+  "sync-search": {
+    "doc": ".context/modules/sync-search.md",
     "paths": [
       "src/commands/dir-index.ts",
       "src/commands/sync.ts",
       "src/commands/search.ts",
-      "src/commands/vector.ts",
-      "src/lib/vectordb/**",
-      "src/lib/ollama.ts",
-      "src/lib/chunker.ts"
+      "src/lib/root-index.ts"
     ],
     "aliases": [
       "sync",
       "search",
-      "vector",
-      "bm25",
-      "rrf",
-      "ollama",
       "_INDEX",
-      "indexed_files",
+      "index",
+      "root-index",
       "检索",
-      "向量"
+      "搜索"
     ]
   }
 }

@@ -24,7 +24,7 @@ confidence: high
 ## 2026-05-17 — Keep lorekit CLI deterministic and LLM-free
 
 **Context:** lorekit 的架构核心是 thin CLI + fat skills。CLI 提供文件系统、状态、索引、检索和安全操作；AI skills 负责语义判断。
-**Decision:** CMAP 模块边界保留这条分工。语义工作流归 `skills-agent`；确定性实现归 `cli`、`corpus-core`、`fetch-ingest`、`sync-search-vector`、`safety-maintenance` 等模块。
+**Decision:** CMAP 模块边界保留这条分工。语义工作流归 `skills-agent`；确定性实现归 `cli`、`corpus-core`、`fetch-ingest`、`sync-search`、`safety-maintenance` 等模块。
 **Why:** 这是 lorekit 的产品边界，能防止它滑向 RAG app、workflow OS 或 autonomous daemon。
 **Impact:** 新需求先判断是 skill 规则、CLI 原语、docs 更新，还是 corpus 使用侧反馈。
 **Revisit if:** lorekit 明确改变定位，从本地 LLM Wiki toolkit 变成 agent runtime 或服务端系统。

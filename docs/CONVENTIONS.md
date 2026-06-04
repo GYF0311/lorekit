@@ -5,7 +5,7 @@
 
 ## 1. 注释与语言
 
-- 注释**以中文为主**。技术术语、API 名、库名、缩写保留英文原文（如 `await import()`、`BM25`、`RRF`）
+- 注释**以中文为主**。技术术语、API 名、库名、缩写保留英文原文（如 `await import()`、`JSON`、`stdout`）
 - 文档面向 AI Agent 时也用中文，跨 agent 一致
 
 ## 2. 日志输出
@@ -61,7 +61,7 @@ CLI 命令必须支持 `lorekit xxx | jq` 这种管道用法。所有人类信�
 
 - 单文件**硬上限 500 行**
 - 新代码 + 重构后的老代码都遵守
-- 当前 `lib/vectordb.ts`（1115 行）、`lib/fetcher.ts`（848 行）超标，已列入 `LEGACY.md` 待拆
+- 当前新代码必须保持单文件 500 行以内；历史超标文件必须先拆再扩展
 
 ## 8. ESM 一致性
 
@@ -78,10 +78,10 @@ CLI 命令必须支持 `lorekit xxx | jq` 这种管道用法。所有人类信�
 - 范例：
 
   ```
-  refactor(vectordb): 抽出 layered query 到独立模块
+  refactor(fetcher): 抽出微信路由解析
 
-  原 vectordb.ts 单文件 1115 行，触发 CONVENTIONS Do Not #12。
-  L0/L1/L2 三层查询逻辑独立性强，先拆出来。
+  fetcher 路由解析和 frontmatter 拼装职责混在一起。
+  先拆解析路径，避免继续扩大单文件。
   ```
 
 ## 10. 依赖管理
@@ -90,7 +90,7 @@ CLI 命令必须支持 `lorekit xxx | jq` 这种管道用法。所有人类信�
   1. 为什么需要
   2. 评估过的替代方案（包括手写实现）
 - `devDependencies` 自由
-- `optionalDependencies` 用于"装了更好、不装也能跑"的库（如 `sqlite-vec`）
+- `optionalDependencies` 用于"装了更好、不装也能跑"的库；加入前必须说明失败降级路径
 
 `trash` 是 runtime dependency：remove 命令需要跨平台移动到 OS Trash / Windows Recycle Bin。不要改回 shell `trash` / `rm` / `del`。
 
@@ -120,7 +120,7 @@ CLI 命令必须支持 `lorekit xxx | jq` 这种管道用法。所有人类信�
 | 6   | ❌ 手动改 `dist/`                                               | 跑 `npm run build`                                                         |
 | 7   | ❌ 手动改 `VERSION`                                             | 用 `npm version <patch\|minor\|major>`                                     |
 | 8   | ❌ 动中文目录名硬编码（`'原料'` / `'知识库'` / `'_工作台'` 等） | 这是 schema 设计决定，不是技术债，**不许"清理"**                           |
-| 9   | ❌ 给 `lib/vectordb.ts` 继续加代码                              | 必须先拆；拆完后此条由 #12 接管                                            |
+| 9   | ❌ 给已超 500 行的旧文件继续加代码                              | 必须先拆；拆完后此条由 #12 接管                                            |
 | 10  | ❌ 写不带 smoke test 的新命令                                   | 至少覆盖 happy path                                                        |
 | 11  | ❌ 硬编码新的"排除目录"常量                                     | 统一用 `lib/paths.ts`（此条在 `lib/paths.ts` 创建后生效，见 LEGACY.md P1） |
 | 12  | ❌ 单文件超过 500 行                                            | 拆                                                                         |

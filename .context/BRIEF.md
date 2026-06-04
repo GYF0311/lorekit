@@ -22,8 +22,8 @@ lorekit 是个人知识 compilation harness：用 schema、markdown skills、确
 - 初始化安全的 corpus：`原料/`、`知识库/`、`_工作台/`、`.wiki/`、Obsidian 配置和 agent 入口。
 - 抓取网页、微信公众号、GitHub/Gist 文档到工作台，再让 AI 编译成 wiki 页面。
 - 用 ingest state 精确记录每个来源走到 fetch / archive / wiki / lint 哪一步。
-- 用 `sync` 刷 `_INDEX.md`、root `index.md`、可选向量库和 doctor 报告。
-- 通过 Read-first 三层路径回答问题，规模变大后再引入 BM25/vector/RRF。
+- 用 `sync` 刷 `_INDEX.md`、root `index.md` 和 doctor 报告。
+- 通过 `search` + Read-first 三层路径回答问题。
 - 用 snapshot / restore / audit / remove 处理高风险维护，避免不可逆删除。
 - 将 canonical wiki staging 到 GBrain，或导出 CMAP Obsidian / Review HTML 阅读层。
 
@@ -41,7 +41,7 @@ lorekit 是个人知识 compilation harness：用 schema、markdown skills、确
 ## Product Constraints
 - 数据安全优先级高于便利性：风险操作先 snapshot，删除走 OS Trash，cleanup 只按明确来源归因。
 - `原料/` 只读；`知识库/` 是编译产物；`.wiki/` 是 state / report / index / integration metadata。
-- Node.js >= 18 是唯一必需运行时；向量能力依赖可选 Ollama + `sqlite-vec`。
+- Node.js >= 18 是唯一必需运行时；GBrain 是可选外部集成。
 - CLI 的 stdout/stderr 分流必须保留，JSON 输出要可 pipe。
 - 新命令、新 skill、跨文件行为变化必须同步永久文档。
 

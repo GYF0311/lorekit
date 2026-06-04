@@ -2,9 +2,7 @@ import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { runLorekit, mkTmpDir, cleanupTmpDir, fmtRun, hasSqliteVec } from './_util.mjs';
-
-const SQLITE_VEC = await hasSqliteVec();
+import { runLorekit, mkTmpDir, cleanupTmpDir, fmtRun } from './_util.mjs';
 
 let corpus;
 
@@ -167,7 +165,6 @@ test('remove --apply only removes the selected source contribution', () => {
 
   const report = JSON.parse(r.stdout);
   assert.ok(report.snapshot, 'apply should create a snapshot before removal');
-  assert.equal(report.syncSkippedVector, true);
 });
 
 test('remove URL resolves ingest-state archivedTo and wikiPages', () => {
@@ -199,51 +196,4 @@ test('remove URL resolves ingest-state archivedTo and wikiPages', () => {
 
   const state = JSON.parse(readFileSync(join(corpus, '.wiki/ingest-state.json'), 'utf-8'));
   assert.equal(state.ingests[url], undefined);
-});
-
-test('remove --apply prunes deleted files from vector.sqlite', async (t) => {
-  if (!SQLITE_VEC) {
-    t.skip('sqlite-vec not installed (optional dep)');
-    return;
-  }
-
-  const Database = (await import('better-sqlite3')).default;
-  const db = new Database(join(corpus, '.wiki/vector.sqlite'));
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS documents (
-      id INTEGER PRIMARY KEY,
-      path TEXT UNIQUE NOT NULL,
-      sha256 TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-  `);
-  db.prepare('INSERT INTO documents (id, path, sha256, updated_at) VALUES (?, ?, ?, ?)').run(
-    1,
-    '原料/文章/harness-a/article.md',
-    'deadbeef',
-    '2026-04-20T00:00:00Z',
-  );
-  db.close();
-
-  const trashDir = join(corpus, '.test-trash');
-  const args = ['remove', '知识库/摘要/harness-a.md', '--apply', '--json'];
-  const r = runLorekit(args, {
-    cwd: corpus,
-    env: {
-      LOREKIT_TEST_TRASH_DIR: trashDir,
-      LOREKIT_TEST_SKIP_VECTOR_SYNC: '1',
-    },
-    timeout: 60_000,
-  });
-  assert.equal(r.status, 0, fmtRun(r, args, 'apply with vector prune exit 0'));
-
-  const after = new Database(join(corpus, '.wiki/vector.sqlite'), { readonly: true });
-  const row = after
-    .prepare('SELECT COUNT(*) as n FROM documents WHERE path = ?')
-    .get('原料/文章/harness-a/article.md');
-  after.close();
-  assert.equal(row.n, 0);
-
-  const report = JSON.parse(r.stdout);
-  assert.equal(report.vectorPruned, 1);
 });

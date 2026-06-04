@@ -1,4 +1,4 @@
-// Corpus 完整生命周期 smoke：init → doctor → stats → lint → index → vector status → snapshot → restore。
+// Corpus 完整生命周期 smoke：init → doctor → stats → lint → index → search → snapshot → restore。
 // 一个 corpus 跑全套，子测试共享同一个 tmpdir，after() 清理。
 //
 // 注意：lorekit init 当前接收绝对路径有 bug（LEGACY P4-6），
@@ -65,27 +65,10 @@ test('index 退出码 0', () => {
   assert.equal(r.status, 0, fmtRun(r, args, 'exit 0'));
 });
 
-test('vector status 退出码 0，stdout JSON 含 mode + indexed', () => {
-  const args = ['vector', 'status'];
+test('search 退出码 0', () => {
+  const args = ['search', 'welcome'];
   const r = runLorekit(args, { cwd: corpus });
   assert.equal(r.status, 0, fmtRun(r, args, 'exit 0'));
-  let parsed;
-  assert.doesNotThrow(
-    () => {
-      parsed = JSON.parse(r.stdout);
-    },
-    fmtRun(r, args, 'stdout 是合法 JSON'),
-  );
-  assert.ok('mode' in parsed, fmtRun(r, args, 'JSON 含 mode'));
-  assert.ok(
-    ['text', 'vector'].includes(parsed.mode),
-    fmtRun(r, args, `mode ∈ {text,vector}, 实际 ${parsed.mode}`),
-  );
-  assert.ok('indexed' in parsed, fmtRun(r, args, 'JSON 含 indexed'));
-  // indexed_files 仅在 indexed=true 时填，新 init 的 corpus 还没建向量库 → 不强求
-  if (parsed.indexed === true) {
-    assert.ok('indexed_files' in parsed, fmtRun(r, args, 'indexed=true 时应有 indexed_files'));
-  }
 });
 
 test('snapshot 产出 .tar.gz', () => {
