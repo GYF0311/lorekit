@@ -224,7 +224,7 @@ You can start real use when these five checks work in the same corpus:
 ```bash
 lorekit init ~/Desktop/my-corpus
 lorekit fetch <url>
-# AI ingest compiles the fetched source into 知识库/
+# AI ingest archives the source, compiles 知识库/, then trashes the consumed workbench original
 lorekit sync --json
 lorekit snapshot
 ```
@@ -287,7 +287,7 @@ Talk in natural language; the AI routes to the right skill:
 
 ```
 > Ingest this article: https://mp.weixin.qq.com/s/xxx
-# → wiki-ingest: fetch → store in 原料/ → compile into 知识库/ → update index.md
+# → wiki-ingest: fetch → store in 原料/ → compile into 知识库/ → update index.md → trash consumed _工作台/收件 original
 
 > Have I filed anything about RAG before?
 # → wiki-query: read index.md → locate pages → synthesize answer

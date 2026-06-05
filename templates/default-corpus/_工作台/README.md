@@ -24,5 +24,6 @@
 
 - 不要在这里建双链——其它目录不应该 link 到工作台
 - 长期 LM Wiki source 放 `原料/`；项目证据、课程原文和临时材料可以留在这里，但不算 canonical raw layer，除非明确 ingest/promote
+- `收件/` 是 ingest 前的过渡区；明确 ingest/promote 成功后，本次消费掉且已归档进 `原料/` 的原件默认用 `trash` 清理
 - 工作台小改不触发即时 `lorekit sync`；阶段收口或转入 `原料/` / `知识库/` 时再同步
 - 不要当长期记忆用——这里是过道，不是房间

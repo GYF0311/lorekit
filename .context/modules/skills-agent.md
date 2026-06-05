@@ -55,6 +55,7 @@ confidence: ai-drafted
 - AI 安装器默认推荐单 `lorekit` CLI；只有用户明确选择对应组合时才安装 skills、project-local wrapper 或 GBrain，并说明额外学习成本和配置文件。
 - Codex `--only wiki-daily` 与完整 `--target codex` 要分开：前者只做日记 gateway，后者安装 `corpus-*` 且包含 `wiki-daily`。
 - `wiki-*` 是 corpus-local 执行规范；`corpus-*` 是 global entrypoint/routing skill，需回读目标 corpus 的 AGENTS/CLAUDE/skills 规则。
+- `wiki-ingest` 明确 ingest/promote 成功后，应在 canonical source、wiki 页面、反链、ingest state/log、sync 都完成时，用 Trash 清理本次消费掉的 `_工作台/收件/` 中转原件；analysis-only / preview-only / workbench-only 任务不触发清理。
 - project-local skills 是工具，不是 canonical corpus pages；lint/index/search 不能把它们扫成 wiki 内容。
 - skill 不能承诺不存在的 CLI 命令或参数。
 - skill 规则应保持通用，不把 lorekit 项目自身的临时边界写进用户 corpus skill。

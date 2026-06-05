@@ -35,6 +35,7 @@ Native routing table：
 - `wiki-daily` 是可选日记/复盘 workflow；它不随 project workflow 默认安装。
 - `wiki-remove`、GBrain 原生 mutating 命令、自动 fileback 不做默认入口。
 - `原料/` 是长期 LM Wiki 的 canonical raw-source layer；`_工作台/**` 里的项目证据、课程原文和中间材料只服务当前任务验证，除非明确 ingest/promote，否则不等价于 `原料/`
+- 明确 ingest/promote 成功后，`_工作台/收件/` 中本次消费掉的原件只是过渡副本；原料已进 `原料/` 且 wiki/反链/state/log/sync 完成时，默认用 `trash` 清理
 - 检索链默认从 `index.md` / `知识库/` 开始，需要完整 provenance 时再打开 `原料/`；project-local evidence 只在当前任务点名时读取
 
 同步触发：

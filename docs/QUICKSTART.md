@@ -258,7 +258,7 @@ claude  # or codex / cursor / kimi …
 
 > Ingest this article: https://mp.weixin.qq.com/s/xxx
 
-The agent triggers `wiki-ingest`: fetch → archive under `原料/文章/` → compile into `知识库/` → update `index.md` + `log.md`.
+The agent triggers `wiki-ingest`: fetch → archive under `原料/文章/` → compile into `知识库/` → update `index.md` + `log.md` → trash the consumed `_工作台/收件/` original after verification.
 
 **Query:**
 

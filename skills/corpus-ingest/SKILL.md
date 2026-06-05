@@ -57,7 +57,7 @@ Do not use for:
 1. Read config and corpus rules.
 2. `cd <default_corpus>`.
 3. For URL input, run `<lorekit_bin> fetch <url>`.
-4. Follow the corpus-local `wiki-ingest` process for archive, wiki compilation, backlinks, ingest state, lint, and sync.
+4. Follow the corpus-local `wiki-ingest` process for archive, wiki compilation, backlinks, ingest state, lint, sync, and cleanup of consumed `_工作台/收件/` originals.
 5. Keep `原料/` immutable after archive.
 6. Preserve fetched slugs unless corpus rules explicitly say otherwise.
 7. Use `<lorekit_bin> sync` and `<lorekit_bin> lint --quick` when the local ingest skill requires them; workbench-only evidence does not trigger sync until it is promoted.
@@ -65,6 +65,8 @@ Do not use for:
 ## Safety
 
 Never delete source material.
+
+After a confirmed ingest, cleaning the consumed workbench handoff original is allowed only when the target corpus `wiki-ingest` rules say the canonical `原料/` source, wiki pages, ingest state/log, and verification are complete. Use `/usr/bin/trash`, never `rm`.
 
 Never bypass duplicate or in-progress states reported by `lorekit fetch`.
 

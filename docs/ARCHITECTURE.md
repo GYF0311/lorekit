@@ -113,6 +113,7 @@ sequenceDiagram
   Sync->>Disk: 刷新所有 _INDEX.md
   Sync->>Disk: merge-refresh corpus/index.md
   Sync-->>Agent: --json / --report 返回每步状态
+  Agent->>Disk: trash 已消费的 _工作台/收件 原件
 ```
 
 ### Query 流（提问 → 答案）

@@ -263,6 +263,30 @@ lorekit ingest record <url> \
 
 最后跑一次 `lorekit lint`（可选）查 corpus health——只关注本次新建页的 issue，历史遗留可忽略。
 
+### 6.5 清理已消费的工作台收件原件
+
+当用户明确要求“入库 / ingest / 注入知识库 / 归档”，且本次来源已经完成以下条件时，`_工作台/收件/` 里的中转原件不再承担保存职责：
+
+1. 原文已经移动或归档进 `原料/` canonical source；
+2. 相关 `知识库/` 页面已创建或更新；
+3. `lorekit ingest check` 已通过，反链 / wikilink 已闭合；
+4. `ingest record --step ... --log ...` 已写入 ingest state 和 `log.md`；
+5. `lorekit sync` 已完成。
+
+满足以上条件后，默认用 `/usr/bin/trash` 清理**本次 ingest 明确消费掉的** `_工作台/收件/` 原件。可清理范围包括：
+
+- 已被移动或复制到 `原料/` 的工作台 `.md`；
+- 已被归档并由 canonical source 引用的同名 `.assets/`；
+- 只剩本次 ingest 自动生成 `_INDEX.md` 或空壳的收件子目录。
+
+不要清理这些内容：
+
+- 只分析 / 只预览 / workbench-only 的材料；
+- 无法证明已经进入 `原料/` 的 assets、PDF、图片、批量目录或 sibling 文件；
+- 同一收件目录里与本次 ingest 无关的其他来源。
+
+最终回复必须说明 canonical source 路径、工作台原件是否已移到回收站，以及验证命令结果。
+
 ### 7. QUESTIONS.md 匹配（ingest 结束前）
 
 ingest 结束后、汇报前，Read `corpus/QUESTIONS.md` 的 **Open Questions** 列表：
@@ -335,6 +359,7 @@ ingest 结束后、汇报前，Read `corpus/QUESTIONS.md` 的 **Open Questions**
 死链预检：3 file, 10 link ok, 0 broken
 一次关账：record --step archive,wiki,backlink,lint --log "..."
 sync：index.md +2 added, 6 _INDEX.md refreshed, doctor passed
+清理：trash _工作台/收件/fetch/abc.md（canonical source: 原料/剪藏/abc.md）
 日期来源：fetcher publishDate=2026-04-04
 ```
 
