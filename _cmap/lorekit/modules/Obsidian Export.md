@@ -2,12 +2,12 @@
 type: "cmap-module"
 schema: "cmap.module.v1"
 project: "lorekit"
-module_id: "obsidian-gbrain"
+module_id: "obsidian-export"
 status: "active"
 layer: "unknown"
 risk: "unknown"
-source_path: ".context/modules/obsidian-gbrain.md"
-source_hash: "sha256:08e4c6b34bba004ac592d5408e9d4f5fc57e35a2bf24d89e4f068a5768e75129"
+source_path: ".context/modules/obsidian-export.md"
+source_hash: "sha256:3a56031d36c3f57545bc111ec9a0f8de9f842442693c919e2755d44165a70133"
 tags:
   - "cmap/module"
   - "cmap/project/lorekit"
@@ -15,23 +15,17 @@ aliases:
   - "obsidian"
   - "graph"
   - "graph filter"
-  - "gbrain"
-  - "integration"
-  - "integrations"
   - "视图"
   - "图谱"
 paths:
   - "src/commands/obsidian-tune.ts"
   - "src/lib/obsidian.ts"
   - "plugins/obsidian-audit/**"
-  - "src/commands/gbrain.ts"
-  - "src/lib/integrations/**"
-  - "docs/integrations/**"
 ---
 
-# Obsidian Gbrain
+# Obsidian Export
 
-> Source: `.context/modules/obsidian-gbrain.md`
+> Source: `.context/modules/obsidian-export.md`
 
 ## Relations
 
@@ -47,23 +41,18 @@ paths:
 
 ## Source Module Doc
 
-# Module: Obsidian / GBrain
+# Module: Obsidian Export
 
 ## Purpose
-提供 canonical corpus 周围的可选集成：Obsidian graph tuning / audit plugin，以及 GBrain 只读 staging / sync / query。
+提供 canonical corpus 周围的 Obsidian 集成：graph tuning 与 audit plugin。
 
 ## Owned Paths
 - `src/commands/obsidian-tune.ts`
 - `src/lib/obsidian.ts`
 - `plugins/obsidian-audit/**`
-- `src/commands/gbrain.ts`
-- `src/lib/integrations/**`
-- `docs/integrations/**`
 
 ## Key Contracts
 - Obsidian graph tuning 不能覆盖用户已有 `.obsidian/` 设置，除非明确走 safe write / backup 路径。
-- GBrain 相对 `知识库/` 和 `原料/` 是只读 integration。
-- GBrain export 默认只写 `.wiki/integrations/gbrain-export/` staging，并记录 manifest / sync reports。
 - 外部进程调用不能用 shell interpolation。
 - CMAP 的 `_cmap/lorekit` 和 `_cmap-view` 是 review/read-only 视图；其中 `_cmap-view` 用 `--ui-lang zh-CN` 导出中文 UI，不是新的事实源。
 
@@ -73,11 +62,9 @@ paths:
 - 导出的文档/视图需要由 `docs-tests-release` 的验证规则覆盖。
 
 ## Read Next
-- `docs/ARCHITECTURE.md` 的 GBrain integration flow。
-- `README.md` 的 Optional GBrain Bridge。
-- `tests/smoke/gbrain-*.test.mjs`。
+- `README.md` 的 Obsidian Integration。
+- `docs/ARCHITECTURE.md`。
 
 ## Tests / Verification
-- `node --test tests/smoke/gbrain-status.test.mjs tests/smoke/gbrain-export.test.mjs tests/smoke/gbrain-sync.test.mjs tests/smoke/gbrain-query.test.mjs`
 - Obsidian 变更要覆盖 safe-write 行为。
 - CMAP 视图变更跑 `cmap obsidian export --check --out _cmap/lorekit` 和 `cmap view export --check --ui-lang zh-CN --out _cmap-view`。

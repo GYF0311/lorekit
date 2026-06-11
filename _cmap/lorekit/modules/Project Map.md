@@ -46,7 +46,7 @@ paths:
 - [[Sync Search]]
 - [[Safety Maintenance]]
 - [[Skills Agent]]
-- [[Obsidian Gbrain]]
+- [[Obsidian Export]]
 - [[Docs Tests Release]]
 
 

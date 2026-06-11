@@ -10,6 +10,7 @@ import type { Command } from 'commander';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { requireCorpus, collectMdFiles, extractFrontmatter } from '../lib/corpus.js';
+import { buildWikiLinkIndex, resolveWikiLink } from '../lib/wikilinks.js';
 import {
   loadIngestState,
   saveIngestState,
@@ -266,22 +267,8 @@ export function ingestCommand(program: Command): void {
     .action((files: string[]) => {
       const corpus = requireCorpus();
 
-      // Build the same lookup sets lint.ts uses (stems + bare names + folder
-      // packages like 原料/剪藏/xxx/article.md → 原料/剪藏/xxx).
-      const allMd = collectMdFiles(corpus);
-      const stemSet = new Set<string>();
-      const baseNameSet = new Set<string>();
-      for (const file of allMd) {
-        const rel = relative(corpus, file);
-        const stem = rel.replace(/\.md$/, '');
-        stemSet.add(stem);
-        baseNameSet.add(stem.split('/').pop()!);
-        if (stem.endsWith('/article')) {
-          const folder = stem.replace(/\/article$/, '');
-          stemSet.add(folder);
-          baseNameSet.add(folder.split('/').pop()!);
-        }
-      }
+      // 与 lint / links suggest 同源的 wikilink 解析索引（见 src/lib/wikilinks.ts）。
+      const linkIndex = buildWikiLinkIndex(corpus);
 
       const stripCode = (s: string) => s.replace(/```[\s\S]*?```/g, '').replace(/`[^`\n]+`/g, '');
 
@@ -313,7 +300,7 @@ export function ingestCommand(program: Command): void {
           const target = m[1].trim();
           if (seen.has(target)) continue;
           seen.add(target);
-          if (stemSet.has(target) || baseNameSet.has(target)) {
+          if (resolveWikiLink(rel, target, linkIndex)) {
             okLinks.push({ file: rel, link: target });
           } else {
             broken.push({ file: rel, link: target });

@@ -41,11 +41,12 @@ lorekit/
 | `stats.ts`          | 85  | 输出 corpus 统计 JSON                                                                                             |
 | `search.ts`         | 133 | ripgrep 包装（有内置 fallback）；默认排除过程/系统区，显式 `--dir` 可查指定子目录                                   |
 | `fetch.ts`          | 183 | URL 路由 → 调 fetcher 子模块，duplicate / in-progress 检测                                                        |
-| `ingest.ts`         | 407 | ingest pipeline state machine：list / pending / record / check / forget / reconcile                               |
+| `ingest.ts`         | 393 | ingest pipeline state machine：list / pending / record / check / forget / reconcile；`check` 复用 `lib/wikilinks.ts` 解析       |
+| `links.ts`          | 470 | links closure：suggest / fix / stub / backlog / plain / plained；确定性收口断链，写 系统/missing-nodes.md + .wiki/links-state.json（plain 台账可恢复），原料/ 只读保护 |
 | `dir-index.ts`      | 273 | 递归生成 `_INDEX.md`；复用 `paths.ts` 跳过 `skills/` / `node_modules/` 等工具目录                                  |
 | `sync.ts`           | 171 | 一键链：dir-index → root index → doctor；`--json/--report` 输出步骤收据                                             |
 | `doctor.ts`         | 501 | corpus 健康检查；human 输出 + `--json` 结构化报告 + 严格 `--section <name>` 检查；frontmatter 主指标按 durable layers 统计；默认跳过 inactive optional integrations |
-| `lint.ts`           | 296 | frontmatter / 死链 / 孤岛页 / `知识库` 直链 `_工作台` source 扫描；`--quick` 是 agent 自检兼容别名                    |
+| `lint.ts`           | 307 | frontmatter / 死链 / 孤岛页 / `知识库` 直链 `_工作台` source 扫描；死链解析复用 `lib/wikilinks.ts`；`--quick` 是 agent 自检兼容别名；已 backlog 的待建节点降级为 backlogged 不计入失败 |
 | `audit.ts`          | 162 | 反馈条目 CRUD                                                                                                     |
 | `snapshot.ts`       | 108 | tarball 备份                                                                                                      |
 | `restore.ts`        | 170 | 从 tarball 恢复                                                                                                   |
@@ -63,6 +64,8 @@ lorekit/
 | `root-index.ts`   | 196 | merge-refresh `corpus/index.md` 的受控分区                                                                                                                                 |
 | `ingest-state.ts` | 147 | `.wiki/ingest-state.json` 读写，pipeline SSOT                                                                                                                              |
 | `corpus.ts`       | 98  | corpus 发现 + frontmatter 提取；`collectMdFiles` 跳过全局工具目录                                                                                                          |
+| `wikilinks.ts`    | 90  | **唯一的 wikilink 解析层 SSOT**：`buildWikiLinkIndex` + `resolveWikiLink`，对齐 Obsidian 相对/嵌入/素材语义；`lint` / `ingest check` / `links suggest` 共用（issue #18 去重） |
+| `missing-nodes.ts` | 73 | 系统/missing-nodes.md 待建节点 backlog 的 SSOT helper；links backlog 写入、lint 读取降噪                                                                                   |
 | `date.ts`         | 56  | 日期 helper：`pad2` / `dateToYMDUtc` / `tsCompact` 等                                                                                                                      |
 | `obsidian.ts`     | 86  | 批次 26：graph.json 读写 helper（`getRecommendedFilter` / `readCorpusFilter` / `isFilterComplete`），`templates/default-corpus/.obsidian/graph.json` 是 filter 字符串 SSOT |
 

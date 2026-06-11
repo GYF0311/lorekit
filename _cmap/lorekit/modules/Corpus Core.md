@@ -7,7 +7,7 @@ status: "active"
 layer: "unknown"
 risk: "unknown"
 source_path: ".context/modules/corpus-core.md"
-source_hash: "sha256:4e96601022a493177b13f2605536b142efcaf7192f1def4be3c9d20442edefca"
+source_hash: "sha256:e1fda92c99a8a5fc6a98069b5b5b14927e238861dd8ae4a75d1c1bfc125daed6"
 tags:
   - "cmap/module"
   - "cmap/project/lorekit"
@@ -42,7 +42,7 @@ paths:
 - [[Fetch Ingest]]
 - [[Sync Search]]
 - [[Safety Maintenance]]
-- [[Obsidian Gbrain]]
+- [[Obsidian Export]]
 
 
 ## Source Module Doc
@@ -68,7 +68,7 @@ paths:
 - logger 是源码输出唯一入口。
 
 ## Module Relationships
-- 支撑 `fetch-ingest`、`sync-search`、`safety-maintenance`、`obsidian-gbrain`。
+- 支撑 `fetch-ingest`、`sync-search`、`safety-maintenance`、`obsidian-export`。
 - 如果扫描边界变了，通常也要更新 `docs-tests-release` 的测试/文档。
 
 ## Read Next

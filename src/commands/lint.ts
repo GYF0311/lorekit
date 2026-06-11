@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 import { relative, basename } from 'node:path';
 import chalk from 'chalk';
 import { requireCorpus, collectMdFiles, extractFrontmatter } from '../lib/corpus.js';
+import { buildWikiLinkIndex, resolveWikiLink } from '../lib/wikilinks.js';
+import { MISSING_NODES_REL, readBacklogLabels } from '../lib/missing-nodes.js';
 import {
   lintSkipFrontmatterBasenames,
   lintRootOnlySkipBasenames,
@@ -104,35 +106,25 @@ function stripCodeBlocks(content: string): string {
 
 interface LintIssue {
   file: string;
-  kind: 'missing-field' | 'broken-link' | 'orphan' | 'workbench-source-link';
+  kind: 'missing-field' | 'broken-link' | 'backlogged-link' | 'orphan' | 'workbench-source-link';
   detail: string;
+}
+
+// backlogged-link 是「已登记 missing-nodes 的已知待建节点」，提示但不计入失败。
+export function countHardLintIssues(issues: LintIssue[]): number {
+  return issues.filter((i) => i.kind !== 'backlogged-link').length;
 }
 
 export function runLint(corpus: string): LintIssue[] {
   const files = collectMdFiles(corpus);
   const issues: LintIssue[] = [];
 
-  // Build lookup sets for wikilink resolution
-  // Map: base name (no ext) → relative path, and full relative stem → relative path
-  const stemSet = new Set<string>();
-  const baseNameSet = new Set<string>();
+  // 共享的 wikilink 解析索引（与 ingest check / links suggest 同源，见 src/lib/wikilinks.ts）。
+  const linkIndex = buildWikiLinkIndex(corpus, files);
+  // `links backlog` 登记过的待建节点（见 src/lib/missing-nodes.ts）。
+  const backlogLabels = readBacklogLabels(corpus);
   // Track inbound links per base name / stem for orphan detection
   const inboundLinks = new Set<string>();
-
-  for (const file of files) {
-    const rel = relative(corpus, file);
-    const stem = rel.replace(/\.md$/, '');
-    stemSet.add(stem);
-    baseNameSet.add(stem.split('/').pop()!);
-
-    // 文件夹包装式原料：`原料/文章/xxx/article.md` 的规范引用是 `[[原料/文章/xxx]]`
-    // 把父目录路径也登记为有效链接目标
-    if (stem.endsWith('/article')) {
-      const folderStem = stem.replace(/\/article$/, '');
-      stemSet.add(folderStem);
-      baseNameSet.add(folderStem.split('/').pop()!);
-    }
-  }
 
   // Pass 1: frontmatter + collect wikilinks
   const fileLinks = new Map<string, string[]>();
@@ -205,12 +197,21 @@ export function runLint(corpus: string): LintIssue[] {
 
     if (shouldSkipBrokenLink(rel)) continue; // 模板占位符不算死链
     for (const target of targets) {
-      if (!stemSet.has(target) && !baseNameSet.has(target)) {
-        issues.push({
-          file: rel,
-          kind: 'broken-link',
-          detail: `broken link: [[${target}]]`,
-        });
+      if (!resolveWikiLink(rel, target, linkIndex)) {
+        // backlog 闭环：已登记 missing-nodes 的待建节点降级为提示，建页删行后恢复正常检测
+        if (backlogLabels.has(target)) {
+          issues.push({
+            file: rel,
+            kind: 'backlogged-link',
+            detail: `backlogged link: [[${target}]] (recorded in ${MISSING_NODES_REL})`,
+          });
+        } else {
+          issues.push({
+            file: rel,
+            kind: 'broken-link',
+            detail: `broken link: [[${target}]]`,
+          });
+        }
       }
     }
   }
@@ -267,6 +268,7 @@ export function printLintReport(corpus: string, issues: LintIssue[]): void {
   const kindLabels: Record<string, string> = {
     'missing-field': 'frontmatter',
     'broken-link': 'broken links',
+    'backlogged-link': 'backlogged links (known missing, not counted)',
     'workbench-source-link': 'workbench source links',
     orphan: 'orphan pages',
   };
@@ -274,12 +276,21 @@ export function printLintReport(corpus: string, issues: LintIssue[]): void {
   for (const [kind, items] of Object.entries(grouped)) {
     print(chalk.cyan(`── ${kindLabels[kind] ?? kind} (${items.length}) ──`));
     for (const item of items) {
-      bad(`${item.file}: ${item.detail}`);
+      if (kind === 'backlogged-link') print(chalk.dim(`  ${item.file}: ${item.detail}`));
+      else bad(`${item.file}: ${item.detail}`);
     }
     print();
   }
 
-  print(chalk.yellow(`${issues.length} issue(s) total\n`));
+  const hard = countHardLintIssues(issues);
+  const backlogged = issues.length - hard;
+  if (hard === 0) {
+    ok(`no hard issues (${backlogged} backlogged link(s) pending node creation)`);
+    print();
+  } else {
+    const suffix = backlogged > 0 ? ` (+${backlogged} backlogged, not counted)` : '';
+    print(chalk.yellow(`${hard} issue(s) total${suffix}\n`));
+  }
 }
 
 export function lintCommand(program: Command) {
@@ -291,6 +302,6 @@ export function lintCommand(program: Command) {
       const corpus = requireCorpus();
       const issues = runLint(corpus);
       printLintReport(corpus, issues);
-      if (issues.length > 0) process.exitCode = 1;
+      if (countHardLintIssues(issues) > 0) process.exitCode = 1;
     });
 }

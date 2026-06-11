@@ -2,8 +2,8 @@
 cmap_version: 0.1
 context_type: checkpoint
 project: lorekit
-source_commit: 62576ef
-updated_at: 2026-05-18T04:30:07Z
+source_commit: 52d8bf0
+updated_at: 2026-06-11T05:30:00Z
 confidence: ai-drafted
 ---
 # Current Checkpoint
@@ -11,37 +11,40 @@ confidence: ai-drafted
 > 中文检查点。英文标题是 CMAP CLI 的结构锚点，正文以中文为准。
 
 ## Current Task
-将 `/Users/gaoyifan/code/lorekit` 的 CMAP `.context` 搭建完整：正文中文化、模块关系接好、生成 Obsidian / Review HTML，并安全更新 `AGENTS.md` / `CLAUDE.md`。
+「对齐 + 收敛」三刀计划（见 `docs/ai/TODO-lorekit-cleanup.md`）。第一刀（止血：删 GBrain、删 wiki-enrich、清死引用与污染）与第二刀（恢复 `links` 命令 + 修两个设计缺陷）均已于 2026-06-11 完成。下一刀：现场 corpus 0.1.0 → 0.4.0 升级（高风险，动手前必须 snapshot + 先生单独确认）。
 
 ## Current Hypothesis
-这是已有项目，最稳的路径不是直接 `cmap bootstrap` 覆盖式接管，而是：先把 `.context` 作为 repo-local 项目地图搭好，再用手工 patch 追加入口说明，最后生成视图并跑 check。
+CLI 本体成熟；病灶在技能层超前于工具 + 从未同步到现场 corpus。方向是对齐收敛，不是扩张造新功能。
 
 ## Changed Files
-`.context/` 已创建并中文化；`AGENTS.md` 和 `CLAUDE.md` 已追加 CMAP 使用说明；`.context/graph/`、`_cmap/lorekit/` 已生成；`_cmap-view/` 已用 `--ui-lang zh-CN` 重建为中文 Review HTML。
+- 删除（trash）：`brain/`、`src/commands/gbrain.ts`、`src/lib/integrations/{gbrain*,manifest.ts}`（保留 `process.ts`）、`skills/corpus-gbrain-query/`、`skills/wiki-enrich/`、`docs/integrations/gbrain.md`、5 个 `tests/smoke/gbrain-*.test.mjs`、`.context/modules/obsidian-gbrain.md`
+- 剥离引用：`src/cli.ts`、`src/commands/doctor.ts`（整段摘除 integrations section）、`src/lib/paths.ts`、`tests/smoke/{sync-report,doctor-json}.test.mjs`
+- 清理文档：README、ARCHITECTURE、CODEBASE-MAP、DESIGN-NOTES、IDEAS、INSTALLATION、INTRODUCTION、QUICKSTART、AGENTS.md、`integrations/claude-code/README.md`、`templates/default-corpus/{README,AGENTS,CLAUDE}.md`、6 个 skills
+- `.context`：新增 `modules/obsidian-export.md`，同步 MAP/STATUS/VERIFY/BRIEF/glossary/各模块；`cmap graph build` + `_cmap`/`_cmap-view` 重导
+- 另有未 commit 的 problem1 修复：`src/lib/wikilinks.ts` + `lint.ts`/`ingest.ts`（图片嵌入误报断链，勿动）
 
 ## Verified
-- `git status --short --branch` before adoption: `main...origin/main`, clean.
-- `git log --oneline origin/main..HEAD` before adoption: empty.
-- `cmap version`: `0.2.2`.
-- `cmap adopt`: created 13 skeleton files plus `ADOPTION.md`.
-- `cmap route "接手 lorekit 项目"`: matched `project-map`.
-- `cmap route "修复 lorekit lint 扫描 node_modules skills 路径问题"`: matched `corpus-core`, `safety-maintenance`, and `skills-agent`.
-- `cmap verify --changed`: 0 errors, 1 expected warning (`AGENTS.md` and `CLAUDE.md` differ because `CLAUDE.md` delegates to `AGENTS.md`).
+- `npm run build`: Build success.
+- `npm run verify`: 72 tests, 72 pass, 0 fail（62 一刀后基线 + 10 个 links 用例）。
+- `cmap verify --changed`: 0 errors；warnings 均为已删除文件 unmapped，预期。
+- `grep -ri gbrain` / `wiki-enrich` / `lorekit vector`：现行文件零残留（豁免历史档案：CHANGELOG、`docs/history/`、`docs/plans/`、`DONE.md`、TODO 文档自身）。
 - `git diff --check`: passed.
-- Prior `npm run verify`: passed (`79` tests, `78` pass, `1` skipped) before native semantic index removal. Current issue #17 requires fresh verification.
-- `cmap graph build`: wrote `.context/graph/modules.json`, `files.json`, `edges.json`, `graph.meta.json`.
-- `cmap obsidian export --out _cmap/lorekit`: exported 14 files.
-- `cmap view export --out _cmap-view`: exported `_cmap-view/index.html`.
-- `cmap view export --ui-lang zh-CN --out _cmap-view`: exported Chinese UI review page.
-- `cmap obsidian export --check --out _cmap/lorekit`: up to date.
-- `cmap view export --check --ui-lang zh-CN --out _cmap-view`: up to date.
-- Final `npm run verify`: passed (`79` tests, `78` pass, `1` skipped).
+
+## 第二刀要点（2026-06-11）
+- `links.ts` 从废纸篓恢复（今早 09:52 工作版，先生提示找回），注册回 cli.ts；子命令 suggest/fix/stub/backlog/plain/plained。
+- 缺陷 1 修复：`plain` 写台账到 `.wiki/links-state.json`；`links plained` 列台账、标 revivable、自动清出已重连条目。
+- 缺陷 2 修复：新建 `src/lib/missing-nodes.ts`（SSOT helper）；lint 把已 backlog 的断链降级为 `backlogged-link` 不计入失败（`countHardLintIssues`，lint/remove 两个调用方都改）。
+- 测试 `tests/smoke/links.test.mjs` 10/10，含两个缺陷修复专项用例。
 
 ## Failed / Pending
-`cmap verify --changed` 仍提示 1 个 warning：`AGENTS.md and CLAUDE.md differ`。这是预期状态，因为 `CLAUDE.md` 只保留短入口和 CMAP 摘要，不复制整份 `AGENTS.md`。
+- 全部改动（problem1 + 第一刀 + 第二刀）未 commit，等先生指示分批提交。
+- 第三刀：现场 corpus 0.1.0 → 0.4.0 升级（高风险，动手前必须 snapshot + 单独确认）。
+- `modules/safety-maintenance.md` 仍描述旧的 lint 断链实现，待更新。
 
 ## Next Step
-提交并推送已验证的 CMAP / AGENTS 更新。
+第三刀：先 snapshot 备份两个现场知识库，再 install-skills 刷新 / 模板 merge / 升版本；动手前与先生单独确认。
 
 ## Do Not Redo
-不要为了消除 `AGENTS.md and CLAUDE.md differ` warning 强行复制整份 `AGENTS.md` 到 `CLAUDE.md`。不要把 `_cmap/`、`_cmap-view/`、`.context/generated/` 当 canonical facts。
+- 不要恢复任何 GBrain / wiki-enrich / vector 内容；历史档案（CHANGELOG、docs/history/、docs/plans/）里的相关字样是故意保留的，不要清。
+- 不要动 `src/lib/wikilinks.ts` 及 lint/ingest 的 problem1 改动。
+- 不要为消除 `AGENTS.md and CLAUDE.md differ` warning 复制整份 `AGENTS.md`。不要把 `_cmap/`、`_cmap-view/` 当 canonical facts。

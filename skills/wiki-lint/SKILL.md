@@ -36,13 +36,14 @@ description: 对 corpus 做健康检查，扫 frontmatter 合规、断链、孤�
    - 扫 `_工作台/` 下按过期策略（7 / 14 / 30 天）老化的条目
    - 对每条追问："入库还是扔"
 
-**关键原则**：lint **输出是 diagnostics 列表**，不是 diff。用户点头后才交给相应 skill 处理（拆重复 → wiki-ingest，修断链 → 人工或 fileback）。
+**关键原则**：lint **输出是 diagnostics 列表**，不是 diff。用户点头后才交给相应 skill 处理（拆重复 → wiki-ingest，修断链 → lorekit links(fix/stub/backlog/plain)）。
 
 ## Tools to use
 
 - `lorekit lint` / `lorekit lint --quick` — 主命令
 - `lorekit doctor` — 每日体检（frontmatter / 断链 / 元数据一致性的子集）
 - `lorekit search` — 验证断链目标
+- `lorekit links suggest/fix/stub/backlog/plain` — 断链处置闭环（AI 判断选哪种，CLI 执行）；`links plained` 查可重连的降级记录
 - 底层：Read / Grep
 
 ## Output format

@@ -117,32 +117,17 @@
   },
   "src/commands/obsidian-tune.ts": {
     "modules": [
-      "obsidian-gbrain"
+      "obsidian-export"
     ]
   },
   "src/lib/obsidian.ts": {
     "modules": [
-      "obsidian-gbrain"
+      "obsidian-export"
     ]
   },
   "plugins/obsidian-audit/**": {
     "modules": [
-      "obsidian-gbrain"
-    ]
-  },
-  "src/commands/gbrain.ts": {
-    "modules": [
-      "obsidian-gbrain"
-    ]
-  },
-  "src/lib/integrations/**": {
-    "modules": [
-      "obsidian-gbrain"
-    ]
-  },
-  "docs/integrations/**": {
-    "modules": [
-      "obsidian-gbrain"
+      "obsidian-export"
     ]
   },
   ".context/**": {
@@ -181,6 +166,16 @@
     ]
   },
   "src/commands/lint.ts": {
+    "modules": [
+      "safety-maintenance"
+    ]
+  },
+  "src/commands/links.ts": {
+    "modules": [
+      "safety-maintenance"
+    ]
+  },
+  "src/lib/missing-nodes.ts": {
     "modules": [
       "safety-maintenance"
     ]

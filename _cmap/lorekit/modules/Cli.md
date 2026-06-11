@@ -7,7 +7,7 @@ status: "active"
 layer: "unknown"
 risk: "unknown"
 source_path: ".context/modules/cli.md"
-source_hash: "sha256:5348a4ec2e2a4f0582848b361ec441bdab3af9d52bd4a73137f137e3b17879d2"
+source_hash: "sha256:07b0ab37b2db19acc8a7ab88037204e46fdd1a3e8789510bd71ad9dff8cee2aa"
 tags:
   - "cmap/module"
   - "cmap/project/lorekit"
@@ -39,7 +39,7 @@ paths:
 - [[Sync Search]]
 - [[Safety Maintenance]]
 - [[Skills Agent]]
-- [[Obsidian Gbrain]]
+- [[Obsidian Export]]
 
 
 ## Source Module Doc
@@ -64,7 +64,7 @@ paths:
 - `dist/` 不手工改；改源码后跑 `npm run build`。
 
 ## Module Relationships
-- 调用 `corpus-core`、`fetch-ingest`、`sync-search`、`safety-maintenance`、`skills-agent`、`obsidian-gbrain`。
+- 调用 `corpus-core`、`fetch-ingest`、`sync-search`、`safety-maintenance`、`skills-agent`、`obsidian-export`。
 - 命令行为变化通常还要看 `docs-tests-release`。
 
 ## Read Next

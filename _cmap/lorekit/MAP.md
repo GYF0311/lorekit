@@ -23,7 +23,6 @@ lorekit 是一个个人 LLM Wiki 工具包。它让 AI agent 把网页、笔记�
 ## Tech Stack & Runtime
 - TypeScript ESM，Node.js >= 18，`commander` 做 CLI，`tsup` 负责构建。
 - Runtime dependencies：`chalk`、`cheerio`、`turndown`、`gray-matter`、`tar`、`trash`。
-- Optional services：外部 `gbrain` CLI。
 - 测试使用 Node 内置 `node:test`，主要集中在 `tests/smoke/`。
 - 构建产物在 `dist/`，不要手工改，跑 `npm run build` 生成。
 
@@ -44,7 +43,7 @@ lorekit 是一个个人 LLM Wiki 工具包。它让 AI agent 把网页、笔记�
 | sync-search | 刷新 `_INDEX.md` / root index，提供文本搜索 | `src/commands/dir-index.ts`, `src/commands/sync.ts`, `src/commands/search.ts`, `src/lib/root-index.ts` | `.context/modules/sync-search.md` | index, sync, search, _INDEX |
 | safety-maintenance | doctor/lint/snapshot/restore/remove/audit/stats 等安全维护命令 | `src/commands/doctor.ts`, `src/commands/lint.ts`, `src/commands/snapshot.ts`, `src/commands/restore.ts`, `src/commands/remove.ts`, `src/commands/audit.ts`, `src/commands/stats.ts` | `.context/modules/safety-maintenance.md` | doctor, lint, snapshot, restore, remove, audit |
 | skills-agent | `wiki-*` / `corpus-*` markdown skills 与 AI 侧工作流约束 | `skills/**`, `integrations/claude-code/**`, `templates/default-corpus/AGENTS.md`, `templates/default-corpus/CLAUDE.md`, `templates/default-corpus/README.md`, `src/commands/install-skills.ts` | `.context/modules/skills-agent.md` | wiki skills, corpus skills, agent workflows, install-skills |
-| obsidian-gbrain | Obsidian 图谱配置 / 插件，以及 GBrain 只读 staging/export/sync/query | `src/commands/obsidian-tune.ts`, `src/lib/obsidian.ts`, `plugins/obsidian-audit/**`, `src/commands/gbrain.ts`, `src/lib/integrations/**`, `docs/integrations/**` | `.context/modules/obsidian-gbrain.md` | Obsidian, graph, GBrain, integration |
+| obsidian-export | Obsidian 图谱配置 / 插件 | `src/commands/obsidian-tune.ts`, `src/lib/obsidian.ts`, `plugins/obsidian-audit/**` | `.context/modules/obsidian-export.md` | Obsidian, graph |
 | docs-tests-release | 永久文档、smoke tests、构建配置、发布与变更记录 | `docs/**`, `tests/smoke/**`, `README.md`, `CHANGELOG.md`, `eslint.config.js`, `tsconfig.json`, `tsup.config.ts`, `package-lock.json` | `.context/modules/docs-tests-release.md` | docs, tests, verify, release |
 
 ## Natural Language Route
@@ -57,7 +56,7 @@ lorekit 是一个个人 LLM Wiki 工具包。它让 AI agent 把网页、笔记�
 | sync / _INDEX / search / root index | sync-search | `.context/modules/sync-search.md` |
 | doctor / lint / snapshot / restore / remove / trash / audit | safety-maintenance | `.context/modules/safety-maintenance.md` |
 | wiki skill / install-skills / agent 接手 / project-local skills | skills-agent | `.context/modules/skills-agent.md` |
-| Obsidian / graph filter / GBrain / integrations | obsidian-gbrain | `.context/modules/obsidian-gbrain.md` |
+| Obsidian / graph filter | obsidian-export | `.context/modules/obsidian-export.md` |
 | 文档同步 / smoke test / verify / release / package scripts | docs-tests-release | `.context/modules/docs-tests-release.md` |
 
 ## Module Relationships
@@ -68,7 +67,7 @@ lorekit 是一个个人 LLM Wiki 工具包。它让 AI agent 把网页、笔记�
 - `sync-search` 负责把 wiki 结果转成 `_INDEX.md`、root `index.md` 和文本搜索结果。
 - `safety-maintenance` 在高风险操作前后提供 snapshot、doctor、lint、restore、remove 等护栏。
 - `skills-agent` 是语义工作流层；CLI 不调用 LLM，AI 行为由 markdown skills 约束。
-- `obsidian-gbrain` 是外部阅读/检索视图层，只读或 staging，不应回写 `知识库/` / `原料/` 的事实。
+- `obsidian-export` 是外部阅读视图层，不应回写 `知识库/` / `原料/` 的事实。
 - `docs-tests-release` 保证用户可见能力与文档、测试、构建、发布状态同步。
 
 ## Data Flow
@@ -91,7 +90,6 @@ lorekit 是一个个人 LLM Wiki 工具包。它让 AI agent 把网页、笔记�
 ## External Integrations
 - Web fetch：原生 HTTP + HTML parse；必要时走可选 Playwright fallback。
 - Obsidian：读取 markdown corpus，`obsidian-tune` 写 graph filter，`plugins/obsidian-audit` 支持反馈。
-- GBrain：外部 CLI，只读读取 `.wiki/integrations/gbrain-export/` staging；不得直接改 canonical wiki。
 - CMAP Review HTML / Obsidian export：从 `.context` 渲染视图，不重新做语义判断。
 
 ## Risk Areas

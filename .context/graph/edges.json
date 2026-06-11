@@ -21,12 +21,12 @@
   },
   {
     "from": "cli",
-    "to": "obsidian-gbrain",
+    "to": "obsidian-export",
     "type": "calls",
     "source": "module_relations",
     "confidence": 1,
     "evidence": [
-      ".context/modules/cli.md relations.calls includes obsidian-gbrain"
+      ".context/modules/cli.md relations.calls includes obsidian-export"
     ]
   },
   {
@@ -71,12 +71,12 @@
   },
   {
     "from": "corpus-core",
-    "to": "obsidian-gbrain",
+    "to": "obsidian-export",
     "type": "supports",
     "source": "module_relations",
     "confidence": 1,
     "evidence": [
-      ".context/modules/corpus-core.md relations.supports includes obsidian-gbrain"
+      ".context/modules/corpus-core.md relations.supports includes obsidian-export"
     ]
   },
   {
@@ -131,12 +131,12 @@
   },
   {
     "from": "docs-tests-release",
-    "to": "obsidian-gbrain",
+    "to": "obsidian-export",
     "type": "documents",
     "source": "module_relations",
     "confidence": 1,
     "evidence": [
-      ".context/modules/docs-tests-release.md relations.documents includes obsidian-gbrain"
+      ".context/modules/docs-tests-release.md relations.documents includes obsidian-export"
     ]
   },
   {
@@ -200,33 +200,33 @@
     ]
   },
   {
-    "from": "obsidian-gbrain",
+    "from": "obsidian-export",
     "to": "corpus-core",
     "type": "depends_on",
     "source": "module_relations",
     "confidence": 1,
     "evidence": [
-      ".context/modules/obsidian-gbrain.md relations.depends_on includes corpus-core"
+      ".context/modules/obsidian-export.md relations.depends_on includes corpus-core"
     ]
   },
   {
-    "from": "obsidian-gbrain",
+    "from": "obsidian-export",
     "to": "safety-maintenance",
     "type": "depends_on",
     "source": "module_relations",
     "confidence": 1,
     "evidence": [
-      ".context/modules/obsidian-gbrain.md relations.depends_on includes safety-maintenance"
+      ".context/modules/obsidian-export.md relations.depends_on includes safety-maintenance"
     ]
   },
   {
-    "from": "obsidian-gbrain",
+    "from": "obsidian-export",
     "to": "docs-tests-release",
     "type": "exports_to",
     "source": "module_relations",
     "confidence": 1,
     "evidence": [
-      ".context/modules/obsidian-gbrain.md relations.exports_to includes docs-tests-release"
+      ".context/modules/obsidian-export.md relations.exports_to includes docs-tests-release"
     ]
   },
   {
@@ -271,12 +271,12 @@
   },
   {
     "from": "project-map",
-    "to": "obsidian-gbrain",
+    "to": "obsidian-export",
     "type": "guides",
     "source": "module_relations",
     "confidence": 1,
     "evidence": [
-      ".context/modules/project-map.md relations.guides includes obsidian-gbrain"
+      ".context/modules/project-map.md relations.guides includes obsidian-export"
     ]
   },
   {

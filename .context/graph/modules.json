@@ -87,23 +87,17 @@
       "入库"
     ]
   },
-  "obsidian-gbrain": {
-    "doc": ".context/modules/obsidian-gbrain.md",
+  "obsidian-export": {
+    "doc": ".context/modules/obsidian-export.md",
     "paths": [
       "src/commands/obsidian-tune.ts",
       "src/lib/obsidian.ts",
-      "plugins/obsidian-audit/**",
-      "src/commands/gbrain.ts",
-      "src/lib/integrations/**",
-      "docs/integrations/**"
+      "plugins/obsidian-audit/**"
     ],
     "aliases": [
       "obsidian",
       "graph",
       "graph filter",
-      "gbrain",
-      "integration",
-      "integrations",
       "视图",
       "图谱"
     ]
@@ -137,6 +131,8 @@
     "paths": [
       "src/commands/doctor.ts",
       "src/commands/lint.ts",
+      "src/commands/links.ts",
+      "src/lib/missing-nodes.ts",
       "src/commands/snapshot.ts",
       "src/commands/restore.ts",
       "src/commands/remove.ts",
@@ -146,6 +142,8 @@
     "aliases": [
       "doctor",
       "lint",
+      "links",
+      "断链",
       "snapshot",
       "restore",
       "remove",

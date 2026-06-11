@@ -7,13 +7,15 @@ status: "active"
 layer: "unknown"
 risk: "unknown"
 source_path: ".context/modules/safety-maintenance.md"
-source_hash: "sha256:afdca59925bc8e8a590f428f8ad9fa0107f609b2d0865d3308c2019041c60239"
+source_hash: "sha256:b3e3a515796badc9777487424259ffd94cf777757b7f5c7acb2b1ecc291550c6"
 tags:
   - "cmap/module"
   - "cmap/project/lorekit"
 aliases:
   - "doctor"
   - "lint"
+  - "links"
+  - "断链"
   - "snapshot"
   - "restore"
   - "remove"
@@ -26,6 +28,8 @@ aliases:
 paths:
   - "src/commands/doctor.ts"
   - "src/commands/lint.ts"
+  - "src/commands/links.ts"
+  - "src/lib/missing-nodes.ts"
   - "src/commands/snapshot.ts"
   - "src/commands/restore.ts"
   - "src/commands/remove.ts"
@@ -55,11 +59,13 @@ paths:
 # Module: Safety / Maintenance
 
 ## Purpose
-通过 doctor / lint / snapshot / restore / remove / audit / stats 保护 corpus 完整性和可恢复性。
+通过 doctor / lint / links / snapshot / restore / remove / audit / stats 保护 corpus 完整性和可恢复性。
 
 ## Owned Paths
 - `src/commands/doctor.ts`
 - `src/commands/lint.ts`
+- `src/commands/links.ts`
+- `src/lib/missing-nodes.ts`
 - `src/commands/snapshot.ts`
 - `src/commands/restore.ts`
 - `src/commands/remove.ts`
@@ -72,6 +78,9 @@ paths:
 - `snapshot` / `restore` 是数据安全原语，不能为了方便削弱。
 - `doctor --json` 和 `doctor --section <name>` 支持机器可读和严格 section 检查。
 - `lint --quick` 是 agent 自检兼容 alias，保留。
+- `links` 是断链闭环：suggest 只读给候选，fix/stub/backlog/plain 由 AI 判断后执行；写操作拒绝 `原料/`。
+- `links backlog` 登记到 `系统/missing-nodes.md`（SSOT helper `src/lib/missing-nodes.ts`）；lint 对已登记 label 的断链降级为 backlogged，不计入失败（`countHardLintIssues`）。
+- `links plain` 必须记台账（`.wiki/links-state.json`）保证可恢复；`links plained` 报 revivable 并自动清出已重连条目。
 
 ## Module Relationships
 - 依赖 `corpus-core` 的路径/边界。
@@ -84,6 +93,6 @@ paths:
 - `docs/CONVENTIONS.md` 数据安全与 Do Not #14/#15。
 
 ## Tests / Verification
-- `node --test tests/smoke/remove.test.mjs tests/smoke/restore-boundary.test.mjs`
+- `node --test tests/smoke/remove.test.mjs tests/smoke/restore-boundary.test.mjs tests/smoke/links.test.mjs`
 - 相关 lint / doctor / snapshot smoke tests。
 - `npm run verify`.

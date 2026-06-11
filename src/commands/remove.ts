@@ -9,7 +9,7 @@ import { loadIngestState, saveIngestState } from '../lib/ingest-state.js';
 import { todayYMDShanghai, tsCompact } from '../lib/date.js';
 import { createSnapshot } from './snapshot.js';
 import { runSync } from './sync.js';
-import { printLintReport, runLint } from './lint.js';
+import { countHardLintIssues, printLintReport, runLint } from './lint.js';
 import { bad, err, ok, out, print } from '../utils/logger.js';
 
 interface TrashTarget {
@@ -454,7 +454,7 @@ export function removeCommand(program: Command): void {
         await runSync(corpus);
 
         const issues = runLint(corpus);
-        plan.lintIssues = issues.length;
+        plan.lintIssues = countHardLintIssues(issues);
         printLintReport(corpus, issues);
       } catch (e) {
         err((e as Error).message);

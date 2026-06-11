@@ -48,7 +48,7 @@ paths:
 - [[Sync Search]]
 - [[Safety Maintenance]]
 - [[Skills Agent]]
-- [[Obsidian Gbrain]]
+- [[Obsidian Export]]
 
 
 ## Source Module Doc

@@ -194,6 +194,8 @@ lorekit search "…"    # exact text/entity search
 2. Merges root `index.md` against disk while preserving human-written summaries
 3. Runs `doctor` as a non-blocking sanity check
 
+To close broken wikilinks, run `lorekit links suggest --file <page>` to scan a page for deterministic candidates, then apply each finding with `links fix`, `links stub`, `links backlog`, or `links plain` as the AI judges appropriate. Labels registered via `links backlog` are downgraded by lint and not counted as failures until the node is created.
+
 Query route:
 
 ```bash
