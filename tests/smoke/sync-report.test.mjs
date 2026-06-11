@@ -35,10 +35,7 @@ test('sync --json awaits doctor and reports numeric issue count', () => {
   const corpus = initCorpus();
   try {
     const args = ['sync', '--json'];
-    const r = runLorekit(args, {
-      cwd: corpus,
-      env: { LOREKIT_GBRAIN_BIN: '__missing_lorekit_gbrain_binary__' },
-    });
+    const r = runLorekit(args, { cwd: corpus });
     assert.equal(r.status, 0, fmtRun(r, args, 'exit 0'));
 
     const parsed = JSON.parse(r.stdout);

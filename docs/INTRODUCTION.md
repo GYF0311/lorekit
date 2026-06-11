@@ -46,7 +46,6 @@ lorekit 的答案是：让个人知识库变成一个本地 LLM Wiki。
 | 收集人工反馈 | 创建、列出和按状态过滤审阅反馈；具体修正通常由 AI workflow 完成 | `lorekit audit` |
 | 调整 Obsidian 图谱 | 检查、打印或备份后写入推荐 Graph filter | `lorekit obsidian-tune` |
 | 接入 AI 工作流 | 可选安装 Claude Code / Codex skills，让 agent 有明确入口 | `lorekit install-skills` |
-| 做多跳候选召回 | 可选接入 GBrain，只做 read-only 候选检索 | `lorekit gbrain <sub>` |
 
 可以把这些功能理解成一条链路：先建库和收材料，再让 AI 整理成知识页，随后用搜索、索引、同步和体检维持可用性；当需要审阅、删除、恢复和扩展时，也都有对应的安全入口。
 
@@ -109,7 +108,6 @@ lorekit 提供三层方式：
 - 文本搜索：`lorekit search` 做关键词搜索，优先使用 ripgrep，必要时使用内置文本 fallback。
 - 页面回读：命中候选后回到 `index.md`、`_INDEX.md` 和 canonical page 读取上下文，避免只拿片段当事实。
 
-如果启用 GBrain，它也只作为 read-only 候选发现层；真正引用和沉淀仍然回到 `知识库/` 的 Markdown 页面。
 
 ## 5. 整理后的收尾：同步和体检
 
@@ -123,7 +121,7 @@ _INDEX.md -> root index.md -> doctor
 
 这意味着目录更新了，根入口更新了，健康检查也跑过了。它适合作为一次入库、批量整理或 fileback 后的收尾命令。
 
-`lorekit doctor` 更像系统体检，检查 corpus 目录、wiki metadata、frontmatter、索引、Obsidian Graph filter，以及启用或显式请求的可选集成。未启用的 GBrain 不会被当成默认错误。
+`lorekit doctor` 更像系统体检，检查 corpus 目录、wiki metadata、frontmatter、索引和 Obsidian Graph filter。
 
 `lorekit lint` 更偏内容质量，检查 required frontmatter、broken wikilinks 和 orphan pages。它不负责重复检测。
 
@@ -198,7 +196,7 @@ lorekit obsidian-tune --write
 
 这里要注意边界：lorekit 不是 Obsidian 插件平台。Obsidian 是阅读和审阅界面；lorekit 是管理 corpus 的 CLI。真正的事实源仍然是本地文件和 `.wiki/` 状态。
 
-## 8. 进阶增强：Agent Skills 和 GBrain
+## 8. 进阶增强：Agent Skills
 
 默认路线就是 CLI-only：安装 `lorekit` 命令，初始化 corpus，跑 `doctor`。这已经能完成建库、抓取、处理进度、搜索、索引、同步、体检、快照、恢复、安全删除、Obsidian tuning 和基础 audit。
 
@@ -210,11 +208,8 @@ lorekit obsidian-tune --write
 | Project-local research skills | `install-skills --target project --mode copy` | `skills/wiki-*` 落在当前 corpus；`AGENTS.md` 负责短路由 |
 | Codex daily gateway | `--target codex --only wiki-daily --mode copy` | 可选日记/复盘入口，不随 project workflow 默认安装 |
 | Central corpus entrypoints | `--target codex --only corpus-query,corpus-capture,... --mode copy` | 显式 cross-project router；先解析目标 corpus，再委托目标 `wiki-*` |
-| GBrain bridge | `lorekit gbrain <sub>` | read-only candidate retrieval；只写 `.wiki/integrations` 派生层，不写 canonical wiki |
 
 `wiki-*`、`corpus-*` 和 `wiki-daily` 不是同一套默认包。`wiki-*` 是当前 corpus 的原生工作流；项目/domain skill 只能做触发、分类和路由，不应重写 ingest/fileback。`corpus-*` 是可选的跨项目入口，适合明确维护 central corpus 的用户；`wiki-daily` 是单独的日记 gateway。
-
-GBrain 则适合知识库变大后做 graph / hybrid retrieval 和多跳候选召回。它读取 lorekit 导出的 staging copy，返回候选并映射回 canonical `知识库/` 页面；新知识要沉淀，仍然回到 lorekit 的 fileback、audit 和 snapshot 流程。
 
 ## 典型使用场景
 

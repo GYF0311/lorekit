@@ -52,7 +52,7 @@ confidence: ai-drafted
 ## Key Contracts
 - CLI 保持 thin + deterministic；语义工作流放在 markdown skills。
 - `lorekit install-skills` 是可选 Agent Skills 模块，不属于 CLI-only 默认安装；命令被调用时，Claude Code 目标选择 `wiki-*`，Codex 目标选择 `corpus-*` + `wiki-daily`；`--only` 可安装单个或逗号列表 skills；模式支持 copy/symlink。
-- AI 安装器默认推荐单 `lorekit` CLI；只有用户明确选择对应组合时才安装 skills、project-local wrapper 或 GBrain，并说明额外学习成本和配置文件。
+- AI 安装器默认推荐单 `lorekit` CLI；只有用户明确选择对应组合时才安装 skills 或 project-local wrapper，并说明额外学习成本和配置文件。
 - Codex `--only wiki-daily` 与完整 `--target codex` 要分开：前者只做日记 gateway，后者安装 `corpus-*` 且包含 `wiki-daily`。
 - `wiki-*` 是 corpus-local 执行规范；`corpus-*` 是 global entrypoint/routing skill，需回读目标 corpus 的 AGENTS/CLAUDE/skills 规则。
 - `wiki-ingest` 明确 ingest/promote 成功后，应在 canonical source、wiki 页面、反链、ingest state/log、sync 都完成时，用 Trash 清理本次消费掉的 `_工作台/收件/` 中转原件；analysis-only / preview-only / workbench-only 任务不触发清理。

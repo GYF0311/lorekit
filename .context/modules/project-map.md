@@ -31,7 +31,7 @@ relations:
     - sync-search
     - safety-maintenance
     - skills-agent
-    - obsidian-gbrain
+    - obsidian-export
     - docs-tests-release
 source_commit: 62576ef
 updated_at: 2026-05-17T14:34:56Z

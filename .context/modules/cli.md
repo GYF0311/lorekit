@@ -24,7 +24,7 @@ relations:
     - sync-search
     - safety-maintenance
     - skills-agent
-    - obsidian-gbrain
+    - obsidian-export
 source_commit: 62576ef
 updated_at: 2026-05-17T10:44:32Z
 confidence: ai-drafted
@@ -49,7 +49,7 @@ confidence: ai-drafted
 - `dist/` 不手工改；改源码后跑 `npm run build`。
 
 ## Module Relationships
-- 调用 `corpus-core`、`fetch-ingest`、`sync-search`、`safety-maintenance`、`skills-agent`、`obsidian-gbrain`。
+- 调用 `corpus-core`、`fetch-ingest`、`sync-search`、`safety-maintenance`、`skills-agent`、`obsidian-export`。
 - 命令行为变化通常还要看 `docs-tests-release`。
 
 ## Read Next

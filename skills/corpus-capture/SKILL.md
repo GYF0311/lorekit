@@ -19,7 +19,6 @@ Expected fields:
 {
   "default_corpus": "/ABSOLUTE/PATH/TO/CORPUS",
   "lorekit_bin": "/ABSOLUTE/PATH/TO/CORPUS/bin/lorekit",
-  "gbrain_bin": "/ABSOLUTE/PATH/TO/CORPUS/bin/gbrain",
   "workbench_inbox_dir": "_工作台/收件",
   "daily_inbox_dir": "_工作台/日记收件",
   "knowledge_dir": "知识库",

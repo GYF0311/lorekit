@@ -16,7 +16,7 @@ lorekit 是个人知识 compilation harness：用 schema、markdown skills、确
 ## Target Users
 - 高一帆先生，以及长期维护本地 corpus / Obsidian 知识库的个人用户。
 - Codex、Claude Code、Cursor、Kimi CLI、Aider、Windsurf 等需要本地知识库工作流的 AI coding agent。
-- 维护 lorekit CLI、skills、corpus schema、Obsidian/GBrain 集成的贡献者。
+- 维护 lorekit CLI、skills、corpus schema、Obsidian 集成的贡献者。
 
 ## Core Use Cases
 - 初始化安全的 corpus：`原料/`、`知识库/`、`_工作台/`、`.wiki/`、Obsidian 配置和 agent 入口。
@@ -25,7 +25,7 @@ lorekit 是个人知识 compilation harness：用 schema、markdown skills、确
 - 用 `sync` 刷 `_INDEX.md`、root `index.md` 和 doctor 报告。
 - 通过 `search` + Read-first 三层路径回答问题。
 - 用 snapshot / restore / audit / remove 处理高风险维护，避免不可逆删除。
-- 将 canonical wiki staging 到 GBrain，或导出 CMAP Obsidian / Review HTML 阅读层。
+- 导出 CMAP Obsidian / Review HTML 阅读层。
 
 ## MVP Scope
 当前产品面是 `lorekit` CLI v0.4.0 + `skills/wiki-*` markdown workflows。CLI 不调用 LLM，只提供确定性文件、状态、索引、检索和安全原语；语义判断留给 AI agent 和 skill。
@@ -35,13 +35,12 @@ lorekit 是个人知识 compilation harness：用 schema、markdown skills、确
 - 不做自动知识 daemon。
 - 不让 CLI 代替 AI/human 做语义归纳。
 - 不修改 `原料/`，不做不可逆删除。
-- 不把 GBrain 变成 runtime dependency，也不 vendor GBrain 源码。
 - 不把新 CLI surface、底层修复和大规模内容清扫混在一批。
 
 ## Product Constraints
 - 数据安全优先级高于便利性：风险操作先 snapshot，删除走 OS Trash，cleanup 只按明确来源归因。
 - `原料/` 只读；`知识库/` 是编译产物；`.wiki/` 是 state / report / index / integration metadata。
-- Node.js >= 18 是唯一必需运行时；GBrain 是可选外部集成。
+- Node.js >= 18 是唯一必需运行时。
 - CLI 的 stdout/stderr 分流必须保留，JSON 输出要可 pipe。
 - 新命令、新 skill、跨文件行为变化必须同步永久文档。
 

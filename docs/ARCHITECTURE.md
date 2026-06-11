@@ -16,7 +16,7 @@ CLI 是薄层调度，负责确定性的文件系统、状态、索引、检索�
 - **项目 / domain skills**：只做领域触发、来源分类、命名规则、验收建议和路由选择；持久写入必须委托 `wiki-ingest` / `wiki-fileback` 等 native workflows。
 - **中央入口 skills**（`corpus-*` / `wiki-daily`）：可选 cross-project gateway。只有用户明确维护 configured central corpus 时才显式安装；它们先解析目标 corpus，再委托目标 corpus 的 `wiki-*`。
 
-不变量：`wiki-ingest` / `wiki-fileback` 是 durable write paths。任何全局、项目或 domain skill 都不能绕过 `原料/`、`知识库/`、provenance、ingest state、sync/lint 和确认门另造一套写库流程。不要把删除类、高风险 GBrain mutating 命令、自动 fileback 做成默认入口。
+不变量：`wiki-ingest` / `wiki-fileback` 是 durable write paths。任何全局、项目或 domain skill 都不能绕过 `原料/`、`知识库/`、provenance、ingest state、sync/lint 和确认门另造一套写库流程。不要把删除类命令、自动 fileback 做成默认入口。
 
 ### Skill Extension Standard
 
@@ -53,14 +53,11 @@ flowchart TB
     Wiki["知识库/"]
     Index["index.md<br/>+ 各级 _INDEX.md"]
     State["[.wiki/ingest-state.json]"]
-    GBrainExport["[.wiki/integrations/gbrain-export]<br/>GBrain staging copy"]
-    GBrainReport["[.wiki/integrations/gbrain]<br/>sync reports"]
   end
 
   subgraph External["外部依赖"]
     RG["ripgrep"]
     Web["网页"]
-    GBrain["gbrain CLI<br/>Bun / PGLite / graph retrieval"]
   end
 
   User["先生"] -->|自然语言| Agent
@@ -72,11 +69,8 @@ flowchart TB
   Lib -->|读写| Wiki
   Lib -->|读写| Index
   Lib -->|读写| State
-  Lib -->|写 staging/report| GBrainExport
-  Lib -->|写 report| GBrainReport
   Lib -->|HTTP| Web
   Lib -->|spawn| RG
-  Lib -->|spawn import/query| GBrain
 ```
 
 任何 domain-specific ingest skill 都只能进入上图的 Agent 步骤：它可以判断研究包是否完成、选择来源类型和目标主语，但必须通过 `.wiki/ingest-state.json` 记录 fetch/archive/wiki/lint 进度，不能绕过 fetch/archive/wiki/lint state 自己落盘。
@@ -126,13 +120,11 @@ flowchart LR
   L0R --> L1R["Read {dir}/_INDEX.md"]
   L1R --> L2R["Read 具体页面.md"]
   L2R --> Links["沿 wikilinks 追 1-2 跳"]
-  Skill -->|可选| GQ["lorekit gbrain query<br/>候选发现"]
-  GQ --> L2R
   L2R --> Ans
   Links --> Ans["回答先生"]
 ```
 
-默认先走确定性文本层；GBrain 只作为可选候选发现层，最终答案仍回读 canonical `知识库/` 页面。
+默认先走确定性文本层，最终答案回读 canonical `知识库/` 页面。
 
 ### Remove 流（来源/页面 → 安全移除）
 
@@ -157,25 +149,6 @@ sequenceDiagram
 
 Remove 的边界是 **provenance-aware**：只按明确来源引用删除，不按关键词删除。例：删除一篇 harness 文章，只移除这篇文章贡献的登记；`知识库/概念/harness.md` 若仍有其他 harness 来源支撑，必须保留。`## Compiled Truth` 不自动改写，只列入人工复核报告。
 
-### GBrain 集成流（wiki → 外部 graph retrieval）
-
-```mermaid
-flowchart LR
-  Wiki["知识库/ canonical pages"] --> Export["lorekit gbrain export"]
-  Export --> Stage[".wiki/integrations/gbrain-export/pages"]
-  Export --> Manifest["manifest.json<br/>sourcePath/gbrainSlug/reverseMap/hash"]
-  Stage --> Sync["lorekit gbrain sync"]
-  Sync --> GBrain["external gbrain import --fresh<br/>extract all --source db"]
-  Sync --> Report[".wiki/integrations/gbrain/sync-report.json"]
-  Manifest --> QueryGuard["query stale warning"]
-  Report --> QueryGuard
-  QueryGuard --> Query["lorekit gbrain query"]
-  GBrain --> Query
-  Query --> Canonical["manifest.reverseMap<br/>canonical 知识库/ pages"]
-```
-
-边界：`lorekit gbrain` 只做 read-only bridge。它不修改 `知识库/`，不修改 `原料/`，不把 GBrain 加进 runtime dependencies，也不 vendor GBrain runtime / engine。导出阶段会把 canonical path 编译成 GBrain-friendly slug，重写 staging wikilink / frontmatter relation，规范完整日期 timeline，并写入 `manifest.reverseMap`；同时注入 `lorekit_source_path` / `lorekit_hash` / `lorekit_exported_at` 以便 doctor 检测 stale export。`export --out` 默认只能写到 `.wiki/integrations/` 下，除非显式传 `--allow-outside-corpus`。`sync` 先 `gbrain import <pages> --fresh`，再运行 `gbrain extract all --source db --include-frontmatter --json`。`query` 默认必须在 corpus 内运行，并先检查 manifest / sync report；若外部索引缺失或 stale，会提醒先 `lorekit gbrain sync`，但不会阻止调用外部 `gbrain query --no-expand`；如果 GBrain 已经输出候选但进程超时或非零退出，Lorekit 保留可映射候选并降级为 warning，最终仍映射回 canonical `知识库/` 页面。
-
 ## 核心抽象
 
 | 抽象        | 文件                           | 责任边界                                                                      |
@@ -186,8 +159,7 @@ flowchart LR
 | IngestState | `lib/ingest-state.ts`          | `.wiki/ingest-state.json` 单一事实源；3 个 status × N 个 stepsDone            |
 | Fetcher     | `lib/fetcher/`                 | URL → 本地 markdown + 图片；L1 native fetch，L2 playwright fallback（10 文件子模块，v0.4.0 / 批次 21 拆分） |
 | Remove      | `commands/remove.ts`           | URL/路径解析、dry-run 影响报告、snapshot、OS Trash、来源归因级联清理                    |
-| GBrain      | `commands/gbrain.ts` + `lib/integrations/` | 可选只读集成：status/export/sync/doctor/query，外部进程封装、manifest、stale 提醒、安全 export 边界 |
-| DoctorReport | `commands/doctor.ts`          | `lorekit doctor --json` / 严格 `--section <name>` 的结构化健康报告；inactive 可选集成跳过，enabled 可选集成 warn 不阻塞 corpus |
+| DoctorReport | `commands/doctor.ts`          | `lorekit doctor --json` / 严格 `--section <name>` 的结构化健康报告 |
 | SyncReport  | `commands/sync.ts`             | `lorekit sync --json/--report` 的步骤状态收据；写 `.wiki/reports/sync/` |
 | RootIndex   | `lib/root-index.ts`            | `corpus/index.md` 的受控区合并刷新（保留人类摘要）                            |
 | DirIndex    | `commands/dir-index.ts → runIndex` | 所有子目录 `_INDEX.md` 自动生成（v0.4.0 / 批次 17 从 `commands/index.ts` 改名消歧义） |
@@ -207,12 +179,11 @@ flowchart LR
 | 依赖            | 接口                             | 失败降级                                               |
 | --------------- | -------------------------------- | ------------------------------------------------------ |
 | ripgrep         | `spawnSync('rg', ...)`           | fallback 到内置正则扫描                                |
-| GBrain          | `spawn('gbrain', ...)`           | 可选；默认 doctor 跳过 inactive 集成，`gbrain status/doctor` 给安装建议，`sync/query` 清晰失败 |
 | playwright-core | dynamic import                   | 缺了 antibot 站点 fetch 失败并提示装 playwright        |
 | tar             | runtime dep                      | snapshot/restore 必需，无 fallback                     |
 | trash           | npm package                      | remove 必需；跨平台移动到 OS Trash / Recycle Bin，不走 `rm` |
 
 ## 渐进披露的 token 预算
 
-L0（auto-injected, ~2k token）→ L1（on-demand, ~1k/pull）→ L2（targeted）→ L3（相邻链接 / GBrain 候选）。
+L0（auto-injected, ~2k token）→ L1（on-demand, ~1k/pull）→ L2（targeted）→ L3（相邻链接）。
 单次 query 总 token 通常 < 5k。这是 lorekit 区别于传统 RAG 的关键：检索不是黑盒兜底，而是分层渐进。

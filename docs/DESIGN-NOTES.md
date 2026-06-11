@@ -21,7 +21,6 @@ lorekit 是个人知识 compilation harness：
 2. Read `corpus/index.md`，选择相关知识分区。
 3. Read `{dir}/_INDEX.md`，缩小到候选页。
 4. Read 具体 `知识库/` 页面，必要时沿 wikilink 追 1-2 跳。
-5. 如果配置了 GBrain，可作为候选发现层；候选必须映射回 canonical `知识库/` 页面后才能引用。
 
 这个顺序来自 Karpathy LLM Wiki 的核心思想：wiki 是 compilation cache，不是每次 query 时重新从 raw docs 拼答案。
 
@@ -72,24 +71,7 @@ lorekit 是个人知识 compilation harness：
 
 `--apply` 必须先 snapshot，再把目标移动到 OS Trash，之后 sync/lint。
 
-## 6. GBrain 只读集成边界
-
-GBrain 是可选 graph candidate discovery 层，不是 lorekit 的默认路线。
-
-```text
-lorekit 写 canonical wiki
-GBrain 读 staging export
-```
-
-已落地边界：
-
-- `lorekit gbrain export` 只读 `知识库/`，只写 `.wiki/integrations/gbrain-export/`。
-- export 默认跳过 `_INDEX.md`、local `index.md`、`知识库/模板/`。
-- export manifest 记录 reverse map，保证 GBrain 候选可回读 canonical `知识库/` 页面。
-- `gbrain query` 的结果只能当候选；最终答案必须引用 canonical wiki。
-- GBrain 缺失或未配置时，默认 doctor 不应把它当 hard failure。
-
-## 7. 文档与入口
+## 6. 文档与入口
 
 `AGENTS.md` 是源码维护入口，不承载安装教程。安装和使用文档归：
 
@@ -99,7 +81,7 @@ GBrain 读 staging export
 
 新增命令、skill 或跨文件行为变化时，同一批改动必须同步更新用户入口、架构文档、代码地图和测试。
 
-## 8. 暂不做的事
+## 7. 暂不做的事
 
 - 不把外部图数据库或候选发现工具做成默认依赖。
 - 不让 CLI 调 LLM 做语义判断。

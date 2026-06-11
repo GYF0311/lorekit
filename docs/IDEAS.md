@@ -32,12 +32,6 @@
 - 删除前的 dry-run 可以把 `Compiled Truth` 疑似影响按 confidence 排序，优先提醒最可能需要人工改写的段落。
 - restore 可增加更友好的 "nothing changed" JSON 输出。
 
-## GBrain Bridge
-
-- GBrain candidate report 可显示每个候选映射回 canonical page 的路径和 hash 状态。
-- `gbrain doctor` 可把 stale export、missing reverse map、外部 binary 缺失分成独立 sections。
-- 保持 GBrain 只读；任何 mutating graph action 都不应写回 canonical wiki。
-
 ## Documentation
 
 - README 保持产品介绍，INSTALLATION 负责安装组合，QUICKSTART 负责 30 分钟上手。

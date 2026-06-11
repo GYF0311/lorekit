@@ -2,15 +2,14 @@
 
 > Last updated: 2026-06-02
 
-本文回答三个问题：
+本文回答两个问题：
 
 1. 默认只安装 lorekit CLI 时，如何初始化和运行一个知识库 corpus。
 2. 什么时候把项目级 Agent Skills、中央 corpus 入口、项目级隔离组合进来。
-3. 用户想加 GBrain 时，如何把它作为 read-only 增强检索层接入，而不是把两个系统揉成一个。
 
 ## 先问用户
 
-AI 帮用户安装时，先问一个简短问题。默认推荐单 lorekit，因为其他组合会引入额外概念、配置文件和长期维护成本。用户只说“安装一下”或没有明确选择时，执行默认路线，不要自动安装 skills、project-local wrapper 或 GBrain。
+AI 帮用户安装时，先问一个简短问题。默认推荐单 lorekit，因为其他组合会引入额外概念、配置文件和长期维护成本。用户只说“安装一下”或没有明确选择时，执行默认路线，不要自动安装 skills 或 project-local wrapper。
 
 ```text
 我可以帮你安装 lorekit。推荐默认是「只安装 lorekit CLI」：
@@ -23,7 +22,6 @@ AI 帮用户安装时，先问一个简短问题。默认推荐单 lorekit，因
 3. CLI + Project-local research corpus：把 `wiki-*` 安装到项目 `skills/`，并在 `AGENTS.md` 记录项目/domain skill 路由。
 4. CLI + Central corpus entrypoints：显式安装选定 `corpus-*` / `wiki-daily`，让任意项目能路由到同一个 corpus。
 5. Hybrid：只在确实需要时，把中央入口与项目级 `wiki-*` 执行细则组合。
-6. CLI + GBrain：把 GBrain 作为 read-only 候选检索层接入 lorekit。
 ```
 
 默认建议：
@@ -32,8 +30,7 @@ AI 帮用户安装时，先问一个简短问题。默认推荐单 lorekit，因
 - 想让 agent 有明确工作流入口时，再安装目标 agent 对应的项目级 `wiki-*` skills。
 - 研究型知识库通常选择 Project-local：项目内 `skills/wiki-*` 执行 LoreKit 原生 ingest/query/fileback，项目/domain skill 只做领域路由和定制。
 - 需要从任意代码项目访问同一个个人 corpus 时，再显式安装选定 `corpus-*`；这是中央知识库拓扑，不是默认路线。
-- 需要 graph candidate discovery、多跳关系、候选发现时，再安装 GBrain bridge。
-- 安装器类 skill 也可以全局保留，例如 `lorekit-corpus-bootstrap` / `lorekit-gbrain-project-bridge`，用于快速部署项目级配置。
+- 安装器类 skill 也可以全局保留，例如 `lorekit-corpus-bootstrap`，用于快速部署项目级配置。
 
 AI 安装规则：
 
@@ -42,23 +39,21 @@ AI 安装规则：
 - 用户选择 Project-local research corpus 时，运行 `--target project --mode copy`，把 `wiki-*` 放在当前项目 `skills/` 并用 `AGENTS.md` 短路由。
 - 用户选择 Codex `wiki-daily` 时，只运行 `--only wiki-daily`，不要顺手装 `corpus-*`。
 - 用户选择中央 corpus 入口时，使用 `--only corpus-query,corpus-capture,...` 显式安装选定 `corpus-*`；不要把它解释成 Codex 默认。
-- 用户选择 GBrain 时，只启用 lorekit 的 read-only bridge，不安装 GBrain 原生 mutating skills。
 - 每加一个组合，都要说明它解决什么问题、增加什么学习成本、需要维护哪个配置文件。
 
 ## 模块组合速查
 
 | 组合 | 包含 | 不包含 | 适合 |
 | --- | --- | --- | --- |
-| 默认：CLI only | `lorekit` CLI + corpus skeleton | skills / GBrain / project wrapper | 新用户、最小安装、验证工具本体 |
-| CLI + Agent Skills | CLI + `wiki-*` project workflows | GBrain / 中央 corpus 配置 | 希望 agent 在当前项目触发 ingest / query / fileback |
+| 默认：CLI only | `lorekit` CLI + corpus skeleton | skills / project wrapper | 新用户、最小安装、验证工具本体 |
+| CLI + Agent Skills | CLI + `wiki-*` project workflows | 中央 corpus 配置 | 希望 agent 在当前项目触发 ingest / query / fileback |
 | CLI + Project-local research | CLI + 当前项目 `skills/wiki-*` + `AGENTS.md` 短路由 | central gateway skills | 研究型知识库、团队库、项目专有 skill 定制 |
 | CLI + Central Corpus | 显式选定的 Codex `corpus-*` / `wiki-daily` + `global-corpus.json` | project-local execution rules | 任意项目都要访问同一个个人 corpus |
-| Hybrid | 中央入口 skills + 项目级执行 rules | GBrain 可选 | 一个 central corpus 服务多个项目；可选高级拓扑 |
-| CLI + GBrain | CLI + `lorekit gbrain` read-only bridge | GBrain mutating skills | 多跳候选召回、graph candidate discovery |
+| Hybrid | 中央入口 skills + 项目级执行 rules | — | 一个 central corpus 服务多个项目；可选高级拓扑 |
 
 ## 路线 A：只安装 lorekit（默认）
 
-适合不需要 GBrain 的用户。此时 lorekit 已能完成摄入、维护、查询、同步、备份和安全删除。
+此时 lorekit 已能完成摄入、维护、查询、同步、备份和安全删除。
 
 ### 1. 安装源码和 CLI
 
@@ -71,7 +66,7 @@ npm link
 lorekit --version
 ```
 
-Node.js >= 18 是唯一硬依赖。`ripgrep` 是可选文本搜索加速；GBrain 是外部可选拓扑，不是 lorekit 默认安装依赖。
+Node.js >= 18 是唯一硬依赖。`ripgrep` 是可选文本搜索加速。
 
 ### 2. 初始化 corpus
 
@@ -204,8 +199,7 @@ lorekit install-skills --target codex --only corpus-query,corpus-capture,corpus-
 | `corpus-query` | 从任何项目查询 configured corpus | 默认只读 `知识库/` |
 | `corpus-ingest` | 从任何项目摄入 URL / 文件 / 外部资料 | configured corpus 的 `原料/` + `知识库/` |
 | `corpus-fileback` | 用户确认后把结论写回 configured corpus | `知识库/` |
-| `corpus-gbrain-query` | GBrain / 多跳候选召回 | 只读派生索引，回读 `知识库/` |
-| `corpus-health` | 检查 corpus / LoreKit / GBrain 健康 | 报告，不写知识 |
+| `corpus-health` | 检查 corpus / LoreKit 健康 | 报告，不写知识 |
 | `wiki-daily` | 日记、todo、daily compile | `_工作台/日记收件/`、`每日/`、`输出/复盘/` |
 
 再创建全局 corpus 配置：
@@ -221,7 +215,6 @@ $EDITOR ~/.config/lorekit/global-corpus.json
 {
   "default_corpus": "/ABSOLUTE/PATH/TO/CORPUS",
   "lorekit_bin": "/ABSOLUTE/PATH/TO/CORPUS/bin/lorekit",
-  "gbrain_bin": "/ABSOLUTE/PATH/TO/CORPUS/bin/gbrain",
   "workbench_inbox_dir": "_工作台/收件",
   "daily_inbox_dir": "_工作台/日记收件",
   "knowledge_dir": "知识库",
@@ -236,7 +229,6 @@ $EDITOR ~/.config/lorekit/global-corpus.json
 {
   "default_corpus": "/Users/gaoyifan/Desktop/corpus",
   "lorekit_bin": "/Users/gaoyifan/Desktop/corpus/bin/lorekit",
-  "gbrain_bin": "/Users/gaoyifan/Desktop/corpus/bin/gbrain",
   "workbench_inbox_dir": "_工作台/收件",
   "daily_inbox_dir": "_工作台/日记收件",
   "knowledge_dir": "知识库",
@@ -245,7 +237,7 @@ $EDITOR ~/.config/lorekit/global-corpus.json
 }
 ```
 
-这些可选入口 skill 只负责入口和路由；执行规范仍以目标 corpus 内的 `AGENTS.md` / `CLAUDE.md` / `skills/wiki-*` 为准。不要把 corpus 项目级的 `wiki-remove`、GBrain 原生 mutating skill、或自动 fileback 规则做成默认入口。
+这些可选入口 skill 只负责入口和路由；执行规范仍以目标 corpus 内的 `AGENTS.md` / `CLAUDE.md` / `skills/wiki-*` 为准。不要把 corpus 项目级的 `wiki-remove` 或自动 fileback 规则做成默认入口。
 
 `install-skills --only` 支持逗号列表，也支持单个名字：
 
@@ -306,16 +298,15 @@ Codex 里，项目级 skills 通常不会出现在 `/` 菜单预览中；模型�
 central gateway skill = 入口和路由
 项目级 skill = 执行规范
 Lorekit = canonical 写入
-GBrain = 派生检索
 知识库/ = 唯一事实源
 ```
 
 具体做法：
 
-- central gateway 安装：显式选定 `corpus-capture`、`corpus-query`、`corpus-ingest`、`corpus-fileback`、`corpus-gbrain-query`、`corpus-health`、`wiki-daily`
+- central gateway 安装：显式选定 `corpus-capture`、`corpus-query`、`corpus-ingest`、`corpus-fileback`、`corpus-health`、`wiki-daily`
 - corpus 内保留：`skills/wiki-ingest`、`skills/wiki-query`、`skills/wiki-fileback`、`skills/wiki-lint`、`skills/wiki-remove` 等项目级执行细则
-- `AGENTS.md` / `CLAUDE.md` 只写短路由，不把长 daily 或 GBrain 规则塞进入口文件
-- 删除、高风险 GBrain mutating 命令、自动 fileback 不做 gateway skill
+- `AGENTS.md` / `CLAUDE.md` 只写短路由，不把长 daily 规则塞进入口文件
+- 删除类命令、自动 fileback 不做 gateway skill
 
 ### 4. 日常运行
 
@@ -337,124 +328,15 @@ AI 工作流：
 - `wiki-lint`：健康检查。
 - `wiki-remove`：安全移除。
 
-## 路线 B：lorekit + GBrain（可选增强）
-
-适合需要 graph candidate discovery、多跳关系、候选发现的用户。
-
-边界：
-
-```text
-lorekit = canonical wiki 管理层
-GBrain  = read-only 增强检索层
-```
-
-GBrain 不直接写 `知识库/`、`原料/` 或 `输出/`。新知识写回仍走 lorekit 的 `wiki-fileback` / `wiki-ingest` / `audit`。
-
-### 1. 安装 GBrain 源码
-
-```bash
-git clone https://github.com/garrytan/gbrain.git ~/code/gbrain
-cd ~/code/gbrain
-bun install
-bun link
-gbrain --version
-```
-
-如果用户没有 `OPENAI_API_KEY`，仍可通过项目 wrapper 让 `gbrain import` 使用 `--no-embed`，先维护 keyword/metadata index。
-
-### 2. 项目级 wrapper（可选但建议用于隔离）
-
-在 corpus 里放：
-
-```text
-bin/
-├── lorekit
-└── gbrain
-```
-
-`bin/lorekit` 要点：
-
-```bash
-export LOREKIT_GBRAIN_BIN="$CORPUS_ROOT/bin/gbrain"
-exec /path/to/lorekit "$@"
-```
-
-`bin/gbrain` 要点：
-
-```bash
-export GBRAIN_HOME="$CORPUS_ROOT/.wiki/integrations/gbrain"
-exec /path/to/bun /path/to/gbrain/src/cli.ts "$@"
-```
-
-以后在这个 corpus 里只用：
-
-```bash
-./bin/lorekit
-./bin/gbrain
-```
-
-如果你选择项目级隔离，不要让 agent 默认调用全局 `gbrain` 写入别的 brain。没有项目级 wrapper 时，也可以直接使用全局 `lorekit gbrain ...`，但要确认 `gbrain` 的 home/config 不会串到其他项目。
-
-### 3. 同步与查询
-
-```bash
-cd ~/Desktop/my-corpus
-./bin/lorekit gbrain status --json
-./bin/lorekit gbrain export --dry-run --json
-./bin/lorekit gbrain sync --json
-./bin/lorekit gbrain doctor --json
-./bin/lorekit gbrain query "问题" --json
-```
-
-数据流：
-
-```text
-知识库/ canonical pages
-  -> lorekit gbrain export
-  -> .wiki/integrations/gbrain-export/pages/ + manifest.reverseMap
-  -> gbrain import --fresh
-  -> gbrain extract all --source db --include-frontmatter --json
-  -> .wiki/integrations/gbrain/ derived index
-```
-
-回答时：
-
-1. 先用 lorekit/index/search 找 canonical 页面。
-2. 召回不足或需要多跳关系时，用 `lorekit gbrain query` 找候选。
-3. 回读 `知识库/` canonical 页面。
-4. 最终答案引用 canonical wiki，而不是 `.wiki/integrations/gbrain-export/`。
-
-### 4. GBrain skill 处理
-
-不要全量安装 GBrain 原生 skills。推荐映射：
-
-| GBrain skill                                                     | 在 lorekit corpus 中怎么用                  |
-| ---------------------------------------------------------------- | ------------------------------------------- |
-| `query`                                                          | 映射为 `lorekit-gbrain-query`，只做候选召回 |
-| `skillpack-check` / `smoke-test`                                 | 映射为 `lorekit-gbrain-sync-check`          |
-| `brain-ops` / `ingest` / `enrich` / `maintain` / `reports`       | 默认禁用；这些会写 GBrain brain             |
-| `article-enrichment` / `concept-synthesis` / `strategic-reading` | 可作为研究参考，结果经 lorekit 写回         |
-| `media-ingest` / `meeting-ingestion` / `voice-note-ingest`       | 默认走 `wiki-ingest`                        |
-| `cron-scheduler` / `minion-orchestrator` / `daily-task-*`        | 不属于默认 corpus workflow                  |
-
-如果选择项目级隔离，建议新增 bridge skills：
-
-- `lorekit-gbrain-query`
-- `lorekit-gbrain-sync-check`
-- `lorekit-fileback-after-gbrain`
-- `lorekit-gbrain-research`
-
 ## 用户级安装与项目级安装的取舍
 
 | 组件           | 用户级安装                       | 项目级安装                                 |
 | -------------- | -------------------------------- | ------------------------------------------ |
-| lorekit CLI    | 默认路线，任意目录可调用         | wrapper 锁定 corpus 与 GBrain binary       |
-| GBrain CLI     | 方便调试 GBrain                  | wrapper 锁定 `GBRAIN_HOME`，避免写错 brain |
+| lorekit CLI    | 默认路线，任意目录可调用         | wrapper 锁定 corpus                        |
 | lorekit skills | 可选模块，触发和预览更直接       | 靠 `AGENTS.md` 路由，不污染其他项目        |
-| GBrain skills  | 容易启用 mutating brain workflow | 只映射，不直接启用                         |
 | hooks          | 可能影响所有项目                 | 只做项目内轻量提醒                         |
 
-一句话：lorekit 默认只有 CLI；skills 是 agent 触发层，研究型 corpus 优先项目级安装，central gateway 和 GBrain 都是增强策略，不是 lorekit 基础功能的前置条件。
+一句话：lorekit 默认只有 CLI；skills 是 agent 触发层，研究型 corpus 优先项目级安装，central gateway 是增强策略，不是 lorekit 基础功能的前置条件。
 
 ## 验收清单
 
@@ -466,20 +348,10 @@ lorekit --version
 lorekit doctor --json
 ```
 
-安装 GBrain bridge：
-
-```bash
-cd ~/Desktop/my-corpus
-./bin/lorekit gbrain status --json
-./bin/lorekit gbrain export --dry-run --json
-./bin/lorekit gbrain doctor --json
-```
-
 写入后：
 
 ```bash
 ./bin/lorekit sync --json
-./bin/lorekit gbrain sync --json
 ```
 
-这里的"写入"指 `原料/` / `知识库/` / 路由索引这类 durable corpus 写入，不是每一次 `_工作台/` 记录。若 GBrain 未启用，lorekit 仍可单独使用；默认 `doctor` 会跳过 inactive GBrain，显式 `gbrain doctor` 或 `doctor --section integrations` 才检查 GBrain 状态。
+这里的"写入"指 `原料/` / `知识库/` / 路由索引这类 durable corpus 写入，不是每一次 `_工作台/` 记录。

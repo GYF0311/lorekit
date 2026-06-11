@@ -73,6 +73,4 @@ When fileback comes from `wiki-daily` candidates, preserve backlinks to the sour
 
 Do not auto-fileback from automation.
 
-Do not let GBrain write canonical pages.
-
 If confirmation is ambiguous, ask which candidate numbers or conclusion should be written.

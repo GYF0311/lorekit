@@ -2,7 +2,7 @@
 
 30 minutes from zero to a local LLM Wiki managed by the `lorekit` CLI.
 
-Default setup is CLI-only: install the global `lorekit` command and initialize a corpus. Research corpora, project-local skills, central-corpus entrypoints, and GBrain are optional modules; see [`INSTALLATION.md`](INSTALLATION.md). If an AI agent is installing lorekit for a user, it should recommend CLI-only first and ask before adding any optional module.
+Default setup is CLI-only: install the global `lorekit` command and initialize a corpus. Research corpora, project-local skills, and central-corpus entrypoints are optional modules; see [`INSTALLATION.md`](INSTALLATION.md). If an AI agent is installing lorekit for a user, it should recommend CLI-only first and ask before adding any optional module.
 
 ---
 
@@ -28,7 +28,6 @@ Pure TypeScript, Node.js-only, usable from any AI coding agent (Claude Code / Co
 | Tool         | Purpose                    | Install                                                                                    | Verify             |
 | ------------ | -------------------------- | ------------------------------------------------------------------------------------------ | ------------------ |
 | ripgrep      | Faster text search         | `brew install ripgrep`                                                                     | `rg --version`     |
-| Bun + GBrain | Optional graph retrieval   | `git clone https://github.com/garrytan/gbrain.git && cd gbrain && bun install && bun link` | `gbrain --version` |
 | Claude Code  | Best end-to-end experience | [download](https://claude.com/claude-code)                                                 | `claude --version` |
 | Obsidian     | Visual wiki browsing       | [download](https://obsidian.md)                                                            | —                  |
 
@@ -95,7 +94,6 @@ Keep the paths separate:
 | Project-local research corpus | `lorekit install-skills --target project --mode copy` | Installs `wiki-*` into current `./skills/` and routes from `AGENTS.md` |
 | Codex diary only | `lorekit install-skills --target codex --only wiki-daily --mode copy` | Requires `~/.config/lorekit/daily.json` |
 | Central corpus entrypoints | `lorekit install-skills --target codex --only corpus-query,corpus-capture --mode copy` | Requires `global-corpus.json`; explicit cross-project topology |
-| GBrain bridge | no skill install by default; use `lorekit gbrain <sub>` | Read-only retrieval bridge; do not install GBrain mutating skills |
 
 ### Agent workflow skills
 
@@ -144,7 +142,6 @@ Then create `~/.config/lorekit/global-corpus.json`:
 {
   "default_corpus": "/ABSOLUTE/PATH/TO/CORPUS",
   "lorekit_bin": "/ABSOLUTE/PATH/TO/CORPUS/bin/lorekit",
-  "gbrain_bin": "/ABSOLUTE/PATH/TO/CORPUS/bin/gbrain",
   "workbench_inbox_dir": "_工作台/收件",
   "daily_inbox_dir": "_工作台/日记收件",
   "knowledge_dir": "知识库",
@@ -208,30 +205,7 @@ For answers, the agent uses `lorekit search`, `index.md`, relevant `_INDEX.md` f
 
 ---
 
-## 6. Optional: export to GBrain
-
-GBrain is optional. lorekit alone already handles the base knowledge workflow. Add GBrain only when you want a graph / agent-memory retrieval layer next to lorekit's Markdown wiki. lorekit remains the source of truth; GBrain reads a staging copy.
-
-If you choose project-local isolation, keep GBrain project-local to the corpus through wrappers such as `./bin/lorekit` and `./bin/gbrain`. Do not install GBrain's full native mutating skill set as a corpus default.
-
-```bash
-cd ~/Desktop/my-corpus
-lorekit gbrain status
-lorekit gbrain export --dry-run
-lorekit gbrain export
-lorekit gbrain sync --dry-run
-lorekit gbrain sync
-lorekit gbrain doctor
-lorekit gbrain query "..."
-```
-
-`export` writes only under `.wiki/integrations/gbrain-export/` by default. Custom `--out` paths must stay under `.wiki/integrations/`; pass `--allow-outside-corpus` only for an intentional unsafe target. It skips generated indexes and templates, projects canonical pages to GBrain slugs such as `concepts/rag`, rewrites staging wikilinks/frontmatter relations, normalizes complete-date timeline bullets, removes frontmatter `slug`, and records source hashes plus `manifest.reverseMap`. `sync` checks the external binary before writing staging, calls external `gbrain import --fresh`, runs `gbrain extract all --source db --include-frontmatter --json`, and writes `.wiki/integrations/gbrain/sync-report.json`. `query` checks corpus/export/sync freshness before calling GBrain; stale state prints `GBrain index may be stale. Run lorekit gbrain sync.` but does not block the query.
-
-When GBrain finds candidates, lorekit maps slugs back through `manifest.reverseMap` and the final answer should still read canonical pages under `知识库/`. New knowledge is written back through `wiki-fileback` / `wiki-ingest`, not direct GBrain mutating commands.
-
----
-
-## 7. What Success Looks Like
+## 6. What Success Looks Like
 
 The CLI-only default is ready once the same corpus can complete this loop:
 
@@ -242,8 +216,6 @@ lorekit fetch <url>
 lorekit sync --json
 lorekit snapshot
 ```
-
-Optional GBrain is healthy enough when `lorekit gbrain export --dry-run` shows the expected pages and `lorekit doctor --section integrations` reports the enabled integration state. In a lorekit-only corpus, default `lorekit doctor` skips inactive GBrain instead of recommending setup.
 
 ---
 
@@ -410,18 +382,3 @@ npm install
 npm run build
 # npm link is still valid — the symlink picks up the new build
 ```
-
----
-
-## 10. Optional retrieval topology
-
-Default lorekit retrieval is transparent: use `lorekit search`, drill into `index.md` / `_INDEX.md`, then read canonical Markdown pages.
-
-For graph or multi-hop candidate discovery, use the optional GBrain bridge:
-
-```bash
-lorekit gbrain status
-lorekit gbrain query "your question"
-```
-
-GBrain is read-only from lorekit's point of view. It can suggest candidates, but durable facts still need to be written back through the normal wiki / audit / sync workflow.

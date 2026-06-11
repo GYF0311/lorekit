@@ -33,7 +33,7 @@ Native routing table：
 - 项目/domain skill 可以识别研究单元、课程包、客户材料或项目阶段，但不得复制一套 ingest/fileback 流程。
 - `corpus-*` 是 optional cross-project gateway；使用前先解析用户明确配置的目标 corpus。
 - `wiki-daily` 是可选日记/复盘 workflow；它不随 project workflow 默认安装。
-- `wiki-remove`、GBrain 原生 mutating 命令、自动 fileback 不做默认入口。
+- `wiki-remove`、自动 fileback 不做默认入口。
 - `原料/` 是长期 LM Wiki 的 canonical raw-source layer；`_工作台/**` 里的项目证据、课程原文和中间材料只服务当前任务验证，除非明确 ingest/promote，否则不等价于 `原料/`
 - 明确 ingest/promote 成功后，`_工作台/收件/` 中本次消费掉的原件只是过渡副本；原料已进 `原料/` 且 wiki/反链/state/log/sync 完成时，默认用 `trash` 清理
 - 检索链默认从 `index.md` / `知识库/` 开始，需要完整 provenance 时再打开 `原料/`；project-local evidence 只在当前任务点名时读取
@@ -44,7 +44,7 @@ Native routing table：
 - 不推荐触发：每条 `_工作台/` note、daily fragment、临时学习记录、HTML/展示产物的小改
 - routine check 汇报只给 pass/fail、阻塞项和关键路径，不贴整段 `index/sync/doctor` 日志
 
-如果从其他项目进入本 corpus，先确认用户想操作当前项目 corpus 还是某个 configured central corpus。跨项目入口读取 `~/.config/lorekit/global-corpus.json` 的 `default_corpus`、`lorekit_bin`、`gbrain_bin`；当前项目入口直接按当前项目规则执行，并优先使用 corpus-local wrapper。
+如果从其他项目进入本 corpus，先确认用户想操作当前项目 corpus 还是某个 configured central corpus。跨项目入口读取 `~/.config/lorekit/global-corpus.json` 的 `default_corpus`、`lorekit_bin`；当前项目入口直接按当前项目规则执行，并优先使用 corpus-local wrapper。
 
 ---
 
@@ -147,17 +147,3 @@ Counter-evidence 节**即使为空也必须写**——"没反驳"是一个信号
 - `corpus/系统/**/*.md`（所有 schema 规范文档）
 
 **不在上述清单里的文件**（`知识库/**` / `原料/**` / `每日/**` 等）不加 `graph-excluded`——它们是知识资产，需要进索引。
-
-### 10. GBrain 只读集成规则
-
-如果使用 `lorekit gbrain`：
-
-- `知识库/` 仍是 canonical source of truth
-- GBrain 只能读取 `.wiki/integrations/gbrain-export/` staging copy
-- 不允许 GBrain 直接写回 `知识库/` 或 `原料/`
-- 任何新知识持久化仍必须走 wiki-fileback / audit / snapshot
-- `lorekit gbrain export` 默认跳过 `_INDEX.md`、local `index.md` 和 `知识库/模板/`
-- `lorekit gbrain export --out` 默认只能写在 `.wiki/integrations/` 下
-- `lorekit gbrain sync` 缺 binary 时默认只写 failure report，不刷新 staging
-- `lorekit gbrain query` 默认检查 corpus + export/sync freshness；stale 时提醒但不阻止查询
-- `lorekit doctor --section integrations` 可单独检查 GBrain health；未知 section 必须报参数错

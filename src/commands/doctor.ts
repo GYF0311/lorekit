@@ -10,11 +10,6 @@ import {
   readCorpusFilter,
   isFilterComplete,
 } from '../lib/obsidian.js';
-import {
-  doctorGbrain,
-  type GbrainDoctorIssue,
-  type GbrainDoctorResult,
-} from '../lib/integrations/gbrain.js';
 
 const EXPECTED_DIRS = [
   '每日',
@@ -36,7 +31,6 @@ const PUBLIC_DOCTOR_SECTIONS = [
   'index',
   'archive',
   'obsidian',
-  'integrations',
 ] as const;
 
 type PublicDoctorSection = (typeof PUBLIC_DOCTOR_SECTIONS)[number];
@@ -46,11 +40,10 @@ type DoctorSectionName =
   | 'frontmatter'
   | 'indexFiles'
   | 'archive'
-  | 'obsidian'
-  | 'integrations';
+  | 'obsidian';
 
 interface DoctorIssue {
-  section: DoctorSectionName | 'gbrain';
+  section: DoctorSectionName;
   severity: 'warn' | 'error';
   message: string;
   recommendation?: string;
@@ -275,33 +268,6 @@ function statusFromIssues(issues: DoctorIssue[]): DoctorStatus {
   return 'ok';
 }
 
-function convertGbrainIssue(issue: GbrainDoctorIssue): DoctorIssue {
-  return {
-    section: 'gbrain',
-    severity: issue.severity,
-    message: issue.message,
-    recommendation: issue.recommendation,
-  };
-}
-
-function gbrainSection(gbrain: GbrainDoctorResult): DoctorSectionReport {
-  return {
-    status: gbrain.status,
-    gbrain: {
-      status: gbrain.status,
-      enabled: gbrain.enabled,
-      activationReason: gbrain.activationReason,
-      installed: gbrain.gbrain.installed,
-      binary: gbrain.gbrain.binary,
-      version: gbrain.gbrain.version,
-      brainInitialized: gbrain.gbrain.brainInitialized,
-      manifestPath: gbrain.manifestPath,
-      syncReportPath: gbrain.syncReportPath,
-      issues: gbrain.issues,
-    },
-  };
-}
-
 export async function runDoctorReport(
   corpus: string,
   opts: DoctorOptions = {},
@@ -379,12 +345,6 @@ export async function runDoctorReport(
     report.sections.obsidian = inspectObsidianGraph(corpus);
   }
 
-  if (section === 'all' || section === 'integrations') {
-    const gbrain = await doctorGbrain(corpus, { force: section === 'integrations' });
-    report.sections.integrations = gbrainSection(gbrain);
-    report.issues.push(...gbrain.issues.map(convertGbrainIssue));
-  }
-
   report.hardIssues = report.issues.filter((issue) => issue.severity === 'error').length;
   report.status = statusFromIssues(report.issues);
   return report;
@@ -401,7 +361,6 @@ export async function runDoctor(corpus: string, opts: DoctorOptions = {}): Promi
   print(chalk.bold(`\nlorekit doctor — ${corpus}\n`));
 
   let issues = 0;
-  let optionalWarnings = 0;
 
   if (section === 'all' || section === 'structure') {
     print(chalk.cyan('── directories ──'));
@@ -437,35 +396,8 @@ export async function runDoctor(corpus: string, opts: DoctorOptions = {}): Promi
     print();
   }
 
-  if (section === 'all' || section === 'integrations') {
-    const gbrain = await doctorGbrain(corpus, { force: section === 'integrations' });
-    if (!(section === 'all' && gbrain.status === 'skipped')) {
-      print(chalk.cyan('── integrations ──'));
-    }
-    if (gbrain.status === 'ok') {
-      ok('gbrain: integration healthy');
-    } else if (gbrain.status === 'skipped') {
-      print(chalk.dim('gbrain: skipped (optional integration not enabled)'));
-    } else {
-      for (const issue of gbrain.issues) {
-        const line = `gbrain: ${issue.message}. ${issue.recommendation}`;
-        if (issue.severity === 'error') bad(line);
-        else warn(line);
-      }
-    }
-    const integrationErrors = gbrain.issues.filter((issue) => issue.severity === 'error').length;
-    optionalWarnings += gbrain.issues.filter((issue) => issue.severity === 'warn').length;
-    issues += integrationErrors;
-    if (!(section === 'all' && gbrain.status === 'skipped')) {
-      print();
-    }
-  }
-
   if (issues === 0) {
     print(chalk.green.bold('all hard checks passed ✓'));
-    if (optionalWarnings > 0) {
-      print(chalk.yellow.bold('optional warnings found ⚠'));
-    }
   } else {
     print(chalk.yellow(`${issues} issue(s) found`));
   }
@@ -480,7 +412,7 @@ export function doctorCommand(program: Command) {
     .description('run health checks on the corpus')
     .option('--json', 'output machine-readable doctor report', false)
     .option('--section <name>', `only run one section: ${validSectionList()}`, 'all')
-    .action(async (opts: { json?: boolean; section?: 'all' | 'integrations' | string }) => {
+    .action(async (opts: { json?: boolean; section?: string }) => {
       const section = parseDoctorSection(opts.section ?? 'all');
       if (!section) {
         bad(`invalid section: ${opts.section}`);

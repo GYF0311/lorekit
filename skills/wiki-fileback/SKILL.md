@@ -20,7 +20,6 @@ description: 把对话中产生的洞察/决策/事实按主语写回 corpus，�
 
 - 输入是 URL / 文件 / 外部资料 → 那是 `wiki-ingest`
 - 只是随口说，用户没明确要存 → 不要自作主张
-- 要从历史日记里批量提炼 → 那是 `wiki-enrich`
 
 ## Decision tree
 

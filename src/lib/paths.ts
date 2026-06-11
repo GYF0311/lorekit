@@ -184,7 +184,7 @@ export const snapshotExcludeNames: ReadonlySet<string> = new Set(['.wiki', '.git
  * 用法：corpus / tmpdir / .wiki/integrations 任一作为 root 都行。
  *
  * 实现来源：原 src/commands/remove.ts 的 withinCorpus()，
- * v0.4.x 抽到 SSOT 供 restore / gbrain export / search 复用。
+ * v0.4.x 抽到 SSOT 供 restore / search 复用。
  */
 export function isWithin(root: string, abs: string): boolean {
   const rel = pathRelative(root, abs);

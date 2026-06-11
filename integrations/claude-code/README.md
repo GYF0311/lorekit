@@ -30,7 +30,6 @@ Both do the same thing:
 | `wiki-query`    | search / recall from corpus           |
 | `wiki-fileback` | write conversation insights back      |
 | `wiki-lint`     | deep health scan                      |
-| `wiki-enrich`   | periodic daily-session extraction     |
 
 Because we symlink (not copy), editing a skill in `~/code/lorekit/skills/...` takes effect in the next Claude Code session — no re-install.
 

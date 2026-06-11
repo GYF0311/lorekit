@@ -30,7 +30,6 @@ description: 从 corpus 检索已有内容并综合答案，按精确/模糊/图
 2. Read `corpus/index.md` 定位知识分区。
 3. Read `{dir}/_INDEX.md` 缩小到候选页。
 4. Read 具体 `知识库/` canonical page，再按页内 wikilink 追 1-2 跳。
-5. 若配置了 GBrain，可把 `corpus-gbrain-query` 作为候选发现层；候选必须映射回真实 `知识库/` 页面后才能引用。
 
 ## Decision tree
 
@@ -59,7 +58,6 @@ description: 从 corpus 检索已有内容并综合答案，按精确/模糊/图
 
 - `lorekit search "<q>"` — 精确 ripgrep/fallback 检索
 - Read `corpus/index.md` / `{dir}/_INDEX.md` / 具体文件
-- `corpus-gbrain-query` — 仅在已配置 GBrain 且文本层召回不足时作为候选发现层
 - 底层：Grep（复杂匹配时用）
 
 ## Output format
@@ -144,7 +142,7 @@ query 结束后，在 `corpus/log.md` **末尾追加一行**：
 ## [YYYY-MM-DD HH:mm] query | <question 一句话简述>
 ```
 
-用于先生回看"这个月都查了什么"，也为 `wiki-enrich` 月度复盘提供素材。
+用于先生回看"这个月都查了什么"。
 
 ## Query → Fileback 闭环（核心 UX）
 

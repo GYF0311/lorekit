@@ -19,7 +19,6 @@ description: 把新内容摄入 corpus，按 filing-rules 落盘并建反向链�
 
 - 对话中的洞察存回 → `wiki-fileback`
 - 只是查询已有内容 → `wiki-query`
-- 从日记里定期提炼 → `wiki-enrich`
 
 ## 分工边界（重要）
 

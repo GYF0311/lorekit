@@ -52,7 +52,6 @@ lorekit/
 | `install-skills.ts` | 202 | 可选安装 lorekit-managed skills 到 Claude Code、Codex 或当前项目；默认安装 `wiki-*` project workflows（排除 `wiki-daily`），`corpus-*` / `wiki-daily` 必须用 `--only` 显式选择；支持 `--dest`、`--only` 逗号列表与 copy/symlink |
 | `obsidian-tune.ts`  | 120 | 批次 26：老用户升级一键应用 `.obsidian/graph.json` filter（默认检查 / `--write` 备份后写 / `--print` 管道用）     |
 | `remove.ts`         | 466 | 安全移除 URL/路径：dry-run 影响报告，`--apply` snapshot → OS Trash → provenance 清理 → sync/lint                  |
-| `gbrain.ts`         | 147 | 可选 GBrain read-only bridge：status / export / sync / doctor / query，stdout JSON + stale warning + 外部命令边界 |
 
 ## src/lib/ 详单
 
@@ -82,16 +81,11 @@ lorekit/
 | `routes/gist.ts`   | 180 | `fetchGist` GitHub gist                                       |
 | `routes/github.ts` | 159 | `fetchGithubDoc` GitHub repo doc                              |
 
-### `src/lib/integrations/`（GBrain 可选集成）
+### `src/lib/integrations/`
 
 | 文件               | 职责                                                                                                                                  |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
 | `process.ts`       | `spawn` 外部命令封装；不走 shell interpolation，捕获 stdout/stderr/exitCode/timeout                                                   |
-| `gbrain-status.ts` | 探测 `gbrain --version`，未安装时输出 clone + bun install + bun link + init 建议                                                      |
-| `gbrain-export.ts` | 将 `知识库/` 导出为 GBrain-native staging：跳过 index/template，限制默认 export root，写 projected pages + reverse manifest |
-| `gbrain/projection.ts` | GBrain projection 编译器：canonical path -> slug，staging wikilink/frontmatter rewrite，timeline normalize，MIT-attributed slug 思路 |
-| `manifest.ts`      | GBrain export manifest 类型与 JSON 读写 helper                                                                                        |
-| `gbrain.ts`        | sync/doctor/query 编排：import + extract all、写 sync-report、检查 reverseMap/stale/0-link、query 候选映射回 canonical                 |
 
 ## src/utils/ 详单
 
@@ -112,8 +106,7 @@ lorekit/
 6. `src/commands/ingest.ts` — state machine 对外 surface，最大单文件
 7. `src/commands/sync.ts` — 把索引 / 体检串起来，复用 `runIndex` + `doctor`，并产出 agent-readable report
 8. `src/commands/remove.ts` — 删除路径最敏感：只做来源归因级联，先 snapshot，再 OS Trash
-9. `src/commands/gbrain.ts` — 外部 GBrain 边界：必须保持只读导出，不得写回 canonical wiki
-10. `src/utils/logger.ts` — 全仓库输出统一入口（CONVENTIONS 强制，stdout/stderr 分流）
+9. `src/utils/logger.ts` — 全仓库输出统一入口（CONVENTIONS 强制，stdout/stderr 分流）
 
 ## 配置文件
 

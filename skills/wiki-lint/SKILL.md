@@ -16,7 +16,6 @@ description: 对 corpus 做健康检查，扫 frontmatter 合规、断链、孤�
 
 **不要触发**：
 
-- 用户要定期从日记提炼 → 那是 `wiki-enrich`
 - 用户要写新内容 → `wiki-ingest` / `wiki-fileback`
 
 ## Decision tree
@@ -61,8 +60,8 @@ corpus: <path>
   - ...
 
 [WARN] 断链（5 条）
-  - 知识库/实体/lorekit.md 引用 [[gbrain]]，目标不存在
-    修复：(a) 新建 知识库/概念/gbrain.md；(b) 改为 [[gbrain 页]]；(c) 删除此链接
+  - 知识库/实体/lorekit.md 引用 [[fat skill]]，目标不存在
+    修复：(a) 新建 知识库/概念/fat skill.md；(b) 改为 [[已有同义页]]；(c) 删除此链接
 
 [WARN] 孤岛（3 条）
   - 知识库/实体/李四.md 没有任何反向链接

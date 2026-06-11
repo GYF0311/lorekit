@@ -27,7 +27,7 @@ relations:
     - fetch-ingest
     - sync-search
     - safety-maintenance
-    - obsidian-gbrain
+    - obsidian-export
 source_commit: 62576ef
 updated_at: 2026-05-17T10:44:32Z
 confidence: ai-drafted
@@ -53,7 +53,7 @@ confidence: ai-drafted
 - logger 是源码输出唯一入口。
 
 ## Module Relationships
-- 支撑 `fetch-ingest`、`sync-search`、`safety-maintenance`、`obsidian-gbrain`。
+- 支撑 `fetch-ingest`、`sync-search`、`safety-maintenance`、`obsidian-export`。
 - 如果扫描边界变了，通常也要更新 `docs-tests-release` 的测试/文档。
 
 ## Read Next

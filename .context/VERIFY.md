@@ -31,7 +31,7 @@ confidence: ai-drafted
 | sync-search | 相关 sync/search smoke tests | 文本索引和查询入口保持确定性 |
 | safety-maintenance | 相关 `doctor/lint/snapshot/restore/remove` smoke tests | `remove` 保持 snapshot + Trash + provenance 边界 |
 | skills-agent | 人工读改动的 `skills/*/SKILL.md` | skill 不承诺不存在的 CLI 能力 |
-| obsidian-gbrain | 相关 Obsidian/GBrain smoke tests | GBrain 仍只写 staging/report，不写回 canonical wiki |
+| obsidian-export | 相关 Obsidian smoke tests | Obsidian 写入走 safe write / backup 路径 |
 | docs-tests-release | `npm run verify` + docs diff review | 用户可见行为已更新到现有永久文档 |
 
 ## Optional Commands
@@ -50,4 +50,4 @@ confidence: ai-drafted
 - JSON 输出要确认 stdout 仍可机器读取，人类提示走 stderr。
 
 ## Environment Assumptions
-本机应有 Node.js >= 18、npm、git、ripgrep。GBrain、Playwright 都是可选集成；缺失时应清晰降级或报错。
+本机应有 Node.js >= 18、npm、git、ripgrep。Playwright 是可选集成；缺失时应清晰降级或报错。

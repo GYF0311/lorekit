@@ -8,7 +8,7 @@
 - Last updated: 2026-05-18
 - 当前版本：`v0.4.0`（以 `VERSION` 和 `package.json` 为准）
 - 产品边界：AI 负责语义判断；lorekit CLI 负责确定性、安全、可重复的文件、状态、索引、检索动作。
-- 近期重点：CMAP repo-local 项目地图、Obsidian / Review HTML 导出、可选 GBrain 只读 staging/query bridge。
+- 近期重点：CMAP repo-local 项目地图、Obsidian / Review HTML 导出。
 - 当前交接事实源：`.context/CHECKPOINT.md` 和 `.context/STATUS.md`。
 - 历史日志在 `docs/history/`，默认不读。
 
