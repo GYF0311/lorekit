@@ -36,7 +36,7 @@ relations:
     - fetch-ingest
     - skills-agent
 source_commit: 62576ef
-updated_at: 2026-06-11T06:00:00Z
+updated_at: 2026-07-04T12:00:00Z
 confidence: ai-drafted
 ---
 # Module: Safety / Maintenance
@@ -64,6 +64,8 @@ confidence: ai-drafted
 - `links` 是断链闭环：suggest 只读给候选，fix/stub/backlog/plain 由 AI 判断后执行；写操作拒绝 `原料/`。
 - `links backlog` 登记到 `系统/missing-nodes.md`（SSOT helper `src/lib/missing-nodes.ts`）；lint 对已登记 label 的断链降级为 backlogged，不计入失败（`countHardLintIssues`）。
 - `links plain` 必须记台账（`.wiki/links-state.json`）保证可恢复；`links plained` 报 revivable 并自动清出已重连条目。
+- lint 问题分级（2026-07-04 起）：硬性 = missing-field / broken-link / orphan / workbench-source-link / unresolved-source（知识库页 frontmatter 的 原料/知识库 来源引用必须可解析）；软性（`SOFT_ISSUE_KINDS`，不计入失败）= backlogged-link / stale-review（`domain_volatility` 90/180/365 天复审窗口，`last_reviewed` 缺省回退 `updated`）。
+- skills ↔ CLI 防漂移由 `tests/smoke/skills-cli-drift.test.mjs` 兜底：skill 引用不存在的命令/子命令/flag 时 verify 直接失败。
 
 ## Module Relationships
 - 依赖 `corpus-core` 的路径/边界。

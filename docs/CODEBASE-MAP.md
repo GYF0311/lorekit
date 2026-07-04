@@ -39,14 +39,14 @@ lorekit/
 | ------------------- | --- | ----------------------------------------------------------------------------------------------------------------- |
 | `init.ts`           | 189 | 初始化 corpus，部署 Obsidian 插件 + 批次 25 safe-write `.obsidian/graph.json`                                     |
 | `stats.ts`          | 85  | 输出 corpus 统计 JSON                                                                                             |
-| `search.ts`         | 133 | ripgrep 包装（有内置 fallback）；默认排除过程/系统区，显式 `--dir` 可查指定子目录                                   |
+| `search.ts`         | 155 | ripgrep 包装（有内置 fallback）；默认排除过程/系统区，`--all` 第二级召回纳入工作台/归档（仍排除 .wiki/转写噪音层，与 `--dir` 互斥），显式 `--dir` 可查指定子目录 |
 | `fetch.ts`          | 183 | URL 路由 → 调 fetcher 子模块，duplicate / in-progress 检测                                                        |
 | `ingest.ts`         | 393 | ingest pipeline state machine：list / pending / record / check / forget / reconcile；`check` 复用 `lib/wikilinks.ts` 解析       |
 | `links.ts`          | 470 | links closure：suggest / fix / stub / backlog / plain / plained；确定性收口断链，写 系统/missing-nodes.md + .wiki/links-state.json（plain 台账可恢复），原料/ 只读保护 |
 | `dir-index.ts`      | 273 | 递归生成 `_INDEX.md`；复用 `paths.ts` 跳过 `skills/` / `node_modules/` 等工具目录                                  |
-| `sync.ts`           | 171 | 一键链：dir-index → root index → doctor；`--json/--report` 输出步骤收据                                             |
+| `sync.ts`           | 195 | 一键链：dir-index → root index → MEMORY.md 统计 → doctor；`--json/--report` 输出步骤收据                            |
 | `doctor.ts`         | 501 | corpus 健康检查；human 输出 + `--json` 结构化报告 + 严格 `--section <name>` 检查；frontmatter 主指标按 durable layers 统计；默认跳过 inactive optional integrations |
-| `lint.ts`           | 307 | frontmatter / 死链 / 孤岛页 / `知识库` 直链 `_工作台` source 扫描；死链解析复用 `lib/wikilinks.ts`；`--quick` 是 agent 自检兼容别名；已 backlog 的待建节点降级为 backlogged 不计入失败 |
+| `lint.ts`           | 390 | frontmatter / 死链 / 孤岛页 / `知识库` 直链 `_工作台` source / unresolved-source（frontmatter 来源可解析）扫描；软性提示 backlogged-link + stale-review（volatility 90/180/365d 复审窗口）不计入失败；死链解析复用 `lib/wikilinks.ts`；`--quick` 是 agent 自检兼容别名 |
 | `audit.ts`          | 162 | 反馈条目 CRUD                                                                                                     |
 | `snapshot.ts`       | 108 | tarball 备份                                                                                                      |
 | `restore.ts`        | 170 | 从 tarball 恢复                                                                                                   |
@@ -62,6 +62,7 @@ lorekit/
 | ----------------- | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `paths.ts`        | 250 | **统一 exclude / include 路径常量 SSOT**；包含 `skills/`、`node_modules/` 工具目录边界、search 默认排除边界（CONVENTIONS Do Not #11）                                      |
 | `root-index.ts`   | 196 | merge-refresh `corpus/index.md` 的受控分区                                                                                                                                 |
+| `memory-index.ts` | 160 | 机械刷新 `corpus/MEMORY.md` L0 统计区块（统计概览/类型分布/最近活跃）；语义字段保留，无 MEMORY.md 跳过                                                                       |
 | `ingest-state.ts` | 147 | `.wiki/ingest-state.json` 读写，pipeline SSOT                                                                                                                              |
 | `corpus.ts`       | 98  | corpus 发现 + frontmatter 提取；`collectMdFiles` 跳过全局工具目录                                                                                                          |
 | `wikilinks.ts`    | 90  | **唯一的 wikilink 解析层 SSOT**：`buildWikiLinkIndex` + `resolveWikiLink`，对齐 Obsidian 相对/嵌入/素材语义；`lint` / `ingest check` / `links suggest` 共用（issue #18 去重） |

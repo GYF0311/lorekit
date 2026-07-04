@@ -60,26 +60,28 @@
 
 ## 3. 第三刀：同步（把对齐后的 lorekit 推到现场 corpus）
 
-> Route B 收尾批次 B6/B7/B8 从没做，现场 corpus 还用 0.1.0 旧 skills。
+> Route B 收尾批次 B6/B7/B8 从没做，现场 corpus 还用 0.1.0 旧 skills。→ ✅ 2026-06-11 完成
 > **⚠️ 这一刀动的是先生真实知识库，全计划唯一高不可逆风险处——改动前必须先有可回滚快照。**
 
-- [ ] **动 corpus 前先备份**：两个知识库各跑 `lorekit snapshot`（升级/merge 前必须有回滚点）
-- [ ] 桌面 `corpus`（`/Users/gaoyifan/Desktop/corpus`）升级
-  - [ ] `install-skills` 刷新现场 skills 到 0.4.0
-  - [ ] corpus `CLAUDE.md`/`AGENTS.md` 与新模板 merge（Route B B6）— ⚠️ **对照后局部修改，绝不整体覆盖**
-  - [ ] `.wiki/version`+`config.yaml` 升到 0.4.0
-  - [ ] 标定测试：1-2 篇真实 ingest 验证不退化（Route B B8）
-- [ ] 第二个知识库「AI 产品课程学习」同样处理
-- [ ] 两库现场体检：系统提示词（AGENTS/CLAUDE）+ 装的 skills 是否还有失效引用
+- [x] **动 corpus 前先备份**：桌面 corpus snapshot `20260611-144317.tar.gz`（21056 文件 1.8GB）；第二库未做任何改动故无需快照
+- [x] 桌面 `corpus`（`/Users/gaoyifan/Desktop/corpus`）升级（2026-06-11 完成）
+  - [x] `install-skills --target project --mode copy` 刷新 7 个 wiki-* 到 0.4.0（旧 0.1.0 英文薄版已 trash，确认非定制）
+  - [x] `CLAUDE.md`/`AGENTS.md`：现场契约比模板更新更好，**未覆盖**；仅修 1 处失效引用（`wiki-links` skill → `lorekit links`），两份保持一致
+  - [x] `.wiki/version`+`config.yaml` 升到 0.4.0
+  - [x] 清理遗留物（trash，可恢复）：`.wiki/{vector.sqlite,link-candidates.json,installed-harnesses.json}`（grep 确认无代码引用）；`~/.config/lorekit/global-corpus.json` 去掉 `gbrain_bin`
+  - [x] 标定（只读）：doctor 全绿；lint 18 条全为存量内容噪音（10 frontmatter + 6 断链 + 2 孤岛）；ingest pending 状态机正常；search 正常；`links suggest` 真实库可用
+- [x] 第二个知识库「AI产品视频转写与课件工作集-20260522」：已是 0.4.0、零死引用、doctor 全绿、纯 domain-skill 自洽（不依赖 wiki-*）——无需动作
+- [x] 两库现场体检：AGENTS/CLAUDE + skills 零失效引用
+- 备忘：`/Users/gaoyifan/Desktop/OpenClaw-Base-Camp` 也有 `.wiki` 但 version 文件缺失，不在本刀范围，待先生定性
 
 ---
 
 ## 4. 收尾 / 治本
 
-- [ ] `.context` 同步：problem1 改了 lint 断链逻辑，`modules/safety-maintenance.md` 仍写旧的"基于 collectMdFiles 相对路径栈"，需更新
-- [ ] **commit 时机**：problem1 + 各刀改动目前全未 commit，定何时分批提交
-- [ ] skills ↔ lorekit **防漂移机制**：加轻量检查，防 skills 再引用不存在的命令
-- [ ] （远期可选）npm 发布，`npm install -g lorekit`
+- [x] `.context` 同步：`modules/safety-maintenance.md` 已更新（2026-07-04，含新 lint 分级与防漂移测试说明）
+- [x] **commit 时机**：三刀改动已在 6ea1244 / ee83742 提交；2026-07-04 工作台闭环批次逐任务小步 commit
+- [x] skills ↔ lorekit **防漂移机制**：`tests/smoke/skills-cli-drift.test.mjs`（2026-07-04），从 CLI --help 动态提取命令清单比对 skills 引用，已做负向检验，纳入 `npm run verify`
+- [ ] （远期可选）npm 发布，`npm install -g lorekit`（包名 2026-07-04 时点未被占用；先生 npm 账号就绪后 `npm login` + `npm publish` 即可）
 
 ---
 
