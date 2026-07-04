@@ -106,18 +106,67 @@ function stripCodeBlocks(content: string): string {
 
 interface LintIssue {
   file: string;
-  kind: 'missing-field' | 'broken-link' | 'backlogged-link' | 'orphan' | 'workbench-source-link';
+  kind:
+    | 'missing-field'
+    | 'broken-link'
+    | 'backlogged-link'
+    | 'orphan'
+    | 'workbench-source-link'
+    | 'stale-review';
   detail: string;
 }
 
-// backlogged-link 是「已登记 missing-nodes 的已知待建节点」，提示但不计入失败。
+// 软性提示，不计入失败：
+//   - backlogged-link：已登记 missing-nodes 的已知待建节点
+//   - stale-review：复审窗口到期，是"该复核了"的提醒，不是结构错误
+const SOFT_ISSUE_KINDS: ReadonlySet<string> = new Set(['backlogged-link', 'stale-review']);
+
 export function countHardLintIssues(issues: LintIssue[]): number {
-  return issues.filter((i) => i.kind !== 'backlogged-link').length;
+  return issues.filter((i) => !SOFT_ISSUE_KINDS.has(i.kind)).length;
+}
+
+// ---------------------------------------------------------------------------
+// stale-review：domain_volatility + last_reviewed 复审窗口检查
+// （schema 见 templates/default-corpus 与 wiki-lint skill；此前只有蓝图无执行器）
+// ---------------------------------------------------------------------------
+
+const REVIEW_WINDOW_DAYS: Record<string, number> = { high: 90, medium: 180, low: 365 };
+
+function parseFmDate(value: unknown): Date | null {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  if (typeof value === 'string') {
+    const m = value.trim().match(/^\d{4}-\d{2}-\d{2}/);
+    if (m) {
+      const d = new Date(m[0]);
+      if (!Number.isNaN(d.getTime())) return d;
+    }
+  }
+  return null;
+}
+
+function checkStaleReview(rel: string, fm: Record<string, unknown>, now: Date): LintIssue | null {
+  const volatility = typeof fm.domain_volatility === 'string' ? fm.domain_volatility.trim() : '';
+  const windowDays = REVIEW_WINDOW_DAYS[volatility];
+  if (!windowDays) return null; // 无字段或占位符（如模板的 {{...}}）都不检查
+
+  // last_reviewed 缺失时回退 updated：页面被实质更新也算一次"看过"
+  const reviewed = parseFmDate(fm.last_reviewed) ?? parseFmDate(fm.updated);
+  if (!reviewed) return null;
+
+  const elapsedDays = Math.floor((now.getTime() - reviewed.getTime()) / 86_400_000);
+  if (elapsedDays <= windowDays) return null;
+
+  return {
+    file: rel,
+    kind: 'stale-review',
+    detail: `review overdue: volatility=${volatility} window=${windowDays}d last check ${elapsedDays}d ago`,
+  };
 }
 
 export function runLint(corpus: string): LintIssue[] {
   const files = collectMdFiles(corpus);
   const issues: LintIssue[] = [];
+  const now = new Date();
 
   // 共享的 wikilink 解析索引（与 ingest check / links suggest 同源，见 src/lib/wikilinks.ts）。
   const linkIndex = buildWikiLinkIndex(corpus, files);
@@ -154,6 +203,10 @@ export function runLint(corpus: string): LintIssue[] {
         }
       }
     }
+
+    // stale-review：复审窗口到期提醒（软性，不计入失败）
+    const stale = checkStaleReview(rel, fm, now);
+    if (stale) issues.push(stale);
 
     // Extract wikilinks (ignore matches inside code blocks)
     try {
@@ -270,25 +323,26 @@ export function printLintReport(corpus: string, issues: LintIssue[]): void {
     'broken-link': 'broken links',
     'backlogged-link': 'backlogged links (known missing, not counted)',
     'workbench-source-link': 'workbench source links',
+    'stale-review': 'stale reviews (review window exceeded, not counted)',
     orphan: 'orphan pages',
   };
 
   for (const [kind, items] of Object.entries(grouped)) {
     print(chalk.cyan(`── ${kindLabels[kind] ?? kind} (${items.length}) ──`));
     for (const item of items) {
-      if (kind === 'backlogged-link') print(chalk.dim(`  ${item.file}: ${item.detail}`));
+      if (SOFT_ISSUE_KINDS.has(kind)) print(chalk.dim(`  ${item.file}: ${item.detail}`));
       else bad(`${item.file}: ${item.detail}`);
     }
     print();
   }
 
   const hard = countHardLintIssues(issues);
-  const backlogged = issues.length - hard;
+  const soft = issues.length - hard;
   if (hard === 0) {
-    ok(`no hard issues (${backlogged} backlogged link(s) pending node creation)`);
+    ok(`no hard issues (${soft} soft notice(s): backlogged links / stale reviews)`);
     print();
   } else {
-    const suffix = backlogged > 0 ? ` (+${backlogged} backlogged, not counted)` : '';
+    const suffix = soft > 0 ? ` (+${soft} soft notice(s), not counted)` : '';
     print(chalk.yellow(`${hard} issue(s) total${suffix}\n`));
   }
 }
@@ -296,7 +350,7 @@ export function printLintReport(corpus: string, issues: LintIssue[]): void {
 export function lintCommand(program: Command) {
   program
     .command('lint')
-    .description('check frontmatter, broken wikilinks, and orphan pages')
+    .description('check frontmatter, broken wikilinks, orphan pages, and stale reviews')
     .option('--quick', 'compatibility alias for the default lint scan', false)
     .action(() => {
       const corpus = requireCorpus();
