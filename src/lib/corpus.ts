@@ -4,10 +4,14 @@ import matter from 'gray-matter';
 import { alwaysExcludeNames, alwaysExcludeDirNames } from './paths.js';
 import { debug } from '../utils/logger.js';
 
+// corpus 识别只认 `.wiki/`（init 必生成的元数据标记）。
+// v0.5.0 起不再把 `CLAUDE.md` 当 marker：普通代码仓库普遍带 CLAUDE.md，
+// 误判会让全局入口把 search/sync/lint 打到错误位置（历史上 lorekit 仓库
+// 自己就被误装过一轮 skills）。老 corpus 若无 `.wiki/`，重跑 `lorekit init` 补齐。
 export function findCorpus(startDir?: string): string | null {
   let dir = startDir || process.cwd();
   while (dir !== '/' && dir) {
-    if (existsSync(join(dir, '.wiki')) || existsSync(join(dir, 'CLAUDE.md'))) {
+    if (existsSync(join(dir, '.wiki'))) {
       return dir;
     }
     dir = dirname(dir);
@@ -18,7 +22,7 @@ export function findCorpus(startDir?: string): string | null {
 export function requireCorpus(startDir?: string): string {
   const corpus = findCorpus(startDir);
   if (!corpus) {
-    throw new Error('not inside a corpus (no .wiki/ or CLAUDE.md found)');
+    throw new Error('not inside a corpus (no .wiki/ marker found; run `lorekit init` first)');
   }
   return corpus;
 }
