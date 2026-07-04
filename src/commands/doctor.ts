@@ -1,10 +1,10 @@
 import type { Command } from 'commander';
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join } from 'node:path';
 import chalk from 'chalk';
 import { ok, bad, warn, print, out } from '../utils/logger.js';
 import { requireCorpus, collectMdFiles, hasFrontmatter } from '../lib/corpus.js';
-import { isIndexExcluded, isFolderPackage } from '../lib/paths.js';
+import { isIndexExcluded, isFolderPackage, relPosix } from '../lib/paths.js';
 import {
   getRecommendedFilter,
   readCorpusFilter,
@@ -165,7 +165,7 @@ function findMissingIndexDirs(corpus: string): string[] {
       if (!entry.isDirectory()) continue;
 
       const full = join(dir, entry.name);
-      const rel = relative(corpus, full);
+      const rel = relPosix(corpus, full);
 
       // 复用 index 命令的排除规则：不对这些目录要求 _INDEX.md
       if (isIndexExcluded(rel)) continue;

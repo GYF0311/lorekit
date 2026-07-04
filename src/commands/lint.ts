@@ -1,6 +1,6 @@
 import type { Command } from 'commander';
 import { readFileSync } from 'node:fs';
-import { relative, basename } from 'node:path';
+import { basename } from 'node:path';
 import chalk from 'chalk';
 import { requireCorpus, collectMdFiles, extractFrontmatter } from '../lib/corpus.js';
 import { buildWikiLinkIndex, resolveWikiLink } from '../lib/wikilinks.js';
@@ -11,6 +11,7 @@ import {
   lintSkipOrphanPrefixes,
   lintSkipFrontmatterPrefixes,
   lintSkipBrokenLinkPrefixes,
+  relPosix,
 } from '../lib/paths.js';
 import { bad, ok, print } from '../utils/logger.js';
 
@@ -198,7 +199,7 @@ export function runLint(corpus: string): LintIssue[] {
   const fileFrontmatter = new Map<string, Record<string, unknown>>();
 
   for (const file of files) {
-    const rel = relative(corpus, file);
+    const rel = relPosix(corpus, file);
 
     // 总是提取 fm 存起来（Pass 3 orphan 检查用 graph-excluded 判断）
     let fm: Record<string, unknown> = {};
@@ -300,7 +301,7 @@ export function runLint(corpus: string): LintIssue[] {
 
   // Pass 3: orphan pages (no inbound links)
   for (const file of files) {
-    const rel = relative(corpus, file);
+    const rel = relPosix(corpus, file);
     if (shouldSkipOrphan(rel)) continue;
 
     // graph-excluded 系统文件（QUESTIONS.md / overview.md / 输出/* 等）不入 Obsidian 图谱，

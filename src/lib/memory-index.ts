@@ -14,7 +14,8 @@
  * （老 corpus / 极简 corpus 兼容）。
  */
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join } from 'node:path';
+import { relPosix } from './paths.js';
 import { collectMdFiles, extractFrontmatter } from './corpus.js';
 import { debug } from '../utils/logger.js';
 
@@ -63,7 +64,7 @@ function collectStats(corpus: string): {
   const pages: RecentEntry[] = [];
   if (existsSync(knowledgeDir)) {
     for (const file of collectMdFiles(knowledgeDir)) {
-      const rel = relative(corpus, file);
+      const rel = relPosix(corpus, file);
       if (rel.startsWith('知识库/模板/')) continue;
       let updated: string | null = null;
       try {

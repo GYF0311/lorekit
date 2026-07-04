@@ -1,6 +1,6 @@
 import type { Command } from 'commander';
 import { readFileSync, statSync } from 'node:fs';
-import { relative } from 'node:path';
+import { relPosix } from '../lib/paths.js';
 import { requireCorpus, collectMdFiles, extractFrontmatter } from '../lib/corpus.js';
 import { debug, out } from '../utils/logger.js';
 
@@ -27,7 +27,7 @@ export function statsCommand(program: Command) {
         byType[type] = (byType[type] || 0) + 1;
 
         // by_dir (top-level directory relative to corpus)
-        const rel = relative(corpus, file);
+        const rel = relPosix(corpus, file);
         const topDir = rel.split('/')[0] || '.';
         byDir[topDir] = (byDir[topDir] || 0) + 1;
 
@@ -61,7 +61,7 @@ export function statsCommand(program: Command) {
       // Compute orphans: pages that receive zero inbound links
       const orphans: string[] = [];
       for (const file of files) {
-        const rel = relative(corpus, file);
+        const rel = relPosix(corpus, file);
         const stem = rel.replace(/\.md$/, '');
         const baseName = stem.split('/').pop()!;
         // A page is an orphan if neither its full relative stem nor its base name

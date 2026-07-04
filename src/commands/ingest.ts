@@ -8,7 +8,8 @@
  */
 import type { Command } from 'commander';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join } from 'node:path';
+import { relPosix } from '../lib/paths.js';
 import { requireCorpus, collectMdFiles, extractFrontmatter } from '../lib/corpus.js';
 import { buildWikiLinkIndex, resolveWikiLink } from '../lib/wikilinks.js';
 import {
@@ -283,7 +284,7 @@ export function ingestCommand(program: Command): void {
           process.exitCode = 2;
           continue;
         }
-        const rel = relative(corpus, abs);
+        const rel = relPosix(corpus, abs);
         checked.push(rel);
 
         let content: string;
@@ -362,7 +363,7 @@ export function ingestCommand(program: Command): void {
         if (!url) continue;
         if (state.ingests[url]) continue;
 
-        const rel = relative(corpus, mdPath);
+        const rel = relPosix(corpus, mdPath);
         const archivedTo = rel.replace(/\/article\.md$/, '');
         const sdRaw = fm.source_date;
         const sourceDate =

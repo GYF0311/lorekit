@@ -1,6 +1,7 @@
 import type { Command } from 'commander';
 import { existsSync, mkdirSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join } from 'node:path';
+import { relPosix } from '../lib/paths.js';
 import { findCorpus, findSourceByUrl, extractFrontmatter } from '../lib/corpus.js';
 import { fetchUrl, fetchGist, fetchGithubDoc } from '../lib/fetcher/index.js';
 import type { FetchResult } from '../lib/fetcher/index.js';
@@ -110,7 +111,7 @@ export function fetchCommand(program: Command) {
                     ? sdRaw.toISOString().slice(0, 10)
                     : undefined;
               duplicate = {
-                path: relative(corpus, existing),
+                path: relPosix(corpus, existing),
                 sourceDate,
                 title: typeof fm.title === 'string' ? fm.title : undefined,
               };

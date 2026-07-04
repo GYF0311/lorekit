@@ -1,11 +1,12 @@
 import { Command } from 'commander';
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync, lstatSync } from 'node:fs';
-import { join, basename, relative, resolve } from 'node:path';
+import { join, basename, resolve } from 'node:path';
 import { requireCorpus, hasFrontmatter, extractFrontmatter } from '../lib/corpus.js';
 import {
   indexExcludeDirPrefixes,
   isIndexExcluded,
   isFolderPackage,
+  relPosix,
 } from '../lib/paths.js';
 import { dateToYMDUtc, dateToYMDLocal } from '../lib/date.js';
 import { ok, warn, err } from '../utils/logger.js';
@@ -79,7 +80,7 @@ function escapeCell(s: string): string {
 }
 
 function buildIndex(dir: string, root: string): boolean {
-  const reldir = dir === root ? '' : relative(root, dir);
+  const reldir = dir === root ? '' : relPosix(root, dir);
   const dirName = reldir === '' ? basename(root) : basename(dir);
   const indexFile = join(dir, '_INDEX.md');
 
@@ -106,12 +107,12 @@ function buildIndex(dir: string, root: string): boolean {
 
     if (stat.isFile() && name.endsWith('.md')) {
       // 普通 .md 文件：slug = 完整相对路径去 .md
-      const slug = relative(root, full).replace(/\.md$/, '');
+      const slug = relPosix(root, full).replace(/\.md$/, '');
       entries.push(readEntryFromFile(full, slug));
     } else if (stat.isDirectory() && isFolderPackage(full)) {
       // 目录包装式原料：xxx/article.md → slug = xxx 父目录路径
       const articlePath = join(full, 'article.md');
-      const slug = relative(root, full);
+      const slug = relPosix(root, full);
       entries.push(readEntryFromFile(articlePath, slug));
     }
   }
@@ -152,7 +153,7 @@ function findIndexableDirs(root: string): string[] {
   const results: string[] = [];
 
   function walk(dir: string, isRoot: boolean) {
-    const rel = dir === root ? '' : relative(root, dir);
+    const rel = dir === root ? '' : relPosix(root, dir);
     if (rel && isIndexExcluded(rel)) return;
 
     let names: string[];
@@ -228,7 +229,7 @@ export function runIndex(root: string, specificDir?: string): number {
       );
     }
     // 子目录也要守住排除规则（避免 --dir _工作台 / --dir 系统 等强行生成）
-    const rel = relative(root, full);
+    const rel = relPosix(root, full);
     if (isIndexExcluded(rel)) {
       throw new Error(
         `directory "${rel}" is in the exclude list (${indexExcludeDirPrefixes.join(' / ')})`,

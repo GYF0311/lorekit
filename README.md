@@ -253,11 +253,13 @@ At that point, stop polishing the tool and use the corpus for 1-2 weeks. The nex
 
 | Tool         | Purpose                  | Install                                                                                    | Required |
 | ------------ | ------------------------ | ------------------------------------------------------------------------------------------ | -------- |
-| Node.js ≥ 18 | JS runtime               | `brew install node`                                                                        | ✅       |
-| git          | Version control          | ships with macOS/Linux                                                                     | ✅       |
-| ripgrep      | Text-search acceleration | `brew install ripgrep`                                                                     | Optional |
+| Node.js ≥ 18 | JS runtime               | `brew install node` / [nodejs.org](https://nodejs.org)                                     | ✅       |
+| git          | Version control          | ships with macOS/Linux; [git-scm.com](https://git-scm.com) on Windows                      | ✅       |
+| ripgrep      | Text-search acceleration | `brew install ripgrep` / `winget install BurntSushi.ripgrep.MSVC`                          | Optional |
 
 **Only Node.js is required.** No bash / Python / uv / pip. lorekit is pure TypeScript, cross-platform (macOS / Linux / Windows).
+
+Windows notes: install Node from [nodejs.org](https://nodejs.org) or `winget install OpenJS.NodeJS.LTS`; deletions go to the Recycle Bin (same recoverable-trash semantics); `lorekit install-skills` defaults to `--mode copy` on Windows because symlinks require Developer Mode.
 
 ## Using It
 

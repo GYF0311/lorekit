@@ -7,11 +7,11 @@ import {
   readdirSync,
   statSync,
 } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join } from 'node:path';
 import * as tar from 'tar';
 import { ok, bad, err } from '../utils/logger.js';
 import { requireCorpus } from '../lib/corpus.js';
-import { snapshotExcludeNames } from '../lib/paths.js';
+import { snapshotExcludeNames, relPosix } from '../lib/paths.js';
 import { tsCompact } from '../lib/date.js';
 import { sha256 } from '../utils/fs.js';
 
@@ -32,7 +32,7 @@ function collectAllFiles(dir: string, base: string): string[] {
       if (entry.isDirectory()) {
         walk(full);
       } else {
-        results.push(relative(base, full));
+        results.push(relPosix(base, full));
       }
     }
   }
@@ -75,7 +75,7 @@ export async function createSnapshot(corpus: string, opts: { tag?: string } = {}
 
     // Create tarball
     // Include all corpus files + the manifest
-    const allEntries = [...files, relative(corpus, manifestPath)];
+    const allEntries = [...files, relPosix(corpus, manifestPath)];
 
     await tar.create(
       {

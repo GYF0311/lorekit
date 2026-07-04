@@ -20,8 +20,8 @@ Pure TypeScript, Node.js-only, usable from any AI coding agent (Claude Code / Co
 
 | Tool         | Purpose        | Install             | Verify           |
 | ------------ | -------------- | ------------------- | ---------------- |
-| Node.js ≥ 18 | JS runtime     | `brew install node` | `node --version` |
-| git          | Clone the repo | ships with the OS   | `git --version`  |
+| Node.js ≥ 18 | JS runtime     | `brew install node` / [nodejs.org](https://nodejs.org) | `node --version` |
+| git          | Clone the repo | ships with macOS/Linux; [git-scm.com](https://git-scm.com) on Windows | `git --version`  |
 
 ### Optional (recommended)
 

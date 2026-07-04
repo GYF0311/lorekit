@@ -24,6 +24,9 @@ function normalizeRelPath(rel) {
 function relParts(rel) {
   return normalizeRelPath(rel).split("/").filter(Boolean);
 }
+function relPosix(from, to) {
+  return normalizeRelPath(pathRelative(from, to));
+}
 function hasAlwaysExcludedDirSegment(rel) {
   return relParts(rel).some((part) => alwaysExcludeDirNames.has(part));
 }
@@ -328,7 +331,7 @@ function initCommand(program2) {
 
 // src/commands/doctor.ts
 import { existsSync as existsSync4, lstatSync as lstatSync2, readFileSync as readFileSync4, readdirSync as readdirSync3 } from "fs";
-import { join as join5, relative } from "path";
+import { join as join5 } from "path";
 import chalk3 from "chalk";
 
 // src/lib/obsidian.ts
@@ -472,7 +475,7 @@ function findMissingIndexDirs(corpus) {
       if (entry.name.startsWith(".")) continue;
       if (!entry.isDirectory()) continue;
       const full = join5(dir, entry.name);
-      const rel = relative(corpus, full);
+      const rel = relPosix(corpus, full);
       if (isIndexExcluded(rel)) continue;
       if (isFolderPackage(full)) continue;
       let shouldHaveIndex = false;
@@ -692,7 +695,6 @@ function doctorCommand(program2) {
 
 // src/commands/stats.ts
 import { readFileSync as readFileSync5, statSync as statSync2 } from "fs";
-import { relative as relative2 } from "path";
 function statsCommand(program2) {
   program2.command("stats").description("output corpus statistics as JSON").action(() => {
     const corpus = requireCorpus();
@@ -708,7 +710,7 @@ function statsCommand(program2) {
       const fm = extractFrontmatter(file);
       const type = fm.type || "unknown";
       byType[type] = (byType[type] || 0) + 1;
-      const rel = relative2(corpus, file);
+      const rel = relPosix(corpus, file);
       const topDir = rel.split("/")[0] || ".";
       byDir[topDir] = (byDir[topDir] || 0) + 1;
       try {
@@ -734,7 +736,7 @@ function statsCommand(program2) {
     }
     const orphans = [];
     for (const file of files) {
-      const rel = relative2(corpus, file);
+      const rel = relPosix(corpus, file);
       const stem = rel.replace(/\.md$/, "");
       const baseName = stem.split("/").pop();
       if (!inboundLinks.has(stem) && !inboundLinks.has(baseName)) {
@@ -755,18 +757,18 @@ function statsCommand(program2) {
 
 // src/commands/lint.ts
 import { readFileSync as readFileSync7 } from "fs";
-import { relative as relative4, basename as basename3 } from "path";
+import { basename as basename3 } from "path";
 import chalk4 from "chalk";
 
 // src/lib/wikilinks.ts
 import { existsSync as existsSync5, readdirSync as readdirSync4 } from "fs";
-import { join as join6, relative as relative3, dirname as dirname3, basename as basename2 } from "path";
+import { join as join6, dirname as dirname3, basename as basename2 } from "path";
 function buildWikiLinkIndex(corpus, mdFiles) {
   const files = mdFiles ?? collectMdFiles(corpus);
   const stems = /* @__PURE__ */ new Set();
   const baseNames = /* @__PURE__ */ new Set();
   for (const file of files) {
-    const rel = relative3(corpus, file);
+    const rel = relPosix(corpus, file);
     const stem = rel.replace(/\.md$/, "");
     stems.add(stem);
     baseNames.add(stem.split("/").pop());
@@ -786,7 +788,7 @@ function buildWikiLinkIndex(corpus, mdFiles) {
           if (alwaysExcludeDirNames.has(entry.name)) continue;
           walk(join6(d, entry.name));
         } else {
-          allRelPaths.add(relative3(corpus, join6(d, entry.name)));
+          allRelPaths.add(relPosix(corpus, join6(d, entry.name)));
           allBaseNames.add(entry.name);
         }
       }
@@ -1027,7 +1029,7 @@ function runLint(corpus) {
   const fileLinks = /* @__PURE__ */ new Map();
   const fileFrontmatter = /* @__PURE__ */ new Map();
   for (const file of files) {
-    const rel = relative4(corpus, file);
+    const rel = relPosix(corpus, file);
     let fm = {};
     try {
       fm = extractFrontmatter(file);
@@ -1110,7 +1112,7 @@ function runLint(corpus) {
     }
   }
   for (const file of files) {
-    const rel = relative4(corpus, file);
+    const rel = relPosix(corpus, file);
     if (shouldSkipOrphan(rel)) continue;
     const fm = fileFrontmatter.get(rel) ?? {};
     if (isGraphExcluded(fm)) continue;
@@ -1300,7 +1302,7 @@ function auditCommand(program2) {
 
 // src/commands/dir-index.ts
 import { existsSync as existsSync8, readdirSync as readdirSync5, readFileSync as readFileSync9, statSync as statSync3, writeFileSync as writeFileSync4, lstatSync as lstatSync3 } from "fs";
-import { join as join9, basename as basename5, relative as relative5, resolve as resolve2 } from "path";
+import { join as join9, basename as basename5, resolve as resolve2 } from "path";
 function extractSummary(filePath) {
   const content = readFileSync9(filePath, "utf-8");
   const lines = content.split("\n");
@@ -1352,7 +1354,7 @@ function escapeCell(s) {
   return s.replace(/\|/g, "\\|");
 }
 function buildIndex(dir, root) {
-  const reldir = dir === root ? "" : relative5(root, dir);
+  const reldir = dir === root ? "" : relPosix(root, dir);
   const dirName = reldir === "" ? basename5(root) : basename5(dir);
   const indexFile = join9(dir, "_INDEX.md");
   let names;
@@ -1373,11 +1375,11 @@ function buildIndex(dir, root) {
       continue;
     }
     if (stat.isFile() && name.endsWith(".md")) {
-      const slug = relative5(root, full).replace(/\.md$/, "");
+      const slug = relPosix(root, full).replace(/\.md$/, "");
       entries.push(readEntryFromFile(full, slug));
     } else if (stat.isDirectory() && isFolderPackage(full)) {
       const articlePath = join9(full, "article.md");
-      const slug = relative5(root, full);
+      const slug = relPosix(root, full);
       entries.push(readEntryFromFile(articlePath, slug));
     }
   }
@@ -1402,7 +1404,7 @@ function buildIndex(dir, root) {
 function findIndexableDirs(root) {
   const results = [];
   function walk(dir, isRoot) {
-    const rel = dir === root ? "" : relative5(root, dir);
+    const rel = dir === root ? "" : relPosix(root, dir);
     if (rel && isIndexExcluded(rel)) return;
     let names;
     try {
@@ -1461,7 +1463,7 @@ function runIndex(root, specificDir) {
         `cannot index the corpus root itself \u2014 L0 corpus/index.md already serves this role`
       );
     }
-    const rel = relative5(root, full);
+    const rel = relPosix(root, full);
     if (isIndexExcluded(rel)) {
       throw new Error(
         `directory "${rel}" is in the exclude list (${indexExcludeDirPrefixes.join(" / ")})`
@@ -1533,7 +1535,7 @@ function parseTarget(target) {
   return SUPPORTED_TARGETS.includes(target) ? target : null;
 }
 function parseMode(mode) {
-  const resolved = mode ?? "symlink";
+  const resolved = mode ?? (process.platform === "win32" ? "copy" : "symlink");
   return SUPPORTED_MODES.includes(resolved) ? resolved : null;
 }
 function parseOnlyNames(only) {
@@ -1560,7 +1562,7 @@ function targetReloadHint(target) {
   return "Project-local skills are ready in ./skills; route them from AGENTS.md or CLAUDE.md.";
 }
 function installSkillsCommand(program2) {
-  const cmd = program2.command("install-skills").description("Install lorekit-managed skills into a harness or the current project").option("--target <target>", 'Target ("claude-code", "codex", or "project")').option("--only <names>", "Install only selected skill directory names, comma-separated").option("--mode <mode>", 'Install mode: "symlink" or "copy" (default: symlink)').option("--dest <dir>", "Override destination directory, mainly for --target project").option("--list", "List currently installed lorekit-managed skill symlinks").option("--uninstall", "Remove installed skill symlinks");
+  const cmd = program2.command("install-skills").description("Install lorekit-managed skills into a harness or the current project").option("--target <target>", 'Target ("claude-code", "codex", or "project")').option("--only <names>", "Install only selected skill directory names, comma-separated").option("--mode <mode>", 'Install mode: "symlink" or "copy" (default: symlink; copy on Windows)').option("--dest <dir>", "Override destination directory, mainly for --target project").option("--list", "List currently installed lorekit-managed skill symlinks").option("--uninstall", "Remove installed skill symlinks");
   cmd.action((opts) => {
     const target = parseTarget(opts.target);
     if (opts.target && !target) {
@@ -1667,7 +1669,7 @@ import {
   readdirSync as readdirSync7,
   statSync as statSync4
 } from "fs";
-import { join as join11, relative as relative6 } from "path";
+import { join as join11 } from "path";
 import * as tar from "tar";
 function collectAllFiles(dir, base) {
   const results = [];
@@ -1678,7 +1680,7 @@ function collectAllFiles(dir, base) {
       if (entry.isDirectory()) {
         walk(full);
       } else {
-        results.push(relative6(base, full));
+        results.push(relPosix(base, full));
       }
     }
   }
@@ -1708,7 +1710,7 @@ async function createSnapshot(corpus, opts = {}) {
     const tag = opts.tag ? `-${opts.tag}` : "";
     const tarName = `${tsCompact()}${tag}.tar.gz`;
     const tarPath = join11(snapshotsDir, tarName);
-    const allEntries = [...files, relative6(corpus, manifestPath)];
+    const allEntries = [...files, relPosix(corpus, manifestPath)];
     await tar.create(
       {
         gzip: true,
@@ -1875,7 +1877,7 @@ function restoreCommand(program2) {
 
 // src/commands/search.ts
 import { readFileSync as readFileSync11 } from "fs";
-import { join as join13, relative as relative7 } from "path";
+import { join as join13 } from "path";
 import { spawnSync } from "child_process";
 function activeExcludePrefixes(opts) {
   if (opts.dir) return [];
@@ -1909,7 +1911,7 @@ function searchWithRipgrep(query, corpus, opts) {
       const obj = JSON.parse(line);
       if (obj.type === "match") {
         results.push({
-          file: relative7(corpus, obj.data.path.text),
+          file: relPosix(corpus, obj.data.path.text),
           line: obj.data.line_number,
           text: obj.data.lines.text.trimEnd()
         });
@@ -1928,7 +1930,7 @@ function searchFallback(query, corpus, opts) {
   const excludes = activeExcludePrefixes(opts);
   const files = collectMdFiles(searchDir).filter((file) => {
     if (opts.dir) return true;
-    const rel = relative7(corpus, file);
+    const rel = relPosix(corpus, file);
     return !excludes.some((prefix) => matchesDirPrefix(rel, prefix));
   });
   const pattern = new RegExp(query, "i");
@@ -1939,7 +1941,7 @@ function searchFallback(query, corpus, opts) {
     for (let i = 0; i < lines.length; i++) {
       if (pattern.test(lines[i])) {
         results.push({
-          file: relative7(corpus, filePath),
+          file: relPosix(corpus, filePath),
           line: i + 1,
           text: lines[i].trimEnd()
         });
@@ -1980,7 +1982,7 @@ function searchCommand(program2) {
 
 // src/commands/fetch.ts
 import { existsSync as existsSync13, mkdirSync as mkdirSync8 } from "fs";
-import { join as join19, relative as relative8 } from "path";
+import { join as join19 } from "path";
 
 // src/lib/fetcher/index.ts
 import { mkdir as mkdir4, writeFile as writeFile4 } from "fs/promises";
@@ -2815,7 +2817,7 @@ function fetchCommand(program2) {
             const sdRaw = fm.source_date;
             const sourceDate = typeof sdRaw === "string" ? sdRaw : sdRaw instanceof Date ? sdRaw.toISOString().slice(0, 10) : void 0;
             duplicate = {
-              path: relative8(corpus, existing),
+              path: relPosix(corpus, existing),
               sourceDate,
               title: typeof fm.title === "string" ? fm.title : void 0
             };
@@ -2870,7 +2872,7 @@ function fetchCommand(program2) {
 
 // src/commands/ingest.ts
 import { existsSync as existsSync14, readFileSync as readFileSync13, writeFileSync as writeFileSync7 } from "fs";
-import { join as join20, relative as relative9 } from "path";
+import { join as join20 } from "path";
 var VALID_STEPS = ["fetch", "archive", "wiki", "backlink", "lint"];
 function today() {
   return dateToYMDLocal(/* @__PURE__ */ new Date());
@@ -3032,7 +3034,7 @@ ${summary.join("\n")}`
         process.exitCode = 2;
         continue;
       }
-      const rel = relative9(corpus, abs);
+      const rel = relPosix(corpus, abs);
       checked.push(rel);
       let content;
       try {
@@ -3090,7 +3092,7 @@ ${summary.join("\n")}`
       const url = typeof fm.source_url === "string" && fm.source_url || typeof fm.url === "string" && fm.url || "";
       if (!url) continue;
       if (state.ingests[url]) continue;
-      const rel = relative9(corpus, mdPath);
+      const rel = relPosix(corpus, mdPath);
       const archivedTo = rel.replace(/\/article\.md$/, "");
       const sdRaw = fm.source_date;
       const sourceDate = typeof sdRaw === "string" ? sdRaw : sdRaw instanceof Date ? sdRaw.toISOString().slice(0, 10) : void 0;
@@ -3236,7 +3238,7 @@ function refreshRootIndex(corpus) {
 
 // src/lib/memory-index.ts
 import { existsSync as existsSync16, readFileSync as readFileSync15, statSync as statSync5, writeFileSync as writeFileSync9 } from "fs";
-import { join as join22, relative as relative10 } from "path";
+import { join as join22 } from "path";
 var TYPE_ROWS = [
   { type: "concept", dir: "\u77E5\u8BC6\u5E93/\u6982\u5FF5" },
   { type: "entity", dir: "\u77E5\u8BC6\u5E93/\u5B9E\u4F53" },
@@ -3267,7 +3269,7 @@ function collectStats(corpus) {
   const pages = [];
   if (existsSync16(knowledgeDir)) {
     for (const file of collectMdFiles(knowledgeDir)) {
-      const rel = relative10(corpus, file);
+      const rel = relPosix(corpus, file);
       if (rel.startsWith("\u77E5\u8BC6\u5E93/\u6A21\u677F/")) continue;
       let updated = null;
       try {
@@ -3533,7 +3535,7 @@ function obsidianTuneCommand(program2) {
 
 // src/commands/remove.ts
 import { existsSync as existsSync18, mkdirSync as mkdirSync11, readFileSync as readFileSync16, renameSync, writeFileSync as writeFileSync12 } from "fs";
-import { basename as basename6, dirname as dirname7, isAbsolute as isAbsolute2, join as join25, relative as relative11, resolve as resolve4, sep } from "path";
+import { basename as basename6, dirname as dirname7, isAbsolute as isAbsolute2, join as join25, relative, resolve as resolve4, sep } from "path";
 import matter2 from "gray-matter";
 import trash from "trash";
 function isUrl(input) {
@@ -3560,7 +3562,7 @@ function resolveInputPath(corpus, input) {
   return null;
 }
 function relFromAbs(corpus, abs) {
-  return normalizeRel(relative11(corpus, abs));
+  return normalizeRel(relative(corpus, abs));
 }
 function aliasesForRel(rel) {
   const aliases = /* @__PURE__ */ new Set();
@@ -3874,14 +3876,14 @@ function removeCommand(program2) {
 
 // src/commands/links.ts
 import { existsSync as existsSync19, mkdirSync as mkdirSync12, readFileSync as readFileSync17, writeFileSync as writeFileSync13 } from "fs";
-import { join as join26, dirname as dirname8, relative as relative12 } from "path";
+import { join as join26, dirname as dirname8 } from "path";
 var TYPE_DIR = {
   concept: "\u77E5\u8BC6\u5E93/\u6982\u5FF5",
   entity: "\u77E5\u8BC6\u5E93/\u5B9E\u4F53"
 };
 function resolveFileArg(corpus, f) {
   const abs = f.startsWith("/") ? f : join26(process.cwd(), f);
-  return { abs, rel: relative12(corpus, abs) };
+  return { abs, rel: relPosix(corpus, abs) };
 }
 function guardNotRaw(rel) {
   if (rel === "\u539F\u6599" || rel.startsWith("\u539F\u6599/")) {
@@ -3997,7 +3999,7 @@ function linksCommand(program2) {
     }
     if (opts.writeState) {
       const p = saveLinksState(corpus, pages);
-      print(`state written: ${relative12(corpus, p)}`);
+      print(`state written: ${relPosix(corpus, p)}`);
     }
     if (opts.json) out(JSON.stringify({ pages: report }));
     const totalBroken = report.reduce((n, r) => n + r.broken.length, 0);
@@ -4173,7 +4175,7 @@ function registerAlias(corpus, canonicalTarget, alias) {
   if (!file) return `(alias \u672A\u767B\u8BB0\uFF1A\u627E\u4E0D\u5230 canonical \u9875 ${canonicalTarget})`;
   const content = readFileSync17(file, "utf-8");
   const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
-  if (!fmMatch) return `(alias \u672A\u767B\u8BB0\uFF1A${relative12(corpus, file)} \u65E0 frontmatter)`;
+  if (!fmMatch) return `(alias \u672A\u767B\u8BB0\uFF1A${relPosix(corpus, file)} \u65E0 frontmatter)`;
   const fm = fmMatch[1];
   const aliasLine = fm.match(/^aliases:\s*\[([^\]]*)\]\s*$/m);
   let nextFm;
@@ -4190,13 +4192,13 @@ aliases: [${alias}]`;
 ${nextFm}
 ---`);
   writeFileSync13(file, next, "utf-8");
-  return `alias registered: ${alias} \u2192 ${relative12(corpus, file)}`;
+  return `alias registered: ${alias} \u2192 ${relPosix(corpus, file)}`;
 }
 function resolveCanonicalFile(corpus, target) {
   const direct = join26(corpus, `${target}.md`);
   if (existsSync19(direct)) return direct;
   for (const file of collectMdFiles(corpus)) {
-    const rel = relative12(corpus, file);
+    const rel = relPosix(corpus, file);
     const stem = rel.replace(/\.md$/, "");
     if (stem === target || stem.split("/").pop() === target) return file;
   }
@@ -4205,7 +4207,7 @@ function resolveCanonicalFile(corpus, target) {
 
 // src/commands/workbench.ts
 import { statSync as statSync6 } from "fs";
-import { join as join27, relative as relative13 } from "path";
+import { join as join27 } from "path";
 import chalk7 from "chalk";
 var WORKBENCH_DIR = "_\u5DE5\u4F5C\u53F0";
 var DAY_MS = 864e5;
@@ -4220,7 +4222,7 @@ function buildWorkbenchReport(corpus, opts) {
   const excludedCount = /* @__PURE__ */ new Map();
   const byTopDir = /* @__PURE__ */ new Map();
   for (const file of files) {
-    const rel = relative13(corpus, file);
+    const rel = relPosix(corpus, file);
     const noise = workbenchTriageExcludePrefixes.find((p) => matchesDirPrefix(rel, p));
     if (noise) {
       excludedCount.set(noise, (excludedCount.get(noise) ?? 0) + 1);

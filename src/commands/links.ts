@@ -16,8 +16,9 @@
  */
 import type { Command } from 'commander';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, dirname, relative } from 'node:path';
+import { join, dirname } from 'node:path';
 import { requireCorpus, collectMdFiles } from '../lib/corpus.js';
+import { relPosix } from '../lib/paths.js';
 import { buildWikiLinkIndex, resolveWikiLink, type WikiLinkIndex } from '../lib/wikilinks.js';
 import {
   MISSING_NODES_REL,
@@ -39,7 +40,7 @@ const TYPE_DIR: Record<NodeType, string> = {
 // 把 `--file` / `--source` 参数解析为绝对路径（相对 cwd）+ 相对 corpus 路径。
 function resolveFileArg(corpus: string, f: string): { abs: string; rel: string } {
   const abs = f.startsWith('/') ? f : join(process.cwd(), f);
-  return { abs, rel: relative(corpus, abs) };
+  return { abs, rel: relPosix(corpus, abs) };
 }
 
 // 数据安全：`原料/` 是只读原料，links 的写操作不得改它（AGENTS 数据安全 #5）。
@@ -214,7 +215,7 @@ export function linksCommand(program: Command): void {
 
       if (opts.writeState) {
         const p = saveLinksState(corpus, pages);
-        print(`state written: ${relative(corpus, p)}`);
+        print(`state written: ${relPosix(corpus, p)}`);
       }
       if (opts.json) out(JSON.stringify({ pages: report }));
 
@@ -435,7 +436,7 @@ function registerAlias(corpus: string, canonicalTarget: string, alias: string): 
   if (!file) return `(alias 未登记：找不到 canonical 页 ${canonicalTarget})`;
   const content = readFileSync(file, 'utf-8');
   const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
-  if (!fmMatch) return `(alias 未登记：${relative(corpus, file)} 无 frontmatter)`;
+  if (!fmMatch) return `(alias 未登记：${relPosix(corpus, file)} 无 frontmatter)`;
   const fm = fmMatch[1];
 
   const aliasLine = fm.match(/^aliases:\s*\[([^\]]*)\]\s*$/m);
@@ -453,7 +454,7 @@ function registerAlias(corpus: string, canonicalTarget: string, alias: string): 
   }
   const next = content.replace(fmMatch[0], `---\n${nextFm}\n---`);
   writeFileSync(file, next, 'utf-8');
-  return `alias registered: ${alias} → ${relative(corpus, file)}`;
+  return `alias registered: ${alias} → ${relPosix(corpus, file)}`;
 }
 
 // 把 canonical 目标（slug 或裸名）解析到实际 .md 文件绝对路径。
@@ -462,7 +463,7 @@ function resolveCanonicalFile(corpus: string, target: string): string | null {
   if (existsSync(direct)) return direct;
   // 裸名 → 在 corpus 内找 basename 匹配的第一个页
   for (const file of collectMdFiles(corpus)) {
-    const rel = relative(corpus, file);
+    const rel = relPosix(corpus, file);
     const stem = rel.replace(/\.md$/, '');
     if (stem === target || stem.split('/').pop() === target) return file;
   }

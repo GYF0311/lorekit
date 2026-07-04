@@ -6,6 +6,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](ht
 
 ## [Unreleased]
 
+### Fixed
+
+- **Windows 路径分隔符**：新增 `relPosix()` helper，全部 27 处 `path.relative` 调用点统一
+  输出 POSIX 分隔符。修复 Windows 上 wikilink stem 解析全量误报 broken、`_INDEX.md` slug
+  写出反斜杠、workbench 分桶失效、search 结果路径不一致等问题。
+- **Windows install-skills 默认模式**：`--mode` 缺省时 Windows 下用 `copy`（symlink 需要
+  开发者模式 / 管理员权限），macOS / Linux 仍默认 `symlink`。
+
 ## [0.5.0] — 2026-07-04
 
 首个 npm 公开版本（包名 `@xiaowuovo/lorekit`，registry 相似度规则不允许裸名 `lorekit`；CLI 命令仍为 `lorekit`）。主题：工作台闭环（两级召回 / 过时治理 / 清算流程）+ 硬边界收紧。

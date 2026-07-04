@@ -1,6 +1,6 @@
 import type { Command } from 'commander';
 import { readFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { err, warn, out } from '../utils/logger.js';
 import { requireCorpus, collectMdFiles } from '../lib/corpus.js';
@@ -9,6 +9,7 @@ import {
   matchesDirPrefix,
   searchAllExcludePrefixes,
   searchDefaultExcludePrefixes,
+  relPosix,
 } from '../lib/paths.js';
 
 interface SearchResult {
@@ -60,7 +61,7 @@ function searchWithRipgrep(
       const obj = JSON.parse(line);
       if (obj.type === 'match') {
         results.push({
-          file: relative(corpus, obj.data.path.text),
+          file: relPosix(corpus, obj.data.path.text),
           line: obj.data.line_number,
           text: obj.data.lines.text.trimEnd(),
         });
@@ -85,7 +86,7 @@ function searchFallback(
   const excludes = activeExcludePrefixes(opts);
   const files = collectMdFiles(searchDir).filter((file) => {
     if (opts.dir) return true;
-    const rel = relative(corpus, file);
+    const rel = relPosix(corpus, file);
     return !excludes.some((prefix) => matchesDirPrefix(rel, prefix));
   });
   const pattern = new RegExp(query, 'i');
@@ -97,7 +98,7 @@ function searchFallback(
     for (let i = 0; i < lines.length; i++) {
       if (pattern.test(lines[i])) {
         results.push({
-          file: relative(corpus, filePath),
+          file: relPosix(corpus, filePath),
           line: i + 1,
           text: lines[i].trimEnd(),
         });

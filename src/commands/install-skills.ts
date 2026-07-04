@@ -42,7 +42,7 @@ function parseTarget(target: string | undefined): InstallTarget | null {
 }
 
 function parseMode(mode: string | undefined): InstallMode | null {
-  const resolved = mode ?? 'symlink';
+  const resolved = mode ?? (process.platform === 'win32' ? 'copy' : 'symlink');
   return SUPPORTED_MODES.includes(resolved as InstallMode) ? (resolved as InstallMode) : null;
 }
 
@@ -84,7 +84,7 @@ export function installSkillsCommand(program: Command): void {
     .description('Install lorekit-managed skills into a harness or the current project')
     .option('--target <target>', 'Target ("claude-code", "codex", or "project")')
     .option('--only <names>', 'Install only selected skill directory names, comma-separated')
-    .option('--mode <mode>', 'Install mode: "symlink" or "copy" (default: symlink)')
+    .option('--mode <mode>', 'Install mode: "symlink" or "copy" (default: symlink; copy on Windows)')
     .option('--dest <dir>', 'Override destination directory, mainly for --target project')
     .option('--list', 'List currently installed lorekit-managed skill symlinks')
     .option('--uninstall', 'Remove installed skill symlinks');

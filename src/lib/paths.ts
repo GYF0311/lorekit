@@ -42,6 +42,14 @@ function relParts(rel: string): string[] {
   return normalizeRelPath(rel).split('/').filter(Boolean);
 }
 
+/**
+ * corpus 相对路径统一用 POSIX 分隔符：Windows 上 `path.relative` 返回反斜杠，
+ * 而 wikilink stem、slug、目录前缀比较全部按 `/` 约定，必须在源头归一。
+ */
+export function relPosix(from: string, to: string): string {
+  return normalizeRelPath(pathRelative(from, to));
+}
+
 export function hasAlwaysExcludedDirSegment(rel: string): boolean {
   return relParts(rel).some((part) => alwaysExcludeDirNames.has(part));
 }

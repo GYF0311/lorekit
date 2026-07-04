@@ -1,9 +1,9 @@
 import type { Command } from 'commander';
 import { statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join } from 'node:path';
 import chalk from 'chalk';
 import { requireCorpus, collectMdFiles } from '../lib/corpus.js';
-import { matchesDirPrefix, workbenchTriageExcludePrefixes } from '../lib/paths.js';
+import { matchesDirPrefix, workbenchTriageExcludePrefixes, relPosix } from '../lib/paths.js';
 import { out, print, warn } from '../utils/logger.js';
 
 /**
@@ -57,7 +57,7 @@ export function buildWorkbenchReport(
   const byTopDir = new Map<string | null, { rel: string; ageDays: number; sizeBytes: number; mtime: Date }[]>();
 
   for (const file of files) {
-    const rel = relative(corpus, file);
+    const rel = relPosix(corpus, file);
     const noise = workbenchTriageExcludePrefixes.find((p) => matchesDirPrefix(rel, p));
     if (noise) {
       excludedCount.set(noise, (excludedCount.get(noise) ?? 0) + 1);

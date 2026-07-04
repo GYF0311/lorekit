@@ -1,6 +1,6 @@
 import { existsSync, readdirSync } from 'node:fs';
-import { join, relative, dirname, basename } from 'node:path';
-import { alwaysExcludeDirNames } from './paths.js';
+import { join, dirname, basename } from 'node:path';
+import { alwaysExcludeDirNames, relPosix } from './paths.js';
 import { collectMdFiles } from './corpus.js';
 
 // 共享的 wikilink 解析层。lint、ingest check、links suggest 三处必须用同一套
@@ -29,7 +29,7 @@ export function buildWikiLinkIndex(corpus: string, mdFiles?: string[]): WikiLink
   const stems = new Set<string>();
   const baseNames = new Set<string>();
   for (const file of files) {
-    const rel = relative(corpus, file);
+    const rel = relPosix(corpus, file);
     const stem = rel.replace(/\.md$/, '');
     stems.add(stem);
     baseNames.add(stem.split('/').pop()!);
@@ -52,7 +52,7 @@ export function buildWikiLinkIndex(corpus: string, mdFiles?: string[]): WikiLink
           if (alwaysExcludeDirNames.has(entry.name)) continue;
           walk(join(d, entry.name));
         } else {
-          allRelPaths.add(relative(corpus, join(d, entry.name)));
+          allRelPaths.add(relPosix(corpus, join(d, entry.name)));
           allBaseNames.add(entry.name);
         }
       }
