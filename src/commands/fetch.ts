@@ -1,6 +1,7 @@
 import type { Command } from 'commander';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { relPosix } from '../lib/paths.js';
 import { findCorpus, findSourceByUrl, extractFrontmatter } from '../lib/corpus.js';
 import { fetchUrl, fetchGist, fetchGithubDoc } from '../lib/fetcher/index.js';
@@ -57,7 +58,7 @@ export function fetchCommand(program: Command) {
         if (opts.out) {
           outRoot = opts.out;
         } else {
-          outRoot = corpus ? join(corpus, '_工作台', '收件', 'fetch') : '/tmp/lorekit-fetch';
+          outRoot = corpus ? join(corpus, '_工作台', '收件', 'fetch') : join(tmpdir(), 'lorekit-fetch');
         }
         if (!existsSync(outRoot)) {
           mkdirSync(outRoot, { recursive: true });

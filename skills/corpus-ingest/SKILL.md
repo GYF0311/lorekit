@@ -66,7 +66,7 @@ Do not use for:
 
 Never delete source material.
 
-After a confirmed ingest, cleaning the consumed workbench handoff original is allowed only when the target corpus `wiki-ingest` rules say the canonical `原料/` source, wiki pages, ingest state/log, and verification are complete. Use `/usr/bin/trash`, never `rm`.
+After a confirmed ingest, cleaning the consumed workbench handoff original is allowed only when the target corpus `wiki-ingest` rules say the canonical `原料/` source, wiki pages, ingest state/log, and verification are complete. Use `lorekit trash`, never `rm`.
 
 Never bypass duplicate or in-progress states reported by `lorekit fetch`.
 

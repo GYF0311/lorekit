@@ -52,6 +52,7 @@ Real work doesn't all become wiki pages — that's by design. The retrieval chai
 | Snapshot        | `lorekit snapshot`      | Full-corpus tarball + manifest                                                                                                                                        |
 | Restore         | `lorekit restore`       | Recover missing / changed files from a snapshot                                                                                                                       |
 | Remove          | `lorekit remove`        | Dry-run impact report, then safely move selected sources/pages to OS Trash with provenance-aware cleanup                                                              |
+| Trash           | `lorekit trash`         | Cross-platform recoverable delete for workbench/process files — moves to OS Trash / Recycle Bin; refuses `原料/`, `知识库/` (use remove) and `.wiki/`                  |
 | Audit           | `lorekit audit`         | Create / list / resolve human feedback on wiki pages                                                                                                                  |
 | Directory index | `lorekit index`         | Recursively generate `_INDEX.md` for every subdirectory (including folder-packaged sources like `原料/文章/<slug>/article.md`)                                        |
 | **Sync**        | **`lorekit sync`**      | **One-shot for durable corpus changes: `_INDEX.md` → root `index.md` → `doctor`; supports `--json` and `--report` for agent-readable step receipts**                  |

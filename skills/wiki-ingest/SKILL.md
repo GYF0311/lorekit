@@ -287,7 +287,7 @@ lorekit ingest record <url> \
 4. `ingest record --step ... --log ...` 已写入 ingest state 和 `log.md`；
 5. `lorekit sync` 已完成。
 
-满足以上条件后，默认用 `/usr/bin/trash` 清理**本次 ingest 明确消费掉的** `_工作台/收件/` 原件。可清理范围包括：
+满足以上条件后，默认用 `lorekit trash` 清理**本次 ingest 明确消费掉的** `_工作台/收件/` 原件。可清理范围包括：
 
 - 已被移动或复制到 `原料/` 的工作台 `.md`；
 - 已被归档并由 canonical source 引用的同名 `.assets/`；
@@ -373,7 +373,7 @@ ingest 结束后、汇报前，Read `corpus/QUESTIONS.md` 的 **Open Questions**
 死链预检：3 file, 10 link ok, 0 broken
 一次关账：record --step archive,wiki,backlink,lint --log "..."
 sync：index.md +2 added, 6 _INDEX.md refreshed, doctor passed
-清理：trash _工作台/收件/fetch/abc.md（canonical source: 原料/剪藏/abc.md）
+清理：lorekit trash _工作台/收件/fetch/abc.md（canonical source: 原料/剪藏/abc.md）
 日期来源：fetcher publishDate=2026-04-04
 ```
 
@@ -387,4 +387,4 @@ sync：index.md +2 added, 6 _INDEX.md refreshed, doctor passed
 - `lorekit ingest pending` / `list` / `forget` / `reconcile` — 状态管理
 - `lorekit sync` — 一条命令：刷 \_INDEX + merge index.md + doctor
 - `lorekit lint` — corpus health（事后扫）
-- 底层：Read / Write / Edit / `mv` / `trash`（删东西绝不用 `rm`）
+- 底层：Read / Write / Edit / `mv` / `lorekit trash`（删东西绝不用 `rm`）

@@ -206,10 +206,10 @@ import chalk2 from "chalk";
 var MINIMAL_DIRS = ["\u539F\u6599", "\u77E5\u8BC6\u5E93/\u6982\u5FF5", "\u77E5\u8BC6\u5E93/\u5B9E\u4F53", "\u77E5\u8BC6\u5E93/\u6458\u8981", "\u6BCF\u65E5", "\u7CFB\u7EDF", ".wiki"];
 function ask(question) {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve5) => {
+  return new Promise((resolve6) => {
     rl.question(question, (answer) => {
       rl.close();
-      resolve5(answer.trim());
+      resolve6(answer.trim());
     });
   });
 }
@@ -1513,6 +1513,7 @@ import {
   cpSync as cpSync2
 } from "fs";
 import { join as join10, resolve as resolve3 } from "path";
+import { homedir } from "os";
 var SUPPORTED_TARGETS = ["claude-code", "codex", "project"];
 var SUPPORTED_MODES = ["copy", "symlink"];
 var SKILL_PREFIXES = ["wiki-", "corpus-"];
@@ -1525,7 +1526,7 @@ function isSymlink(path) {
 }
 function targetSkillsDir(target, dest) {
   if (dest) return resolve3(dest);
-  const home = process.env.HOME ?? "";
+  const home = homedir();
   if (target === "codex") return join10(home, ".agents", "skills");
   if (target === "project") return join10(process.cwd(), "skills");
   return join10(home, ".claude", "skills");
@@ -1756,10 +1757,10 @@ import * as tar2 from "tar";
 import chalk5 from "chalk";
 function ask2(question) {
   const rl = createInterface2({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve5) => {
+  return new Promise((resolve6) => {
     rl.question(question, (answer) => {
       rl.close();
-      resolve5(answer.trim());
+      resolve6(answer.trim());
     });
   });
 }
@@ -1983,6 +1984,7 @@ function searchCommand(program2) {
 // src/commands/fetch.ts
 import { existsSync as existsSync13, mkdirSync as mkdirSync8 } from "fs";
 import { join as join19 } from "path";
+import { tmpdir as tmpdir2 } from "os";
 
 // src/lib/fetcher/index.ts
 import { mkdir as mkdir4, writeFile as writeFile4 } from "fs/promises";
@@ -2776,7 +2778,7 @@ function fetchCommand(program2) {
       if (opts.out) {
         outRoot = opts.out;
       } else {
-        outRoot = corpus ? join19(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch") : "/tmp/lorekit-fetch";
+        outRoot = corpus ? join19(corpus, "_\u5DE5\u4F5C\u53F0", "\u6536\u4EF6", "fetch") : join19(tmpdir2(), "lorekit-fetch");
       }
       if (!existsSync13(outRoot)) {
         mkdirSync8(outRoot, { recursive: true });
@@ -4318,6 +4320,49 @@ function workbenchCommand(program2) {
   });
 }
 
+// src/commands/trash.ts
+import { existsSync as existsSync20 } from "fs";
+import { join as join28, resolve as resolve5, isAbsolute as isAbsolute3 } from "path";
+import trash2 from "trash";
+function trashCommand(program2) {
+  program2.command("trash").description("Move corpus files/dirs to OS Trash / Recycle Bin (recoverable; never rm)").argument("<paths...>", "corpus-relative or absolute paths inside the corpus").action(async (paths) => {
+    const corpus = requireCorpus();
+    const targets = [];
+    for (const input of paths) {
+      const abs = resolve5(isAbsolute3(input) ? input : join28(corpus, input));
+      if (!isWithin(corpus, abs)) {
+        err(`refusing to trash outside the corpus: ${input}`);
+        process.exit(2);
+      }
+      const rel = relPosix(corpus, abs);
+      if (rel === "") {
+        err("refusing to trash the corpus root");
+        process.exit(2);
+      }
+      if (rel === "\u539F\u6599" || rel.startsWith("\u539F\u6599/")) {
+        err(`\u539F\u6599/ is read-only; refusing: ${rel}`);
+        process.exit(2);
+      }
+      if (rel === "\u77E5\u8BC6\u5E93" || rel.startsWith("\u77E5\u8BC6\u5E93/")) {
+        err(`use \`lorekit remove\` for \u77E5\u8BC6\u5E93/ pages (provenance-aware cleanup): ${rel}`);
+        process.exit(2);
+      }
+      if (rel === ".wiki" || rel.startsWith(".wiki/")) {
+        err(`refusing to trash lorekit metadata: ${rel}`);
+        process.exit(2);
+      }
+      if (!existsSync20(abs)) {
+        err(`not found: ${rel}`);
+        process.exit(2);
+      }
+      targets.push(abs);
+    }
+    await trash2(targets, { glob: false });
+    for (const t of targets) print(`  \u{1F5D1} ${relPosix(corpus, t)}`);
+    ok(`moved ${targets.length} item(s) to OS Trash`);
+  });
+}
+
 // src/cli.ts
 var version = readVersion();
 function showBanner() {
@@ -4391,6 +4436,7 @@ obsidianTuneCommand(program);
 removeCommand(program);
 linksCommand(program);
 workbenchCommand(program);
+trashCommand(program);
 if (process.argv.length <= 2) {
   showBanner();
 } else {

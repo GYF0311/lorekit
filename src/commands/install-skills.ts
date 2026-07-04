@@ -10,6 +10,7 @@ import {
   cpSync,
 } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { homedir } from 'node:os';
 import { lorekitRoot } from '../utils/fs.js';
 import { ok, err, out, print } from '../utils/logger.js';
 
@@ -30,7 +31,7 @@ function isSymlink(path: string): boolean {
 
 function targetSkillsDir(target: InstallTarget, dest?: string): string {
   if (dest) return resolve(dest);
-  const home = process.env.HOME ?? '';
+  const home = homedir();
   if (target === 'codex') return join(home, '.agents', 'skills');
   if (target === 'project') return join(process.cwd(), 'skills');
   return join(home, '.claude', 'skills');

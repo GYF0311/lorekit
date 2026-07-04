@@ -6,6 +6,22 @@ Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](ht
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-07-04
+
+Windows 适配版：平台差异全部由 CLI 吸收，skill 层保持单一套（不分平台）。
+
+### Added
+
+- **`lorekit trash <paths...>`**：跨平台可恢复删除（macOS 废纸篓 / Windows 回收站 /
+  Linux trash）。skill 层清理工作台过渡副本、废稿的统一入口，取代 macOS 专属的
+  `/usr/bin/trash`。硬边界：只收 corpus 内路径；`原料/` 只读拒绝；`知识库/` 提示走
+  `lorekit remove`；`.wiki/` 拒绝。
+
+### Changed
+
+- `wiki-triage` / `wiki-ingest` / `corpus-ingest` skills 与 corpus 模板契约中的删除措辞
+  统一为 `lorekit trash`，不再引用平台相关命令。
+
 ### Fixed
 
 - **Windows 路径分隔符**：新增 `relPosix()` helper，全部 27 处 `path.relative` 调用点统一
@@ -13,6 +29,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](ht
   写出反斜杠、workbench 分桶失效、search 结果路径不一致等问题。
 - **Windows install-skills 默认模式**：`--mode` 缺省时 Windows 下用 `copy`（symlink 需要
   开发者模式 / 管理员权限），macOS / Linux 仍默认 `symlink`。
+- **Windows 环境变量与临时目录**：`install-skills` 的用户目录改用 `os.homedir()`（原
+  `process.env.HOME` 在 Windows 上为空）；`fetch` 无 corpus 时的兜底目录改用
+  `os.tmpdir()`（原硬编码 `/tmp`）。
 
 ## [0.5.0] — 2026-07-04
 

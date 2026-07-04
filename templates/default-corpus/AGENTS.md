@@ -36,7 +36,7 @@ Native routing table：
 - `wiki-daily` 是可选日记/复盘 workflow；它不随 project workflow 默认安装。
 - `wiki-remove`、自动 fileback 不做默认入口。
 - `原料/` 是长期 LM Wiki 的 canonical raw-source layer；`_工作台/**` 里的项目证据、课程原文和中间材料只服务当前任务验证，除非明确 ingest/promote，否则不等价于 `原料/`
-- 明确 ingest/promote 成功后，`_工作台/收件/` 中本次消费掉的原件只是过渡副本；原料已进 `原料/` 且 wiki/反链/state/log/sync 完成时，默认用 `trash` 清理
+- 明确 ingest/promote 成功后，`_工作台/收件/` 中本次消费掉的原件只是过渡副本；原料已进 `原料/` 且 wiki/反链/state/log/sync 完成时，默认用 `lorekit trash` 清理
 - 检索链默认从 `index.md` / `知识库/` 开始，需要完整 provenance 时再打开 `原料/`；知识库层无命中时用 `lorekit search "<q>" --all` 第二级召回（纳入 `_工作台/`、`_归档/`，命中必须标注非 canonical；`_工作台/转写/` 等噪音层仍排除，点名才查）
 - `_归档/` 是完结留存层：已完结项目资料由 `wiki-triage` 清算移入，可被 `--all` 召回但不算 canonical；它不替代 `原料/` 入库通道——值得沉淀的知识点仍走 `wiki-ingest` / `wiki-fileback`
 
