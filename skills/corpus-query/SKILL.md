@@ -61,7 +61,7 @@ Read only what is needed. Do not bulk-load the corpus.
 2. For exact terms, run `<corpus>/bin/lorekit search "<q>"`.
 3. Read `<corpus>/index.md`, then the relevant `_INDEX.md` files.
 4. Read canonical pages under `知识库/` before answering.
-5. 目标库没有相关内容时诚实说明；再按需提议：换另一个注册库查 / 联网检索 / 记一条 capture。
+5. 目标库无命中时诚实说明，随后**直接联网检索兜底**（WebSearch / WebFetch），不要停在「库里没有」；回答分层标注「库内已沉淀」（引 corpus 页）vs「联网新查」（给 URL，注明未入库）。另可按需：换另一个注册库查 / 记一条 capture。
 
 ## Output
 
@@ -72,7 +72,7 @@ Answer with:
 - confidence notes when source confidence is low or medium
 - query path summary when useful
 
-If the corpus does not contain relevant information, say so. Offer to run web research or create an inbox note only if useful.
+If the corpus does not contain relevant information, say so, then fall back to web research directly; label web findings as not-yet-ingested and cite URLs. Offer an inbox capture when a finding is worth keeping.
 
 ## Writes
 

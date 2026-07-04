@@ -18,7 +18,7 @@ description: 从 corpus 检索已有内容并综合答案，按精确/模糊/图
 
 - 查询后用户说"把这个记下来" → 交给 `wiki-fileback`
 - 用户给了新外部资料要存 → 交给 `wiki-ingest`
-- 用户在问需要上网的新知识 → 用 `WebSearch` / `WebFetch`
+- 用户在问**纯**外部新知识且明说不用查库 → 直接 `WebSearch` / `WebFetch`（默认仍先查库再联网兜底，见默认查询顺序第 6 步）
 
 ## 默认查询顺序
 
@@ -35,6 +35,11 @@ description: 从 corpus 检索已有内容并综合答案，按精确/模糊/图
    标注非 canonical**（例如 `⚠ 过程稿：_工作台/草稿/xxx.md，未经入库校验`），
    不得当作 Compiled Truth 级证据。转写噪音层（`_工作台/转写/`）--all 仍排除，
    先生点名"去转写里找"才 `lorekit search "<q>" --dir _工作台/转写`。
+6. **联网兜底（web fallback）**：1-5 步都无命中（或问题本身涉及库外的新知识 / 时效
+   信息）时，**直接**用 `WebSearch` / `WebFetch` 联网检索，不要停在"库里没有"。
+   回答必须分层标注来源：「库内已沉淀」（引用 corpus 页面）vs「联网新查」（给
+   URL，注明未入库、未校验）。联网结论有长期复用价值时，提议 `wiki-fileback` /
+   `wiki-ingest` 入库，由用户决定。
 
 ## Decision tree
 

@@ -21,6 +21,10 @@ Windows 适配版：平台差异全部由 CLI 吸收，skill 层保持单一套�
 
 - `wiki-triage` / `wiki-ingest` / `corpus-ingest` skills 与 corpus 模板契约中的删除措辞
   统一为 `lorekit trash`，不再引用平台相关命令。
+- **联网兜底转正**：`wiki-query` 默认查询顺序新增第 6 步——库内（含 `--all` 二级召回）
+  无命中且问题涉及库外新知识 / 时效信息时直接联网检索，回答分层标注「库内已沉淀」vs
+  「联网新查（URL，未入库）」；`corpus-query` 同步由"提议联网"改为直接兜底；corpus
+  模板契约新增同款检索规则。
 
 ### Fixed
 
