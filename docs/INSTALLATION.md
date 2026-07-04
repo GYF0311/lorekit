@@ -1,6 +1,6 @@
 # INSTALLATION.md — lorekit 安装与模块组合指南
 
-> Last updated: 2026-06-02
+> Last updated: 2026-07-04
 
 本文回答两个问题：
 
@@ -55,7 +55,16 @@ AI 安装规则：
 
 此时 lorekit 已能完成摄入、维护、查询、同步、备份和安全删除。
 
-### 1. 安装源码和 CLI
+### 1. 安装 CLI
+
+npm 一行安装（推荐）：
+
+```bash
+npm install -g @xiaowuovo/lorekit
+lorekit --version
+```
+
+或源码安装（需要改 lorekit 本体时）：
 
 ```bash
 git clone https://github.com/GYF0311/lorekit.git ~/code/lorekit

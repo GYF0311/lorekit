@@ -30,6 +30,8 @@ Content lives in clearly separated layers:
 - **Archive** (`_归档/`): finished-project material worth keeping (interview records, research bundles) — moved in by the `wiki-triage` closeout flow, recallable but never canonical
 - **Schema** (`CLAUDE.md` / `AGENTS.md`): per-corpus configuration, co-maintained by human + LLM
 
+![lorekit workflow architecture](docs/images/lorekit-llm-workflow-architecture.png)
+
 Real work doesn't all become wiki pages — that's by design. The retrieval chain starts from `index.md` / `知识库/`; when the wiki has no hit, `search --all` falls back to workbench/archive with results explicitly marked non-canonical. Promotion into `原料/` happens only through an explicit ingest, and `lorekit workbench report` + the `wiki-triage` skill periodically turn workbench backlog into an approve-per-group verdict list (ingest / archive / trash) — you decide, the CLI executes. Staleness is tracked too: pages carry `domain_volatility` + `last_reviewed`, and `lorekit lint` reports which pages are overdue for review (90/180/365-day windows).
 
 > **Data safety**: lorekit has zero tolerance for data loss. Existing notes are backed up before init; `原料/` is immutable; no `rm` is ever used — deletions go through `trash` (recoverable from macOS Trash). See the data-safety rules in `AGENTS.md` and `docs/INSTALLATION.md`.
@@ -169,6 +171,10 @@ Hybrid setup is also valid, but optional: install selected `corpus-*` entrypoint
 
 ### Option 1: let AI install it (recommended)
 
+Completely new to all of this? Paste this to your AI agent as-is:
+
+> Please read https://github.com/GYF0311/lorekit (README + docs/QUICKSTART.md), install lorekit for me the simplest way (`npm install -g @xiaowuovo/lorekit`), initialize a knowledge-base corpus at `~/Desktop/my-corpus`, then teach me the basics: walk me through my first article ingest and my first query, one step at a time, telling me what you're about to do before each step.
+
 Send the repo link to your AI coding agent and say "install this project." If you do not specify anything, the agent should use the default route:
 
 1. clone and build lorekit,
@@ -187,6 +193,14 @@ If the user chooses an optional module, keep the install path separate:
 
 ### Option 2: manual install
 
+From npm (simplest):
+
+```bash
+npm install -g @xiaowuovo/lorekit   # the CLI command is `lorekit`
+```
+
+Or build from source:
+
 ```bash
 # 1. Clone
 git clone https://github.com/GYF0311/lorekit.git ~/code/lorekit
@@ -198,7 +212,7 @@ cd ~/code/lorekit && npm install && npm run build
 npm link
 
 # 4. Verify
-lorekit --version   # → 0.4.0
+lorekit --version   # → 0.5.0
 lorekit             # no-arg invocation shows the brand banner
 
 # 5. Initialize a corpus
@@ -220,8 +234,6 @@ lorekit install-skills --target codex --only corpus-query,corpus-capture --mode 
 # 7. Start a conversation from the corpus directory
 claude  # or codex / cursor / kimi …
 ```
-
-Or install from npm: `npm install -g @xiaowuovo/lorekit` (the CLI command is still `lorekit`).
 
 ### What Success Looks Like
 

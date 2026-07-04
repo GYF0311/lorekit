@@ -1,0 +1,204 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" role="img" aria-labelledby="title desc">
+  <title id="title">lorekit 个人 LLM 知识库工作流</title>
+  <desc id="desc">横版 16:9 白底扁平中文架构图，展示 lorekit 的内容层、检索闭环、维护闭环和分发底座。</desc>
+  <defs>
+    <linearGradient id="layer-workbench" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#d9f5ff"/>
+      <stop offset="100%" stop-color="#9fe0f2"/>
+    </linearGradient>
+    <linearGradient id="layer-raw" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#d8fbf0"/>
+      <stop offset="100%" stop-color="#8bdbc5"/>
+    </linearGradient>
+    <linearGradient id="layer-wiki" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#d8f3e5"/>
+      <stop offset="100%" stop-color="#82caa2"/>
+    </linearGradient>
+    <linearGradient id="layer-archive" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#dfeeff"/>
+      <stop offset="100%" stop-color="#9fc0e9"/>
+    </linearGradient>
+    <linearGradient id="layer-contract" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#eefbf7"/>
+      <stop offset="100%" stop-color="#bce8db"/>
+    </linearGradient>
+    <marker id="arrow-green" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#2fa66a"/>
+    </marker>
+    <marker id="arrow-orange" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#e07b22"/>
+    </marker>
+    <marker id="arrow-yellow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#cfa21b"/>
+    </marker>
+    <marker id="arrow-blue" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#438ac7"/>
+    </marker>
+    <style>
+      .bg { fill: #ffffff; }
+      .panel { fill: #fbfdff; stroke: #d9e4ee; stroke-width: 2; }
+      .section-label { font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; font-size: 26px; font-weight: 700; fill: #1d2b36; }
+      .title { font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; font-size: 44px; font-weight: 800; fill: #17232d; letter-spacing: 0; }
+      .subtitle { font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; font-size: 20px; font-weight: 500; fill: #546575; letter-spacing: 0; }
+      .layer-title { font-family: "SFMono-Regular", "Menlo", "Consolas", "Noto Sans Mono CJK SC", monospace; font-size: 30px; font-weight: 800; fill: #122431; }
+      .layer-note { font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; font-size: 21px; font-weight: 700; fill: #23404e; }
+      .body { font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; font-size: 22px; font-weight: 600; fill: #263642; letter-spacing: 0; }
+      .small { font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; font-size: 18px; font-weight: 500; fill: #50616d; letter-spacing: 0; }
+      .tiny { font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; font-size: 16px; font-weight: 500; fill: #60717f; letter-spacing: 0; }
+      .mono { font-family: "SFMono-Regular", "Menlo", "Consolas", "Noto Sans Mono CJK SC", monospace; font-weight: 750; }
+      .node-green { fill: #f1fbf5; stroke: #86d5aa; stroke-width: 2; }
+      .node-orange { fill: #fff7ec; stroke: #f0b66b; stroke-width: 2; }
+      .node-yellow { fill: #fffbea; stroke: #e3c85a; stroke-width: 2; }
+      .node-red { fill: #fff1f1; stroke: #e58a8a; stroke-width: 2; }
+      .base { fill: #f3f5f7; stroke: #d2d8df; stroke-width: 2; }
+      .green-line { fill: none; stroke: #2fa66a; stroke-width: 4; marker-end: url(#arrow-green); }
+      .green-dash { fill: none; stroke: #2fa66a; stroke-width: 4; stroke-dasharray: 10 9; marker-end: url(#arrow-green); }
+      .orange-line { fill: none; stroke: #e07b22; stroke-width: 4; marker-end: url(#arrow-orange); }
+      .yellow-line { fill: none; stroke: #cfa21b; stroke-width: 4; marker-end: url(#arrow-yellow); }
+      .blue-line { fill: none; stroke: #438ac7; stroke-width: 4; marker-end: url(#arrow-blue); }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1920" height="1080"/>
+
+  <text class="title" x="960" y="58" text-anchor="middle">lorekit 个人 LLM 知识库工作流</text>
+  <text class="subtitle" x="960" y="91" text-anchor="middle">AI 负责语义判断；CLI 负责确定性、安全、可重复的文件、状态、索引与恢复动作</text>
+
+  <!-- Left: query loop -->
+  <rect class="panel" x="70" y="120" width="445" height="735" rx="18"/>
+  <text class="section-label" x="103" y="163">检索闭环</text>
+  <text class="small" x="103" y="193">先查 canonical；不够再扩到过程层与外部世界</text>
+
+  <rect class="node-green" x="105" y="225" width="330" height="76" rx="12"/>
+  <text class="body" x="128" y="258"><tspan class="mono">search</tspan> 知识库</text>
+  <text class="small" x="128" y="284">默认只看可信事实层</text>
+
+  <path class="green-line" d="M270 307 L270 337"/>
+  <rect class="node-green" x="105" y="340" width="330" height="92" rx="12"/>
+  <text class="body" x="128" y="374">不够 → <tspan class="mono">search --all</tspan></text>
+  <text class="small" x="128" y="402">工作台 + 归档</text>
+  <text class="small" x="128" y="424">⚠ 过程稿，只能做线索</text>
+
+  <path class="green-line" d="M270 438 L270 468"/>
+  <rect class="node-green" x="105" y="471" width="330" height="82" rx="12"/>
+  <text class="body" x="128" y="504">点名其他库</text>
+  <text class="small" x="128" y="531">多库注册表路由</text>
+
+  <path class="green-line" d="M270 559 L270 589"/>
+  <rect class="node-green" x="105" y="592" width="330" height="76" rx="12"/>
+  <text class="body" x="128" y="625">联网兜底</text>
+  <text class="small" x="128" y="651">抓回候选，不直接当事实</text>
+
+  <!-- Center: content layers -->
+  <rect class="panel" x="550" y="120" width="760" height="735" rx="18"/>
+  <text class="section-label" x="585" y="163">中央内容五层</text>
+  <text class="small" x="585" y="193">四个内容层 + 独立契约层，区分过程、原始、canonical 与留存</text>
+
+  <rect x="600" y="215" width="460" height="105" rx="16" fill="url(#layer-workbench)" stroke="#7dcde4" stroke-width="2"/>
+  <text class="layer-title" x="632" y="257">_工作台/</text>
+  <text class="layer-note" x="632" y="289">进行中项目 · 高频区</text>
+
+  <path class="blue-line" d="M830 325 L830 364"/>
+  <rect x="674" y="333" width="312" height="26" rx="13" fill="#ffffff" stroke="#9bc6e7" stroke-width="1.5"/>
+  <text class="tiny" x="830" y="352" text-anchor="middle">用户说『入库』</text>
+
+  <rect x="600" y="370" width="460" height="105" rx="16" fill="url(#layer-raw)" stroke="#74c8b2" stroke-width="2"/>
+  <text class="layer-title" x="632" y="412">原料/</text>
+  <text class="layer-note" x="632" y="444">只读原始层 · 入库必经</text>
+
+  <path class="blue-line" d="M830 480 L830 519"/>
+  <rect x="612" y="488" width="436" height="26" rx="13" fill="#ffffff" stroke="#9bc6e7" stroke-width="1.5"/>
+  <text class="tiny" x="830" y="507" text-anchor="middle"><tspan class="mono">wiki-ingest</tspan>（记录 <tspan class="mono">original_path</tspan> 溯源）</text>
+
+  <rect x="600" y="525" width="460" height="105" rx="16" fill="url(#layer-wiki)" stroke="#74bc94" stroke-width="2"/>
+  <text class="layer-title" x="632" y="567">知识库/</text>
+  <text class="layer-note" x="632" y="599">canonical 事实层 · 默认检索区</text>
+
+  <path class="blue-line" d="M830 635 L830 674"/>
+  <rect x="706" y="643" width="248" height="26" rx="13" fill="#ffffff" stroke="#9bc6e7" stroke-width="1.5"/>
+  <text class="tiny" x="830" y="662" text-anchor="middle">完结 / 低频留存</text>
+
+  <rect x="600" y="680" width="460" height="105" rx="16" fill="url(#layer-archive)" stroke="#8aadcf" stroke-width="2"/>
+  <text class="layer-title" x="632" y="722">_归档/</text>
+  <text class="layer-note" x="632" y="754">完结留存</text>
+
+  <rect x="1080" y="250" width="205" height="385" rx="16" fill="url(#layer-contract)" stroke="#8ccfbd" stroke-width="2"/>
+  <text class="body" x="1182" y="292" text-anchor="middle">契约层</text>
+  <line x1="1105" y1="311" x2="1260" y2="311" stroke="#7fc4b0" stroke-width="2"/>
+  <text class="small" x="1110" y="349"><tspan class="mono">AGENTS</tspan> / <tspan class="mono">CLAUDE</tspan></text>
+  <text class="small" x="1110" y="387"><tspan class="mono">schema</tspan></text>
+  <text class="small" x="1110" y="425"><tspan class="mono">skills</tspan></text>
+  <text class="tiny" x="1110" y="476">目录边界</text>
+  <text class="tiny" x="1110" y="506">入库门槛</text>
+  <text class="tiny" x="1110" y="536">检索顺序</text>
+  <text class="tiny" x="1110" y="566">删除 / trash 语义</text>
+  <path d="M1070 442 C1048 442 1048 442 1060 442" fill="none" stroke="#8ccfbd" stroke-width="3"/>
+
+  <!-- Query arrows land on the content layers after panels are drawn. -->
+  <path class="green-line" d="M435 263 C520 263 540 575 600 575"/>
+  <text class="tiny" x="463" y="292" style="fill:#2d8e5d">命中事实页</text>
+  <path class="green-dash" d="M435 386 C510 386 532 267 600 267"/>
+  <path class="green-dash" d="M435 386 C510 386 532 733 600 733"/>
+  <path class="green-line" d="M435 512 C505 512 520 830 585 830 L1080 830 C1135 830 1182 720 1182 635"/>
+  <path class="green-dash" d="M435 630 C510 630 532 267 600 267"/>
+
+  <!-- Right: maintenance loops -->
+  <rect class="panel" x="1330" y="120" width="520" height="735" rx="18"/>
+  <text class="section-label" x="1363" y="163">维护闭环</text>
+  <text class="small" x="1363" y="193">清算让过程材料有出口；保鲜把失败和复审分开</text>
+
+  <text class="body" x="1363" y="231">① 清算闭环</text>
+  <rect class="node-orange" x="1370" y="250" width="400" height="62" rx="12"/>
+  <text class="body" x="1394" y="286"><tspan class="mono">workbench report</tspan> 只读账单</text>
+
+  <path class="orange-line" d="M1570 318 L1570 352"/>
+  <rect class="node-orange" x="1370" y="356" width="400" height="74" rx="12"/>
+  <text class="body" x="1394" y="390"><tspan class="mono">wiki-triage</tspan>：AI 分组</text>
+  <text class="small" x="1394" y="417">用户勾选后再执行</text>
+
+  <path class="orange-line" d="M1370 393 C1308 250 1150 210 1060 392"/>
+  <text class="tiny" x="1196" y="246" style="fill:#b96a1d">入库</text>
+  <path class="orange-line" d="M1370 405 C1320 624 1270 760 1060 724"/>
+  <text class="tiny" x="1226" y="742" style="fill:#b96a1d">归档</text>
+
+  <path class="orange-line" d="M1570 434 C1595 465 1640 467 1683 467"/>
+  <g transform="translate(1692 431)">
+    <rect x="7" y="14" width="52" height="58" rx="7" fill="#fff7ec" stroke="#e07b22" stroke-width="2"/>
+    <path d="M0 16 H66" stroke="#e07b22" stroke-width="4" stroke-linecap="round"/>
+    <path d="M21 5 H45" stroke="#e07b22" stroke-width="4" stroke-linecap="round"/>
+    <path d="M22 29 V58 M34 29 V58 M46 29 V58" stroke="#e07b22" stroke-width="2.5" stroke-linecap="round"/>
+  </g>
+  <text class="small" x="1725" y="525" text-anchor="middle">trash 可恢复</text>
+
+  <text class="body" x="1363" y="575">② 保鲜闭环</text>
+  <rect class="node-yellow" x="1370" y="594" width="400" height="62" rx="12"/>
+  <text class="body" x="1570" y="632" text-anchor="middle"><tspan class="mono">lint</tspan></text>
+
+  <path class="yellow-line" d="M1510 662 C1480 690 1455 700 1455 724"/>
+  <path class="yellow-line" d="M1630 662 C1660 690 1685 700 1685 724"/>
+
+  <rect class="node-red" x="1368" y="728" width="218" height="90" rx="12"/>
+  <text class="small" x="1390" y="759">硬性</text>
+  <text class="tiny" x="1390" y="787">断链 / 原料引用</text>
+  <text class="tiny" x="1390" y="810">不可解析 → 失败</text>
+  <text x="1550" y="795" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="46" font-weight="800" fill="#cf3d3d" text-anchor="middle">✕</text>
+
+  <rect class="node-yellow" x="1602" y="728" width="218" height="90" rx="12"/>
+  <text class="small" x="1624" y="759">软性</text>
+  <text class="tiny" x="1624" y="787"><tspan class="mono">stale</tspan> 复审到期</text>
+  <text class="tiny" x="1624" y="810">黄色清单</text>
+  <g transform="translate(1766 760)">
+    <rect x="0" y="0" width="24" height="34" rx="4" fill="#fffef5" stroke="#cfa21b" stroke-width="2"/>
+    <path d="M6 10 H18 M6 18 H18 M6 26 H15" stroke="#cfa21b" stroke-width="2" stroke-linecap="round"/>
+  </g>
+
+  <!-- Bottom base -->
+  <rect class="base" x="70" y="900" width="1780" height="130" rx="18"/>
+  <text class="section-label" x="104" y="942">底座</text>
+  <rect x="205" y="930" width="650" height="70" rx="14" fill="#ffffff" stroke="#cbd3db" stroke-width="2"/>
+  <text class="body" x="530" y="973" text-anchor="middle">防漂移测试（<tspan class="mono">skills↔CLI</tspan>）</text>
+
+  <rect x="930" y="930" width="810" height="70" rx="14" fill="#ffffff" stroke="#cbd3db" stroke-width="2"/>
+  <text class="body" x="1335" y="973" text-anchor="middle">npm 分发 <tspan class="mono">@xiaowuovo/lorekit</tspan>：<tspan class="mono">install</tspan> → <tspan class="mono">init</tspan> → <tspan class="mono">skills</tspan> 即用</text>
+  <path d="M856 965 L928 965" fill="none" stroke="#a9b3bd" stroke-width="3" marker-end="url(#arrow-blue)"/>
+</svg>

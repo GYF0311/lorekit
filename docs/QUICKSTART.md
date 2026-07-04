@@ -37,19 +37,28 @@ Pure TypeScript, Node.js-only, usable from any AI coding agent (Claude Code / Co
 
 ## 2. Install lorekit
 
+From npm (simplest, recommended):
+
+```bash
+npm install -g @xiaowuovo/lorekit
+# the CLI command is `lorekit`
+```
+
+Or from source (for development / hacking on lorekit itself):
+
 ```bash
 git clone https://github.com/GYF0311/lorekit.git ~/code/lorekit
 cd ~/code/lorekit
 npm install
 npm run build
-npm link
+npm link   # puts the `lorekit` command on your global PATH
 ```
 
-`npm link` puts the `lorekit` command on your global PATH. Verify:
+Either way, verify:
 
 ```bash
 lorekit --version
-# → 0.4.0
+# → 0.5.0
 
 lorekit
 # → prints the blue ASCII banner (no-arg invocation shows status)
@@ -231,7 +240,7 @@ lorekit snapshot
 
 ---
 
-## 8. First conversation
+## 7. First conversation
 
 ```bash
 cd ~/Desktop/my-corpus
@@ -348,7 +357,7 @@ updated: 2026-04-17
 
 ---
 
-## 8.5 Obsidian graph filter (recommended)
+## 10. Obsidian graph filter (recommended)
 
 If you plan to browse the corpus in Obsidian, `lorekit init` has already dropped a recommended filter into `.obsidian/graph.json`. It hides non-knowledge nodes so the graph actually looks like your knowledge, not your scaffolding:
 
@@ -367,7 +376,7 @@ Toggle the graph tab off/on after editing `graph.json` so Obsidian re-reads the 
 
 ---
 
-## 9. FAQ
+## 11. FAQ
 
 **Skill didn't trigger?**
 Check that `~/.claude/skills/wiki-*` exist. If they do, restart the Claude Code session.
@@ -386,6 +395,14 @@ lorekit init ~/existing-notes
 ```
 
 **Update lorekit?**
+
+npm install:
+
+```bash
+npm update -g @xiaowuovo/lorekit
+```
+
+Source install:
 
 ```bash
 cd ~/code/lorekit
