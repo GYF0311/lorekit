@@ -8,7 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](ht
 
 ## [0.5.0] — 2026-07-04
 
-首个 npm 公开版本。主题：工作台闭环（两级召回 / 过时治理 / 清算流程）+ 硬边界收紧。
+首个 npm 公开版本（包名 `@xiaowuovo/lorekit`，registry 相似度规则不允许裸名 `lorekit`；CLI 命令仍为 `lorekit`）。主题：工作台闭环（两级召回 / 过时治理 / 清算流程）+ 硬边界收紧。
 
 ### Added
 

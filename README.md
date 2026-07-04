@@ -213,7 +213,7 @@ lorekit install-skills --target codex --only corpus-query,corpus-capture --mode 
 claude  # or codex / cursor / kimi …
 ```
 
-(Future: once published to npm, `npm install -g lorekit` will be enough.)
+Or install from npm: `npm install -g @xiaowuovo/lorekit` (the CLI command is still `lorekit`).
 
 ### What Success Looks Like
 
