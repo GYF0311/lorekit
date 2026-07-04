@@ -6,12 +6,49 @@ Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](ht
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-07-04
+
+首个 npm 公开版本。主题：工作台闭环（两级召回 / 过时治理 / 清算流程）+ 硬边界收紧。
+
+### Added
+
+- **`lorekit search --all`**：两级召回第二级——把 `_工作台/`、`_归档/` 等过程区纳入
+  fallback 检索；仍排除 `.wiki/.git` 与 `_工作台/转写` 噪音层；与 `--dir` 互斥。
+- **`lorekit lint` stale-review（软性提示）**：按 `domain_volatility`（high/medium/low →
+  90/180/365 天）+ `last_reviewed`（缺省回退 `updated`）报告复审到期页，不计入失败。
+- **`lorekit lint` unresolved-source（硬性）**：知识库页 frontmatter 的 `原料/`、`知识库/`
+  来源引用必须可解析，防"入库搬家改路径导致 provenance 断链"。
+- **`lorekit sync` 刷新 `MEMORY.md`**：L0 统计仪表盘（总页数/类型分布/最近活跃）由 sync
+  机械喂数；语义字段与指针说明保留；无 MEMORY.md 的 corpus 跳过。
+- **`lorekit workbench report`**：只读清算候选账单（`--json`）——账龄候选、活跃项目目录
+  跳过、过程桶（收件/草稿/临时/待整理/下载）按单文件判账龄、噪音层固定排除；是
+  `wiki-triage` skill 的确定性输入。
+- **`wiki-triage` skill**：on-demand 工作台清算（扫描 → AI 预判分组 → 账单 → 用户勾选 →
+  入库/归档/trash），未勾选不动任何文件。
+- **`corpus-query` 多库注册表**：`global-corpus.json` 可选 `corpora` 字段，点名库名/alias
+  即路由到任意注册 corpus；对不上注册表列出候选，不猜路径。
+- **skills ↔ CLI 防漂移测试**（`tests/smoke/skills-cli-drift.test.mjs`）：从 CLI `--help`
+  动态提取命令/子命令/flag 清单，比对 skills 引用，漂移即 verify 失败。
+- wiki-ingest `original_path` 惯例：工作台晋升件入 `原料/` 时记录搬家前路径。
+
+### Changed
+
+- **BREAKING：corpus 识别只认 `.wiki/` 标记**，不再把 `CLAUDE.md` 当 marker——普通代码
+  仓库普遍带 CLAUDE.md，误判会把 search/sync/lint 打到错误位置。老 corpus 若无
+  `.wiki/`，重跑 `lorekit init` 补齐。
+- `wiki-query` 默认查询顺序加第 5 步 `search --all` fallback，命中标注非 canonical。
+- `wiki-lint` skill 与 CLI 实际检查项逐条对齐；SHA SOURCE MODIFIED / valid_until /
+  矛盾检测明示为"CLI 未实现，需要时 AI 手动"。
+- `templates/default-corpus` 契约同步：两级召回、`_归档/` 完结留存层定位、wiki-triage
+  路由、corpora 注册表说明；模板 Harness 规则 7 的 SHA 措辞对齐工具现状。
+- lint 问题分级引入 `SOFT_ISSUE_KINDS`（backlogged-link / stale-review 不计入失败）。
+
 ### Fixed
 
 - Preserve multi-line WeChat `code-snippet__js` blocks during rich fetch instead of silently keeping only the first line.
 - Make default `lorekit doctor` skip inactive optional GBrain checks, while explicit integration checks and existing GBrain state still surface health issues.
 
-### Changed
+### Removed / Prior alignment (pre-0.5.0, 2026-06-11)
 
 - Removed LoreKit native semantic indexing/search from the current product surface. `sync` is now documented and implemented as `_INDEX.md` + root `index.md` + `doctor`; default query guidance is `search` + index drill-down + canonical page readback.
 - Narrow default sync guidance for workbench/process files: `lorekit sync` is now documented as a durable corpus closeout step, not something to run after every transient note.

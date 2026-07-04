@@ -2,7 +2,7 @@
 
 // src/cli.ts
 import { Command } from "commander";
-import chalk7 from "chalk";
+import chalk8 from "chalk";
 
 // src/lib/corpus.ts
 import { existsSync, readFileSync, readdirSync } from "fs";
@@ -43,6 +43,10 @@ var searchDefaultExcludePrefixes = [
   ".git"
 ];
 var searchAllExcludePrefixes = [".wiki", ".git", "_\u5DE5\u4F5C\u53F0/\u8F6C\u5199"];
+var workbenchTriageExcludePrefixes = [
+  "_\u5DE5\u4F5C\u53F0/\u8F6C\u5199",
+  "_\u5DE5\u4F5C\u53F0/\u65E5\u8BB0\u6536\u4EF6"
+];
 var indexExcludeDirPrefixes = [
   ".wiki",
   ".git",
@@ -107,7 +111,7 @@ var out = (msg) => console.log(msg);
 function findCorpus(startDir) {
   let dir = startDir || process.cwd();
   while (dir !== "/" && dir) {
-    if (existsSync(join(dir, ".wiki")) || existsSync(join(dir, "CLAUDE.md"))) {
+    if (existsSync(join(dir, ".wiki"))) {
       return dir;
     }
     dir = dirname(dir);
@@ -117,7 +121,7 @@ function findCorpus(startDir) {
 function requireCorpus(startDir) {
   const corpus = findCorpus(startDir);
   if (!corpus) {
-    throw new Error("not inside a corpus (no .wiki/ or CLAUDE.md found)");
+    throw new Error("not inside a corpus (no .wiki/ marker found; run `lorekit init` first)");
   }
   return corpus;
 }
@@ -4199,6 +4203,119 @@ function resolveCanonicalFile(corpus, target) {
   return null;
 }
 
+// src/commands/workbench.ts
+import { statSync as statSync6 } from "fs";
+import { join as join27, relative as relative13 } from "path";
+import chalk7 from "chalk";
+var WORKBENCH_DIR = "_\u5DE5\u4F5C\u53F0";
+var DAY_MS = 864e5;
+var BUCKET_DIRS = /* @__PURE__ */ new Set(["\u6536\u4EF6", "\u8349\u7A3F", "\u4E34\u65F6", "\u5F85\u6574\u7406", "\u4E0B\u8F7D"]);
+function topDirOf(rel) {
+  const parts = rel.split("/");
+  return parts.length >= 3 ? parts[1] : null;
+}
+function buildWorkbenchReport(corpus, opts) {
+  const now = Date.now();
+  const files = collectMdFiles(join27(corpus, WORKBENCH_DIR));
+  const excludedCount = /* @__PURE__ */ new Map();
+  const byTopDir = /* @__PURE__ */ new Map();
+  for (const file of files) {
+    const rel = relative13(corpus, file);
+    const noise = workbenchTriageExcludePrefixes.find((p) => matchesDirPrefix(rel, p));
+    if (noise) {
+      excludedCount.set(noise, (excludedCount.get(noise) ?? 0) + 1);
+      continue;
+    }
+    let st;
+    try {
+      st = statSync6(file);
+    } catch {
+      continue;
+    }
+    const ageDays = Math.floor((now - st.mtime.getTime()) / DAY_MS);
+    const top = topDirOf(rel);
+    const list = byTopDir.get(top) ?? [];
+    list.push({ rel, ageDays, sizeBytes: st.size, mtime: st.mtime });
+    byTopDir.set(top, list);
+  }
+  const candidates = [];
+  const activeDirs = [];
+  let freshFiles = 0;
+  for (const [top, list] of byTopDir) {
+    const newestAgeDays = Math.min(...list.map((f) => f.ageDays));
+    if (top !== null && !BUCKET_DIRS.has(top) && newestAgeDays <= opts.activeDays) {
+      activeDirs.push({ dir: `${WORKBENCH_DIR}/${top}`, newestAgeDays, skippedFiles: list.length });
+      continue;
+    }
+    for (const f of list) {
+      if (f.ageDays >= opts.staleDays) {
+        candidates.push({
+          path: f.rel,
+          topDir: top ? `${WORKBENCH_DIR}/${top}` : null,
+          mtime: f.mtime.toISOString().slice(0, 10),
+          ageDays: f.ageDays,
+          sizeBytes: f.sizeBytes
+        });
+      } else {
+        freshFiles++;
+      }
+    }
+  }
+  candidates.sort((a, b) => b.ageDays - a.ageDays || a.path.localeCompare(b.path));
+  activeDirs.sort((a, b) => a.dir.localeCompare(b.dir));
+  return {
+    corpus,
+    staleDays: opts.staleDays,
+    activeDays: opts.activeDays,
+    candidates,
+    activeDirs,
+    excluded: [...excludedCount.entries()].map(([prefix, count]) => ({ prefix, files: count })),
+    freshFiles
+  };
+}
+function printHumanReport(report) {
+  print(chalk7.bold(`
+lorekit workbench report \u2014 ${report.corpus}
+`));
+  print(
+    chalk7.dim(
+      `\u9608\u503C\uFF1A\u8D26\u9F84 \u2265 ${report.staleDays} \u5929\u8FDB\u5019\u9009\uFF1B\u76EE\u5F55\u5185 ${report.activeDays} \u5929\u5185\u6709\u6539\u52A8\u89C6\u4E3A\u6D3B\u8DC3\u9879\u76EE\u6574\u4F53\u8DF3\u8FC7
+`
+    )
+  );
+  print(chalk7.cyan(`\u2500\u2500 \u6E05\u7B97\u5019\u9009\uFF08${report.candidates.length}\uFF09\u2500\u2500`));
+  for (const c of report.candidates) {
+    print(`  ${c.mtime}  ${String(c.ageDays).padStart(4)}d  ${c.path}`);
+  }
+  if (report.candidates.length === 0) print(chalk7.dim("  \uFF08\u65E0\uFF09"));
+  print();
+  print(chalk7.cyan(`\u2500\u2500 \u6D3B\u8DC3\u9879\u76EE\u76EE\u5F55\uFF08\u8DF3\u8FC7\uFF0C${report.activeDirs.length}\uFF09\u2500\u2500`));
+  for (const d of report.activeDirs) {
+    print(chalk7.dim(`  ${d.dir}\uFF08\u6700\u8FD1 ${d.newestAgeDays}d \u5185\u6709\u6539\u52A8\uFF0C${d.skippedFiles} \u6587\u4EF6\uFF09`));
+  }
+  print();
+  for (const e of report.excluded) {
+    print(chalk7.dim(`\u56FA\u5B9A\u6392\u9664 ${e.prefix}/**\uFF1A${e.files} \u6587\u4EF6`));
+  }
+  print(chalk7.dim(`\u672A\u5230\u8D26\u9F84\u9608\u503C\uFF1A${report.freshFiles} \u6587\u4EF6`));
+  print();
+}
+function workbenchCommand(program2) {
+  const workbench = program2.command("workbench").description("workbench (_\u5DE5\u4F5C\u53F0) inspection helpers");
+  workbench.command("report").description("read-only triage candidate report: stale files, active dirs, exclusions").option("--stale-days <n>", "age threshold in days for candidates", "45").option("--active-days <n>", "dirs touched within N days are skipped as active", "14").option("--json", "machine-readable output", false).action((opts) => {
+    const corpus = requireCorpus();
+    const staleDays = Number.parseInt(opts.staleDays, 10);
+    const activeDays = Number.parseInt(opts.activeDays, 10);
+    if (!Number.isFinite(staleDays) || staleDays < 0 || !Number.isFinite(activeDays) || activeDays < 0) {
+      warn("invalid --stale-days / --active-days");
+      process.exit(2);
+    }
+    const report = buildWorkbenchReport(corpus, { staleDays, activeDays });
+    if (opts.json) out(JSON.stringify(report, null, 2));
+    else printHumanReport(report);
+  });
+}
+
 // src/cli.ts
 var version = readVersion();
 function showBanner() {
@@ -4212,11 +4329,11 @@ function showBanner() {
     }
   }
   const short = corpus && corpus.length > 45 ? "..." + corpus.slice(-42) : corpus ?? "\u2014";
-  const B = chalk7.blue;
-  const BB = chalk7.blueBright.bold;
-  const C = chalk7.cyan;
-  const D = chalk7.dim;
-  const W = chalk7.white.bold;
+  const B = chalk8.blue;
+  const BB = chalk8.blueBright.bold;
+  const C = chalk8.cyan;
+  const D = chalk8.dim;
+  const W = chalk8.white.bold;
   print();
   print(`  ${BB("\u2588\u2588\u2557      \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2557  \u2588\u2588\u2557\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557")}`);
   print(`  ${BB("\u2588\u2588\u2551     \u2588\u2588\u2554\u2550\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255D\u2588\u2588\u2551 \u2588\u2588\u2554\u255D\u2588\u2588\u2551\u255A\u2550\u2550\u2588\u2588\u2554\u2550\u2550\u255D")}`);
@@ -4271,6 +4388,7 @@ syncCommand(program);
 obsidianTuneCommand(program);
 removeCommand(program);
 linksCommand(program);
+workbenchCommand(program);
 if (process.argv.length <= 2) {
   showBanner();
 } else {
