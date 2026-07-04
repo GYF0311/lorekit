@@ -5,11 +5,9 @@
 
 ## Project Status
 
-- Last updated: 2026-05-18
-- 当前版本：`v0.4.0`（以 `VERSION` 和 `package.json` 为准）
+- 当前版本：以 `VERSION` 和 `package.json` 为准，本文件不重复记版本号。
 - 产品边界：AI 负责语义判断；lorekit CLI 负责确定性、安全、可重复的文件、状态、索引、检索动作。
-- 近期重点：CMAP repo-local 项目地图、Obsidian / Review HTML 导出。
-- 当前交接事实源：`.context/CHECKPOINT.md` 和 `.context/STATUS.md`。
+- 当前任务、近期进展、剩余收尾：一律以 `.context/CHECKPOINT.md` 和 `.context/STATUS.md` 为准。本文件只承载恒定规则，不维护会过期的状态快照。
 - 历史日志在 `docs/history/`，默认不读。
 
 ## 入口边界
@@ -43,7 +41,7 @@
 正文约定：`.context` 的人读正文默认中文；frontmatter key、module id、命令、路径和代码标识符保留英文，保证 `cmap` CLI 可解析。
 <!-- cmap:end -->
 
-## AI 编码 12 条准则（原始版）
+## AI 编码 12 条准则
 
 These rules apply to every task in this project unless explicitly overridden.
 Bias: caution over speed on non-trivial work. Use judgment on trivial tasks.
@@ -79,11 +77,12 @@ Use me for: classification, drafting, summarization, extraction.
 Do NOT use me for: routing, retries, deterministic transforms.
 If code can answer, code answers.
 
-### Rule 6 — Token budgets are not advisory
+### Rule 6 — Scope and context budgets are not advisory
 
-Per-task: 4,000 tokens. Per-session: 30,000 tokens.
-If approaching budget, summarize and start fresh.
+任务规模明显超出最初约定时，先停下说明，不静默扩张。
+长会话里上下文接近失控时，先 checkpoint（见 Rule 10）再继续或重启。
 Surface the breach. Do not silently overrun.
+（2026-07-04 修订：原版的固定 token 数字从未被执行，改为可操作的规模纪律。）
 
 ### Rule 7 — Surface conflicts, don't average them
 
