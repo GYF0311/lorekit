@@ -4,7 +4,12 @@ import { join, relative } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { err, warn, out } from '../utils/logger.js';
 import { requireCorpus, collectMdFiles } from '../lib/corpus.js';
-import { isWithin, matchesDirPrefix, searchDefaultExcludePrefixes } from '../lib/paths.js';
+import {
+  isWithin,
+  matchesDirPrefix,
+  searchAllExcludePrefixes,
+  searchDefaultExcludePrefixes,
+} from '../lib/paths.js';
 
 interface SearchResult {
   file: string;
@@ -12,10 +17,15 @@ interface SearchResult {
   text: string;
 }
 
+function activeExcludePrefixes(opts: { dir?: string; all?: boolean }): readonly string[] {
+  if (opts.dir) return [];
+  return opts.all ? searchAllExcludePrefixes : searchDefaultExcludePrefixes;
+}
+
 function searchWithRipgrep(
   query: string,
   corpus: string,
-  opts: { type?: string; dir?: string },
+  opts: { type?: string; dir?: string; all?: boolean },
 ): SearchResult[] {
   const searchDir = opts.dir ? join(corpus, opts.dir) : corpus;
   if (opts.dir && !isWithin(corpus, searchDir)) {
@@ -28,10 +38,8 @@ function searchWithRipgrep(
     args.push('--type', opts.type);
   }
 
-  if (!opts.dir) {
-    for (const prefix of searchDefaultExcludePrefixes) {
-      args.push('--glob', `!${prefix}/**`);
-    }
+  for (const prefix of activeExcludePrefixes(opts)) {
+    args.push('--glob', `!${prefix}/**`);
   }
   args.push(query, searchDir);
 
@@ -64,16 +72,21 @@ function searchWithRipgrep(
   return results;
 }
 
-function searchFallback(query: string, corpus: string, opts: { dir?: string }): SearchResult[] {
+function searchFallback(
+  query: string,
+  corpus: string,
+  opts: { dir?: string; all?: boolean },
+): SearchResult[] {
   const searchDir = opts.dir ? join(corpus, opts.dir) : corpus;
   if (opts.dir && !isWithin(corpus, searchDir)) {
     err(`search --dir must stay within corpus; got: ${opts.dir}`);
     process.exit(2);
   }
+  const excludes = activeExcludePrefixes(opts);
   const files = collectMdFiles(searchDir).filter((file) => {
     if (opts.dir) return true;
     const rel = relative(corpus, file);
-    return !searchDefaultExcludePrefixes.some((prefix) => matchesDirPrefix(rel, prefix));
+    return !excludes.some((prefix) => matchesDirPrefix(rel, prefix));
   });
   const pattern = new RegExp(query, 'i');
   const results: SearchResult[] = [];
@@ -105,8 +118,16 @@ export function searchCommand(program: Command) {
     .argument('<query>', 'search query (regex supported)')
     .option('--type <t>', 'file type filter (passed to rg --type)')
     .option('--dir <d>', 'subdirectory within corpus to search')
+    .option(
+      '--all',
+      'include process layers (工作台/归档/输出 etc.); still skips .wiki/.git and _工作台/转写',
+    )
     .description('search the corpus with ripgrep (fallback: built-in)')
-    .action((query: string, opts: { type?: string; dir?: string }) => {
+    .action((query: string, opts: { type?: string; dir?: string; all?: boolean }) => {
+      if (opts.all && opts.dir) {
+        err('search --all and --dir are mutually exclusive; --dir already searches without default excludes');
+        process.exit(2);
+      }
       const corpus = requireCorpus();
 
       let results: SearchResult[];
@@ -115,7 +136,7 @@ export function searchCommand(program: Command) {
         results = searchWithRipgrep(query, corpus, opts);
       } else {
         warn('rg (ripgrep) not found, using built-in fallback');
-        results = searchFallback(query, corpus, { dir: opts.dir });
+        results = searchFallback(query, corpus, { dir: opts.dir, all: opts.all });
       }
 
       // Output JSON lines

@@ -71,6 +71,16 @@ export const searchDefaultExcludePrefixes: readonly string[] = [
   '.git',
 ];
 
+/**
+ * `search --all`（两级召回的第二级）仍要跳过的噪音层。
+ * --all 的语义是"把过程区（工作台/归档/输出等）纳入 fallback 召回"，
+ * 不是"什么都搜"：
+ *   - .wiki / .git：系统元数据
+ *   - _工作台/转写：未提炼的 ASR 原始语料，体量大且口语噪音多，
+ *     会淹没内容笔记；点名 `--dir _工作台/转写` 才进。
+ */
+export const searchAllExcludePrefixes: readonly string[] = ['.wiki', '.git', '_工作台/转写'];
+
 // ---------------------------------------------------------------------------
 // `lorekit index` 专用规则（生成 _INDEX.md）
 // ---------------------------------------------------------------------------
