@@ -58,7 +58,7 @@ Either way, verify:
 
 ```bash
 lorekit --version
-# → 0.5.0
+# → prints the installed version
 
 lorekit
 # → prints the blue ASCII banner (no-arg invocation shows status)

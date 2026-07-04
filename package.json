@@ -1,6 +1,6 @@
 {
   "name": "@xiaowuovo/lorekit",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Personal LLM Wiki toolkit — let AI build and maintain your knowledge base",
   "type": "module",
   "bin": {

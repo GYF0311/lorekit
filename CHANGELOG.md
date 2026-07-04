@@ -6,9 +6,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](ht
 
 ## [Unreleased]
 
-## [0.5.1] — 2026-07-04
+## [0.5.2] — 2026-07-05
 
 Windows 适配版：平台差异全部由 CLI 吸收，skill 层保持单一套（不分平台）。
+
+> 版本说明：npm 上的 `0.5.1` 发布于本批次完成之前的中间状态（仅含部分修复），
+> 版本号已被占用不可覆盖；本节全部内容以 `0.5.2` 为准。
 
 ### Added
 

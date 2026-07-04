@@ -10,7 +10,7 @@
 lorekit/
 ├── src/                    TypeScript 源码（约 7430 LoC，含 fetcher / integrations 子模块）
 │   ├── cli.ts              CLI 入口 + 启动 banner + 命令注册
-│   ├── commands/           16 个子命令实现
+│   ├── commands/           17 个子命令实现
 │   ├── lib/                核心库 + fetcher/ + integrations/ 子模块目录
 │   └── utils/              通用 helper（fs / logger）
 ├── bin/                    npm bin shim（lorekit.js）
@@ -54,6 +54,7 @@ lorekit/
 | `obsidian-tune.ts`  | 120 | 批次 26：老用户升级一键应用 `.obsidian/graph.json` filter（默认检查 / `--write` 备份后写 / `--print` 管道用）     |
 | `remove.ts`         | 466 | 安全移除 URL/路径：dry-run 影响报告，`--apply` snapshot → OS Trash → provenance 清理 → sync/lint                  |
 | `workbench.ts`      | 170 | `workbench report`：wiki-triage 清算账单的确定性候选生成（只读 `--json`）；项目目录活跃跳过、过程桶按单文件判账龄、噪音层固定排除 |
+| `trash.ts`          | 61  | 跨平台可恢复删除（OS Trash / 回收站）：只收 corpus 内路径，拒删 `原料/`（只读）、`知识库/`（提示走 remove）、`.wiki/`             |
 
 ## src/lib/ 详单
 

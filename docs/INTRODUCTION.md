@@ -44,6 +44,7 @@ lorekit 的答案是：让个人知识库变成一个本地 LLM Wiki。
 | 留备份 | 创建全库 tarball 和 manifest | `lorekit snapshot` |
 | 恢复文件 | 从快照恢复缺失或变更文件，支持 dry-run | `lorekit restore` |
 | 安全删除 | 先看影响面；确认后快照、进 OS Trash，并清理关联状态 | `lorekit remove` |
+| 回收站清理 | 跨平台把工作台过程文件移入 OS 回收站（可恢复；拒删 `原料/`、`知识库/`、`.wiki/`） | `lorekit trash` |
 | 收集人工反馈 | 创建、列出和按状态过滤审阅反馈；具体修正通常由 AI workflow 完成 | `lorekit audit` |
 | 调整 Obsidian 图谱 | 检查、打印或备份后写入推荐 Graph filter | `lorekit obsidian-tune` |
 | 接入 AI 工作流 | 可选安装 Claude Code / Codex skills，让 agent 有明确入口 | `lorekit install-skills` |
@@ -109,6 +110,7 @@ lorekit 提供三层方式：
 - 文本搜索：`lorekit search` 做关键词搜索，优先使用 ripgrep，必要时使用内置文本 fallback。
 - 页面回读：命中候选后回到 `index.md`、`_INDEX.md` 和 canonical page 读取上下文，避免只拿片段当事实。
 - 第二级召回：`lorekit search "<q>" --all` 在知识库层无命中时把 `_工作台/`、`_归档/` 纳入检索（仍排除 `.wiki` 与转写噪音层）；命中结果标注非 canonical，不与知识库结论混同。
+- 联网兜底：库内（含 `--all`）均无命中且问题涉及库外新知识 / 时效信息时，查询 skills 直接联网检索兜底；结果标注「联网新查、未入库」，与库内事实分层不混同。
 
 
 ## 5. 整理后的收尾：同步和体检
@@ -127,7 +129,7 @@ _INDEX.md -> root index.md -> MEMORY.md 统计 -> doctor
 
 `lorekit lint` 更偏内容质量。硬性问题（计入失败）：required frontmatter、broken wikilinks、orphan pages、知识库页把工作台当 source、frontmatter 来源引用解析不到真实文件。软性提示（不计入失败）：已登记 backlog 的待建节点、复审到期页——页面带 `domain_volatility`（high/medium/low）和 `last_reviewed` 时，超过 90/180/365 天窗口会被点名提醒复核。它不负责重复检测。
 
-此外还有一条"工作台不无限淤积"的闭环：`lorekit workbench report --json` 只读生成清算候选账单（长期未动文件、活跃项目目录自动跳过、噪音层排除），`wiki-triage` skill 拿账单做语义分组后交用户勾选，勾选后才执行入库 / 归档到 `_归档/` / 移入回收站。
+此外还有一条"工作台不无限淤积"的闭环：`lorekit workbench report --json` 只读生成清算候选账单（长期未动文件、活跃项目目录自动跳过、噪音层排除），`wiki-triage` skill 拿账单做语义分组后交用户勾选，勾选后才执行入库 / 归档到 `_归档/` / 移入回收站（`lorekit trash`，跨平台、可恢复）。
 
 ## 6. 快照、恢复和安全删除
 

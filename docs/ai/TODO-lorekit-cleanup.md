@@ -89,6 +89,9 @@
 
 - [ ] **capability manifest 结构化防漂移**：`docs/capabilities.json`（或 `src/cli-capabilities.ts`）声明 CLI 语义能力，skill frontmatter 声明 `requires:`，测试按结构校验；替代"更复杂 Markdown 正则"路线。现有 skills-cli-drift 正则测试保留为第一道防线。
 - [ ] **小解析器集中**：`frontmatter-date.ts`（日期/时区边界）、`source-ref.ts`（wikilink/别名/锚点 normalize）、`search-query.ts`，各配 edge-case smoke tests；lint/search/memory-index 改为复用。
+- [ ] **Windows CI 矩阵**（2026-07-05 立项）：GitHub Actions `windows-latest` + `macos-latest`
+  跑 `npm run verify`。0.5.2 的 relPosix / trash / homedir / tmpdir 修复逻辑确定，但未经
+  Windows 真机端到端验证；CI 矩阵是一次配置的长期保障。
 - [ ] GPT 审查明确不做的：不重启 vector/RAG/GBrain；CLI 不调模型；不再加码 Markdown 正则复杂度。
 
 ---

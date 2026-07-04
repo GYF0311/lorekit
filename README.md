@@ -32,7 +32,7 @@ Content lives in clearly separated layers:
 
 ![lorekit workflow architecture](docs/images/lorekit-llm-workflow-architecture.png)
 
-Real work doesn't all become wiki pages — that's by design. The retrieval chain starts from `index.md` / `知识库/`; when the wiki has no hit, `search --all` falls back to workbench/archive with results explicitly marked non-canonical. Promotion into `原料/` happens only through an explicit ingest, and `lorekit workbench report` + the `wiki-triage` skill periodically turn workbench backlog into an approve-per-group verdict list (ingest / archive / trash) — you decide, the CLI executes. Staleness is tracked too: pages carry `domain_volatility` + `last_reviewed`, and `lorekit lint` reports which pages are overdue for review (90/180/365-day windows).
+Real work doesn't all become wiki pages — that's by design. The retrieval chain starts from `index.md` / `知识库/`; when the wiki has no hit, `search --all` falls back to workbench/archive with results explicitly marked non-canonical, and when the corpus itself has no answer the query skills fall back to web search — with web findings labeled as not-yet-ingested, never blended into corpus facts. Promotion into `原料/` happens only through an explicit ingest, and `lorekit workbench report` + the `wiki-triage` skill periodically turn workbench backlog into an approve-per-group verdict list (ingest / archive / trash) — you decide, the CLI executes. Staleness is tracked too: pages carry `domain_volatility` + `last_reviewed`, and `lorekit lint` reports which pages are overdue for review (90/180/365-day windows).
 
 > **Data safety**: lorekit has zero tolerance for data loss. Existing notes are backed up before init; `原料/` is immutable; no `rm` is ever used — deletions go through `trash` (recoverable from macOS Trash). See the data-safety rules in `AGENTS.md` and `docs/INSTALLATION.md`.
 
@@ -213,7 +213,7 @@ cd ~/code/lorekit && npm install && npm run build
 npm link
 
 # 4. Verify
-lorekit --version   # → 0.5.0
+lorekit --version   # prints the installed version
 lorekit             # no-arg invocation shows the brand banner
 
 # 5. Initialize a corpus
