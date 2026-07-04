@@ -27,14 +27,15 @@ description: 工作台清算——on-demand 扫描 _工作台/ 淤积内容与�
 ## Step 1 — 确定性扫描（只读）
 
 ```bash
-# 长期未动的 markdown（默认 45 天阈值，先生可指定）
-find _工作台 -name '*.md' -mtime +45 -not -path '_工作台/转写/*' -not -name '_INDEX.md'
-
-# 目录级活跃度：最近 14 天有改动的目录视为"进行中项目"，整目录跳过
-find _工作台 -maxdepth 1 -type d -exec sh -c 'find "$1" -mtime -14 -print -quit' _ {} \;
+lorekit workbench report --json          # 默认：账龄 ≥45 天进候选；14 天内动过的目录整体跳过
+lorekit workbench report --json --stale-days 30   # 先生指定阈值时调整
 ```
 
-固定排除：`_工作台/转写/`（ASR 原始语料，非清算对象）、`_工作台/日记收件/`（wiki-daily 管辖）。
+CLI 输出四组机械事实：`candidates`（路径/mtime/账龄/大小）、`activeDirs`（活跃项目，
+已跳过）、`excluded`（固定排除层：`_工作台/转写/`、`_工作台/日记收件/`）、`freshFiles`。
+注意语义：**项目目录**（用户自建文件夹）14 天内动过整目录跳过；**标准过程桶**
+（收件/草稿/临时/待整理/下载）按单文件判账龄——桶里有新文件不影响老文件进候选。
+不要自己写 find 片段重复这份逻辑；CLI 是候选生成的 SSOT。
 
 另扫 fileback 候选堆积：读 `输出/复盘/` 最近 2-3 份 synthesis 的
 "Suggested fileback candidates" 小节，未消化的候选一并列入账单。

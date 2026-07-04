@@ -37,7 +37,7 @@ Project-local evidence folders such as `_工作台/课程原文/` are not automa
 | Search          | `lorekit search`        | Text search with ripgrep and built-in fallback                                                                                                                         |
 | Web fetch       | `lorekit fetch <url>`   | Pulls WeChat / generic pages into the workbench; auto-extracts `publishDate`, writes spec-compliant frontmatter, detects duplicate / in-progress URLs from state.json |
 | Ingest state    | `lorekit ingest <sub>`  | `list` / `pending` / `record` / `forget` / `reconcile` — the single source of truth for ingest pipeline progress                                                      |
-| Lint            | `lorekit lint`          | Broken wikilinks, orphan pages, workbench-as-source links, duplicate detection; `--quick` is accepted as a compatibility alias for agent self-checks; backlogged missing nodes are surfaced but not counted |
+| Lint            | `lorekit lint`          | Broken wikilinks, orphan pages, workbench-as-source links, unresolved frontmatter sources; soft notices for backlogged links and stale reviews (`domain_volatility` 90/180/365d windows); `--quick` is a compatibility alias |
 | Links closure   | `lorekit links <sub>`   | suggest / fix / stub / backlog / plain / plained — deterministic broken-wikilink closure; backlogged labels are downgraded (not counted) by lint until the node is created                                  |
 | Snapshot        | `lorekit snapshot`      | Full-corpus tarball + manifest                                                                                                                                        |
 | Restore         | `lorekit restore`       | Recover missing / changed files from a snapshot                                                                                                                       |
@@ -46,6 +46,7 @@ Project-local evidence folders such as `_工作台/课程原文/` are not automa
 | Directory index | `lorekit index`         | Recursively generate `_INDEX.md` for every subdirectory (including folder-packaged sources like `原料/文章/<slug>/article.md`)                                        |
 | **Sync**        | **`lorekit sync`**      | **One-shot for durable corpus changes: `_INDEX.md` → root `index.md` → `doctor`; supports `--json` and `--report` for agent-readable step receipts**                  |
 | Obsidian tune   | `lorekit obsidian-tune` | 老用户升级一键应用 Obsidian graph filter（默认只读检查 / `--write` 备份后写 / `--print` 管道用）                                                                      |
+| Workbench report | `lorekit workbench report` | Read-only triage candidate report (`--json`): stale files by age, active project dirs skipped, noise layers excluded — deterministic input for the `wiki-triage` skill |
 
 > The CLI is named `lorekit`. Project-local Agent Skills keep the `wiki-` prefix (a nod to Karpathy's LLM Wiki), including `wiki-ingest`, `wiki-query`, `wiki-fileback`, `wiki-lint`, `wiki-audit`, `wiki-remove`, `wiki-triage`, and `wiki-output`. They operate on the current corpus/project and are the recommended skill layer for research corpora. Cross-project `corpus-*` skills and `wiki-daily` still exist, but they are explicit optional installs for users who deliberately maintain a central corpus or personal diary gateway.
 

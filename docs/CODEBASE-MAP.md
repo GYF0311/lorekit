@@ -53,6 +53,7 @@ lorekit/
 | `install-skills.ts` | 202 | 可选安装 lorekit-managed skills 到 Claude Code、Codex 或当前项目；默认安装 `wiki-*` project workflows（排除 `wiki-daily`），`corpus-*` / `wiki-daily` 必须用 `--only` 显式选择；支持 `--dest`、`--only` 逗号列表与 copy/symlink |
 | `obsidian-tune.ts`  | 120 | 批次 26：老用户升级一键应用 `.obsidian/graph.json` filter（默认检查 / `--write` 备份后写 / `--print` 管道用）     |
 | `remove.ts`         | 466 | 安全移除 URL/路径：dry-run 影响报告，`--apply` snapshot → OS Trash → provenance 清理 → sync/lint                  |
+| `workbench.ts`      | 170 | `workbench report`：wiki-triage 清算账单的确定性候选生成（只读 `--json`）；项目目录活跃跳过、过程桶按单文件判账龄、噪音层固定排除 |
 
 ## src/lib/ 详单
 

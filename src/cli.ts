@@ -22,6 +22,7 @@ import { syncCommand } from './commands/sync.js';
 import { obsidianTuneCommand } from './commands/obsidian-tune.js';
 import { removeCommand } from './commands/remove.js';
 import { linksCommand } from './commands/links.js';
+import { workbenchCommand } from './commands/workbench.js';
 
 const version = readVersion();
 
@@ -111,6 +112,7 @@ syncCommand(program);
 obsidianTuneCommand(program);
 removeCommand(program);
 linksCommand(program);
+workbenchCommand(program);
 
 // no subcommand → show banner
 if (process.argv.length <= 2) {

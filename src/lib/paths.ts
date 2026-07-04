@@ -82,6 +82,20 @@ export const searchDefaultExcludePrefixes: readonly string[] = [
 export const searchAllExcludePrefixes: readonly string[] = ['.wiki', '.git', '_工作台/转写'];
 
 // ---------------------------------------------------------------------------
+// `lorekit workbench` 专用规则（triage 候选账单）
+// ---------------------------------------------------------------------------
+
+/**
+ * workbench report 不纳入清算候选的前缀：
+ *   - 转写：ASR 原始语料，非清算对象
+ *   - 日记收件：wiki-daily 管辖，有自己的 compile 生命周期
+ */
+export const workbenchTriageExcludePrefixes: readonly string[] = [
+  '_工作台/转写',
+  '_工作台/日记收件',
+];
+
+// ---------------------------------------------------------------------------
 // `lorekit index` 专用规则（生成 _INDEX.md）
 // ---------------------------------------------------------------------------
 
