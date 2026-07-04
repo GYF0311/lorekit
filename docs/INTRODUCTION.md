@@ -36,10 +36,11 @@ lorekit 的答案是：让个人知识库变成一个本地 LLM Wiki。
 | 检查是否健康 | 检查目录、frontmatter、索引、Obsidian Graph filter，以及已启用/显式请求的可选集成 | `lorekit doctor` |
 | 收进外部材料 | 把网页、微信公众号等材料抓到 workbench，并登记处理进度 | `lorekit fetch <url>` |
 | 记录处理到哪一步 | 记录 archive、wiki、backlink、lint 等步骤，方便断点续接和避免重复 | `lorekit ingest <sub>` |
-| 找回旧知识 | 做文本搜索，并通过 `index.md` / `_INDEX.md` drill-down 回读 canonical pages | `lorekit search` |
+| 找回旧知识 | 做文本搜索，并通过 `index.md` / `_INDEX.md` drill-down 回读 canonical pages；`--all` 第二级召回可查工作台/归档 | `lorekit search` |
 | 刷新目录 | 为目录生成 `_INDEX.md`，让人和 AI 快速看到内容结构 | `lorekit index` |
-| 整理后收尾 | 依次刷新目录索引、root `index.md`，再跑健康检查 | `lorekit sync` |
-| 检查内容质量 | 查 required frontmatter、broken wikilinks、orphan pages | `lorekit lint` |
+| 整理后收尾 | 依次刷新目录索引、root `index.md`、`MEMORY.md` L0 统计，再跑健康检查 | `lorekit sync` |
+| 检查内容质量 | 查 required frontmatter、broken wikilinks、orphan pages、来源引用可解析；软性提示复审到期页（stale-review） | `lorekit lint` |
+| 清算工作台淤积 | 只读生成候选账单（账龄/活跃目录/排除层），配合 `wiki-triage` skill 由用户勾选后执行 | `lorekit workbench report` |
 | 留备份 | 创建全库 tarball 和 manifest | `lorekit snapshot` |
 | 恢复文件 | 从快照恢复缺失或变更文件，支持 dry-run | `lorekit restore` |
 | 安全删除 | 先看影响面；确认后快照、进 OS Trash，并清理关联状态 | `lorekit remove` |
@@ -107,6 +108,7 @@ lorekit 提供三层方式：
 - 目录索引：`lorekit index` 生成 `_INDEX.md`，让人和 AI 能快速看到一个目录里有什么。
 - 文本搜索：`lorekit search` 做关键词搜索，优先使用 ripgrep，必要时使用内置文本 fallback。
 - 页面回读：命中候选后回到 `index.md`、`_INDEX.md` 和 canonical page 读取上下文，避免只拿片段当事实。
+- 第二级召回：`lorekit search "<q>" --all` 在知识库层无命中时把 `_工作台/`、`_归档/` 纳入检索（仍排除 `.wiki` 与转写噪音层）；命中结果标注非 canonical，不与知识库结论混同。
 
 
 ## 5. 整理后的收尾：同步和体检
@@ -116,14 +118,16 @@ AI 更新了多个页面后，不应该只说“整理好了”。lorekit 提供
 `lorekit sync` 会按顺序执行：
 
 ```text
-_INDEX.md -> root index.md -> doctor
+_INDEX.md -> root index.md -> MEMORY.md 统计 -> doctor
 ```
 
 这意味着目录更新了，根入口更新了，健康检查也跑过了。它适合作为一次入库、批量整理或 fileback 后的收尾命令。
 
 `lorekit doctor` 更像系统体检，检查 corpus 目录、wiki metadata、frontmatter、索引和 Obsidian Graph filter。
 
-`lorekit lint` 更偏内容质量，检查 required frontmatter、broken wikilinks 和 orphan pages。它不负责重复检测。
+`lorekit lint` 更偏内容质量。硬性问题（计入失败）：required frontmatter、broken wikilinks、orphan pages、知识库页把工作台当 source、frontmatter 来源引用解析不到真实文件。软性提示（不计入失败）：已登记 backlog 的待建节点、复审到期页——页面带 `domain_volatility`（high/medium/low）和 `last_reviewed` 时，超过 90/180/365 天窗口会被点名提醒复核。它不负责重复检测。
+
+此外还有一条"工作台不无限淤积"的闭环：`lorekit workbench report --json` 只读生成清算候选账单（长期未动文件、活跃项目目录自动跳过、噪音层排除），`wiki-triage` skill 拿账单做语义分组后交用户勾选，勾选后才执行入库 / 归档到 `_归档/` / 移入回收站。
 
 ## 6. 快照、恢复和安全删除
 

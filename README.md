@@ -22,13 +22,15 @@ Traditional RAG: every query re-retrieves from raw documents. Nothing accumulate
 
 lorekit (LLM Wiki): the LLM incrementally compiles raw material into a structured wiki. Knowledge is compiled once and continuously updated — cross-references in place, contradictions flagged, every source reflected.
 
-Three layers:
+Content lives in clearly separated layers:
 
 - **Raw layer** (`原料/`): read-only source material, the LLM never mutates it
-- **Artifact layer** (`知识库/`): the compiled wiki — cross-linked, synthesized, continuously updated
+- **Artifact layer** (`知识库/`): the compiled wiki — cross-linked, synthesized, continuously updated; the only canonical source of truth
+- **Workbench** (`_工作台/`): work-in-progress projects and process files — not a first-tier retrieval layer, but reachable via second-tier recall (`lorekit search --all`)
+- **Archive** (`_归档/`): finished-project material worth keeping (interview records, research bundles) — moved in by the `wiki-triage` closeout flow, recallable but never canonical
 - **Schema** (`CLAUDE.md` / `AGENTS.md`): per-corpus configuration, co-maintained by human + LLM
 
-Project-local evidence folders such as `_工作台/课程原文/` are not automatically part of the LM Wiki raw-source layer. The retrieval chain starts from `index.md` / `知识库/`; open `原料/` only when full source provenance is needed, and promote project evidence into `原料/` only through an explicit ingest. Doctor frontmatter coverage is calculated on durable layers by default; lint flags `知识库/**` pages that cite `_工作台/**` directly as a canonical source.
+Real work doesn't all become wiki pages — that's by design. The retrieval chain starts from `index.md` / `知识库/`; when the wiki has no hit, `search --all` falls back to workbench/archive with results explicitly marked non-canonical. Promotion into `原料/` happens only through an explicit ingest, and `lorekit workbench report` + the `wiki-triage` skill periodically turn workbench backlog into an approve-per-group verdict list (ingest / archive / trash) — you decide, the CLI executes. Staleness is tracked too: pages carry `domain_volatility` + `last_reviewed`, and `lorekit lint` reports which pages are overdue for review (90/180/365-day windows).
 
 > **Data safety**: lorekit has zero tolerance for data loss. Existing notes are backed up before init; `原料/` is immutable; no `rm` is ever used — deletions go through `trash` (recoverable from macOS Trash). See the data-safety rules in `AGENTS.md` and `docs/INSTALLATION.md`.
 
@@ -355,7 +357,7 @@ corpus/
 │   ├── 临时/           ← 14 days
 │   └── 待整理/         ← 3 days
 │
-├── _归档/              ← cold storage
+├── _归档/              ← finished-project retention (filled by wiki-triage; searchable via --all)
 └── .wiki/              ← lorekit metadata
     ├── ingest-state.json   ← ingest pipeline single source of truth
     ├── reports/            ← machine-readable command reports
