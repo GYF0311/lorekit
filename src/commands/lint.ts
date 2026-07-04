@@ -97,6 +97,23 @@ function frontmatterWorkbenchRefs(fm: Record<string, unknown>): string[] {
   return refs;
 }
 
+// 原料链路加固：知识库页 frontmatter 里指向 corpus 知识路径的来源引用，
+// 必须能解析到真实文件。典型断因：入库时文件从工作台搬进 原料/ 改了名/路径，
+// 页面引用还停在旧路径，provenance 从此接续不上。
+const CORPUS_SOURCE_PREFIXES = ['原料/', '知识库/'] as const;
+
+function frontmatterCorpusSourceRefs(fm: Record<string, unknown>): string[] {
+  const refs: string[] = [];
+  for (const [key, value] of Object.entries(fm)) {
+    if (!FRONTMATTER_SOURCE_KEYS.has(key)) continue;
+    for (const raw of collectStringValues(value)) {
+      const ref = normalizeSourceRef(raw);
+      if (CORPUS_SOURCE_PREFIXES.some((p) => ref.startsWith(p))) refs.push(ref);
+    }
+  }
+  return refs;
+}
+
 // 去掉围栏代码块和行内代码，避免文档里 `[[Page]]` 这类占位符被当作真 wikilink
 function stripCodeBlocks(content: string): string {
   content = content.replace(/```[\s\S]*?```/g, '');
@@ -112,7 +129,8 @@ interface LintIssue {
     | 'backlogged-link'
     | 'orphan'
     | 'workbench-source-link'
-    | 'stale-review';
+    | 'stale-review'
+    | 'unresolved-source';
   detail: string;
 }
 
@@ -246,6 +264,17 @@ export function runLint(corpus: string): LintIssue[] {
           });
         }
       }
+
+      // frontmatter 来源引用必须可解析（正文 wikilink 由下方 broken-link 检查覆盖）
+      for (const ref of frontmatterCorpusSourceRefs(fm)) {
+        if (!resolveWikiLink(rel, ref, linkIndex)) {
+          issues.push({
+            file: rel,
+            kind: 'unresolved-source',
+            detail: `frontmatter source not found: ${ref}`,
+          });
+        }
+      }
     }
 
     if (shouldSkipBrokenLink(rel)) continue; // 模板占位符不算死链
@@ -324,6 +353,7 @@ export function printLintReport(corpus: string, issues: LintIssue[]): void {
     'backlogged-link': 'backlogged links (known missing, not counted)',
     'workbench-source-link': 'workbench source links',
     'stale-review': 'stale reviews (review window exceeded, not counted)',
+    'unresolved-source': 'unresolved frontmatter sources',
     orphan: 'orphan pages',
   };
 

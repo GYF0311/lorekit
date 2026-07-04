@@ -131,6 +131,19 @@ LLM 在 mv 时**不许**改名（即使觉得短英文 slug 更专业）。
 
   保持 fetcher 给的 slug 一字不改。
 
+**original_path：搬家留指纹（工作台晋升件必做）**
+
+原件如果来自 `_工作台/`（先生手放的稿件、清算晋升件，而非 fetch 收件），mv 进 `原料/`
+后在原料文件 frontmatter 追加一行，保留搬家前的出处线索：
+
+```yaml
+original_path: _工作台/草稿/<原文件名>.md
+```
+
+**为什么**：入库搬家常伴随改名/换目录，这是知识库页来源链接断掉（provenance 接续不上）
+的头号原因。`original_path` 让断链修复和溯源有据可查；`lorekit lint` 会对知识库页
+frontmatter 的 `原料/` 引用做可解析校验（unresolved-source），入库后跑一次 lint 收尾。
+
 ### 3.5 aliases 对齐检查（提取概念前必做，防碎裂）
 
 对每个要建 concept / entity 页的主语，**先扫已有页的 aliases，避免同物异名建重复页**：
@@ -151,7 +164,9 @@ LLM 在 mv 时**不许**改名（即使觉得短英文 slug 更专业）。
 - `last_verified: YYYY-MM-DD` — 本次 ingest 日期（即哈希校验成功日期）
 - `possibly_outdated: true` — 若原料发表日期距今 **超过 2 年**（按 `source_date` 判）
 
-**为什么**：lint 阶段可以重算哈希对比，若原料被外部改动（例如微信公众号偷偷改原文）会报 "⚠ SOURCE MODIFIED"，触发 re-ingest。老页没 `raw_sha256` 字段的，lint 会跳过不误报。
+**为什么**：为"原料是否被外部改动"（例如微信公众号偷偷改原文）的核查留下证据。
+注意：当前 `lorekit lint` **不会**重算哈希——SOURCE MODIFIED 自动检测尚未落地 CLI，
+需要核查时由 AI 手动 `shasum -a 256` 对比 frontmatter 里的 `raw_sha256`。
 
 ```bash
 # 计算哈希示例
