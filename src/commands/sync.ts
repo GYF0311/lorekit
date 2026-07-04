@@ -7,6 +7,7 @@ import { ok, warn, err, print, out } from '../utils/logger.js';
 import { runIndex } from './dir-index.js';
 import { runDoctor } from './doctor.js';
 import { refreshRootIndex } from '../lib/root-index.js';
+import { refreshMemoryIndex } from '../lib/memory-index.js';
 
 export interface SyncOptions {
   skipDoctor?: boolean;
@@ -31,6 +32,7 @@ export interface SyncRunReport {
   steps: {
     index: SyncStepReport;
     rootIndex: SyncStepReport;
+    memoryIndex: SyncStepReport;
     doctor: SyncStepReport;
   };
   reportPath: string | null;
@@ -46,6 +48,7 @@ function createReport(corpus: string): SyncRunReport {
     steps: {
       index: { status: 'skipped' },
       rootIndex: { status: 'skipped' },
+      memoryIndex: { status: 'skipped' },
       doctor: { status: 'skipped' },
     },
     reportPath: null,
@@ -134,6 +137,22 @@ export async function runSync(corpus: string, opts: SyncOptions = {}): Promise<S
     }
   } else {
     report.steps.rootIndex = { status: 'skipped', reason: 'skip-root-index' };
+  }
+
+  // Step 1c: MEMORY.md（L0 统计仪表盘，机械刷新；文件不存在时跳过）
+  try {
+    const m = refreshMemoryIndex(corpus);
+    if (!m.exists) {
+      report.steps.memoryIndex = { status: 'skipped', reason: 'no MEMORY.md' };
+    } else {
+      report.steps.memoryIndex = { status: 'ok', changed: m.changed, total: m.total };
+      ok(m.changed ? `MEMORY.md stats refreshed (${m.total} pages)` : 'MEMORY.md unchanged');
+    }
+  } catch (e) {
+    // L0 仪表盘刷新失败不应阻塞 sync 主链路，报告后继续
+    report.steps.memoryIndex = { status: 'error', error: (e as Error).message };
+    report.errors.push(`memory index sync failed: ${(e as Error).message}`);
+    err(`memory index sync failed: ${(e as Error).message}`);
   }
   print();
 
