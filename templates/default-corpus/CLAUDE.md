@@ -50,7 +50,7 @@ corpus/
 │   ├── 临时/           ← 14 天
 │   └── 待整理/         ← 3 天
 │
-├── _归档/              ← 冷数据陵园
+├── _归档/              ← 完结留存层（wiki-triage 清算移入，可被 search --all 召回）
 └── .wiki/              ← lorekit 元数据（不要手工改）
 ```
 
@@ -73,7 +73,7 @@ corpus/
 先读 `index.md` 定位相关页，再钻入具体文件综合回答。好的回答应该 **file back** 成 `知识库/` 的新页面——探索的成果不该消失在聊天记录里。
 
 ### Lint（健康检查）
-定期检查：死链、孤岛页、提到但没建页的概念、矛盾、过期工作台文件。`lorekit doctor` 执行。
+定期检查：死链、孤岛页、frontmatter 合规、来源引用可解析（unresolved-source）、复审到期（stale-review，按 `domain_volatility` 90/180/365 天窗口，软性提示）。`lorekit lint` 执行；日常体检用 `lorekit doctor`；工作台淤积清算走 `wiki-triage`。
 
 ## Skill 路由模式
 
@@ -94,6 +94,7 @@ Native routing table：
 | fileback / 沉淀对话结论 / 写回候选 | 判断主语、稳定性和是否值得长期保存 | `wiki-fileback` |
 | lint / 检查链接和 frontmatter | 解释哪些旧问题属于项目基线 | `wiki-lint` |
 | remove / 过时不要了 | 确认目标和影响范围 | `wiki-remove` |
+| 整理 / 清算工作台淤积 | 标注哪些属于进行中项目 | `wiki-triage` |
 | native workflow 不够用 | 收集缺口和复现步骤 | 改 LoreKit native skill/template 或开 upstream issue |
 
 边界：
@@ -105,7 +106,8 @@ Native routing table：
 - `wiki-remove`、自动 fileback 不做默认入口。
 - `原料/` 是长期 LM Wiki 的 canonical raw-source layer；`_工作台/**` 里的项目证据、课程原文和中间材料只服务当前任务验证，除非明确 ingest/promote，否则不等价于 `原料/`
 - 明确 ingest/promote 成功后，`_工作台/收件/` 中本次消费掉的原件只是过渡副本；原料已进 `原料/` 且 wiki/反链/state/log/sync 完成时，默认用 `trash` 清理
-- 检索链默认从 `index.md` / `知识库/` 开始，需要完整 provenance 时再打开 `原料/`；project-local evidence 只在当前任务点名时读取
+- 检索链默认从 `index.md` / `知识库/` 开始，需要完整 provenance 时再打开 `原料/`；知识库层无命中时用 `lorekit search "<q>" --all` 第二级召回（纳入 `_工作台/`、`_归档/`，命中必须标注非 canonical；`_工作台/转写/` 等噪音层仍排除，点名才查）
+- `_归档/` 是完结留存层：已完结项目资料由 `wiki-triage` 清算移入，可被 `--all` 召回但不算 canonical；它不替代 `原料/` 入库通道——值得沉淀的知识点仍走 `wiki-ingest` / `wiki-fileback`
 
 同步触发：
 
@@ -113,7 +115,7 @@ Native routing table：
 - 不推荐触发：每条 `_工作台/` note、daily fragment、临时学习记录、HTML/展示产物的小改
 - routine check 汇报只给 pass/fail、阻塞项和关键路径，不贴整段 `index/sync/doctor` 日志
 
-如果从其他项目进入本 corpus，先确认用户想操作当前项目 corpus 还是某个 configured central corpus。跨项目入口读取 `~/.config/lorekit/global-corpus.json` 的 `default_corpus`、`lorekit_bin`；当前项目入口直接按当前项目规则执行，并优先使用 corpus-local wrapper。
+如果从其他项目进入本 corpus，先确认用户想操作当前项目 corpus 还是某个 configured central corpus。跨项目入口读取 `~/.config/lorekit/global-corpus.json` 的 `default_corpus`、`lorekit_bin`；配置了可选 `corpora` 注册表时，点名库名 / alias 即可路由到任意注册 corpus（对不上注册表要列出候选，不猜路径）；当前项目入口直接按当前项目规则执行，并优先使用 corpus-local wrapper。
 
 ## 三层读取策略
 
@@ -254,8 +256,9 @@ query 答案若有**复用价值**（跨多页综合的比较表 / 深度分析 
   - `raw_sha256: <64-hex>`
   - `last_verified: YYYY-MM-DD`
   - 原料发表日期超 2 年 → 加 `possibly_outdated: true`
-- lint 检测到 ⚠ SOURCE MODIFIED（哈希不一致）→ 触发 re-ingest，Timeline 记录"来源更新"
-- **老页无 `raw_sha256` 字段的不追溯**，lint 跳过
+- 需要核查来源是否被外部改动时，由 AI 手动 `shasum -a 256` 重算并对比 `raw_sha256`
+  （当前 CLI `lint` **不会**自动重算哈希）；确认被改动 → 触发 re-ingest，Timeline 记录"来源更新"
+- **老页无 `raw_sha256` 字段的不追溯**，核查时跳过
 
 ### 8. 反向检验规则（防回音室）
 

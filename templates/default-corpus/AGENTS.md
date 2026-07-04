@@ -25,6 +25,7 @@ Native routing table：
 | fileback / 沉淀对话结论 / 写回候选 | 判断主语、稳定性和是否值得长期保存 | `wiki-fileback` |
 | lint / 检查链接和 frontmatter | 解释哪些旧问题属于项目基线 | `wiki-lint` |
 | remove / 过时不要了 | 确认目标和影响范围 | `wiki-remove` |
+| 整理 / 清算工作台淤积 | 标注哪些属于进行中项目 | `wiki-triage` |
 | native workflow 不够用 | 收集缺口和复现步骤 | 改 LoreKit native skill/template 或开 upstream issue |
 
 边界：
@@ -36,7 +37,8 @@ Native routing table：
 - `wiki-remove`、自动 fileback 不做默认入口。
 - `原料/` 是长期 LM Wiki 的 canonical raw-source layer；`_工作台/**` 里的项目证据、课程原文和中间材料只服务当前任务验证，除非明确 ingest/promote，否则不等价于 `原料/`
 - 明确 ingest/promote 成功后，`_工作台/收件/` 中本次消费掉的原件只是过渡副本；原料已进 `原料/` 且 wiki/反链/state/log/sync 完成时，默认用 `trash` 清理
-- 检索链默认从 `index.md` / `知识库/` 开始，需要完整 provenance 时再打开 `原料/`；project-local evidence 只在当前任务点名时读取
+- 检索链默认从 `index.md` / `知识库/` 开始，需要完整 provenance 时再打开 `原料/`；知识库层无命中时用 `lorekit search "<q>" --all` 第二级召回（纳入 `_工作台/`、`_归档/`，命中必须标注非 canonical；`_工作台/转写/` 等噪音层仍排除，点名才查）
+- `_归档/` 是完结留存层：已完结项目资料由 `wiki-triage` 清算移入，可被 `--all` 召回但不算 canonical；它不替代 `原料/` 入库通道——值得沉淀的知识点仍走 `wiki-ingest` / `wiki-fileback`
 
 同步触发：
 
@@ -44,7 +46,7 @@ Native routing table：
 - 不推荐触发：每条 `_工作台/` note、daily fragment、临时学习记录、HTML/展示产物的小改
 - routine check 汇报只给 pass/fail、阻塞项和关键路径，不贴整段 `index/sync/doctor` 日志
 
-如果从其他项目进入本 corpus，先确认用户想操作当前项目 corpus 还是某个 configured central corpus。跨项目入口读取 `~/.config/lorekit/global-corpus.json` 的 `default_corpus`、`lorekit_bin`；当前项目入口直接按当前项目规则执行，并优先使用 corpus-local wrapper。
+如果从其他项目进入本 corpus，先确认用户想操作当前项目 corpus 还是某个 configured central corpus。跨项目入口读取 `~/.config/lorekit/global-corpus.json` 的 `default_corpus`、`lorekit_bin`；配置了可选 `corpora` 注册表时，点名库名 / alias 即可路由到任意注册 corpus（对不上注册表要列出候选，不猜路径）；当前项目入口直接按当前项目规则执行，并优先使用 corpus-local wrapper。
 
 ---
 
