@@ -42,6 +42,7 @@ var searchDefaultExcludePrefixes = [
   ".wiki",
   ".git"
 ];
+var searchAllExcludePrefixes = [".wiki", ".git", "_\u5DE5\u4F5C\u53F0/\u8F6C\u5199"];
 var indexExcludeDirPrefixes = [
   ".wiki",
   ".git",
@@ -965,17 +966,57 @@ function frontmatterWorkbenchRefs(fm) {
   }
   return refs;
 }
+var CORPUS_SOURCE_PREFIXES = ["\u539F\u6599/", "\u77E5\u8BC6\u5E93/"];
+function frontmatterCorpusSourceRefs(fm) {
+  const refs = [];
+  for (const [key, value] of Object.entries(fm)) {
+    if (!FRONTMATTER_SOURCE_KEYS.has(key)) continue;
+    for (const raw of collectStringValues(value)) {
+      const ref = normalizeSourceRef(raw);
+      if (CORPUS_SOURCE_PREFIXES.some((p) => ref.startsWith(p))) refs.push(ref);
+    }
+  }
+  return refs;
+}
 function stripCodeBlocks(content) {
   content = content.replace(/```[\s\S]*?```/g, "");
   content = content.replace(/`[^`\n]+`/g, "");
   return content;
 }
+var SOFT_ISSUE_KINDS = /* @__PURE__ */ new Set(["backlogged-link", "stale-review"]);
 function countHardLintIssues(issues) {
-  return issues.filter((i) => i.kind !== "backlogged-link").length;
+  return issues.filter((i) => !SOFT_ISSUE_KINDS.has(i.kind)).length;
+}
+var REVIEW_WINDOW_DAYS = { high: 90, medium: 180, low: 365 };
+function parseFmDate(value) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  if (typeof value === "string") {
+    const m = value.trim().match(/^\d{4}-\d{2}-\d{2}/);
+    if (m) {
+      const d = new Date(m[0]);
+      if (!Number.isNaN(d.getTime())) return d;
+    }
+  }
+  return null;
+}
+function checkStaleReview(rel, fm, now) {
+  const volatility = typeof fm.domain_volatility === "string" ? fm.domain_volatility.trim() : "";
+  const windowDays = REVIEW_WINDOW_DAYS[volatility];
+  if (!windowDays) return null;
+  const reviewed = parseFmDate(fm.last_reviewed) ?? parseFmDate(fm.updated);
+  if (!reviewed) return null;
+  const elapsedDays = Math.floor((now.getTime() - reviewed.getTime()) / 864e5);
+  if (elapsedDays <= windowDays) return null;
+  return {
+    file: rel,
+    kind: "stale-review",
+    detail: `review overdue: volatility=${volatility} window=${windowDays}d last check ${elapsedDays}d ago`
+  };
 }
 function runLint(corpus) {
   const files = collectMdFiles(corpus);
   const issues = [];
+  const now = /* @__PURE__ */ new Date();
   const linkIndex = buildWikiLinkIndex(corpus, files);
   const backlogLabels = readBacklogLabels(corpus);
   const inboundLinks = /* @__PURE__ */ new Set();
@@ -1000,6 +1041,8 @@ function runLint(corpus) {
         }
       }
     }
+    const stale = checkStaleReview(rel, fm, now);
+    if (stale) issues.push(stale);
     try {
       const content = stripCodeBlocks(readFileSync7(file, "utf-8"));
       const linkRe = /\[\[([^\]|#]+)[^\]]*\]\]/g;
@@ -1030,6 +1073,15 @@ function runLint(corpus) {
             file: rel,
             kind: "workbench-source-link",
             detail: `knowledge page links process workbench as source: [[${target}]]`
+          });
+        }
+      }
+      for (const ref of frontmatterCorpusSourceRefs(fm)) {
+        if (!resolveWikiLink(rel, ref, linkIndex)) {
+          issues.push({
+            file: rel,
+            kind: "unresolved-source",
+            detail: `frontmatter source not found: ${ref}`
           });
         }
       }
@@ -1094,29 +1146,31 @@ lorekit lint \u2014 ${corpus}
     "broken-link": "broken links",
     "backlogged-link": "backlogged links (known missing, not counted)",
     "workbench-source-link": "workbench source links",
+    "stale-review": "stale reviews (review window exceeded, not counted)",
+    "unresolved-source": "unresolved frontmatter sources",
     orphan: "orphan pages"
   };
   for (const [kind, items] of Object.entries(grouped)) {
     print(chalk4.cyan(`\u2500\u2500 ${kindLabels[kind] ?? kind} (${items.length}) \u2500\u2500`));
     for (const item of items) {
-      if (kind === "backlogged-link") print(chalk4.dim(`  ${item.file}: ${item.detail}`));
+      if (SOFT_ISSUE_KINDS.has(kind)) print(chalk4.dim(`  ${item.file}: ${item.detail}`));
       else bad(`${item.file}: ${item.detail}`);
     }
     print();
   }
   const hard = countHardLintIssues(issues);
-  const backlogged = issues.length - hard;
+  const soft = issues.length - hard;
   if (hard === 0) {
-    ok(`no hard issues (${backlogged} backlogged link(s) pending node creation)`);
+    ok(`no hard issues (${soft} soft notice(s): backlogged links / stale reviews)`);
     print();
   } else {
-    const suffix = backlogged > 0 ? ` (+${backlogged} backlogged, not counted)` : "";
+    const suffix = soft > 0 ? ` (+${soft} soft notice(s), not counted)` : "";
     print(chalk4.yellow(`${hard} issue(s) total${suffix}
 `));
   }
 }
 function lintCommand(program2) {
-  program2.command("lint").description("check frontmatter, broken wikilinks, and orphan pages").option("--quick", "compatibility alias for the default lint scan", false).action(() => {
+  program2.command("lint").description("check frontmatter, broken wikilinks, orphan pages, and stale reviews").option("--quick", "compatibility alias for the default lint scan", false).action(() => {
     const corpus = requireCorpus();
     const issues = runLint(corpus);
     printLintReport(corpus, issues);
@@ -1819,6 +1873,10 @@ function restoreCommand(program2) {
 import { readFileSync as readFileSync11 } from "fs";
 import { join as join13, relative as relative7 } from "path";
 import { spawnSync } from "child_process";
+function activeExcludePrefixes(opts) {
+  if (opts.dir) return [];
+  return opts.all ? searchAllExcludePrefixes : searchDefaultExcludePrefixes;
+}
 function searchWithRipgrep(query, corpus, opts) {
   const searchDir = opts.dir ? join13(corpus, opts.dir) : corpus;
   if (opts.dir && !isWithin(corpus, searchDir)) {
@@ -1829,10 +1887,8 @@ function searchWithRipgrep(query, corpus, opts) {
   if (opts.type) {
     args.push("--type", opts.type);
   }
-  if (!opts.dir) {
-    for (const prefix of searchDefaultExcludePrefixes) {
-      args.push("--glob", `!${prefix}/**`);
-    }
+  for (const prefix of activeExcludePrefixes(opts)) {
+    args.push("--glob", `!${prefix}/**`);
   }
   args.push(query, searchDir);
   const result = spawnSync("rg", args, {
@@ -1865,10 +1921,11 @@ function searchFallback(query, corpus, opts) {
     err(`search --dir must stay within corpus; got: ${opts.dir}`);
     process.exit(2);
   }
+  const excludes = activeExcludePrefixes(opts);
   const files = collectMdFiles(searchDir).filter((file) => {
     if (opts.dir) return true;
     const rel = relative7(corpus, file);
-    return !searchDefaultExcludePrefixes.some((prefix) => matchesDirPrefix(rel, prefix));
+    return !excludes.some((prefix) => matchesDirPrefix(rel, prefix));
   });
   const pattern = new RegExp(query, "i");
   const results = [];
@@ -1892,14 +1949,21 @@ function hasRipgrep() {
   return !result.error && result.status === 0;
 }
 function searchCommand(program2) {
-  program2.command("search").argument("<query>", "search query (regex supported)").option("--type <t>", "file type filter (passed to rg --type)").option("--dir <d>", "subdirectory within corpus to search").description("search the corpus with ripgrep (fallback: built-in)").action((query, opts) => {
+  program2.command("search").argument("<query>", "search query (regex supported)").option("--type <t>", "file type filter (passed to rg --type)").option("--dir <d>", "subdirectory within corpus to search").option(
+    "--all",
+    "include process layers (\u5DE5\u4F5C\u53F0/\u5F52\u6863/\u8F93\u51FA etc.); still skips .wiki/.git and _\u5DE5\u4F5C\u53F0/\u8F6C\u5199"
+  ).description("search the corpus with ripgrep (fallback: built-in)").action((query, opts) => {
+    if (opts.all && opts.dir) {
+      err("search --all and --dir are mutually exclusive; --dir already searches without default excludes");
+      process.exit(2);
+    }
     const corpus = requireCorpus();
     let results;
     if (hasRipgrep()) {
       results = searchWithRipgrep(query, corpus, opts);
     } else {
       warn("rg (ripgrep) not found, using built-in fallback");
-      results = searchFallback(query, corpus, { dir: opts.dir });
+      results = searchFallback(query, corpus, { dir: opts.dir, all: opts.all });
     }
     for (const r of results) {
       out(JSON.stringify(r));
@@ -3050,8 +3114,8 @@ ${summary.join("\n")}`
 
 // src/commands/sync.ts
 import chalk6 from "chalk";
-import { mkdirSync as mkdirSync9, writeFileSync as writeFileSync9 } from "fs";
-import { join as join22 } from "path";
+import { mkdirSync as mkdirSync9, writeFileSync as writeFileSync10 } from "fs";
+import { join as join23 } from "path";
 
 // src/lib/root-index.ts
 import { existsSync as existsSync15, readFileSync as readFileSync14, readdirSync as readdirSync8, writeFileSync as writeFileSync8 } from "fs";
@@ -3166,6 +3230,107 @@ function refreshRootIndex(corpus) {
   return { filePath: indexPath, changed, perSection };
 }
 
+// src/lib/memory-index.ts
+import { existsSync as existsSync16, readFileSync as readFileSync15, statSync as statSync5, writeFileSync as writeFileSync9 } from "fs";
+import { join as join22, relative as relative10 } from "path";
+var TYPE_ROWS = [
+  { type: "concept", dir: "\u77E5\u8BC6\u5E93/\u6982\u5FF5" },
+  { type: "entity", dir: "\u77E5\u8BC6\u5E93/\u5B9E\u4F53" },
+  { type: "summary", dir: "\u77E5\u8BC6\u5E93/\u6458\u8981" },
+  { type: "topic", dir: "\u77E5\u8BC6\u5E93/\u4E13\u9898" },
+  { type: "source", dir: "\u539F\u6599" },
+  { type: "daily", dir: "\u6BCF\u65E5" },
+  { type: "writing", dir: "\u5199\u4F5C" }
+];
+var RECENT_LIMIT = 5;
+function fmDateString(value) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+  if (typeof value === "string") {
+    const m = value.trim().match(/^\d{4}-\d{2}-\d{2}/);
+    if (m) return m[0];
+  }
+  return null;
+}
+function collectStats(corpus) {
+  const rows = TYPE_ROWS.filter((r) => existsSync16(join22(corpus, r.dir))).map((r) => ({
+    ...r,
+    count: collectMdFiles(join22(corpus, r.dir)).length
+  }));
+  const total = rows.reduce((acc, r) => acc + r.count, 0);
+  const knowledgeDir = join22(corpus, "\u77E5\u8BC6\u5E93");
+  const pages = [];
+  if (existsSync16(knowledgeDir)) {
+    for (const file of collectMdFiles(knowledgeDir)) {
+      const rel = relative10(corpus, file);
+      if (rel.startsWith("\u77E5\u8BC6\u5E93/\u6A21\u677F/")) continue;
+      let updated = null;
+      try {
+        updated = fmDateString(extractFrontmatter(file).updated);
+      } catch (e) {
+        debug(`memory-index: frontmatter parse failed for ${rel}: ${e.message}`);
+      }
+      if (!updated) {
+        try {
+          updated = statSync5(file).mtime.toISOString().slice(0, 10);
+        } catch {
+          continue;
+        }
+      }
+      pages.push({ slug: rel.replace(/\.md$/, ""), updated });
+    }
+  }
+  pages.sort((a, b) => b.updated.localeCompare(a.updated) || a.slug.localeCompare(b.slug));
+  return {
+    rows,
+    total,
+    latest: pages[0]?.updated ?? null,
+    recent: pages.slice(0, RECENT_LIMIT)
+  };
+}
+function replaceSection(content, heading, bodyLines) {
+  const lines = content.split("\n");
+  const startIdx = lines.findIndex((l) => l.trim() === heading);
+  if (startIdx === -1) return content;
+  let endIdx = lines.length;
+  for (let i = startIdx + 1; i < lines.length; i++) {
+    if (lines[i].startsWith("## ")) {
+      endIdx = i;
+      break;
+    }
+  }
+  return [...lines.slice(0, startIdx + 1), "", ...bodyLines, "", ...lines.slice(endIdx)].join("\n");
+}
+function refreshMemoryIndex(corpus) {
+  const filePath = join22(corpus, "MEMORY.md");
+  if (!existsSync16(filePath)) {
+    return { filePath, exists: false, changed: false, total: 0 };
+  }
+  const before = readFileSync15(filePath, "utf-8");
+  const stats = collectStats(corpus);
+  const activeDomain = before.match(/当前活跃领域[：:]\s*(.*)/)?.[1]?.trim() || "\u2014";
+  let content = before;
+  content = replaceSection(content, "## \u7EDF\u8BA1\u6982\u89C8", [
+    `- \u603B\u9875\u6570\uFF1A${stats.total}`,
+    `- \u6700\u8FD1\u66F4\u65B0\uFF1A${stats.latest ?? "\u2014"}`,
+    `- \u5F53\u524D\u6D3B\u8DC3\u9886\u57DF\uFF1A${activeDomain}`
+  ]);
+  content = replaceSection(content, "## \u7C7B\u578B\u5206\u5E03", [
+    "| \u7C7B\u578B | \u6570\u91CF | \u5165\u53E3 |",
+    "|---|---|---|",
+    ...stats.rows.map((r) => `| ${r.type} | ${r.count} | \`${r.dir}/_INDEX.md\` |`)
+  ]);
+  content = replaceSection(
+    content,
+    "## \u6700\u8FD1\u6D3B\u8DC3",
+    stats.recent.length === 0 ? ["- \u2014"] : stats.recent.map((e) => `- [[${e.slug}]] \u2014 ${e.updated}`)
+  );
+  const changed = content !== before;
+  if (changed) writeFileSync9(filePath, content, "utf-8");
+  return { filePath, exists: true, changed, total: stats.total };
+}
+
 // src/commands/sync.ts
 function createReport(corpus) {
   return {
@@ -3176,6 +3341,7 @@ function createReport(corpus) {
     steps: {
       index: { status: "skipped" },
       rootIndex: { status: "skipped" },
+      memoryIndex: { status: "skipped" },
       doctor: { status: "skipped" }
     },
     reportPath: null,
@@ -3183,12 +3349,12 @@ function createReport(corpus) {
   };
 }
 function writeSyncReport(corpus, report) {
-  const dir = join22(corpus, ".wiki", "reports", "sync");
+  const dir = join23(corpus, ".wiki", "reports", "sync");
   mkdirSync9(dir, { recursive: true });
   const stamp = report.startedAt.replace(/[:.]/g, "-");
-  const path = join22(dir, `${stamp}.json`);
+  const path = join23(dir, `${stamp}.json`);
   report.reportPath = path;
-  writeFileSync9(path, JSON.stringify(report, null, 2) + "\n", "utf-8");
+  writeFileSync10(path, JSON.stringify(report, null, 2) + "\n", "utf-8");
   return path;
 }
 async function runSync(corpus, opts = {}) {
@@ -3249,6 +3415,19 @@ async function runSync(corpus, opts = {}) {
   } else {
     report.steps.rootIndex = { status: "skipped", reason: "skip-root-index" };
   }
+  try {
+    const m = refreshMemoryIndex(corpus);
+    if (!m.exists) {
+      report.steps.memoryIndex = { status: "skipped", reason: "no MEMORY.md" };
+    } else {
+      report.steps.memoryIndex = { status: "ok", changed: m.changed, total: m.total };
+      ok(m.changed ? `MEMORY.md stats refreshed (${m.total} pages)` : "MEMORY.md unchanged");
+    }
+  } catch (e) {
+    report.steps.memoryIndex = { status: "error", error: e.message };
+    report.errors.push(`memory index sync failed: ${e.message}`);
+    err(`memory index sync failed: ${e.message}`);
+  }
   print();
   if (!opts.skipDoctor) {
     print(chalk6.cyan("\u2500\u2500 [2/2] doctor: sanity check \u2500\u2500"));
@@ -3274,8 +3453,8 @@ function syncCommand(program2) {
 }
 
 // src/commands/obsidian-tune.ts
-import { cpSync as cpSync3, existsSync as existsSync16, mkdirSync as mkdirSync10, writeFileSync as writeFileSync10 } from "fs";
-import { join as join23 } from "path";
+import { cpSync as cpSync3, existsSync as existsSync17, mkdirSync as mkdirSync10, writeFileSync as writeFileSync11 } from "fs";
+import { join as join24 } from "path";
 function runPrint() {
   const cfg = getRecommendedGraphConfig();
   out(JSON.stringify(cfg, null, 2));
@@ -3313,16 +3492,16 @@ function runCheck(corpus) {
   return 1;
 }
 function runWrite(corpus) {
-  const dest = join23(corpus, ".obsidian", "graph.json");
-  const destDir = join23(corpus, ".obsidian");
-  if (!existsSync16(destDir)) mkdirSync10(destDir, { recursive: true });
-  if (existsSync16(dest)) {
+  const dest = join24(corpus, ".obsidian", "graph.json");
+  const destDir = join24(corpus, ".obsidian");
+  if (!existsSync17(destDir)) mkdirSync10(destDir, { recursive: true });
+  if (existsSync17(dest)) {
     const backup = `${dest}.bak.${tsCompact()}`;
     cpSync3(dest, backup);
     ok(`\u5907\u4EFD .obsidian/graph.json \u2192 ${backup}`);
   }
   const cfg = getRecommendedGraphConfig();
-  writeFileSync10(dest, JSON.stringify(cfg, null, 2) + "\n", "utf-8");
+  writeFileSync11(dest, JSON.stringify(cfg, null, 2) + "\n", "utf-8");
   ok("\u5199\u5165\u63A8\u8350 filter");
   info("\u8BF7\u5173\u6389 Obsidian\u300C\u5173\u7CFB\u56FE\u8C31\u300D\u6807\u7B7E\u9875\u518D\u91CD\u5F00\u751F\u6548");
   return 0;
@@ -3349,8 +3528,8 @@ function obsidianTuneCommand(program2) {
 }
 
 // src/commands/remove.ts
-import { existsSync as existsSync17, mkdirSync as mkdirSync11, readFileSync as readFileSync15, renameSync, writeFileSync as writeFileSync11 } from "fs";
-import { basename as basename6, dirname as dirname7, isAbsolute as isAbsolute2, join as join24, relative as relative10, resolve as resolve4, sep } from "path";
+import { existsSync as existsSync18, mkdirSync as mkdirSync11, readFileSync as readFileSync16, renameSync, writeFileSync as writeFileSync12 } from "fs";
+import { basename as basename6, dirname as dirname7, isAbsolute as isAbsolute2, join as join25, relative as relative11, resolve as resolve4, sep } from "path";
 import matter2 from "gray-matter";
 import trash from "trash";
 function isUrl(input) {
@@ -3367,17 +3546,17 @@ function normalizeRel(rel) {
 }
 function resolveInputPath(corpus, input) {
   const candidates = [];
-  const rawAbs = isAbsolute2(input) ? input : join24(corpus, input);
+  const rawAbs = isAbsolute2(input) ? input : join25(corpus, input);
   candidates.push(rawAbs);
   if (!input.endsWith(".md")) candidates.push(`${rawAbs}.md`);
   for (const candidate of candidates) {
     const abs = resolve4(candidate);
-    if (isWithin(corpus, abs) && existsSync17(abs)) return abs;
+    if (isWithin(corpus, abs) && existsSync18(abs)) return abs;
   }
   return null;
 }
 function relFromAbs(corpus, abs) {
-  return normalizeRel(relative10(corpus, abs));
+  return normalizeRel(relative11(corpus, abs));
 }
 function aliasesForRel(rel) {
   const aliases = /* @__PURE__ */ new Set();
@@ -3389,7 +3568,7 @@ function aliasesForRel(rel) {
   return [...aliases];
 }
 function readText(abs) {
-  return readFileSync15(abs, "utf-8");
+  return readFileSync16(abs, "utf-8");
 }
 function extractWikilinks(content) {
   const links = [];
@@ -3399,14 +3578,14 @@ function extractWikilinks(content) {
   return links;
 }
 function addExistingTarget(corpus, targets, relOrAbs, reason) {
-  const abs = isAbsolute2(relOrAbs) ? relOrAbs : join24(corpus, relOrAbs);
-  if (!existsSync17(abs)) return;
+  const abs = isAbsolute2(relOrAbs) ? relOrAbs : join25(corpus, relOrAbs);
+  if (!existsSync18(abs)) return;
   const rel = relFromAbs(corpus, abs);
   targets.set(rel, { rel, abs, reason });
 }
 function addSourceTarget(corpus, targets, relOrAbs) {
-  const abs = isAbsolute2(relOrAbs) ? relOrAbs : join24(corpus, relOrAbs);
-  if (!existsSync17(abs)) return;
+  const abs = isAbsolute2(relOrAbs) ? relOrAbs : join25(corpus, relOrAbs);
+  if (!existsSync18(abs)) return;
   const rel = relFromAbs(corpus, abs);
   if (rel.endsWith("/article.md")) {
     addExistingTarget(corpus, targets, dirname7(abs), "source");
@@ -3420,15 +3599,15 @@ function addSourceTarget(corpus, targets, relOrAbs) {
 }
 function sourceCandidatesForSlug(corpus, slug) {
   return [
-    join24(corpus, slug),
-    join24(corpus, `${slug}.md`),
-    join24(corpus, slug, "article.md")
+    join25(corpus, slug),
+    join25(corpus, `${slug}.md`),
+    join25(corpus, slug, "article.md")
   ];
 }
 function collectSourceUrls(corpus, targets) {
   const urls = /* @__PURE__ */ new Set();
   for (const target of targets.values()) {
-    const files = existsSync17(target.abs) && target.rel.endsWith(".md") ? [target.abs] : collectMdFiles(target.abs);
+    const files = existsSync18(target.abs) && target.rel.endsWith(".md") ? [target.abs] : collectMdFiles(target.abs);
     for (const file of files) {
       const fm = extractFrontmatter(file);
       if (typeof fm.source_url === "string") urls.add(fm.source_url);
@@ -3443,18 +3622,18 @@ function addSourcesFromSummary(corpus, targets, summaryAbs) {
   for (const source of sources) {
     if (typeof source !== "string") continue;
     for (const candidate of sourceCandidatesForSlug(corpus, source)) {
-      if (existsSync17(candidate)) addSourceTarget(corpus, targets, candidate);
+      if (existsSync18(candidate)) addSourceTarget(corpus, targets, candidate);
     }
   }
   for (const link of extractWikilinks(parsed.content)) {
     if (!link.startsWith("\u539F\u6599/")) continue;
     for (const candidate of sourceCandidatesForSlug(corpus, link)) {
-      if (existsSync17(candidate)) addSourceTarget(corpus, targets, candidate);
+      if (existsSync18(candidate)) addSourceTarget(corpus, targets, candidate);
     }
   }
 }
 function addSummariesReferencingSources(corpus, targets, aliases) {
-  for (const file of collectMdFiles(join24(corpus, "\u77E5\u8BC6\u5E93", "\u6458\u8981"))) {
+  for (const file of collectMdFiles(join25(corpus, "\u77E5\u8BC6\u5E93", "\u6458\u8981"))) {
     const rel = relFromAbs(corpus, file);
     if (targets.has(rel)) continue;
     const content = readText(file);
@@ -3534,9 +3713,9 @@ function buildRemovalPlan(corpus, input, apply) {
     if (record?.archivedTo) addSourceTarget(corpus, targets, record.archivedTo);
     for (const page of record?.wikiPages ?? []) {
       if (normalizeRel(page).startsWith("\u77E5\u8BC6\u5E93/\u6458\u8981/")) {
-        const pageAbs = join24(corpus, page);
+        const pageAbs = join25(corpus, page);
         addExistingTarget(corpus, targets, pageAbs, "summary");
-        if (existsSync17(pageAbs)) addSourcesFromSummary(corpus, targets, pageAbs);
+        if (existsSync18(pageAbs)) addSourcesFromSummary(corpus, targets, pageAbs);
       }
     }
     const source = findSourceByUrl(corpus, input);
@@ -3586,8 +3765,8 @@ async function moveToTrash(paths) {
   if (testTrashDir) {
     mkdirSync11(testTrashDir, { recursive: true });
     for (const p of paths) {
-      if (!existsSync17(p)) continue;
-      const dest = join24(testTrashDir, `${tsCompact()}-${basename6(p)}`);
+      if (!existsSync18(p)) continue;
+      const dest = join25(testTrashDir, `${tsCompact()}-${basename6(p)}`);
       renameSync(p, dest);
     }
     return;
@@ -3597,9 +3776,9 @@ async function moveToTrash(paths) {
 function applyPageChanges(corpus, plan) {
   const aliases = new Set(plan.aliases);
   for (const change of plan.pageChanges) {
-    const file = join24(corpus, change.file);
+    const file = join25(corpus, change.file);
     const { nextContent } = rewritePageForRemoval(corpus, file, aliases);
-    writeFileSync11(file, nextContent, "utf-8");
+    writeFileSync12(file, nextContent, "utf-8");
   }
 }
 function forgetIngestRecords(corpus, urls) {
@@ -3690,15 +3869,15 @@ function removeCommand(program2) {
 }
 
 // src/commands/links.ts
-import { existsSync as existsSync18, mkdirSync as mkdirSync12, readFileSync as readFileSync16, writeFileSync as writeFileSync12 } from "fs";
-import { join as join25, dirname as dirname8, relative as relative11 } from "path";
+import { existsSync as existsSync19, mkdirSync as mkdirSync12, readFileSync as readFileSync17, writeFileSync as writeFileSync13 } from "fs";
+import { join as join26, dirname as dirname8, relative as relative12 } from "path";
 var TYPE_DIR = {
   concept: "\u77E5\u8BC6\u5E93/\u6982\u5FF5",
   entity: "\u77E5\u8BC6\u5E93/\u5B9E\u4F53"
 };
 function resolveFileArg(corpus, f) {
-  const abs = f.startsWith("/") ? f : join25(process.cwd(), f);
-  return { abs, rel: relative11(corpus, abs) };
+  const abs = f.startsWith("/") ? f : join26(process.cwd(), f);
+  return { abs, rel: relative12(corpus, abs) };
 }
 function guardNotRaw(rel) {
   if (rel === "\u539F\u6599" || rel.startsWith("\u539F\u6599/")) {
@@ -3748,14 +3927,14 @@ function rewriteLabel(content, label, transform) {
   return { content: next, count };
 }
 function linksStatePath(corpus) {
-  return join25(corpus, ".wiki", "links-state.json");
+  return join26(corpus, ".wiki", "links-state.json");
 }
 function loadLinksState(corpus) {
   const empty = { version: 1, pages: {}, plained: [] };
   const p = linksStatePath(corpus);
-  if (!existsSync18(p)) return empty;
+  if (!existsSync19(p)) return empty;
   try {
-    const parsed = JSON.parse(readFileSync16(p, "utf-8"));
+    const parsed = JSON.parse(readFileSync17(p, "utf-8"));
     if (parsed && typeof parsed === "object" && parsed.pages) {
       return { version: 1, pages: parsed.pages, plained: parsed.plained ?? [] };
     }
@@ -3766,7 +3945,7 @@ function loadLinksState(corpus) {
 function writeLinksState(corpus, state) {
   const p = linksStatePath(corpus);
   mkdirSync12(dirname8(p), { recursive: true });
-  writeFileSync12(p, JSON.stringify(state, null, 2) + "\n", "utf-8");
+  writeFileSync13(p, JSON.stringify(state, null, 2) + "\n", "utf-8");
   return p;
 }
 function saveLinksState(corpus, pages) {
@@ -3790,12 +3969,12 @@ function linksCommand(program2) {
     const report = [];
     for (const f of opts.file) {
       const { abs, rel } = resolveFileArg(corpus, f);
-      if (!existsSync18(abs)) {
+      if (!existsSync19(abs)) {
         bad(`[links suggest] file not found: ${f}`);
         process.exitCode = 2;
         continue;
       }
-      const content = readFileSync16(abs, "utf-8");
+      const content = readFileSync17(abs, "utf-8");
       const brokenTargets = scanBrokenLinks(content, rel, index);
       const broken = brokenTargets.map((link) => ({ link, candidates: findCandidates(link, index) }));
       pages[rel] = { checkedAt, broken };
@@ -3814,7 +3993,7 @@ function linksCommand(program2) {
     }
     if (opts.writeState) {
       const p = saveLinksState(corpus, pages);
-      print(`state written: ${relative11(corpus, p)}`);
+      print(`state written: ${relative12(corpus, p)}`);
     }
     if (opts.json) out(JSON.stringify({ pages: report }));
     const totalBroken = report.reduce((n, r) => n + r.broken.length, 0);
@@ -3823,7 +4002,7 @@ function linksCommand(program2) {
   group.command("fix <label>").description("repoint [[label]] to a canonical target in a file; optionally register an alias").requiredOption("--to <target>", "canonical link target (slug or bare name)").requiredOption("--file <file>", "file whose [[label]] should be repointed").option("--alias <name>", "register this alias in the canonical page frontmatter aliases").action((label, opts) => {
     const corpus = requireCorpus();
     const { abs, rel } = resolveFileArg(corpus, opts.file);
-    if (!existsSync18(abs)) {
+    if (!existsSync19(abs)) {
       bad(`[links fix] file not found: ${opts.file}`);
       process.exitCode = 2;
       return;
@@ -3832,7 +4011,7 @@ function linksCommand(program2) {
       process.exitCode = 2;
       return;
     }
-    const content = readFileSync16(abs, "utf-8");
+    const content = readFileSync17(abs, "utf-8");
     const { content: next, count } = rewriteLabel(content, label, ({ bang, anchor, disp }) => {
       return `${bang}[[${opts.to}${anchor}${disp}]]`;
     });
@@ -3841,7 +4020,7 @@ function linksCommand(program2) {
       process.exitCode = 1;
       return;
     }
-    writeFileSync12(abs, next, "utf-8");
+    writeFileSync13(abs, next, "utf-8");
     ok(`[links fix] ${rel}: ${count} link(s) [[${label}]] \u2192 [[${opts.to}]]`);
     let aliasResult = "";
     if (opts.alias) {
@@ -3860,8 +4039,8 @@ function linksCommand(program2) {
     }
     const dir = TYPE_DIR[type];
     const pageRel = `${dir}/${label}.md`;
-    const pageAbs = join25(corpus, pageRel);
-    if (existsSync18(pageAbs)) {
+    const pageAbs = join26(corpus, pageRel);
+    if (existsSync19(pageAbs)) {
       warn(`[links stub] already exists: ${pageRel}`);
       out(JSON.stringify({ created: false, page: pageRel }));
       return;
@@ -3886,7 +4065,7 @@ function linksCommand(program2) {
       ""
     ].join("\n");
     mkdirSync12(dirname8(pageAbs), { recursive: true });
-    writeFileSync12(pageAbs, body, "utf-8");
+    writeFileSync13(pageAbs, body, "utf-8");
     ok(`[links stub] created ${pageRel}`);
     out(JSON.stringify({ created: true, page: pageRel, type }));
   });
@@ -3909,14 +4088,14 @@ function linksCommand(program2) {
     const row = `| ${label} | ${type} | ${sourceRel} | ${reason} | ${todayYMDShanghai()} |
 `;
     const next = existing.endsWith("\n") ? existing + row : existing + "\n" + row;
-    writeFileSync12(missingNodesPath(corpus), next, "utf-8");
+    writeFileSync13(missingNodesPath(corpus), next, "utf-8");
     ok(`[links backlog] recorded ${label} \u2192 ${MISSING_NODES_REL}`);
     out(JSON.stringify({ added: true, label, type, source: sourceRel }));
   });
   group.command("plain <label>").description("downgrade [[label]] to plain text in a file (drop the graph node)").requiredOption("--file <file>", "file whose [[label]] should be downgraded").action((label, opts) => {
     const corpus = requireCorpus();
     const { abs, rel } = resolveFileArg(corpus, opts.file);
-    if (!existsSync18(abs)) {
+    if (!existsSync19(abs)) {
       bad(`[links plain] file not found: ${opts.file}`);
       process.exitCode = 2;
       return;
@@ -3925,7 +4104,7 @@ function linksCommand(program2) {
       process.exitCode = 2;
       return;
     }
-    const content = readFileSync16(abs, "utf-8");
+    const content = readFileSync17(abs, "utf-8");
     const { content: next, count } = rewriteLabel(content, label, ({ disp }) => {
       return disp ? disp.slice(1) : label;
     });
@@ -3934,7 +4113,7 @@ function linksCommand(program2) {
       process.exitCode = 1;
       return;
     }
-    writeFileSync12(abs, next, "utf-8");
+    writeFileSync13(abs, next, "utf-8");
     recordPlained(corpus, rel, label);
     ok(`[links plain] ${rel}: downgraded ${count} [[${label}]] to plain text (recorded)`);
     out(JSON.stringify({ file: rel, label, downgraded: count, recorded: true }));
@@ -3946,9 +4125,9 @@ function linksCommand(program2) {
     const kept = [];
     const report = [];
     for (const e of state.plained) {
-      const abs = join25(corpus, e.file);
-      if (!existsSync18(abs)) continue;
-      const content = readFileSync16(abs, "utf-8");
+      const abs = join26(corpus, e.file);
+      if (!existsSync19(abs)) continue;
+      const content = readFileSync17(abs, "utf-8");
       const relinkRe = new RegExp(WIKILINK_RE.source, "g");
       let relinked = false;
       let m;
@@ -3988,9 +4167,9 @@ function linksCommand(program2) {
 function registerAlias(corpus, canonicalTarget, alias) {
   const file = resolveCanonicalFile(corpus, canonicalTarget);
   if (!file) return `(alias \u672A\u767B\u8BB0\uFF1A\u627E\u4E0D\u5230 canonical \u9875 ${canonicalTarget})`;
-  const content = readFileSync16(file, "utf-8");
+  const content = readFileSync17(file, "utf-8");
   const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
-  if (!fmMatch) return `(alias \u672A\u767B\u8BB0\uFF1A${relative11(corpus, file)} \u65E0 frontmatter)`;
+  if (!fmMatch) return `(alias \u672A\u767B\u8BB0\uFF1A${relative12(corpus, file)} \u65E0 frontmatter)`;
   const fm = fmMatch[1];
   const aliasLine = fm.match(/^aliases:\s*\[([^\]]*)\]\s*$/m);
   let nextFm;
@@ -4006,14 +4185,14 @@ aliases: [${alias}]`;
   const next = content.replace(fmMatch[0], `---
 ${nextFm}
 ---`);
-  writeFileSync12(file, next, "utf-8");
-  return `alias registered: ${alias} \u2192 ${relative11(corpus, file)}`;
+  writeFileSync13(file, next, "utf-8");
+  return `alias registered: ${alias} \u2192 ${relative12(corpus, file)}`;
 }
 function resolveCanonicalFile(corpus, target) {
-  const direct = join25(corpus, `${target}.md`);
-  if (existsSync18(direct)) return direct;
+  const direct = join26(corpus, `${target}.md`);
+  if (existsSync19(direct)) return direct;
   for (const file of collectMdFiles(corpus)) {
-    const rel = relative11(corpus, file);
+    const rel = relative12(corpus, file);
     const stem = rel.replace(/\.md$/, "");
     if (stem === target || stem.split("/").pop() === target) return file;
   }
