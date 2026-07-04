@@ -2,47 +2,44 @@
 cmap_version: 0.1
 context_type: status
 project: lorekit
-source_commit: 62576ef
-updated_at: 2026-05-18T04:30:07Z
+source_commit: HEAD
+updated_at: 2026-07-04T15:00:00Z
 confidence: ai-drafted
 ---
 # Status
 
 > 中文状态页。英文标题是 CMAP CLI 的结构锚点，正文以中文为准。
+> 角色约定（2026-07-04 起）：本页只保留**发布级里程碑**摘要；逐任务的当前状态、
+> 决策与待办一律以 `.context/CHECKPOINT.md` 为准，两页不重复维护细节。
 
 ## Active Goal
-把 lorekit 的 `.context` 搭成可用的中文 CMAP 项目地图，并补齐 Obsidian / Review HTML 导出、`AGENTS.md` / `CLAUDE.md` 使用入口。
+发布 v0.5.0（首个 npm 公开版本）：工作台闭环批次 + GPT-5.5 审查采纳项（findCorpus
+收紧、workbench report 只读账单 CLI、模板契约同步）。
 
 ## Done Recently
-- 已确认 `main` 对齐 `origin/main`，开始时没有未 push commit。
-- 已运行 `cmap adopt`，生成 `.context` skeleton 和 `.context/ADOPTION.md`。
-- 已阅读 `AGENTS.md`、`README.md`、`docs/CONVENTIONS.md`、`docs/ARCHITECTURE.md`、`docs/CODEBASE-MAP.md`、`docs/DESIGN-NOTES.md`、`docs/IDEAS.md` 与代表性源码。
-- 已建立 9 个模块：`project-map`、`cli`、`corpus-core`、`fetch-ingest`、`sync-search`、`safety-maintenance`、`skills-agent`、`obsidian-export`、`docs-tests-release`。
-- 已将 `.context` 正文中文化，同时保留 CMAP 必需英文结构标题和 frontmatter key。
-- 已生成 `.context/graph/*.json`、`_cmap/lorekit/` 和 `_cmap-view/index.html`。
-- 已在 `AGENTS.md` 和 `CLAUDE.md` 追加中文 CMAP 使用入口。
-- 已用新版 `cmap view export --ui-lang zh-CN --out _cmap-view` 重建中文 Review HTML。
-- 已在 2026-05-18 重新跑完 CMAP checks、`git diff --check` 和 `npm run verify`。
+- 2026-06-11：「对齐 + 收敛」三刀完成（GBrain/wiki-enrich 移除、links 恢复、现场 corpus 升 0.4.0）。
+- 2026-07-04：工作台闭环批次完成并部署现场 corpus（search --all 两级召回、lint
+  stale-review/unresolved-source、sync 喂 MEMORY.md、wiki-triage、防漂移测试、
+  多库注册表 corpus-query）；现场 lint/doctor 全绿。
+- 2026-07-04：GPT-5.5 对抗审查回收，采纳 findCorpus 只认 `.wiki/`、
+  `lorekit workbench report` 下沉候选生成、STATUS 角色收紧（即本页）。
 
 ## Left Off
-CMAP / AGENTS 更新已复核并通过验证，剩余事项是提交并推送到 `origin/main`。
+0.5.0 发布流程进行中：CHANGELOG + 版本号 + 全量 verify + push + npm publish。
 
 ## Next Steps
-1. 提交本轮 `.context`、`_cmap`、`_cmap-view` 和 `AGENTS.md` 变更。
-2. 普通 push 到 `origin/main`。
+1. 完成 0.5.0 发布（npm 账号 xiaowuovo 已就绪）。
+2. 后续批次（见 `docs/ai/TODO-lorekit-cleanup.md` §5）：capability manifest 结构化
+   防漂移、小解析器集中（frontmatter-date / source-ref / search-query）。
 
 ## Changed Files
-- `.context/**`
-- `AGENTS.md`
-- `CLAUDE.md`
-- `_cmap/lorekit/**`
-- `_cmap-view/index.html`
+见 `.context/CHECKPOINT.md` 的 Changed Files 节（唯一细节源）。
 
 ## Risks
-- `AGENTS.md` / `CLAUDE.md` 不能覆盖，只能保留原内容并追加 CMAP 入口说明。
+- `AGENTS.md` / `CLAUDE.md` 不能覆盖，只能追加或 marker merge。
 - `_cmap/lorekit` 和 `_cmap-view` 是生成视图，不能倒灌成 canonical facts。
-- `.context` 是 repo-local 项目地图，不替代 docs/ 的长期架构文档。
-- Review HTML 当前是项目理解页，不重做源码语义推断；UI 语言固定用 `--ui-lang zh-CN` 生成。
+- findCorpus 收紧后，无 `.wiki/` 的老 corpus 需重跑 `lorekit init` 补标记（发布说明已写）。
 
 ## Last Verified
-2026-05-18：`cmap route "push CMAP and AGENTS context changes"` 通过；`cmap verify --changed` 为 0 errors / 1 expected warning（`AGENTS.md` 与 `CLAUDE.md` 保持不同入口形态）；`cmap obsidian export --check --out _cmap/lorekit` 通过；`cmap view export --check --ui-lang zh-CN --out _cmap-view` 通过；`git diff --check` 通过；`npm run verify` 通过（79 tests, 78 pass, 1 skipped）。
+2026-07-04：`npm run verify` 全绿（详见 CHECKPOINT Verified 节）；`cmap verify --changed`
+0 errors / 1 expected warning；现场 corpus lint/doctor 全绿。

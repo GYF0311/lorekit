@@ -81,7 +81,15 @@
 - [x] `.context` 同步：`modules/safety-maintenance.md` 已更新（2026-07-04，含新 lint 分级与防漂移测试说明）
 - [x] **commit 时机**：三刀改动已在 6ea1244 / ee83742 提交；2026-07-04 工作台闭环批次逐任务小步 commit
 - [x] skills ↔ lorekit **防漂移机制**：`tests/smoke/skills-cli-drift.test.mjs`（2026-07-04），从 CLI --help 动态提取命令清单比对 skills 引用，已做负向检验，纳入 `npm run verify`
-- [ ] （远期可选）npm 发布，`npm install -g lorekit`（包名 2026-07-04 时点未被占用；先生 npm 账号就绪后 `npm login` + `npm publish` 即可）
+- [~] npm 发布：账号 xiaowuovo 已就绪，v0.5.0 发布流程进行中（2026-07-04）
+
+---
+
+## 5. 0.5.x 后续（GPT-5.5 审查采纳但缓行项，2026-07-04 立项）
+
+- [ ] **capability manifest 结构化防漂移**：`docs/capabilities.json`（或 `src/cli-capabilities.ts`）声明 CLI 语义能力，skill frontmatter 声明 `requires:`，测试按结构校验；替代"更复杂 Markdown 正则"路线。现有 skills-cli-drift 正则测试保留为第一道防线。
+- [ ] **小解析器集中**：`frontmatter-date.ts`（日期/时区边界）、`source-ref.ts`（wikilink/别名/锚点 normalize）、`search-query.ts`，各配 edge-case smoke tests；lint/search/memory-index 改为复用。
+- [ ] GPT 审查明确不做的：不重启 vector/RAG/GBrain；CLI 不调模型；不再加码 Markdown 正则复杂度。
 
 ---
 
