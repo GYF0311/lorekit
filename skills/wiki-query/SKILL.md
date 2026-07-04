@@ -30,6 +30,11 @@ description: 从 corpus 检索已有内容并综合答案，按精确/模糊/图
 2. Read `corpus/index.md` 定位知识分区。
 3. Read `{dir}/_INDEX.md` 缩小到候选页。
 4. Read 具体 `知识库/` canonical page，再按页内 wikilink 追 1-2 跳。
+5. **第二级召回（fallback）**：1-4 步无命中或明显不足时，`lorekit search "<q>" --all`
+   把过程区（`_工作台/`、`_归档/`、`输出/` 等）纳入召回。命中时照常引用，但**必须
+   标注非 canonical**（例如 `⚠ 过程稿：_工作台/草稿/xxx.md，未经入库校验`），
+   不得当作 Compiled Truth 级证据。转写噪音层（`_工作台/转写/`）--all 仍排除，
+   先生点名"去转写里找"才 `lorekit search "<q>" --dir _工作台/转写`。
 
 ## Decision tree
 
@@ -44,7 +49,8 @@ description: 从 corpus 检索已有内容并综合答案，按精确/模糊/图
 - Read `corpus/index.md` / `知识库/` → AI 按语义选 1-3 个分区
 - Read `{选中分区}/_INDEX.md` → 选具体页
 - Read 具体 `.md` 文件 → 综合答案
-- 只有需要完整 provenance 时才打开 `原料/`；project-local evidence / `_工作台/**` 只在当前任务点名时读取，不作为默认召回层
+- 只有需要完整 provenance 时才打开 `原料/`
+- `_工作台/**` / `_归档/**` 不是第一级召回层：知识库层无命中时走 `lorekit search "<q>" --all` 第二级召回（结果标注非 canonical）；先生点名具体路径时直接读
 
 ### 3. 多跳推理（"A 相关 B 的 C"）
 
@@ -56,7 +62,8 @@ description: 从 corpus 检索已有内容并综合答案，按精确/模糊/图
 
 ## Tools to use
 
-- `lorekit search "<q>"` — 精确 ripgrep/fallback 检索
+- `lorekit search "<q>"` — 精确 ripgrep/fallback 检索（durable 层）
+- `lorekit search "<q>" --all` — 第二级召回，纳入工作台/归档等过程区
 - Read `corpus/index.md` / `{dir}/_INDEX.md` / 具体文件
 - 底层：Grep（复杂匹配时用）
 

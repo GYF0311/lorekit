@@ -185,7 +185,8 @@ _工作台/finished package -> 原料/ -> 知识库/ -> optional central corpus 
 ```bash
 cd ~/Desktop/my-corpus
 lorekit sync          # closeout: _INDEX.md → root index.md → doctor
-lorekit search "…"    # exact text/entity search
+lorekit search "…"    # exact text/entity search (durable layers)
+lorekit search "…" --all  # second-tier recall: also 工作台/归档 (skips .wiki and 转写 noise)
 ```
 
 `lorekit sync` is the standard entry point after durable corpus changes: new `原料/` imports, `知识库/` fileback, route/index changes, stage closeout, or commit/push verification. Do not run it after every `_工作台/` note, daily fragment, or temporary display artifact. It:

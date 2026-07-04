@@ -47,7 +47,7 @@ Project-local evidence folders such as `_工作台/课程原文/` are not automa
 | **Sync**        | **`lorekit sync`**      | **One-shot for durable corpus changes: `_INDEX.md` → root `index.md` → `doctor`; supports `--json` and `--report` for agent-readable step receipts**                  |
 | Obsidian tune   | `lorekit obsidian-tune` | 老用户升级一键应用 Obsidian graph filter（默认只读检查 / `--write` 备份后写 / `--print` 管道用）                                                                      |
 
-> The CLI is named `lorekit`. Project-local Agent Skills keep the `wiki-` prefix (a nod to Karpathy's LLM Wiki), including `wiki-ingest`, `wiki-query`, `wiki-fileback`, `wiki-lint`, `wiki-audit`, `wiki-remove`, and `wiki-output`. They operate on the current corpus/project and are the recommended skill layer for research corpora. Cross-project `corpus-*` skills and `wiki-daily` still exist, but they are explicit optional installs for users who deliberately maintain a central corpus or personal diary gateway.
+> The CLI is named `lorekit`. Project-local Agent Skills keep the `wiki-` prefix (a nod to Karpathy's LLM Wiki), including `wiki-ingest`, `wiki-query`, `wiki-fileback`, `wiki-lint`, `wiki-audit`, `wiki-remove`, `wiki-triage`, and `wiki-output`. They operate on the current corpus/project and are the recommended skill layer for research corpora. Cross-project `corpus-*` skills and `wiki-daily` still exist, but they are explicit optional installs for users who deliberately maintain a central corpus or personal diary gateway.
 
 ## Ingest Pipeline (single-source-of-truth state machine)
 
@@ -258,7 +258,10 @@ Talk in natural language; the AI routes to the right skill:
 # → wiki-fileback: route to the right wiki page by subject
 
 > Check the health of the knowledge base
-# → wiki-lint: scan broken links, orphans, stale workbench
+# → wiki-lint: scan broken links, orphans, unresolved sources, stale reviews
+
+> Time to tidy the workbench
+# → wiki-triage: scan backlog → grouped verdict list → you approve → ingest/archive/trash
 
 > Back up the corpus
 # → lorekit snapshot → .wiki/snapshots/xxx.tar.gz
@@ -269,14 +272,15 @@ Talk in natural language; the AI routes to the right skill:
 The default query route is deterministic and text-first:
 
 ```bash
-lorekit search "xxx"       # exact terms, entities, filenames
+lorekit search "xxx"       # exact terms, entities, filenames (durable layers)
+lorekit search "xxx" --all # second-tier recall: also 工作台/归档 (skips .wiki and 转写 noise)
 lorekit sync --json        # agent-readable closeout report
 lorekit sync --report      # writes .wiki/reports/sync/<timestamp>.json
 ```
 
 Run `lorekit sync` after durable `知识库/` fileback, new `原料/` import, index/routing changes, stage closeout, or commit/push verification. Workbench notes, temporary learning records, and display artifacts can wait for closeout instead of forcing immediate sync.
 
-`lorekit sync` refreshes directory `_INDEX.md`, merges root `index.md`, then runs `doctor`. It does not call model services or maintain a second retrieval store.
+`lorekit sync` refreshes directory `_INDEX.md`, merges root `index.md`, refreshes the `MEMORY.md` L0 stats block (when present), then runs `doctor`. It does not call model services or maintain a second retrieval store.
 
 ## Progressive Disclosure
 
