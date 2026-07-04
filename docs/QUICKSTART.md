@@ -146,9 +146,18 @@ Then create `~/.config/lorekit/global-corpus.json`:
   "daily_inbox_dir": "_工作台/日记收件",
   "knowledge_dir": "知识库",
   "raw_dir": "原料",
-  "output_dir": "输出"
+  "output_dir": "输出",
+  "corpora": {
+    "总库": { "path": "/ABSOLUTE/PATH/TO/CORPUS", "aliases": ["总知识库", "主库"] },
+    "项目库A": { "path": "/ABSOLUTE/PATH/TO/PROJECT-CORPUS", "aliases": ["A库"] }
+  }
 }
 ```
+
+`corpora` is an optional multi-corpus registry: name any registered corpus in a query
+("查一下 AI产品 库里的 …") and `corpus-query` routes to it; without a name it uses
+`default_corpus`. Unregistered names are never guessed — the agent lists registered
+corpora and asks.
 
 Shortest use from any Codex project:
 

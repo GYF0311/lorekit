@@ -139,7 +139,7 @@ For optional cross-project central-corpus access, install the `corpus-*` entrypo
 lorekit install-skills --target codex --only corpus-query,corpus-capture,corpus-ingest,corpus-fileback --mode copy
 ```
 
-Configure them with `~/.config/lorekit/global-corpus.json`. These skills are optional routing entrypoints for users who intentionally maintain a central corpus. They are no longer the Codex default.
+Configure them with `~/.config/lorekit/global-corpus.json`. These skills are optional routing entrypoints for users who intentionally maintain a central corpus. They are no longer the Codex default. The optional `corpora` registry (see `docs/QUICKSTART.md`) lets `corpus-query` route to **any** named corpus ("查一下 AI产品 库里的…"), not just the default one.
 
 Optional combinations:
 
