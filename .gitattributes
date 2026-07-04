@@ -1,2 +1,6 @@
-# Preserve upstream research snapshots without rewriting third-party whitespace.
-brain/** -whitespace
+# 构建产物、生成视图与第三方 bundle：不参与 GitHub 语言统计
+dist/** linguist-generated
+plugins/obsidian-audit/main.js linguist-generated
+_cmap/** linguist-generated
+_cmap-view/** linguist-generated
+package-lock.json linguist-generated

@@ -1,6 +1,12 @@
 # lorekit
 
+[![npm](https://img.shields.io/npm/v/@xiaowuovo/lorekit)](https://www.npmjs.com/package/@xiaowuovo/lorekit)
+
 A personal LLM Wiki toolkit — let AI build and maintain your knowledge base.
+
+```bash
+npm install -g @xiaowuovo/lorekit   # the CLI command is `lorekit`
+```
 
 Based on [Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f), lorekit gives any AI coding agent a local knowledge-base workflow: **raw sources → LLM compilation → persistent wiki**. Compile once, keep updating — no RAG. The default install is just the `lorekit` CLI; project-local research skills and central-corpus routing are optional modules you can add when your workflow needs them.
 
