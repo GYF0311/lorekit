@@ -38,9 +38,31 @@ const WEIXIN_CODE_SNIPPET_HTML = `<!DOCTYPE html>
   </div>
 </body></html>`;
 
+const WEIXIN_TEXT_PAGE_HTML = `<!DOCTYPE html>
+<html><head>
+  <meta property="og:title" content="Weixin Text Page Fixture">
+</head><body>
+  <div id="js_article"></div>
+  <script>
+    window.item_show_type = '10';
+    window.ct = '1784031320' || '';
+    window.cgiData = {
+      text_page_info: {
+        content: '第一段包含一个\\x26lt;a href=\\x26quot;https://example.com?a=1\\x26amp;amp;b=2\\x26quot;\\x26gt;内联链接\\x26lt;/a\\x26gt;，也包含 Seedance\\\'s 转义文本。\\n\\n第二段用于验证纯文字分享页不再依赖 js_content 节点，并且正文长度足以通过 empty_body 检查。weixin-text-page-marker。'
+      }
+    };
+  </script>
+</body></html>`;
+
 const server = createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-  res.end(req.url === '/weixin-code-snippet' ? WEIXIN_CODE_SNIPPET_HTML : HTML);
+  if (req.url === '/weixin-code-snippet') {
+    res.end(WEIXIN_CODE_SNIPPET_HTML);
+  } else if (req.url === '/weixin-text-page') {
+    res.end(WEIXIN_TEXT_PAGE_HTML);
+  } else {
+    res.end(HTML);
+  }
 });
 
 server.on('error', (e) => {

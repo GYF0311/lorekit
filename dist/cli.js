@@ -2097,7 +2097,9 @@ function buildHeaders(site) {
 }
 function detectAntibot(html, site) {
   if (ANTIBOT_TRIGGERS.some((t) => html.includes(t))) return true;
-  if (site === "weixin" && !html.includes("js_content")) return true;
+  if (site === "weixin" && !html.includes("js_content") && !html.includes("text_page_info")) {
+    return true;
+  }
   return false;
 }
 async function fetchHtmlL1(url, headers) {
@@ -2291,12 +2293,68 @@ function normalizeCodeSnippetBlocks($, body) {
     $pre.replaceWith($replacement);
   });
 }
+function decodeJsStringLiteral(literal) {
+  if (literal.length < 2 || literal[0] !== "'" || literal.at(-1) !== "'") return void 0;
+  let out2 = "";
+  for (let i = 1; i < literal.length - 1; i++) {
+    const ch = literal[i];
+    if (ch !== "\\") {
+      out2 += ch;
+      continue;
+    }
+    i++;
+    if (i >= literal.length - 1) return void 0;
+    const escaped = literal[i];
+    const simpleEscapes = {
+      n: "\n",
+      r: "\r",
+      t: "	",
+      b: "\b",
+      f: "\f",
+      v: "\v",
+      "0": "\0"
+    };
+    if (escaped in simpleEscapes) {
+      out2 += simpleEscapes[escaped];
+      continue;
+    }
+    if (escaped === "\n") continue;
+    if (escaped === "\r") {
+      if (literal[i + 1] === "\n") i++;
+      continue;
+    }
+    if (escaped === "x") {
+      const hex = literal.slice(i + 1, i + 3);
+      if (!/^[0-9a-fA-F]{2}$/.test(hex)) return void 0;
+      out2 += String.fromCharCode(Number.parseInt(hex, 16));
+      i += 2;
+      continue;
+    }
+    if (escaped === "u") {
+      const hex = literal.slice(i + 1, i + 5);
+      if (!/^[0-9a-fA-F]{4}$/.test(hex)) return void 0;
+      out2 += String.fromCharCode(Number.parseInt(hex, 16));
+      i += 4;
+      continue;
+    }
+    out2 += escaped;
+  }
+  return out2;
+}
+function extractTextPageBodyHtml(html) {
+  const match = html.match(/text_page_info\s*:\s*\{\s*content\s*:\s*('(?:\\.|[^'\\])*')/s);
+  if (!match) return "";
+  const encoded = decodeJsStringLiteral(match[1]);
+  if (!encoded) return "";
+  const decoded = cheerio2.load(encoded).root().text();
+  return decoded.split(/\r?\n\s*\r?\n/).map((paragraph) => paragraph.trim()).filter(Boolean).map((paragraph) => `<p>${paragraph.replace(/\r?\n/g, "<br>")}</p>`).join("\n");
+}
 function parseWeixin(html, baseUrl) {
   const $ = cheerio2.load(html);
   const title = $("h1#activity-name").text().trim() || $("h1.rich_media_title").text().trim() || $('meta[property="og:title"]').attr("content")?.trim() || "";
   const author = $("a#js_name").text().trim() || $("#js_author_name").text().trim() || "";
   let publishDate;
-  const ctMatch = html.match(/var\s+ct\s*=\s*"(\d+)"/);
+  const ctMatch = html.match(/(?:var\s+ct|window\.ct)\s*=\s*['"](\d+)['"]/);
   if (ctMatch) {
     const ts = Number(ctMatch[1]);
     if (Number.isFinite(ts) && ts > 0) publishDate = tsToYMD(ts);
@@ -2305,7 +2363,14 @@ function parseWeixin(html, baseUrl) {
     const ptText = $("em#publish_time").text().trim();
     if (ptText) publishDate = normalizeDateText(ptText);
   }
-  const body = $("#js_content");
+  let body = $("#js_content");
+  if (!body.length) {
+    const textPageBodyHtml = extractTextPageBodyHtml(html);
+    if (textPageBodyHtml) {
+      $("body").append(`<div id="js_content">${textPageBodyHtml}</div>`);
+      body = $("#js_content");
+    }
+  }
   if (!body.length) {
     return { title, author, publishDate, bodyHtml: "", imgSrcs: [] };
   }
@@ -2567,8 +2632,9 @@ async function fetchGithubDoc(url, outRoot) {
 // src/lib/fetcher/index.ts
 function looksLikeWeixinArticle(html) {
   const hasContentRoot = html.includes('id="js_content"') || html.includes("id='js_content'");
+  const hasTextPageInfo = /text_page_info\s*:\s*\{\s*content\s*:/.test(html);
   const hasWeixinMarker = html.includes("rich_media") || html.includes("code-snippet__") || html.includes("var ct =") || html.includes("mp.weixin.qq.com");
-  return hasContentRoot && hasWeixinMarker;
+  return hasContentRoot && hasWeixinMarker || hasTextPageInfo;
 }
 async function fetchUrl(url, opts) {
   const site = detectSite(url);

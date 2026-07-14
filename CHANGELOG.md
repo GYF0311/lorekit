@@ -6,6 +6,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](ht
 
 ## [Unreleased]
 
+### Fixed
+
+- 微信公众号新版 `item_show_type=10` 纯文字分享页不再依赖 `#js_content`：fetcher 现在会从
+  `text_page_info.content` 安全恢复正文，并识别 `window.ct` 发布时间。
+
 ## [0.5.2] — 2026-07-05
 
 Windows 适配版：平台差异全部由 CLI 吸收，skill 层保持单一套（不分平台）。

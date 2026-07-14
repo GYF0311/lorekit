@@ -69,6 +69,86 @@ function normalizeCodeSnippetBlocks($: cheerio.CheerioAPI, body: CheerioSelectio
   });
 }
 
+/**
+ * Decode the single-quoted JavaScript string literal used by WeChat's
+ * `text_page_info.content`. This intentionally supports only string escapes;
+ * it never evaluates page JavaScript.
+ */
+function decodeJsStringLiteral(literal: string): string | undefined {
+  if (literal.length < 2 || literal[0] !== "'" || literal.at(-1) !== "'") return undefined;
+
+  let out = '';
+  for (let i = 1; i < literal.length - 1; i++) {
+    const ch = literal[i];
+    if (ch !== '\\') {
+      out += ch;
+      continue;
+    }
+
+    i++;
+    if (i >= literal.length - 1) return undefined;
+    const escaped = literal[i];
+    const simpleEscapes: Record<string, string> = {
+      n: '\n',
+      r: '\r',
+      t: '\t',
+      b: '\b',
+      f: '\f',
+      v: '\v',
+      '0': '\0',
+    };
+    if (escaped in simpleEscapes) {
+      out += simpleEscapes[escaped];
+      continue;
+    }
+    if (escaped === '\n') continue;
+    if (escaped === '\r') {
+      if (literal[i + 1] === '\n') i++;
+      continue;
+    }
+    if (escaped === 'x') {
+      const hex = literal.slice(i + 1, i + 3);
+      if (!/^[0-9a-fA-F]{2}$/.test(hex)) return undefined;
+      out += String.fromCharCode(Number.parseInt(hex, 16));
+      i += 2;
+      continue;
+    }
+    if (escaped === 'u') {
+      const hex = literal.slice(i + 1, i + 5);
+      if (!/^[0-9a-fA-F]{4}$/.test(hex)) return undefined;
+      out += String.fromCharCode(Number.parseInt(hex, 16));
+      i += 4;
+      continue;
+    }
+
+    // JavaScript treats unknown escapes such as \/, \\ and \' as the
+    // escaped character itself.
+    out += escaped;
+  }
+  return out;
+}
+
+/**
+ * New WeChat `item_show_type=10` pages leave `#js_content` empty and embed the
+ * article in `text_page_info.content`. Recover that text without executing the
+ * page, decode its HTML entities once, then preserve blank-line paragraphs.
+ */
+function extractTextPageBodyHtml(html: string): string {
+  const match = html.match(/text_page_info\s*:\s*\{\s*content\s*:\s*('(?:\\.|[^'\\])*')/s);
+  if (!match) return '';
+
+  const encoded = decodeJsStringLiteral(match[1]);
+  if (!encoded) return '';
+
+  const decoded = cheerio.load(encoded).root().text();
+  return decoded
+    .split(/\r?\n\s*\r?\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .map((paragraph) => `<p>${paragraph.replace(/\r?\n/g, '<br>')}</p>`)
+    .join('\n');
+}
+
 // ---------------------------------------------------------------------------
 // parseWeixin
 // ---------------------------------------------------------------------------
@@ -86,10 +166,10 @@ export function parseWeixin(html: string, baseUrl: string): ParsedDoc {
   // Author
   const author = $('a#js_name').text().trim() || $('#js_author_name').text().trim() || '';
 
-  // Publish date — prefer `var ct = "<unix seconds>"` (most reliable),
-  // fallback to <em id="publish_time"> text node.
+  // Publish date — prefer the legacy `var ct` or new `window.ct` unix seconds,
+  // then fall back to the <em id="publish_time"> text node.
   let publishDate: string | undefined;
-  const ctMatch = html.match(/var\s+ct\s*=\s*"(\d+)"/);
+  const ctMatch = html.match(/(?:var\s+ct|window\.ct)\s*=\s*['"](\d+)['"]/);
   if (ctMatch) {
     const ts = Number(ctMatch[1]);
     if (Number.isFinite(ts) && ts > 0) publishDate = tsToYMD(ts);
@@ -100,7 +180,14 @@ export function parseWeixin(html: string, baseUrl: string): ParsedDoc {
   }
 
   // Body
-  const body = $('#js_content');
+  let body = $('#js_content');
+  if (!body.length) {
+    const textPageBodyHtml = extractTextPageBodyHtml(html);
+    if (textPageBodyHtml) {
+      $('body').append(`<div id="js_content">${textPageBodyHtml}</div>`);
+      body = $('#js_content');
+    }
+  }
   if (!body.length) {
     return { title, author, publishDate, bodyHtml: '', imgSrcs: [] };
   }

@@ -38,12 +38,13 @@ import type { FetchOptions, FetchResult } from './types.js';
 
 function looksLikeWeixinArticle(html: string): boolean {
   const hasContentRoot = html.includes('id="js_content"') || html.includes("id='js_content'");
+  const hasTextPageInfo = /text_page_info\s*:\s*\{\s*content\s*:/.test(html);
   const hasWeixinMarker =
     html.includes('rich_media') ||
     html.includes('code-snippet__') ||
     html.includes('var ct =') ||
     html.includes('mp.weixin.qq.com');
-  return hasContentRoot && hasWeixinMarker;
+  return (hasContentRoot && hasWeixinMarker) || hasTextPageInfo;
 }
 
 // ---------------------------------------------------------------------------

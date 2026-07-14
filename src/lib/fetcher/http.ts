@@ -71,11 +71,14 @@ export function buildHeaders(site: string): Record<string, string> {
 }
 
 /**
- * 粗略判断返回 HTML 是否被反爬拦截。微信特别加了"无 js_content 节点"启发式。
+ * 粗略判断返回 HTML 是否被反爬拦截。微信允许传统 js_content 与新版
+ * item_show_type=10 的 text_page_info 两种正文载体。
  */
 export function detectAntibot(html: string, site: string): boolean {
   if (ANTIBOT_TRIGGERS.some((t) => html.includes(t))) return true;
-  if (site === 'weixin' && !html.includes('js_content')) return true;
+  if (site === 'weixin' && !html.includes('js_content') && !html.includes('text_page_info')) {
+    return true;
+  }
   return false;
 }
 

@@ -147,6 +147,41 @@ test('fetch weixin code-snippet: 多个子 code 行完整保留', async () => {
   }
 });
 
+test('fetch weixin text page: 从 text_page_info.content 恢复正文', async () => {
+  const tmp = mkTmpDir('lorekit-smoke-fetch-weixin-text-page-');
+  const { url, close } = await startMockServer();
+  try {
+    const textPageUrl = `${url}weixin-text-page`;
+    const args = ['fetch', textPageUrl, '--force-rich', '--out', tmp, '--no-images'];
+    const r = runLorekit(args);
+    assert.equal(r.status, 0, fmtRun(r, args, 'exit 0'));
+
+    let parsed;
+    assert.doesNotThrow(
+      () => {
+        parsed = JSON.parse(r.stdout.trim());
+      },
+      fmtRun(r, args, 'stdout 是合法 JSON'),
+    );
+    assert.equal(parsed.status, 'ok', fmtRun(r, args, `status=ok, 实际 ${parsed.status}`));
+    assert.equal(parsed.sourceKind, 'clipping', fmtRun(r, args, 'text_page_info 走 clipping'));
+    assert.equal(parsed.publishDate, '2026-07-14', fmtRun(r, args, '支持 window.ct 时间戳'));
+
+    const mdFiles = readdirSync(tmp).filter((n) => n.endsWith('.md'));
+    assert.ok(
+      mdFiles.length === 1,
+      fmtRun(r, args, `expected 1 .md in tmp, got ${mdFiles.length}`),
+    );
+    const content = readFileSync(join(tmp, mdFiles[0]), 'utf-8');
+    assert.match(content, /第一段包含一个\[内联链接\]\(https:\/\/example\.com\?a=1&b=2\)/);
+    assert.match(content, /Seedance's 转义文本/);
+    assert.match(content, /weixin-text-page-marker/, 'text_page_info 正文完整落盘');
+  } finally {
+    await close();
+    cleanupTmpDir(tmp);
+  }
+});
+
 test('fetch error path: 不可达的 host → exit 1 + status=error JSON', () => {
   const tmp = mkTmpDir('lorekit-smoke-fetch-err-');
   try {
